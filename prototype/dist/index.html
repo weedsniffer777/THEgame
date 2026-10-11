@@ -27,6 +27,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #reticle .v { width: 2px; height: 7px; left: -1px; }
 #reticle .l { left: -11px; } #reticle .r { left: 4px; } #reticle .t { top: -11px; } #reticle .b { top: 4px; }
 #game canvas { display: block; }
+#game.pixel canvas { image-rendering: pixelated; }
 .hud { position: fixed; pointer-events: none; z-index: 2; }
 /* Pixel HUD: hard edges, stepped borders, bone-white text on charcoal, rust accent. */
 .px { font-family: "Pixelify Sans", "Courier New", monospace; -webkit-font-smoothing: none; font-smooth: never; image-rendering: pixelated; }
@@ -124,6 +125,10 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
   <section>
     <h2>Models</h2>
     <button id="btnViewer" type="button">Open model viewer</button>
+  </section>
+  <section>
+    <h2>Display</h2>
+    <div class="row"><button id="btnPixel" type="button">Pixel scale: 1×</button></div>
   </section>
   <section>
     <h2>Cheats</h2>
@@ -379,89 +384,61 @@ addEventListener("resize", resize); resize();
 // Arena: 60 x 60 m of packed dirt inside a fence, pine treeline beyond, 4 lanes (N/E/S/W) through it.
 const SHACK_Z = -4;
 const ARENA = 60, PLATFORM = ARENA - 2; // player is kept inside the fence
-const LANE_HALF = 3.2;
-function dirtTexture() {
-  const N = 512, c = document.createElement("canvas"); c.width = c.height = N; const x = c.getContext("2d"), img = x.createImageData(N, N);
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const u = i / N * 8, v = j / N * 8;
-    const n = (vnoise(u, v, 3) * 0.5 + vnoise(u * 2.3, v * 2.3, 4) * 0.3 + vnoise(u * 9, v * 9, 5) * 0.2);
-    const patch = vnoise(u * 0.7, v * 0.7, 6), grit = hash2(i, j, 7);
-    let r = 125, g = 116, b = 88;                                   // #7d7458 packed dirt
-    const k = 0.82 + n * 0.3 - (patch > 0.62 ? (patch - 0.62) * 0.6 : 0);
-    r *= k; g *= k; b *= k;
-    if (patch < 0.3) { r = r * 0.85 + 108 * 0.15; g = g * 0.85 + 112 * 0.15; b = b * 0.85 + 70 * 0.15; } // dry grassy tint
-    if (grit > 0.985) { r = g = b = 150 + grit * 40; }            // gravel specks
-    else if (grit < 0.012) { r *= 0.6; g *= 0.6; b *= 0.6; }
-    const o = (j * N + i) * 4; img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255;
-  }
-  x.putImageData(img, 0, 0);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(14, 14); t.anisotropy = 8; return t;
-}
-// Outer ground under the trees: tiled dirt. Arena ground: one unique 64 m texture (no repeats) with
-// worn paths from each lane to the door, dry grass patches, and a fine tiled grain on top.
-const outerGround = new THREE.Mesh(new THREE.PlaneGeometry(160, 160).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: dirtTexture(), roughness: 1, color: 0xb8b0a0 }));
-outerGround.position.y = -0.02; outerGround.receiveShadow = true; outerGround.renderOrder = -11; scene.add(outerGround);
-const GROUND_M = 64;
-const DOOR_W = new THREE.Vector2(SH.doorX, SHACK_Z + SH.W / 2 + 1.2);
-const PATHS = [[0, -32], [32, 0], [0, 32], [-32, 0]].map(([x, z], k) => {
-  const pts = []; for (let i = 0; i <= 24; i++) { const t = i / 24, wob = Math.sin(t * Math.PI) * (vnoise(t * 3, k * 7, 21) - 0.5) * 6;
-    const px = x + (DOOR_W.x - x) * t, pz = z + (DOOR_W.y - z) * t, dx = DOOR_W.x - x, dz = DOOR_W.y - z, L = Math.hypot(dx, dz);
-    pts.push(new THREE.Vector2(px - dz / L * wob, pz + dx / L * wob)); }
-  return pts;
-});
-function pathDist(x, z) {
-  let best = 1e9; const p = new THREE.Vector2(x, z);
-  for (const pts of PATHS) for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1], b = pts[i], ab = b.clone().sub(a), t = THREE.MathUtils.clamp(p.clone().sub(a).dot(ab) / ab.lengthSq(), 0, 1);
-    best = Math.min(best, p.distanceTo(a.clone().addScaledVector(ab, t)));
-  }
-  return best;
-}
+// Ground: one large plane whose colour is computed per pixel from world position in the shader
+// (no tiles, no seams, nothing generated at load). Dark warm forest dirt everywhere, dry-grass
+// patches, and lighter trampled dust fading in around the shack. The GLSL hash/noise below is a
+// bit-exact port of hash2/vnoise, so grassAt() in JS (used to place grass tufts) matches the shader.
 const fbm2 = (x, z, seed) => vnoise(x, z, seed) * 0.55 + vnoise(x * 2.1, z * 2.1, seed + 1) * 0.3 + vnoise(x * 4.3, z * 4.3, seed + 2) * 0.15;
-function grassAt(x, z) {                 // 0..1 dry-grass coverage, kept off paths and the yard
+const BASE_C = new THREE.Vector2(0, SHACK_Z);
+const baseFade = (x, z) => 1 - THREE.MathUtils.smoothstep(Math.hypot(x - BASE_C.x, z - BASE_C.y), 6, 15);
+function grassAt(x, z) {                 // 0..1 dry-grass coverage, thinning out on the trampled base area
   const wx = x + (fbm2(x * 0.05, z * 0.05, 31) - 0.5) * 12, wz = z + (fbm2(x * 0.05, z * 0.05, 32) - 0.5) * 12;
-  let g = THREE.MathUtils.smoothstep(fbm2(wx * 0.09, wz * 0.09, 33), 0.48, 0.66);
-  g *= THREE.MathUtils.smoothstep(pathDist(x, z), 1.2, 3.2);
-  g *= THREE.MathUtils.smoothstep(Math.hypot(x, z - SHACK_Z), 6, 10);
-  return g;
-}
-function arenaGroundTexture() {
-  const N = 1024, c = document.createElement("canvas"); c.width = c.height = N; const ctx = c.getContext("2d"), img = ctx.createImageData(N, N);
-  const pd = new Float32Array((N / 4) * (N / 4));                 // path distance on a coarse grid, then sampled
-  for (let j = 0; j < N / 4; j++) for (let i = 0; i < N / 4; i++) pd[j * (N / 4) + i] = pathDist((i * 4 / N - 0.5) * GROUND_M, (j * 4 / N - 0.5) * GROUND_M);
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const x = (i / N - 0.5) * GROUND_M, z = (j / N - 0.5) * GROUND_M;
-    const wx = x + (fbm2(x * 0.04, z * 0.04, 41) - 0.5) * 10, wz = z + (fbm2(x * 0.04, z * 0.04, 42) - 0.5) * 10;
-    const big = fbm2(wx * 0.06, wz * 0.06, 43), mid = fbm2(x * 0.35, z * 0.35, 44), fine = hash2(i, j, 45);
-    let r = 118 + big * 34 + mid * 12, g = 108 + big * 30 + mid * 10, b = 80 + big * 20 + mid * 8;          // dirt
-    const dp = pd[(j >> 2) * (N / 4) + (i >> 2)];
-    const path = 1 - THREE.MathUtils.smoothstep(dp, 0.8, 1.9);
-    if (path > 0) {                                                // compacted, lighter path with two darker ruts
-      const rut = Math.max(0, 1 - Math.abs(Math.abs(dp - 0) - 0.45) / 0.12) * (vnoise(x * 1.3, z * 1.3, 46) > 0.35 ? 1 : 0.3);
-      r = r + (152 - r) * path * 0.55 - rut * 18 * path; g = g + (140 - g) * path * 0.55 - rut * 16 * path; b = b + (110 - b) * path * 0.55 - rut * 12 * path;
-    }
-    const gr = grassAt(x, z);
-    if (gr > 0) { const tone = vnoise(x * 0.8, z * 0.8, 47), blade = hash2(i >> 1, j, 48);
-      r = r + ((96 + tone * 50) - r) * gr * (0.75 + blade * 0.25); g = g + ((104 + tone * 34) - g) * gr * (0.75 + blade * 0.25); b = b + ((56 + tone * 14) - b) * gr * 0.8; }
-    if (fine > 0.992) { r = g = b = 170; } else if (fine < 0.01) { r *= 0.7; g *= 0.7; b *= 0.7; }
-    const o = (j * N + i) * 4; img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+  return THREE.MathUtils.smoothstep(fbm2(wx * 0.09, wz * 0.09, 33), 0.48, 0.66) * (1 - baseFade(x, z) * 0.9);
 }
 function grainTexture() {
   const N = 128, c = document.createElement("canvas"); c.width = c.height = N; const ctx = c.getContext("2d"), img = ctx.createImageData(N, N);
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const v = 128 + (hash2(i, j, 51) - 0.5) * 70 + (vnoise(i / 6, j / 6, 52) - 0.5) * 60; const o = (j * N + i) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = v; img.data[o + 3] = 255; }
   ctx.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 }
-const groundMat = new THREE.MeshStandardMaterial({ map: arenaGroundTexture(), roughness: 1 });
+const GROUND_GLSL = `
+uniform sampler2D grainMap; uniform vec2 baseCenter;
+varying vec3 vGroundPos;
+float h2(int ix, int iy, int seed) {
+  uint h = (uint(ix) * 374761393u) ^ (uint(iy) * 668265263u) ^ (uint(seed) * 1442695041u);
+  h = (h ^ (h >> 13u)) * 1274126177u; h ^= h >> 16u; return float(h) / 4294967295.0;
+}
+float vn(float x, float y, int seed) {
+  float fx0 = floor(x), fy0 = floor(y); int ix = int(fx0), iy = int(fy0); float fx = x - fx0, fy = y - fy0;
+  float ux = fx * fx * (3.0 - 2.0 * fx), uy = fy * fy * (3.0 - 2.0 * fy);
+  float a = h2(ix, iy, seed), b = h2(ix + 1, iy, seed), c = h2(ix, iy + 1, seed), d = h2(ix + 1, iy + 1, seed);
+  return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+}
+float fbm2(float x, float z, int s) { return vn(x, z, s) * 0.55 + vn(x * 2.1, z * 2.1, s + 1) * 0.3 + vn(x * 4.3, z * 4.3, s + 2) * 0.15; }
+vec3 lin(vec3 c) { return pow(c / 255.0, vec3(2.2)); }
+vec3 groundColor(vec2 p) {
+  float base = 1.0 - smoothstep(6.0, 15.0, length(p - baseCenter) + (fbm2(p.x * 0.3, p.y * 0.3, 61) - 0.5) * 3.0);
+  float wx = p.x + (fbm2(p.x * 0.05, p.y * 0.05, 31) - 0.5) * 12.0, wz = p.y + (fbm2(p.x * 0.05, p.y * 0.05, 32) - 0.5) * 12.0;
+  float grass = smoothstep(0.48, 0.66, fbm2(wx * 0.09, wz * 0.09, 33)) * (1.0 - base * 0.9);
+  float big = fbm2(p.x * 0.06, p.y * 0.06, 43), mid = fbm2(p.x * 0.35, p.y * 0.35, 44);
+  vec3 dirt = lin(vec3(72.0, 61.0, 42.0) + big * vec3(24.0, 20.0, 12.0) + mid * vec3(9.0, 7.0, 5.0));        // dark warm forest dirt
+  vec3 dust = lin(vec3(118.0, 104.0, 76.0) + mid * vec3(14.0, 12.0, 9.0));                                     // trampled base dust
+  vec3 dry  = lin(vec3(72.0, 72.0, 38.0) + vn(p.x * 0.8, p.y * 0.8, 47) * vec3(30.0, 22.0, 9.0));             // dry grass
+  vec3 c = mix(dirt, dust, base * 0.85);
+  c = mix(c, dry, grass * 0.8);
+  float speck = h2(int(floor(p.x * 12.0)), int(floor(p.y * 12.0)), 45);
+  if (speck > 0.993) c = mix(c, lin(vec3(150.0)), 0.6); else if (speck < 0.012) c *= 0.65;
+  return c;
+}`;
 const grain = grainTexture();
+const groundMat = new THREE.MeshStandardMaterial({ roughness: 1, color: 0xffffff });
 groundMat.onBeforeCompile = (sh) => {
-  sh.uniforms.grainMap = { value: grain };
-  sh.fragmentShader = sh.fragmentShader.replace("#include <map_pars_fragment>", "#include <map_pars_fragment>\nuniform sampler2D grainMap;")
-    .replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb *= 0.82 + 0.36 * texture2D(grainMap, vMapUv * 40.0).r;");
+  sh.uniforms.grainMap = { value: grain }; sh.uniforms.baseCenter = { value: BASE_C };
+  sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vGroundPos;")
+    .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\n vGroundPos = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+  sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\n" + GROUND_GLSL)
+    .replace("#include <map_fragment>", "diffuseColor.rgb = groundColor(vGroundPos.xz) * (0.82 + 0.36 * texture2D(grainMap, vGroundPos.xz * 0.5).r);");
 };
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_M, GROUND_M).rotateX(-Math.PI / 2), groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200).rotateX(-Math.PI / 2), groundMat);
 ground.receiveShadow = true; ground.name = "ground"; ground.renderOrder = -10; scene.add(ground); // drawn first so outline rims survive
 // 2 x 2 m build grid over the arena, faint
 const grid = new THREE.GridHelper(60, 30, 0x2a2618, 0x2a2618); grid.material.transparent = true; grid.material.opacity = 0.16; grid.material.depthWrite = false; grid.position.y = 0.01; grid.renderOrder = -9; scene.add(grid);
@@ -481,7 +458,7 @@ function scatterDebris() {
   place(new THREE.CylinderGeometry(0.025, 0.03, 1, 5).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x5a4636, roughness: 1 }), 110, (x, z, m) => {
     const l = 0.3 + rnd() * 0.9; m.compose(v.set(x, 0.03, z), q.setFromEuler(e.set(0, rnd() * 6.3, (rnd() - 0.5) * 0.1)), sc.set(l, 1, 1)); return true; });
   place(new THREE.CylinderGeometry(0.035, 0.035, 0.11, 8).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8c3a2a, roughness: 0.5, metalness: 0.6 }), 18, (x, z, m) => {
-    m.compose(v.set(x, 0.035, z), q.setFromEuler(e.set(0, rnd() * 6.3, 0)), sc.set(1, 1, 1)); return pathDist(x, z) < 6; });
+    m.compose(v.set(x, 0.035, z), q.setFromEuler(e.set(0, rnd() * 6.3, 0)), sc.set(1, 1, 1)); return Math.hypot(x - BASE_C.x, z - BASE_C.y) < 16; });
   // grass tufts: crossed alpha cards, only where the ground texture has grass
   const tc = document.createElement("canvas"); tc.width = 64; tc.height = 64; const tx = tc.getContext("2d");
   for (let i = 0; i < 26; i++) { const bx = 32 + (rnd() - 0.5) * 34, h = 30 + rnd() * 30, lean = (rnd() - 0.5) * 18; tx.strokeStyle = `rgb(${120 + rnd() * 50},${120 + rnd() * 30},${60 + rnd() * 20})`; tx.lineWidth = 1.5 + rnd(); tx.beginPath(); tx.moveTo(bx, 64); tx.quadraticCurveTo(bx + lean * 0.3, 64 - h * 0.6, bx + lean, 64 - h); tx.stroke(); }
@@ -554,7 +531,6 @@ function buildTreeline() {
   for (let row = 0; row < 4; row++) {
     const d = half + 1.6 + row * 2.6;
     for (let side = 0; side < 4; side++) for (let a = -d; a < d; a += 2.3 + rndp() * 1.2) {
-      if (Math.abs(a) < LANE_HALF + row * 0.6) continue;                  // keep the lane open
       const along = a + (rndp() - 0.5) * 1.2, out = d + (rndp() - 0.5) * 1.3;
       const [x, z] = [[along, -out], [out, along], [-along, out], [-out, -along]][side];
       spots.push([x, z]);
@@ -574,29 +550,7 @@ function buildTreeline() {
   });
   return group;
 }
-function buildFence() {
-  const g = new THREE.Group(); g.name = "fence";
-  const wood = new THREE.MeshStandardMaterial({ color: 0x6d5a45, roughness: 1 }), half = ARENA / 2 - 0.5, pts = [], postGeo = new THREE.BoxGeometry(0.1, 1.4, 0.1);
-  const posts = []; let k = 0;
-  for (let side = 0; side < 4; side++) for (let a = -half; a <= half; a += 3) {
-    if (Math.abs(a) < LANE_HALF) continue;
-    const [x, z] = [[a, -half], [half, a], [-a, half], [-half, -a]][side];
-    posts.push({ x, z, side, a, lean: (hash2(k, side, 9) - 0.5) * 0.25 }); k++;
-  }
-  const postMesh = new THREE.InstancedMesh(postGeo, wood, posts.length), m = new THREE.Matrix4();
-  posts.forEach((p, i) => { m.compose(new THREE.Vector3(p.x, 0.65, p.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(p.lean, 0, p.lean * 0.6)), new THREE.Vector3(1, 1, 1)); postMesh.setMatrixAt(i, m); });
-  postMesh.castShadow = true; g.add(postMesh);
-  for (let i = 1; i < posts.length; i++) {
-    const a = posts[i - 1], b = posts[i]; if (a.side !== b.side || Math.abs(a.a - b.a) > 3.5) continue;
-    for (const y of [0.45, 0.85, 1.22]) {
-      const s0 = new THREE.Vector3(a.x, y, a.z), s1 = new THREE.Vector3(b.x, y, b.z);
-      for (let t = 0; t < 8; t++) { const u0 = t / 8, u1 = (t + 1) / 8, sag = (u) => -Math.sin(u * Math.PI) * 0.06; pts.push(s0.clone().lerp(s1, u0).add(new THREE.Vector3(0, sag(u0), 0)), s0.clone().lerp(s1, u1).add(new THREE.Vector3(0, sag(u1), 0))); }
-    }
-  }
-  g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x3e3a35 })));
-  return g;
-}
-scene.add(buildTreeline()); scene.add(buildFence());
+scene.add(buildTreeline()); // enemies will come out of the woods from every side
 
 // Axis-aligned box colliders: [minX, maxX, minZ, maxZ]
 const boxColliders = [[-2.95, 2.95, SHACK_Z - 2.05, SHACK_Z + 2.05], [3.05, 4.55, SHACK_Z + 1.5, SHACK_Z + 3.3]];
@@ -770,6 +724,21 @@ document.getElementById("btnResetYes").addEventListener("click", () => {
 });
 document.getElementById("btnAmmo").addEventListener("click", () => { save.ammo = { mag: GUN.mag, reserve: GUN.reserve }; writeSave(); renderAmmo(); toast("Ammo refilled"); });
 const perfEl = document.getElementById("perf");
+// Pixel scale: render at 1/n resolution and upscale with hard pixels (also cuts GPU fill cost by n²)
+let pixelScale = 1;
+try { pixelScale = +localStorage.getItem("gametest.pixel") || 1; } catch (e) {}
+function applyPixelScale() {
+  renderer.setPixelRatio(pixelScale === 1 ? Math.min(devicePixelRatio, 2) : 1 / pixelScale);
+  renderer.setSize(innerWidth, innerHeight);
+  host.classList.toggle("pixel", pixelScale > 1);
+  document.getElementById("btnPixel").textContent = `Pixel scale: ${pixelScale}×`;
+}
+document.getElementById("btnPixel").addEventListener("click", () => {
+  pixelScale = pixelScale >= 3 ? 1 : pixelScale + 1;
+  try { localStorage.setItem("gametest.pixel", pixelScale); } catch (e) {}
+  applyPixelScale();
+});
+applyPixelScale();
 
 /* ---------- Model viewer ---------- */
 const MODELS = [
