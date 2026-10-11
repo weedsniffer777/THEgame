@@ -140,10 +140,12 @@ const fingersMid = P("f_index.02.R").add(P("f_middle.02.R")).add(P("f_ring.02.R"
 const palmC = P("hand.R").lerp(P("f_middle.01.R"), 0.7);
 const fist = palmC.lerp(fingersMid, TUNE.fistT ?? 0.5).add(new THREE.Vector3(...(TUNE.gunOff || [0, 0, 0])));
 const camFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(anchor.quaternion);
-const wFwd = camFwd.clone().addScaledVector(wGrip, -camFwd.dot(wGrip)).normalize();
-const gFwdP = gFwd.clone().addScaledVector(gGrip, -gFwd.dot(gGrip)).normalize();
+// Barrel points exactly along the view; the grip axis follows the knuckle line as closely as that allows.
+const wFwd = camFwd.clone().normalize();
+const wUp = wGrip.clone().addScaledVector(wFwd, -wGrip.dot(wFwd)).normalize();
+const gUpP = gGrip.clone().addScaledVector(gFwd, -gGrip.dot(gFwd)).normalize();
 const bas = (u, f) => new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(u, f), u, f);
-const rot = new THREE.Quaternion().setFromRotationMatrix(bas(wGrip, wFwd).multiply(bas(gGrip, gFwdP).invert()));
+const rot = new THREE.Quaternion().setFromRotationMatrix(bas(wUp, wFwd).multiply(bas(gUpP, gFwd).invert()));
 gun.quaternion.copy(rot);
 gHold.addScaledVector(gFwd, TUNE.holdZ ?? 0).addScaledVector(gUp, TUNE.holdY ?? 0); // + = hold point toward muzzle / slide
 gun.position.copy(fist).sub(gHold.clone().applyQuaternion(rot));

@@ -238,7 +238,7 @@ function buildViewmodel() {
   anchor.matrixWorld.clone().invert().decompose(model.position, model.quaternion, model.scale);
   const mixer = new THREE.AnimationMixer(model);
   const clip = (n) => THREE.AnimationClip.findByName(vmGltf.animations, n);
-  const idle = mixer.clipAction(clip("pistol_idle")); idle.play();
+  const idle = mixer.clipAction(clip("pistol_aim")); idle.play(); // steady hold; the idle clip swings the arms out of view
   const once = (n) => { const a = mixer.clipAction(clip(n)); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; return a; };
   const actions = { idle, shoot: once("pistol_shoot"), reload: once("pistol_reload") };
   mixer.addEventListener("finished", (e) => { e.action.fadeOut(0.15); idle.setEffectiveWeight(1); idle.fadeIn(0.15); });
@@ -475,7 +475,8 @@ function updateViewmodel(dt) {
   anim.kick = Math.max(0, anim.kick - dt * 9);
   anim.swayX = damp(anim.swayX, -lookDX * 0.0006, 10, dt); anim.swayY = damp(anim.swayY, lookDY * 0.0006, 10, dt);
   const speed = Math.hypot(player.vel.x, player.vel.z), bobAmt = player.grounded ? Math.min(1, speed / 4.5) : 0;
-  const bx = Math.sin(player.bob) * 0.012 * bobAmt, by = -Math.abs(Math.cos(player.bob)) * 0.012 * bobAmt;
+  const breathe = performance.now() / 1000;
+  const bx = Math.sin(player.bob) * 0.012 * bobAmt + Math.sin(breathe * 1.1) * 0.0015, by = -Math.abs(Math.cos(player.bob)) * 0.012 * bobAmt + Math.sin(breathe * 2.2) * 0.002;
   vm.root.position.set(VM_TUNE.offset.x + anim.swayX + bx, VM_TUNE.offset.y + anim.swayY + by + Math.min(0, player.vy) * 0.004, VM_TUNE.offset.z + anim.kick * 0.02);
   vm.root.rotation.set(anim.kick * 0.05, VM_TUNE.rotY + anim.swayX * 2, anim.swayX * 1.5);
 }
