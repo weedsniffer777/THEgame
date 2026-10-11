@@ -1,13 +1,14 @@
-"""Build dist/: inline the small models into the page, copy the baked shanty next to it.
+"""Build dist/index.html as a single file with every model inlined.
 
 Rebake the shanty first if tools/shanty.js changed:  node tools/bake.mjs
 """
-import base64, pathlib, shutil
+import base64, pathlib
 root = pathlib.Path(__file__).parent
-out = root / "dist"; (out / "models").mkdir(parents=True, exist_ok=True)
+out = root / "dist"; out.mkdir(exist_ok=True)
 b64 = lambda p: base64.b64encode((root / p).read_bytes()).decode()
 src = (root / "game.src.html").read_text()
-src = src.replace("__STICKMAN_B64__", b64("models/stickman.glb")).replace("__M1911_B64__", b64("models/m1911_lod.glb"))
+src = (src.replace("__STICKMAN_B64__", b64("models/stickman.glb"))
+          .replace("__M1911_B64__", b64("models/m1911_lod.glb"))
+          .replace("__SHANTY_B64__", b64("models/shanty.glb")))
 (out / "index.html").write_text(src)
-shutil.copy(root / "models/shanty.glb", out / "models/shanty.glb")
-print("wrote", out / "index.html", "and", out / "models/shanty.glb")
+print("wrote", out / "index.html", f"{(out / 'index.html').stat().st_size / 1e6:.1f} MB")

@@ -153,7 +153,7 @@ import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 
 const STICKMAN_B64 = "__STICKMAN_B64__";
 const M1911_B64 = "__M1911_B64__";
-const SHANTY_URL = "models/shanty.glb";
+const SHANTY_B64 = "__SHANTY_B64__"; // baked by tools/bake.mjs; embedded because the artifact host does not serve .glb
 
 /* ---------- Save ---------- */
 const SAVE_KEY = "treeline.save.v2";
@@ -237,7 +237,7 @@ function addShantyLights(g) {
 }
 let shantyTemplate = null;
 async function loadShanty() {
-  const gltf = await loader.loadAsync(SHANTY_URL);
+  const gltf = await loader.parseAsync(b64ToBuf(SHANTY_B64), "");
   const g = gltf.scene;
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.material.side = THREE.DoubleSide; } });
   shantyTemplate = g;
