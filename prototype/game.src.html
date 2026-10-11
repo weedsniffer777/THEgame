@@ -18,7 +18,14 @@
 [hidden] { display: none !important; }
 html, body { height: 100%; }
 body { background: var(--night); color: var(--fg); font-family: var(--body); overflow: hidden; user-select: none; }
-#game { position: fixed; inset: 0; cursor: crosshair; }
+#game { position: fixed; inset: 0; cursor: none; }
+#reticle { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 6; }
+#reticle .ring { position: absolute; width: 30px; height: 30px; left: -15px; top: -15px; border: 1.5px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.35); transition: transform .06s; }
+#reticle i { position: absolute; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
+#reticle .dot { width: 2px; height: 2px; left: -1px; top: -1px; }
+#reticle .h { width: 7px; height: 2px; top: -1px; }
+#reticle .v { width: 2px; height: 7px; left: -1px; }
+#reticle .l { left: -11px; } #reticle .r { left: 4px; } #reticle .t { top: -11px; } #reticle .b { top: 4px; }
 #game canvas { display: block; }
 .hud { position: fixed; pointer-events: none; z-index: 2; }
 #topLeft { top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px; display: grid; gap: 4px; }
@@ -86,6 +93,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
   <span class="bar"><i id="ammoBar"></i></span>
 </div>
 <div class="hud" id="toast"></div>
+<div id="reticle" hidden><span class="ring" id="reticleRing"></span><i class="dot"></i><i class="h l"></i><i class="h r"></i><i class="v t"></i><i class="v b"></i></div>
 <div class="hud" id="help">
   <div><kbd>WASD</kbd> move · <kbd>Shift</kbd> sprint</div>
   <div><kbd>Mouse</kbd> aim · <kbd>Click</kbd> shoot · <kbd>R</kbd> reload</div>
@@ -382,7 +390,9 @@ addEventListener("keydown", (e) => {
 });
 addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 addEventListener("blur", () => { keys.clear(); mouseDown = false; });
-renderer.domElement.addEventListener("pointermove", (e) => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
+const reticle = document.getElementById("reticle"), reticleRing = document.getElementById("reticleRing");
+renderer.domElement.addEventListener("pointerleave", () => { reticle.hidden = true; });
+renderer.domElement.addEventListener("pointermove", (e) => { reticle.hidden = false; reticle.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 renderer.domElement.addEventListener("pointerdown", (e) => { if (e.button === 0) { mouseDown = true; firedThisPress = false; } mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 addEventListener("pointerup", () => { mouseDown = false; });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -457,7 +467,9 @@ function updateParticles(dt) {
 
 /* ---------- Shooting ---------- */
 const tracers = [];
-const tracerMat = new THREE.LineBasicMaterial({ color: 0xffd38a, transparent: true });
+const tracerGlow = new THREE.MeshBasicMaterial({ color: 0xff2414, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+const tracerCore = new THREE.MeshBasicMaterial({ color: 0xffb0a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true).rotateX(Math.PI / 2);
 const flash = new THREE.PointLight(0xffb45a, 0, 6); scene.add(flash);
 let kills = save.kills;
 function fire() {
@@ -475,8 +487,11 @@ function fire() {
   for (const d of dummies) { if (d.dead > 0) continue; const t = rayCircle(from.x, from.z, dir.x, dir.z, d.x, d.z, d.r); if (t !== null && t < hitD) { hitD = t; hit = d; } }
   for (const bx of boxColliders) { const t = rayBox(from.x, from.z, dir.x, dir.z, bx); if (t !== null && t < hitD) { hitD = t; hit = null; } }
   const to = from.clone().addScaledVector(dir, hitD);
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([from, to]), tracerMat.clone());
-  scene.add(line); tracers.push({ line, life: 0.07 });
+  const line = new THREE.Group(), len = from.distanceTo(to);
+  for (const [m, r] of [[tracerGlow, 0.035], [tracerCore, 0.012]]) { const b = new THREE.Mesh(beamGeo, m.clone()); b.scale.set(r, r, len); line.add(b); }
+  line.position.copy(from).lerp(to, 0.5); line.lookAt(to);
+  scene.add(line); tracers.push({ line, life: 0.1 });
+  reticleRing.style.transform = "scale(1.35)"; setTimeout(() => { reticleRing.style.transform = ""; }, 70);
   if (hitD < 25) impactFx(to, dir.clone().negate(), !!hit);
   if (hit) damage(hit, GUN.dmg);
   if (a.mag === 0) startReload();
@@ -607,7 +622,8 @@ function update(dt) {
   const chestPos = playerModel.worldToLocal(pl.chest.getWorldPosition(new THREE.Vector3())).sub(pl.chestRestPos);
   const chestQ = playerModel.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(pl.chest.getWorldQuaternion(new THREE.Quaternion())).multiply(pl.chestRestQ.clone().invert());
   gunMount.position.set(-0.06, 1.3 - (1 - player.aim) * 0.3 - rl * 0.12, 0.42 - player.kick * 0.06 - (1 - player.aim) * 0.12).add(chestPos.multiplyScalar(1.2));
-  gunMount.quaternion.identity().slerp(chestQ, 0.8).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-player.kick * 0.3 + (1 - player.aim) * 0.7 + rl * 0.7, 0, rl * 0.5)));
+  const ce = new THREE.Euler().setFromQuaternion(chestQ, "YXZ"); // follow chest pitch/roll only; yaw stays on the aim
+  gunMount.quaternion.setFromEuler(new THREE.Euler(ce.x * 0.6, 0, ce.z * 0.6, "YXZ")).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-player.kick * 0.3 + (1 - player.aim) * 0.7 + rl * 0.7, 0, rl * 0.5)));
   playerModel.updateMatrixWorld(true);
   const gq = _wq(heldGun), gFwd = new THREE.Vector3(0, 0, 1).applyQuaternion(gq), gDown = new THREE.Vector3(0, -1, 0).applyQuaternion(gq);
   const side = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw)); // player's left
@@ -621,8 +637,8 @@ function update(dt) {
   if (mouseDown) fire();
   flash.intensity = Math.max(0, flash.intensity - dt * 120);
   for (let i = tracers.length - 1; i >= 0; i--) {
-    const t = tracers[i]; t.life -= dt; t.line.material.opacity = Math.max(0, t.life / 0.07);
-    if (t.life <= 0) { scene.remove(t.line); t.line.geometry.dispose(); t.line.material.dispose(); tracers.splice(i, 1); }
+    const t = tracers[i]; t.life -= dt; t.line.children.forEach(c => { c.material.opacity = Math.max(0, t.life / 0.1); });
+    if (t.life <= 0) { scene.remove(t.line); t.line.children.forEach(c => c.material.dispose()); tracers.splice(i, 1); }
   }
   updateParticles(dt);
   for (const d of dummies) {
