@@ -262,6 +262,15 @@ async function loadGun() {
   gunTemplate = g;
 }
 
+/* ---------- Block hands: simple mitts fixed to the gun's grip points ---------- */
+function makeBlockHands(gun) {
+  const m = new THREE.MeshStandardMaterial({ color: 0x3a3a3c, roughness: 0.8 });
+  const mk = (w, h, d) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.castShadow = true; return b; };
+  const right = mk(0.05, 0.075, 0.08); right.position.copy(gunGrip).add(new THREE.Vector3(0, -0.005, -0.005)); gun.add(right);
+  const left = mk(0.045, 0.07, 0.075); left.position.copy(gunSupport); gun.add(left);
+  return { right, left };
+}
+
 /* ---------- Player: auto-rigged body on the UAL skeleton (tools/player.mjs) ---------- */
 // Legs and body play UAL locomotion clips blended by speed; both arms are two-bone IK onto the gun.
 let playerGltf = null;
@@ -275,7 +284,11 @@ function makePlayer() {
   loco.idle.setEffectiveWeight(1);
   const bone = (n) => model.getObjectByName(n);
   const arms = { r: ["upperarm_r", "lowerarm_r", "hand_r", "middle_01_r"].map(bone), l: ["upperarm_l", "lowerarm_l", "hand_l", "middle_01_l"].map(bone) };
-  return { model, mixer, loco, arms };
+  // chest rest pose (model space) so the gun can ride the animated chest
+  const chest = bone("spine_03"); mixer.update(0); model.updateMatrixWorld(true);
+  const chestRestPos = model.worldToLocal(chest.getWorldPosition(new THREE.Vector3()));
+  const chestRestQ = model.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(chest.getWorldQuaternion(new THREE.Quaternion()));
+  return { model, mixer, loco, arms, chest, chestRestPos, chestRestQ };
 }
 const _v = (o) => o.getWorldPosition(new THREE.Vector3()), _wq = (o) => o.getWorldQuaternion(new THREE.Quaternion());
 function setWorldQuat(o, q) { o.quaternion.copy(_wq(o.parent).invert().multiply(q)); o.updateMatrixWorld(true); }
@@ -589,15 +602,19 @@ function update(dt) {
   updatePlayerAnim(pl, dt, spd, spd > 0.3 && player.vel.dot(facing) < -0.3 * spd);
   player.kick = Math.max(0, player.kick - dt * 10);
   const rl = player.reloading > 0 ? Math.sin((1 - player.reloading / GUN.reload) * Math.PI) : 0;
-  // gun floats in front of the chest; arms reach for it (sprinting lowers it)
-  gunMount.position.set(-0.06, 1.3 - (1 - player.aim) * 0.3 - rl * 0.12, 0.42 - player.kick * 0.06 - (1 - player.aim) * 0.12);
-  gunMount.rotation.set(-player.kick * 0.3 + (1 - player.aim) * 0.7 + rl * 0.7, 0, rl * 0.5);
+  // gun rides the animated chest (sway, bob, lean) in front of the body; sprint lowers it
+  playerModel.updateMatrixWorld(true);
+  const chestPos = playerModel.worldToLocal(pl.chest.getWorldPosition(new THREE.Vector3())).sub(pl.chestRestPos);
+  const chestQ = playerModel.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(pl.chest.getWorldQuaternion(new THREE.Quaternion())).multiply(pl.chestRestQ.clone().invert());
+  gunMount.position.set(-0.06, 1.3 - (1 - player.aim) * 0.3 - rl * 0.12, 0.42 - player.kick * 0.06 - (1 - player.aim) * 0.12).add(chestPos.multiplyScalar(1.2));
+  gunMount.quaternion.identity().slerp(chestQ, 0.8).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-player.kick * 0.3 + (1 - player.aim) * 0.7 + rl * 0.7, 0, rl * 0.5)));
   playerModel.updateMatrixWorld(true);
   const gq = _wq(heldGun), gFwd = new THREE.Vector3(0, 0, 1).applyQuaternion(gq), gDown = new THREE.Vector3(0, -1, 0).applyQuaternion(gq);
   const side = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw)); // player's left
   const base = player.pos.clone();
   armIK(pl.arms.r, heldGun.localToWorld(gunGrip.clone()), base.clone().addScaledVector(side, -0.6).add(new THREE.Vector3(0, 0.6, 0)), gFwd.clone().addScaledVector(gDown, 0.6));
   armIK(pl.arms.l, heldGun.localToWorld(gunSupport.clone()), base.clone().addScaledVector(side, 0.6).add(new THREE.Vector3(0, 0.6, 0)), gFwd.clone().addScaledVector(gDown, 0.4));
+  for (const s of ["r", "l"]) pl.arms[s][2].scale.setScalar(0.01); // mesh hands collapse into the wrists; block hands show instead
 
   player.cooldown -= dt;
   if (player.reloading > 0) { player.reloading -= dt; if (player.reloading <= 0) { player.reloading = 0; finishReload(); } renderAmmo(); }
@@ -647,7 +664,7 @@ if (shantyTemplate) { const shanty = makeShanty(); shanty.position.set(0, 0, SHA
 document.getElementById("loading").hidden = true;
 pl = makePlayer(); playerModel = pl.model; scene.add(playerModel);
 gunMount = new THREE.Group(); playerModel.add(gunMount);
-heldGun = gunTemplate.clone(); heldGun.scale.setScalar(GUN_SCALE); gunMount.add(heldGun);
+heldGun = gunTemplate.clone(); heldGun.scale.setScalar(GUN_SCALE); gunMount.add(heldGun); makeBlockHands(heldGun);
 camera.position.copy(player.pos).add(CAM_OFFSET);
 renderAmmo(); renderSaveDump();
 window.__game = { player, save, MODELS, openViewer, showModel };
