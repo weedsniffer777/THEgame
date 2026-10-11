@@ -105,6 +105,27 @@ function poseTargetFromSource() {
       setWorldQuat(p.t, new THREE.Quaternion().setFromAxisAngle(axis, TRIGGER_CURL).multiply(wq(p.t)));
     }
   }
+  if (SUPPORT_IK) supportHandIK();
+}
+// Arm lengths differ from the source, so the left (support) hand lands short of the grip.
+// Two-bone IK pulls it onto the right hand: under the grip, on the left side, keeping its rotation.
+const SUPPORT_IK = TUNE.ik ?? true;
+function supportHandIK() {
+  const up = find(tgtRoot, "upper_arm.L"), fo = find(tgtRoot, "forearm.L"), ha = find(tgtRoot, "hand.L"), hr = find(tgtRoot, "hand.R");
+  const handRot = wq(ha);
+  const camQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), tgtFwdZ < 0 ? 0 : Math.PI);
+  const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camQ), camUp = new THREE.Vector3(0, 1, 0), camFwdV = new THREE.Vector3(0, 0, -1).applyQuaternion(camQ);
+  const o = TUNE.ikOff || [-0.045, -0.05, -0.01]; // right/up/forward offset from the right wrist
+  const T = wp(hr).addScaledVector(camRight, o[0]).addScaledVector(camUp, o[1]).addScaledVector(camFwdV, o[2]);
+  const S = wp(up), E = wp(fo), W = wp(ha), a = E.distanceTo(S), b = W.distanceTo(E);
+  const toT = T.clone().sub(S), d = THREE.MathUtils.clamp(toT.length(), 0.01, a + b - 1e-4), dir = toT.normalize();
+  const bend = E.clone().sub(S); bend.addScaledVector(dir, -bend.dot(dir)); if (bend.lengthSq() < 1e-8) bend.copy(camUp).negate(); bend.normalize();
+  const cosA = THREE.MathUtils.clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), sinA = Math.sqrt(1 - cosA * cosA);
+  const E2 = S.clone().addScaledVector(dir, a * cosA).addScaledVector(bend, a * sinA);
+  setWorldQuat(up, new THREE.Quaternion().setFromUnitVectors(E.clone().sub(S).normalize(), E2.clone().sub(S).normalize()).multiply(wq(up)));
+  const E3 = wp(fo), W3 = wp(ha);
+  setWorldQuat(fo, new THREE.Quaternion().setFromUnitVectors(W3.sub(E3).normalize(), T.clone().sub(E3).normalize()).multiply(wq(fo)));
+  setWorldQuat(ha, handRot);
 }
 const out = [];
 for (const [sn, tn] of CLIPS) {

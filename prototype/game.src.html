@@ -473,12 +473,13 @@ function updateViewmodel(dt) {
   if (P.Mag) { P.Mag.position.copy(P.Mag.userData.rest.pos).addScaledVector(GUN_UP, -magOff); P.Mag.visible = magOff < 0.24; }
   // kick, sway, bob
   anim.kick = Math.max(0, anim.kick - dt * 9);
-  anim.swayX = damp(anim.swayX, -lookDX * 0.0006, 10, dt); anim.swayY = damp(anim.swayY, lookDY * 0.0006, 10, dt);
+  const cl = (v) => THREE.MathUtils.clamp(v, -0.012, 0.012);
+  anim.swayX = damp(anim.swayX, cl(-lookDX * 0.0004), 10, dt); anim.swayY = damp(anim.swayY, cl(lookDY * 0.0004), 10, dt);
   const speed = Math.hypot(player.vel.x, player.vel.z), bobAmt = player.grounded ? Math.min(1, speed / 4.5) : 0;
   const breathe = performance.now() / 1000;
   const bx = Math.sin(player.bob) * 0.012 * bobAmt + Math.sin(breathe * 1.1) * 0.0015, by = -Math.abs(Math.cos(player.bob)) * 0.012 * bobAmt + Math.sin(breathe * 2.2) * 0.002;
   vm.root.position.set(VM_TUNE.offset.x + anim.swayX + bx, VM_TUNE.offset.y + anim.swayY + by + Math.min(0, player.vy) * 0.004, VM_TUNE.offset.z + anim.kick * 0.02);
-  vm.root.rotation.set(anim.kick * 0.05, VM_TUNE.rotY + anim.swayX * 2, anim.swayX * 1.5);
+  vm.root.rotation.set(anim.kick * 0.05, VM_TUNE.rotY + anim.swayX * 0.6, anim.swayX * 0.5);
 }
 
 /* ---------- Dev kit ---------- */
