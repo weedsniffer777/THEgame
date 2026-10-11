@@ -193,19 +193,6 @@ function b64ToBuf(b64) { const bin = atob(b64); const u = new Uint8Array(bin.len
 const loader = new GLTFLoader();
 
 /* ---------- Code-built props ---------- */
-function buildPine(seed = 1) {
-  const r = (n) => { const x = Math.sin(seed * 9301 + n * 49297) * 233280; return x - Math.floor(x); };
-  const g = new THREE.Group(); g.name = "pine";
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 1.2, 6), mat(0x5b4030)); trunk.position.y = 0.6; trunk.castShadow = true; g.add(trunk);
-  const greens = [0x2f5a3c, 0x346442, 0x2a5236];
-  const tiers = 3 + Math.floor(r(1) * 2);
-  for (let i = 0; i < tiers; i++) {
-    const c = new THREE.Mesh(new THREE.ConeGeometry(1.3 - i * 0.28, 1.4 - i * 0.12, 7), mat(greens[i % 3]));
-    c.position.y = 1.2 + i * 0.75; c.rotation.y = r(i + 2) * 3; c.castShadow = true; g.add(c);
-  }
-  g.scale.setScalar(0.8 + r(9) * 0.6);
-  return g;
-}
 function buildDummy() {
   const g = new THREE.Group(); g.name = "target_dummy";
   const wood = mat(0x8a6a48), hay = mat(0xc9a45c);
@@ -545,12 +532,24 @@ function buildPineGeos(seed) {
   foliage.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); foliage.setAttribute("uv", new THREE.Float32BufferAttribute(U, 2)); foliage.setAttribute("normal", new THREE.Float32BufferAttribute(Nn, 3)); foliage.setIndex(I);
   return { trunk, foliage };
 }
-function buildTreeline() {
+let PINE_MATS = null;
+function pineMaterials() {
+  if (PINE_MATS) return PINE_MATS;
   const twig = texLoader.load("data:image/png;base64," + TWIG_B64); twig.colorSpace = THREE.SRGBColorSpace; twig.anisotropy = 4;
   const bark = texLoader.load("data:image/jpeg;base64," + BARK_B64); bark.colorSpace = THREE.SRGBColorSpace; bark.wrapS = bark.wrapT = THREE.RepeatWrapping;
-  const leafMat = new THREE.MeshStandardMaterial({ map: twig, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, color: 0x9fb08c });
-  const leafDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: twig, alphaTest: 0.45, side: THREE.DoubleSide });
-  const barkMat = new THREE.MeshStandardMaterial({ map: bark, roughness: 1, color: 0xa89a8c });
+  PINE_MATS = {
+    leafMat: new THREE.MeshStandardMaterial({ map: twig, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, color: 0x9fb08c }),
+    leafDepth: new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: twig, alphaTest: 0.45, side: THREE.DoubleSide }),
+    barkMat: new THREE.MeshStandardMaterial({ map: bark, roughness: 1, color: 0xa89a8c }),
+  };
+  return PINE_MATS;
+}
+function makePine(seed) {
+  const { leafMat, barkMat } = pineMaterials(), v = buildPineGeos(seed), g = new THREE.Group(); g.name = "pine";
+  g.add(new THREE.Mesh(v.trunk, barkMat), new THREE.Mesh(v.foliage, leafMat)); return g;
+}
+function buildTreeline() {
+  const { leafMat, leafDepth, barkMat } = pineMaterials();
   const spots = [], half = ARENA / 2, rndp = (() => { let st = 424242; return () => ((st = (st * 16807) % 2147483647) / 2147483647); })();
   for (let row = 0; row < 4; row++) {
     const d = half + 1.6 + row * 2.6;
@@ -777,7 +776,7 @@ const MODELS = [
   { id: "player", label: "Player", src: "player.glb · tools/player.mjs", make: () => makePlayer().model },
   { id: "m1911", label: "M1911", src: "m1911_lod.glb · simplified", make: () => gunTemplate.clone() },
   { id: "shanty", label: "Shanty (baked)", src: "shanty.glb · tools/bake.mjs", make: () => shantyTemplate ? makeShanty() : new THREE.Group() },
-  { id: "pine", label: "Pine tree", src: "code · buildPine", make: () => buildPine(3) },
+  { id: "pine", label: "Pine tree", src: "code · buildPineGeos (Poly Haven textures)", make: () => makePine(2) },
   { id: "dummy", label: "Target dummy", src: "code · buildDummy", make: () => buildDummy() },
 ];
 const viewerEl = document.getElementById("viewer"), stage = document.getElementById("viewerStage"), infoEl = document.getElementById("viewerInfo");
