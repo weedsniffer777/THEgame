@@ -467,8 +467,9 @@ function updateParticles(dt) {
 
 /* ---------- Shooting ---------- */
 const tracers = [];
-const tracerGlow = new THREE.MeshBasicMaterial({ color: 0xff2414, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-const tracerCore = new THREE.MeshBasicMaterial({ color: 0xffb0a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+// Normal blending: additive on the near-white floor washed the beam out to pure white.
+const tracerGlow = new THREE.MeshBasicMaterial({ color: 0xff1a0a, transparent: true, depthWrite: false, toneMapped: false });
+const tracerCore = new THREE.MeshBasicMaterial({ color: 0xffe2dc, transparent: true, depthWrite: false, toneMapped: false });
 const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true).rotateX(Math.PI / 2);
 const flash = new THREE.PointLight(0xffb45a, 0, 6); scene.add(flash);
 let kills = save.kills;
