@@ -28,24 +28,25 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #reticle .l { left: -11px; } #reticle .r { left: 4px; } #reticle .t { top: -11px; } #reticle .b { top: 4px; }
 #game canvas { display: block; }
 .hud { position: fixed; pointer-events: none; z-index: 2; }
-#topLeft { top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px; display: grid; gap: 4px; }
-#topLeft h1 { font-family: var(--display); font-size: 18px; letter-spacing: .12em; text-transform: uppercase; margin: 0; color: var(--amber); }
-#topLeft .stat { font-family: var(--mono); font-size: 12px; color: #5d6a70; font-variant-numeric: tabular-nums; }
-#weapon { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: 16px; width: 200px; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; gap: 4px; }
-#weapon .name { font-family: var(--display); font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--amber); }
-#weapon .ammo { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-#weapon .ammo b { font-size: 24px; color: var(--fg); font-weight: 500; }
-#weapon .ammo.low b { color: var(--danger); }
-#weapon .bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
-#weapon .bar i { display: block; height: 100%; width: 100%; background: var(--amber); }
-#help { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 16px; font-size: 12px; color: #5d6a70; display: grid; gap: 3px; }
-#help kbd { font-family: var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; color: var(--amber); }
-#toast { top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 13px; background: var(--panel); border: 1px solid var(--line); padding: 6px 12px; border-radius: 4px; opacity: 0; transition: opacity .2s; }
+/* Pixel HUD: hard edges, stepped borders, bone-white text on charcoal, rust accent. */
+.px { font-family: "Pixelify Sans", "Courier New", monospace; -webkit-font-smoothing: none; font-smooth: never; image-rendering: pixelated; }
+.pxbox { background: rgba(18, 20, 19, .82); color: #e8e2d4; box-shadow: 0 -3px 0 0 #2b2e2b, 0 3px 0 0 #2b2e2b, -3px 0 0 0 #2b2e2b, 3px 0 0 0 #2b2e2b, 0 0 0 3px #101211, 0 6px 0 0 rgba(0,0,0,.25); }
+#ammoHud { left: 22px; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); padding: 8px 12px 10px; display: grid; gap: 6px; min-width: 150px; }
+#ammoHud .row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+#ammoHud .wname { font-size: 13px; letter-spacing: .14em; color: #c9873f; }
+#ammoHud .reserve { font-size: 13px; color: #9d978a; font-variant-numeric: tabular-nums; }
+#ammoHud .pips { display: flex; gap: 4px; height: 16px; align-items: flex-end; }
+#ammoHud .pips i { width: 6px; height: 16px; background: #e8e2d4; box-shadow: inset 0 3px 0 #c9873f; }
+#ammoHud .pips i.spent { background: #3a3c38; box-shadow: none; }
+#doorPrompt { left: 0; top: 0; padding: 4px 8px; font-size: 13px; letter-spacing: .12em; white-space: nowrap; }
+#doorPrompt b { color: #c9873f; font-weight: 600; margin-right: 4px; }
+#ammoHud .status { font-size: 12px; letter-spacing: .12em; color: #c9873f; height: 14px; }
+#toast { top: calc(20px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-family: "Pixelify Sans", monospace; font-size: 14px; letter-spacing: .08em; padding: 6px 12px; opacity: 0; transition: opacity .2s; }
 #toast.show { opacity: 1; }
 #loading { inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: 13px; color: #5d6a70; }
 
 /* Dev kit */
-#devBtn { position: fixed; z-index: 5; top: calc(12px + env(safe-area-inset-top, 0px)); right: 16px; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; background: var(--panel); color: var(--amber); border: 1px solid var(--amber); border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+#devBtn { position: fixed; z-index: 5; top: calc(14px + env(safe-area-inset-top, 0px)); right: 18px; font-family: "Pixelify Sans", monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; background: rgba(18,20,19,.82); color: #9d978a; border: 0; box-shadow: 0 0 0 2px #2b2e2b; padding: 5px 9px; cursor: pointer; }
 #devBtn:focus-visible, .dev button:focus-visible, #viewer button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .dev { position: fixed; z-index: 4; top: 0; right: 0; bottom: 0; width: min(340px, 100vw); background: var(--panel); border-left: 1px solid var(--line); padding: calc(56px + env(safe-area-inset-top, 0px)) 16px 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; user-select: text; }
 .dev h2 { font-family: var(--display); font-size: 14px; letter-spacing: .14em; text-transform: uppercase; margin: 0; color: var(--muted); }
@@ -77,28 +78,19 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
   #help { display: none; }
 }
 </style>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Pixelify+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
 
 <div id="game"></div>
 <div class="hud" id="loading">Loading the shanty…</div>
 
-<div class="hud" id="topLeft">
-  <h1>Game Test</h1>
-  <div class="stat" id="statKills">Kills 0</div>
-  <div class="stat" id="statPos">x 0.0 · z 0.0</div>
+<div class="hud px pxbox" id="ammoHud">
+  <div class="row"><span class="wname">M1911</span><span class="reserve" id="ammoReserve">49</span></div>
+  <div class="pips" id="ammoPips"></div>
+  <div class="status" id="ammoStatus"></div>
 </div>
-<div class="hud" id="weapon">
-  <span class="name">M1911</span>
-  <span class="ammo" id="ammo"><b>7</b> / 49</span>
-  <span class="bar"><i id="ammoBar"></i></span>
-</div>
-<div class="hud" id="toast"></div>
+<div class="hud pxbox" id="toast"></div>
+<div class="hud px pxbox" id="doorPrompt" hidden><b>E</b> ENTER</div>
 <div id="reticle" hidden><span class="ring" id="reticleRing"></span><i class="dot"></i><i class="h l"></i><i class="h r"></i><i class="v t"></i><i class="v b"></i></div>
-<div class="hud" id="help">
-  <div><kbd>WASD</kbd> move · <kbd>Shift</kbd> sprint</div>
-  <div><kbd>Mouse</kbd> aim · <kbd>Click</kbd> shoot · <kbd>R</kbd> reload</div>
-</div>
-
 <button id="devBtn" type="button" aria-expanded="false" aria-controls="devPanel">Dev kit</button>
 <div class="dev" id="devPanel" hidden>
   <section>
@@ -161,7 +153,8 @@ import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 
 const PLAYER_B64 = "__PLAYER_B64__";
 const M1911_B64 = "__M1911_B64__";
-const SHANTY_B64 = "__SHANTY_B64__"; // baked by tools/bake.mjs; embedded because the artifact host does not serve .glb
+const SHANTY_B64 = "__SHANTY_B64__";
+const TWIG_B64 = "__TWIG_B64__", BARK_B64 = "__BARK_B64__"; // baked by tools/bake.mjs; embedded because the artifact host does not serve .glb
 
 /* ---------- Save ---------- */
 const SAVE_KEY = "gametest.iso.v1";
@@ -250,7 +243,21 @@ async function loadShanty() {
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.material.side = THREE.DoubleSide; } });
   shantyTemplate = g;
 }
-function makeShanty() { const g = new THREE.Group(); g.name = "shanty"; g.add(shantyTemplate.clone()); addShantyLights(g); return g; }
+function outlineMat(color, width) {
+  // drawn before the building with no depth writes: only the rim beyond its silhouette stays visible
+  const m = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, toneMapped: false, depthWrite: false });
+  m.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>\n transformed += normalize(normal) * ${width.toFixed(3)};`); };
+  return m;
+}
+function makeShanty() {
+  const g = new THREE.Group(); g.name = "shanty"; const body = shantyTemplate.clone(); g.add(body); addShantyLights(g);
+  // highlight: two extruded back-face hulls behind the model (white close, black further out)
+  const outline = new THREE.Group(); outline.visible = false; outline.name = "outline";
+  const white = outlineMat(0xffffff, 0.035), black = outlineMat(0x000000, 0.1);
+  body.traverse(o => { if (o.isMesh) for (const [m, order] of [[black, -2], [white, -1]]) { const h = new THREE.Mesh(o.geometry, m); h.matrix.copy(o.matrixWorld); h.matrixAutoUpdate = false; h.renderOrder = order; outline.add(h); } });
+  g.add(outline); g.userData.outline = outline;
+  return g;
+}
 
 /* ---------- M1911 ---------- */
 // Model axes: muzzle +z, up +y, +x is the shooter's left. Parts: BarrelGuard = slide, Mag = grip.
@@ -296,7 +303,8 @@ function makePlayer() {
   const chest = bone("spine_03"); mixer.update(0); model.updateMatrixWorld(true);
   const chestRestPos = model.worldToLocal(chest.getWorldPosition(new THREE.Vector3()));
   const chestRestQ = model.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(chest.getWorldQuaternion(new THREE.Quaternion()));
-  return { model, mixer, loco, arms, chest, chestRestPos, chestRestQ };
+  const legs = ["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"].map(n => { const b = bone(n); return { b, rest: b.quaternion.clone() }; });
+  return { model, mixer, loco, arms, chest, chestRestPos, chestRestQ, legs };
 }
 const _v = (o) => o.getWorldPosition(new THREE.Vector3()), _wq = (o) => o.getWorldQuaternion(new THREE.Quaternion());
 function setWorldQuat(o, q) { o.quaternion.copy(_wq(o.parent).invert().multiply(q)); o.updateMatrixWorld(true); }
@@ -324,6 +332,9 @@ function updatePlayerAnim(p, dt, speed, backwards) {
     p.loco[k].timeScale = k === "idle" ? 1 : THREE.MathUtils.clamp(speed / nominal[k], 0.6, 1.6) * (backwards ? -1 : 1);
   }
   p.mixer.update(dt);
+  // tone the walk/jog leg swing down (pull legs part-way back to standing); sprint untouched
+  const calm = 0.35 * (w.walk + w.jog * 0.6);
+  if (calm > 0) for (const l of p.legs) l.b.quaternion.slerp(l.rest, calm);
 }
 
 /* ---------- Renderer & scene ---------- */
@@ -337,7 +348,7 @@ renderer.toneMappingExposure = 1.2;
 host.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xeef1f3);
+scene.background = new THREE.Color(0xbfc6c4);
 scene.add(new THREE.HemisphereLight(0xffffff, 0xc9ccd0, 1.5));
 const sun = new THREE.DirectionalLight(0xfff4e6, 2.4);
 sun.position.set(-6, 14, 9); sun.castShadow = true;
@@ -358,20 +369,127 @@ function resize() {
 addEventListener("resize", resize); resize();
 
 // Blank white work platform with a 1 m grid (5 m major lines)
-const PLATFORM = 40;
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(PLATFORM, PLATFORM).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }));
-ground.receiveShadow = true; scene.add(ground);
-const gridMinor = new THREE.GridHelper(PLATFORM, PLATFORM, 0xd5dade, 0xd5dade); gridMinor.position.y = 0.002; scene.add(gridMinor);
-const gridMajor = new THREE.GridHelper(PLATFORM, PLATFORM / 5, 0xb7bec5, 0xb7bec5); gridMajor.position.y = 0.003; scene.add(gridMajor);
-const edge = new THREE.Mesh(new THREE.BoxGeometry(PLATFORM, 0.4, PLATFORM), new THREE.MeshStandardMaterial({ color: 0xdfe3e7 }));
-edge.position.y = -0.201; scene.add(edge);
+// Arena: 60 x 60 m of packed dirt inside a fence, pine treeline beyond, 4 lanes (N/E/S/W) through it.
+const ARENA = 60, PLATFORM = ARENA - 2; // player is kept inside the fence
+const LANE_HALF = 3.2;
+function dirtTexture() {
+  const N = 512, c = document.createElement("canvas"); c.width = c.height = N; const x = c.getContext("2d"), img = x.createImageData(N, N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const u = i / N * 8, v = j / N * 8;
+    const n = (vnoise(u, v, 3) * 0.5 + vnoise(u * 2.3, v * 2.3, 4) * 0.3 + vnoise(u * 9, v * 9, 5) * 0.2);
+    const patch = vnoise(u * 0.7, v * 0.7, 6), grit = hash2(i, j, 7);
+    let r = 125, g = 116, b = 88;                                   // #7d7458 packed dirt
+    const k = 0.82 + n * 0.3 - (patch > 0.62 ? (patch - 0.62) * 0.6 : 0);
+    r *= k; g *= k; b *= k;
+    if (patch < 0.3) { r = r * 0.85 + 108 * 0.15; g = g * 0.85 + 112 * 0.15; b = b * 0.85 + 70 * 0.15; } // dry grassy tint
+    if (grit > 0.985) { r = g = b = 150 + grit * 40; }            // gravel specks
+    else if (grit < 0.012) { r *= 0.6; g *= 0.6; b *= 0.6; }
+    const o = (j * N + i) * 4; img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(14, 14); t.anisotropy = 8; return t;
+}
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(160, 160).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: dirtTexture(), roughness: 1 }));
+ground.receiveShadow = true; ground.name = "ground"; ground.renderOrder = -10; scene.add(ground); // drawn first so outline rims survive
+
+// Realistic pines: tapered bark trunk + whorls of drooping branch cards textured with a real
+// pine sprig (Poly Haven "Pine Tree 01", CC0). 3 variants, instanced: ~6 draw calls for the treeline.
+const texLoader = new THREE.TextureLoader();
+function buildPineGeos(seed) {
+  const rnd = (() => { let st = seed * 9973; return () => ((st = (st * 16807) % 2147483647) / 2147483647); })();
+  const H = 9 + rnd() * 4;
+  const trunk = new THREE.CylinderGeometry(0.05, 0.22, H, 7, 1, true); trunk.translate(0, H / 2, 0);
+  const tuv = trunk.attributes.uv; for (let i = 0; i < tuv.count; i++) tuv.setXY(i, tuv.getX(i) * 2, tuv.getY(i) * H / 1.5);
+  const P = [], U = [], Nn = [], I = [];
+  const U0 = 0.0, U1 = 0.23, V0 = 0.56, V1 = 0.94; // sprig rect in the atlas (stem at V0, tip at V1)
+  const up = new THREE.Vector3(0, 1, 0);
+  const card = (p0, dir, len, width, roll) => {
+    const side = new THREE.Vector3().crossVectors(dir, up).normalize(); if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
+    const n2 = new THREE.Vector3().crossVectors(side, dir).normalize();
+    const w = side.clone().multiplyScalar(Math.cos(roll)).addScaledVector(n2, Math.sin(roll)).multiplyScalar(width / 2);
+    const p1 = p0.clone().addScaledVector(dir, len), base = P.length / 3;
+    for (const [q, u, v] of [[p0.clone().sub(w), U0, V0], [p0.clone().add(w), U1, V0], [p1.clone().add(w), U1, V1], [p1.clone().sub(w), U0, V1]]) {
+      P.push(q.x, q.y, q.z); U.push(u, v);
+      const nn = new THREE.Vector3(q.x, 0, q.z).normalize().multiplyScalar(0.7).add(new THREE.Vector3(0, 0.7, 0)).normalize(); Nn.push(nn.x, nn.y, nn.z);
+    }
+    I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
+  const whorls = 13;
+  for (let k = 0; k < whorls; k++) {
+    const t = k / (whorls - 1), y = H * (0.22 + 0.74 * t);
+    const len = Math.pow(1 - t, 0.85) * H * 0.3 + 0.45, count = 6 + Math.floor(rnd() * 3);
+    for (let b = 0; b < count; b++) {
+      const ang = (b / count) * Math.PI * 2 + rnd() * 0.6 + k * 0.7, droop = -0.25 - 0.35 * (1 - t) + rnd() * 0.15;
+      const dir = new THREE.Vector3(Math.cos(ang) * Math.cos(droop), Math.sin(droop), Math.sin(ang) * Math.cos(droop)).normalize();
+      const p0 = new THREE.Vector3(0, y + rnd() * 0.2, 0).addScaledVector(dir, 0.05);
+      card(p0, dir, len, len * 0.62, 0); card(p0, dir, len * 0.92, len * 0.55, Math.PI / 2);
+    }
+  }
+  for (let r = 0; r < 3; r++) card(new THREE.Vector3(0, H * 0.94, 0), new THREE.Vector3(Math.cos(r * 2.1) * 0.15, 1, Math.sin(r * 2.1) * 0.15).normalize(), H * 0.12, H * 0.07, r);
+  const foliage = new THREE.BufferGeometry();
+  foliage.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); foliage.setAttribute("uv", new THREE.Float32BufferAttribute(U, 2)); foliage.setAttribute("normal", new THREE.Float32BufferAttribute(Nn, 3)); foliage.setIndex(I);
+  return { trunk, foliage };
+}
+function buildTreeline() {
+  const twig = texLoader.load("data:image/png;base64," + TWIG_B64); twig.colorSpace = THREE.SRGBColorSpace; twig.anisotropy = 4;
+  const bark = texLoader.load("data:image/jpeg;base64," + BARK_B64); bark.colorSpace = THREE.SRGBColorSpace; bark.wrapS = bark.wrapT = THREE.RepeatWrapping;
+  const leafMat = new THREE.MeshStandardMaterial({ map: twig, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, color: 0x9fb08c });
+  const leafDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: twig, alphaTest: 0.45, side: THREE.DoubleSide });
+  const barkMat = new THREE.MeshStandardMaterial({ map: bark, roughness: 1, color: 0xa89a8c });
+  const spots = [], half = ARENA / 2, rndp = (() => { let st = 424242; return () => ((st = (st * 16807) % 2147483647) / 2147483647); })();
+  for (let row = 0; row < 4; row++) {
+    const d = half + 1.6 + row * 2.6;
+    for (let side = 0; side < 4; side++) for (let a = -d; a < d; a += 2.3 + rndp() * 1.2) {
+      if (Math.abs(a) < LANE_HALF + row * 0.6) continue;                  // keep the lane open
+      const along = a + (rndp() - 0.5) * 1.2, out = d + (rndp() - 0.5) * 1.3;
+      const [x, z] = [[along, -out], [out, along], [-along, out], [-out, -along]][side];
+      spots.push([x, z]);
+    }
+  }
+  const variants = [1, 2, 3].map(buildPineGeos), m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
+  const group = new THREE.Group(); group.name = "treeline";
+  variants.forEach((v, vi) => {
+    const mine = spots.filter((_, i) => i % 3 === vi);
+    const trunks = new THREE.InstancedMesh(v.trunk, barkMat, mine.length), leaves = new THREE.InstancedMesh(v.foliage, leafMat, mine.length);
+    leaves.customDepthMaterial = leafDepth;
+    mine.forEach(([x, z], i) => {
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rndp() * Math.PI * 2); const s = 0.8 + rndp() * 0.45; sc.set(s, s * (0.9 + rndp() * 0.2), s);
+      m.compose(new THREE.Vector3(x, 0, z), q, sc); trunks.setMatrixAt(i, m); leaves.setMatrixAt(i, m);
+    });
+    for (const im of [trunks, leaves]) { im.castShadow = true; im.receiveShadow = true; group.add(im); }
+  });
+  return group;
+}
+function buildFence() {
+  const g = new THREE.Group(); g.name = "fence";
+  const wood = new THREE.MeshStandardMaterial({ color: 0x6d5a45, roughness: 1 }), half = ARENA / 2 - 0.5, pts = [], postGeo = new THREE.BoxGeometry(0.1, 1.4, 0.1);
+  const posts = []; let k = 0;
+  for (let side = 0; side < 4; side++) for (let a = -half; a <= half; a += 3) {
+    if (Math.abs(a) < LANE_HALF) continue;
+    const [x, z] = [[a, -half], [half, a], [-a, half], [-half, -a]][side];
+    posts.push({ x, z, side, a, lean: (hash2(k, side, 9) - 0.5) * 0.25 }); k++;
+  }
+  const postMesh = new THREE.InstancedMesh(postGeo, wood, posts.length), m = new THREE.Matrix4();
+  posts.forEach((p, i) => { m.compose(new THREE.Vector3(p.x, 0.65, p.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(p.lean, 0, p.lean * 0.6)), new THREE.Vector3(1, 1, 1)); postMesh.setMatrixAt(i, m); });
+  postMesh.castShadow = true; g.add(postMesh);
+  for (let i = 1; i < posts.length; i++) {
+    const a = posts[i - 1], b = posts[i]; if (a.side !== b.side || Math.abs(a.a - b.a) > 3.5) continue;
+    for (const y of [0.45, 0.85, 1.22]) {
+      const s0 = new THREE.Vector3(a.x, y, a.z), s1 = new THREE.Vector3(b.x, y, b.z);
+      for (let t = 0; t < 8; t++) { const u0 = t / 8, u1 = (t + 1) / 8, sag = (u) => -Math.sin(u * Math.PI) * 0.06; pts.push(s0.clone().lerp(s1, u0).add(new THREE.Vector3(0, sag(u0), 0)), s0.clone().lerp(s1, u1).add(new THREE.Vector3(0, sag(u1), 0))); }
+    }
+  }
+  g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x3e3a35 })));
+  return g;
+}
+scene.add(buildTreeline()); scene.add(buildFence());
 
 const SHACK_Z = -4;
 // Axis-aligned box colliders: [minX, maxX, minZ, maxZ]
 const boxColliders = [[-2.95, 2.95, SHACK_Z - 2.05, SHACK_Z + 2.05], [3.05, 4.55, SHACK_Z + 1.5, SHACK_Z + 3.3]];
 
 /* ---------- Player ---------- */
-const player = { pos: new THREE.Vector3(save.pos[0], 0, save.pos[1]), vel: new THREE.Vector3(), yaw: 0, phase: 0, stride: 0, aim: 1, cooldown: 0, reloading: 0, kick: 0 };
+const player = { pos: new THREE.Vector3(save.pos[0], 0, save.pos[1]), vel: new THREE.Vector3(), yaw: 0, phase: 0, stride: 0, aim: 1, cooldown: 0, reloading: 0, kick: 0, inside: false };
 let playerModel, pl, gunMount, heldGun;
 
 /* ---------- Targets ---------- */
@@ -386,6 +504,7 @@ addEventListener("keydown", (e) => {
   if (!viewerEl.hidden) { if (e.key === "Escape") closeViewer(); return; }
   const k = e.key.toLowerCase(); keys.add(k);
   if (k === "r") startReload();
+  if (k === "e") toggleInside();
   if (k === "`") toggleDev();
 });
 addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
@@ -398,12 +517,14 @@ addEventListener("pointerup", () => { mouseDown = false; });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 
 /* ---------- Weapon HUD & reload ---------- */
-const ammoEl = document.getElementById("ammo"), ammoBar = document.getElementById("ammoBar");
+const ammoPips = document.getElementById("ammoPips"), ammoReserve = document.getElementById("ammoReserve"), ammoStatus = document.getElementById("ammoStatus");
 function renderAmmo() {
   const a = save.ammo;
-  ammoEl.innerHTML = `<b>${a.mag}</b> / ${a.reserve}`;
-  ammoEl.classList.toggle("low", a.mag <= 2);
-  ammoBar.style.width = (player.reloading > 0 ? (1 - player.reloading / GUN.reload) : a.mag / GUN.mag) * 100 + "%";
+  if (ammoPips.children.length !== GUN.mag) ammoPips.innerHTML = "<i></i>".repeat(GUN.mag);
+  const shown = player.reloading > 0 ? Math.floor((1 - player.reloading / GUN.reload) * GUN.mag) : a.mag;
+  [...ammoPips.children].forEach((pip, i) => pip.classList.toggle("spent", i >= shown));
+  ammoReserve.textContent = a.reserve;
+  ammoStatus.textContent = player.reloading > 0 ? "RELOADING" : a.mag === 0 ? (a.reserve ? "PRESS R" : "NO AMMO") : "";
 }
 function startReload() {
   const a = save.ammo; if (player.reloading > 0 || a.mag >= GUN.mag || a.reserve <= 0) return;
@@ -474,7 +595,7 @@ const flash = new THREE.PointLight(0xffb45a, 0, 6); scene.add(flash);
 let kills = save.kills;
 function fire() {
   const a = save.ammo;
-  if (player.reloading > 0 || player.cooldown > 0 || firedThisPress) return;
+  if (player.reloading > 0 || player.cooldown > 0 || firedThisPress || player.inside) return;
   if (a.mag <= 0) { startReload(); return; }
   a.mag--; player.cooldown = 60 / GUN.rpm; firedThisPress = true; player.kick = 1;
   heldGun.updateMatrixWorld(true);
@@ -483,16 +604,22 @@ function fire() {
   const dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
   flash.position.copy(from); flash.intensity = 8;
   muzzleFx(from, dir); spawnCasing(ejectAt, dir);
-  let hitD = 25, hit = null;
-  for (const d of dummies) { if (d.dead > 0) continue; const t = rayCircle(from.x, from.z, dir.x, dir.z, d.x, d.z, d.r); if (t !== null && t < hitD) { hitD = t; hit = d; } }
-  for (const bx of boxColliders) { const t = rayBox(from.x, from.z, dir.x, dir.z, bx); if (t !== null && t < hitD) { hitD = t; hit = null; } }
-  const to = from.clone().addScaledVector(dir, hitD);
-  const line = new THREE.Group(), len = from.distanceTo(to);
-  for (const [m, r] of [[tracerGlow, 0.035], [tracerCore, 0.012]]) { const b = new THREE.Mesh(beamGeo, m.clone()); b.scale.set(r, r, len); line.add(b); }
-  line.position.copy(from).lerp(to, 0.5); line.lookAt(to);
-  scene.add(line); tracers.push({ line, life: 0.1 });
+  // Hit test starts inside the player's body, not at the muzzle, so a gun poking through a wall
+  // can't shoot through it. The tracer is drawn from the muzzle only when the hit is beyond it.
+  const RANGE = 25, ox = player.pos.x, oz = player.pos.z;
+  let hitD = RANGE, hit = null;
+  for (const d of dummies) { if (d.dead > 0) continue; const t = rayCircle(ox, oz, dir.x, dir.z, d.x, d.z, d.r); if (t !== null && t < hitD) { hitD = t; hit = d; } }
+  for (const bx of boxColliders) { const t = rayBox(ox, oz, dir.x, dir.z, bx); if (t !== null && t < hitD) { hitD = t; hit = null; } }
+  const muzzleAlong = (from.x - ox) * dir.x + (from.z - oz) * dir.z;
+  const to = new THREE.Vector3(ox, from.y, oz).addScaledVector(dir, hitD);
+  if (hitD > muzzleAlong + 0.05) {
+    const line = new THREE.Group(), len = from.distanceTo(to);
+    for (const [m, r] of [[tracerGlow, 0.035], [tracerCore, 0.012]]) { const b = new THREE.Mesh(beamGeo, m.clone()); b.scale.set(r, r, len); line.add(b); }
+    line.position.copy(from).lerp(to, 0.5); line.lookAt(to);
+    scene.add(line); tracers.push({ line, life: 0.1 });
+  }
   reticleRing.style.transform = "scale(1.35)"; setTimeout(() => { reticleRing.style.transform = ""; }, 70);
-  if (hitD < 25) impactFx(to, dir.clone().negate(), !!hit);
+  if (hitD < RANGE) impactFx(to, dir.clone().negate(), !!hit);
   if (hit) damage(hit, GUN.dmg);
   if (a.mag === 0) startReload();
   renderAmmo();
@@ -582,13 +709,35 @@ addEventListener("resize", vResize);
 
 /* ---------- Loop ---------- */
 const raycaster = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.1), aimPoint = new THREE.Vector3();
-const statKills = document.getElementById("statKills"), statPos = document.getElementById("statPos");
 let saveTimer = 0, perfTimer = 0, frames = 0, last = performance.now();
 const FWD = new THREE.Vector3(-1, 0, -1).normalize(), RIGHT = new THREE.Vector3(1, 0, -1).normalize();
+
+// ---- Shack door: prompt, highlight, enter/exit
+let shanty = null, shantyBox = null;
+const doorPrompt = document.getElementById("doorPrompt");
+const doorPos = () => new THREE.Vector3(SH.doorX, 0, SHACK_Z + SH.W / 2 + 0.6);
+const nearDoor = () => player.pos.distanceTo(doorPos()) < 2.4;
+function toggleInside() {
+  if (!shanty) return;
+  if (player.inside) { player.inside = false; playerModel.visible = true; player.pos.copy(doorPos()).add(new THREE.Vector3(0, 0, 0.6)); toast("Left the shack"); }
+  else if (nearDoor()) { player.inside = true; playerModel.visible = false; player.vel.set(0, 0, 0); player.reloading = 0; toast("Inside the shack"); }
+}
+function updateDoor() {
+  if (!shanty) return;
+  const ray = raycaster.ray, hover = shantyBox && ray.intersectsBox(shantyBox), near = nearDoor();
+  shanty.userData.outline.visible = hover || near || player.inside;
+  doorPrompt.hidden = !(near || player.inside);
+  if (!doorPrompt.hidden) {
+    doorPrompt.innerHTML = `<b>E</b> ${player.inside ? "EXIT" : "ENTER"}`;
+    const sp = new THREE.Vector3(SH.doorX, SH.FLOOR + 2.75, SHACK_Z + SH.W / 2 + 0.1).project(camera);
+    doorPrompt.style.transform = `translate(${(sp.x * 0.5 + 0.5) * innerWidth}px, ${(-sp.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`;
+  }
+}
 
 function update(dt) {
   const mv = new THREE.Vector3();
   if (keys.has("w")) mv.add(FWD); if (keys.has("s")) mv.sub(FWD);
+  if (player.inside) mv.set(0, 0, 0);
   if (keys.has("d")) mv.add(RIGHT); if (keys.has("a")) mv.sub(RIGHT);
   const sprint = keys.has("shift") && !mouseDown;
   if (mv.lengthSq() > 0) mv.normalize().multiplyScalar(sprint ? 7.5 : 4.5);
@@ -635,6 +784,7 @@ function update(dt) {
   player.cooldown -= dt;
   if (player.reloading > 0) { player.reloading -= dt; if (player.reloading <= 0) { player.reloading = 0; finishReload(); } renderAmmo(); }
   if (mouseDown) fire();
+  updateDoor();
   flash.intensity = Math.max(0, flash.intensity - dt * 120);
   for (let i = tracers.length - 1; i >= 0; i--) {
     const t = tracers[i]; t.life -= dt; t.line.children.forEach(c => { c.material.opacity = Math.max(0, t.life / 0.1); });
@@ -652,8 +802,6 @@ function update(dt) {
   sun.position.copy(player.pos).add(new THREE.Vector3(-6, 14, 9)); sun.target.position.copy(player.pos);
 
   toastT -= dt; if (toastT <= 0) toastEl.classList.remove("show");
-  statKills.textContent = `Kills ${kills}`;
-  statPos.textContent = `x ${player.pos.x.toFixed(1)} · z ${player.pos.z.toFixed(1)}`;
   saveTimer += dt; if (saveTimer > 2) { saveTimer = 0; save.pos = [+player.pos.x.toFixed(2), +player.pos.z.toFixed(2)]; writeSave(); }
 }
 
@@ -676,7 +824,7 @@ function frame(now) {
 }
 
 await Promise.all([loadPlayer(), loadGun(), loadShanty().catch(e => { console.error(e); toast("Couldn't load the shanty model"); })]);
-if (shantyTemplate) { const shanty = makeShanty(); shanty.position.set(0, 0, SHACK_Z); scene.add(shanty); }
+if (shantyTemplate) { shanty = makeShanty(); shanty.position.set(0, 0, SHACK_Z); scene.add(shanty); shanty.updateMatrixWorld(true); shantyBox = new THREE.Box3().setFromObject(shanty.children[0]); }
 document.getElementById("loading").hidden = true;
 pl = makePlayer(); playerModel = pl.model; scene.add(playerModel);
 gunMount = new THREE.Group(); playerModel.add(gunMount);
