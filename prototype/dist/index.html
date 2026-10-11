@@ -644,7 +644,7 @@ function startReload() {
   const a = save.ammo; if (player.reloading > 0 || a.mag >= GUN.mag || a.reserve <= 0) return;
   player.reloading = GUN.reload;
 }
-function finishReload() { const a = save.ammo, take = Math.min(GUN.mag - a.mag, a.reserve); a.mag += take; // M1911 has infinite reserve writeSave(); }
+function finishReload() { const a = save.ammo, take = Math.min(GUN.mag - a.mag, a.reserve); a.mag += take; /* M1911: infinite reserve */ writeSave(); }
 const toastEl = document.getElementById("toast"); let toastT = 0;
 function toast(msg) { toastEl.textContent = msg; toastEl.classList.add("show"); toastT = 2; }
 
