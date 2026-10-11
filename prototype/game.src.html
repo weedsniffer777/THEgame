@@ -241,7 +241,9 @@ function buildViewmodel() {
   const idle = mixer.clipAction(clip("pistol_aim")); idle.play(); // steady hold; the idle clip swings the arms out of view
   const once = (n) => { const a = mixer.clipAction(clip(n)); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; return a; };
   const actions = { idle, shoot: once("pistol_shoot"), reload: once("pistol_reload") };
-  mixer.addEventListener("finished", (e) => { e.action.fadeOut(0.15); idle.setEffectiveWeight(1); idle.fadeIn(0.15); });
+  // One-shot clips swap in at full weight and hand back to the hold pose when they end. No fades:
+  // a fade to zero disables an action in three.js, which left every weight at 0 (arms snapped to bind pose).
+  mixer.addEventListener("finished", (e) => { e.action.stop(); idle.enabled = true; idle.setEffectiveWeight(1); });
   const gun = model.getObjectByName("m1911");
   const parts = {};
   gun.traverse(o => { for (const k of ["BarrelGuard", "Bolt", "Trigger", "Mag"]) if (o.name.endsWith("_" + k)) parts[k] = o; });
@@ -253,9 +255,10 @@ function buildViewmodel() {
   const muzzleLocal = new THREE.Vector3(sc.x, sc.y, sb.max.z), ejectLocal = new THREE.Vector3(sc.x, sb.max.y, sc.z - 0.01);
   return { root, model, mixer, gun, parts, muzzleLocal, ejectLocal, actions, clip };
 }
-function playOnce(a, fade = 0.06) {
+function playOnce(a) {
   for (const o of [vm.actions.shoot, vm.actions.reload]) if (o !== a) o.stop();
-  a.reset(); a.setEffectiveWeight(1); a.play(); a.fadeIn(fade); vm.actions.idle.fadeOut(fade);
+  a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.play();
+  vm.actions.idle.enabled = true; vm.actions.idle.setEffectiveWeight(0);
 }
 // Sway/bob offsets around the camera anchor.
 const VM_TUNE = { offset: new THREE.Vector3(0, 0, 0), rotY: 0 };
@@ -447,7 +450,7 @@ function fire() {
 }
 function startReload() {
   const a = save.ammo; if (player.reloading > 0 || a.mag >= GUN.mag || a.reserve <= 0) return;
-  player.reloading = GUN.reload; dropMag = false; playOnce(vm.actions.reload, 0.1); renderAmmo();
+  player.reloading = GUN.reload; dropMag = false; playOnce(vm.actions.reload); renderAmmo();
 }
 function finishReload() { const a = save.ammo, take = Math.min(GUN.mag - a.mag, a.reserve); a.mag += take; a.reserve -= take; writeSave(); renderAmmo(); }
 let dropMag = false;
@@ -628,5 +631,5 @@ const shanty = makeShanty(); shanty.position.set(0, 0, SHACK_Z); scene.add(shant
 vm = buildViewmodel(); vmScene.add(vm.root);
 renderAmmo(); renderSaveDump();
 startMsg.textContent = "Click to play.";
-window.__game = { player, save, vm, VM_TUNE, MODELS, camera, vmCamera, buildViewmodel };
+window.__game = { player, save, vm, VM_TUNE, MODELS, camera, vmCamera, buildViewmodel, debugFire: () => { firedThisPress = false; player.cooldown = 0; fire(); } };
 </script>
