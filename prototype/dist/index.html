@@ -272,7 +272,7 @@ function stainAt(x, y, seed, amount) {
 }
 function rustColor(x, y, seed) {
   const c = fbm(x * 5, y * 5, seed + 5, 3), dark = vnoise(x * 90, y * 90, seed + 6) > 0.8 ? 0.55 : 1;
-  return [(70 + c * 110) * dark, (34 + c * 52) * dark, (18 + c * 20) * dark];
+  return [(72 + c * 104) * dark, (38 + c * 54) * dark, (24 + c * 24) * dark];
 }
 // Graded discolouration: clean -> dull yellow-grey -> tan -> rust.
 function weather(r, g, b, x, y, seed, amount) {
@@ -294,8 +294,13 @@ function surfaces() {
   const galv = genSurface(1024, 5, (x, y) => {
     const mott = fbm(x * 1.1, y * 1.1, 1, 4), fine = vnoise(x * 70, y * 70, 2);
     const rib = 0.5 + 0.5 * Math.cos((x / RIB) * Math.PI * 2);
-    let v = 118 + mott * 62 + fine * 10 - (1 - rib) * 14;
-    const [r, g, b, st, t] = weather(v * 0.96, v * 0.98, v, x, y, 30, 0.04);
+    const v = 92 + mott * 48 + fine * 9 - (1 - rib) * 12;
+    // weathered zinc: dull warm grey with brown dirt clouds and vertical water stains
+    const dirt = smooth(0.35, 0.75, fbm(x * 0.7 + 3, y * 0.7, 31, 4));
+    const streak = Math.pow(vnoise(x * 9, y * 0.6, 32), 3) * 0.6;
+    const d = Math.min(1, dirt * 0.65 + streak);
+    const r0 = mix(v * 1.02, 108 + mott * 20, d), g0 = mix(v * 0.97, 92 + mott * 16, d), b0 = mix(v * 0.88, 74 + mott * 12, d);
+    const [r, g, b, st, t] = weather(r0, g0, b0, x, y, 30, 0.04);
     return [r, g, b, mix(0.5, 0.97, Math.max(t, st * 0.6)), 0.45 + t * 0.35 + st * 0.05 + fine * 0.2];
   });
   const PAINTS = [[86, 122, 117], [138, 66, 52], [176, 166, 136], [104, 110, 76], [78, 96, 120], [150, 120, 70]];
@@ -332,6 +337,7 @@ function surfaces() {
     galv, paint, wood, concrete,
     galvMat: m(galv, { metalness: 0.45 }), paintMat: m(paint, { metalness: 0.2 }), woodMat: m(wood, { bumpScale: 2 }),
     concreteMat: m(concrete, { side: THREE.FrontSide }),
+    rockMat: m(concrete, { side: THREE.FrontSide, vertexColors: false, color: 0x9a958d }),
     darkMat: new THREE.MeshStandardMaterial({ color: 0x0d0d0e, roughness: 1 }),
     rubberMat: new THREE.MeshStandardMaterial({ color: 0x1b1b1c, roughness: 0.92 }),
     wireMat: new THREE.MeshStandardMaterial({ color: 0x5d544c, roughness: 0.55, metalness: 0.6 }),
@@ -602,7 +608,7 @@ function buildShackYard() {
   for (let i = 0; i < 7; i++) { const p = new THREE.Mesh(surfBox(2.2 + rnd() * 0.6, 0.05, 0.18, S.wood, rnd), S.woodMat); p.position.set(-2.4 + (rnd() - 0.5) * 0.3, 0.03 + Math.floor(i / 3) * 0.05, 4.2 + (i % 3) * 0.2); p.rotation.y = 0.25 + (rnd() - 0.5) * 0.25; g.add(p); }
   // Loose cinder blocks and rubble
   [[0.6, 4.3], [0.95, 4.5], [-4.3, 0.3], [2.6, -3.0]].forEach(([x, z], i) => { const b = new THREE.Mesh(surfBox(0.4, 0.2, 0.2, S.concrete, rnd), S.concreteMat); b.position.set(x, 0.1, z); b.rotation.set(i === 1 ? Math.PI / 2 : 0, rnd() * 3, 0); if (i === 1) b.position.y = 0.2; g.add(b); });
-  for (let i = 0; i < 26; i++) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.05 + rnd() * 0.09, 0), S.concreteMat); r.position.set(-4 + rnd() * 8.5, 0.03, 2.6 + rnd() * 3); r.rotation.set(rnd() * 3, rnd() * 3, 0); r.scale.y = 0.6; g.add(r); }
+  for (let i = 0; i < 26; i++) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.05 + rnd() * 0.09, 0), S.rockMat); r.position.set(-4 + rnd() * 8.5, 0.03, 2.6 + rnd() * 3); r.rotation.set(rnd() * 3, rnd() * 3, 0); r.scale.y = 0.6; g.add(r); }
   // Rusted pipes
   const pipeMat = new THREE.MeshStandardMaterial({ map: S.galv.map, roughnessMap: S.galv.roughnessMap, color: 0xa47a5c, roughness: 1, metalness: 0.4 });
   for (let i = 0; i < 3; i++) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2 + rnd(), 10, 1, true), pipeMat); p.rotation.set(0, 0.9 + i * 0.15, Math.PI / 2); p.position.set(-3.8 + i * 0.13, 0.06, -0.8 - i * 0.12); g.add(p); }
