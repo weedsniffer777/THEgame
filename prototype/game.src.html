@@ -166,7 +166,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
       <button id="btnReset" class="danger" type="button">Reset all save data</button>
     </div>
     <div class="confirm" id="resetConfirm" hidden>
-      <div>This clears your ammo, position and kill count, then restarts the run.</div>
+      <div>This clears your XP, builds, position and kill count, then restarts the game from day 1.</div>
       <div class="row">
         <button id="btnResetYes" class="danger" type="button">Yes, reset everything</button>
         <button id="btnResetNo" type="button">Cancel</button>
@@ -232,7 +232,8 @@ function loadSave() {
   try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { const s = JSON.parse(raw); if (s.version === 2) return Object.assign(defaultSave(), s); } } catch (e) {}
   return defaultSave();
 }
-function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} renderSaveDump(); }
+let saveLocked = false;   // set while resetting so nothing re-saves before the reload
+function writeSave() { if (saveLocked) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} renderSaveDump(); }
 function wipeSave() { try { localStorage.removeItem(SAVE_KEY); for (const k of ["treeline.save.v1", "treeline.save.v2", "gametest.save.v3"]) localStorage.removeItem(k); } catch (e) {} }
 let save = loadSave();
 
@@ -1273,10 +1274,7 @@ const resetConfirm = document.getElementById("resetConfirm");
 document.getElementById("btnReset").addEventListener("click", () => { resetConfirm.hidden = false; });
 document.getElementById("btnResetNo").addEventListener("click", () => { resetConfirm.hidden = true; });
 document.getElementById("btnResetYes").addEventListener("click", () => {
-  wipeSave(); save = defaultSave(); kills = 0; player.reloading = 0; killEl.textContent = "0 KILLS";
-  player.pos.set(save.pos[0], 0, save.pos[1]); if (player.inside) setInside(false);
-  for (const t of sentries) { scene.remove(t.g); removeBar(t.bar); } sentries.length = 0; hovered = null;
-  writeSave(); renderAmmo(); renderXp(); resetConfirm.hidden = true; toast("Save data cleared");
+  saveLocked = true; wipeSave(); location.reload();   // fresh run: day 1, no builds, no XP, start position
 });
 document.getElementById("btnAmmo").addEventListener("click", () => { save.xp += 100; renderXp(); writeSave(); });
 const perfEl = document.getElementById("perf");
