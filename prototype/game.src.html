@@ -125,7 +125,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
   </section>
   <section>
     <h2>Credits</h2>
-    <div class="credit">First-person arms and gloves: "PSX First Person Arms" by <a href="https://drillimpact.itch.io/psx-first-person-arms-free" target="_blank" rel="noopener">Drillimpact</a> (CC0). M1911 from a Unity Asset Store weapon pack. Shanty and effects are built in code.</div>
+    <div class="credit">Pistol animations: "Universal Animation Library" by <a href="https://quaternius.itch.io/universal-animation-library" target="_blank" rel="noopener">Quaternius</a> (CC0), retargeted. First-person arms and gloves: "PSX First Person Arms" by <a href="https://drillimpact.itch.io/psx-first-person-arms-free" target="_blank" rel="noopener">Drillimpact</a> (CC0). M1911 from a Unity Asset Store weapon pack. Shanty and effects are built in code.</div>
   </section>
 </div>
 
@@ -153,14 +153,12 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 
-const ARMS_B64 = "__ARMS_B64__";
-const GLOVES_JPG_B64 = "__GLOVES_B64__";
-const M1911_B64 = "__M1911_B64__";
+const VM_B64 = "__VM_B64__";
 const SHANTY_B64 = "__SHANTY_B64__"; // baked by tools/bake.mjs; embedded because the artifact host does not serve .glb
 
 /* ---------- Save ---------- */
 const SAVE_KEY = "gametest.save.v3";
-const GUN = { name: "M1911", mag: 7, reserve: 49, rpm: 450, spread: 0.004, moveSpread: 0.02, reload: 1.7 };
+const GUN = { name: "M1911", mag: 7, reserve: 49, rpm: 400, spread: 0.004, moveSpread: 0.02, reload: 1.67 };
 const defaultSave = () => ({ version: 3, ammo: { mag: GUN.mag, reserve: GUN.reserve }, pos: [0, 4], yaw: 0 });
 function loadSave() {
   try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { const s = JSON.parse(raw); if (s.version === 3) return Object.assign(defaultSave(), s); } } catch (e) {}
@@ -224,58 +222,43 @@ async function loadShanty() {
 function makeShanty() { const g = new THREE.Group(); g.name = "shanty"; g.add(shantyTemplate.clone()); addShantyLights(g); return g; }
 
 /* ---------- Arms + M1911 viewmodel ---------- */
-// The M1911 model's muzzle points along +z and its grip hangs along +y (upside down), so its
-// "forward" is +z and "up" is -y. Parts: BarrelGuard = slide, Bolt = hammer, Trigger, Mag.
-const GUN_FWD = new THREE.Vector3(0, 0, 1), GUN_UP = new THREE.Vector3(0, -1, 0);
-let armsGltf = null, gunGltf = null;
-async function loadViewmodelAssets() {
-  [armsGltf, gunGltf] = await Promise.all([loader.parseAsync(b64ToBuf(ARMS_B64), ""), loader.parseAsync(b64ToBuf(M1911_B64), "")]);
-  const tex = await new THREE.TextureLoader().loadAsync("data:image/jpeg;base64," + GLOVES_JPG_B64);
-  tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace;
-  armsGltf.scene.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.map = tex; o.material.roughness = 0.85; o.material.metalness = 0; o.frustumCulled = false; } });
-}
-// GLTFLoader strips "." from node names (hand.R -> handR), so match either spelling.
-function boneByName(root, name) { const alt = THREE.PropertyBinding.sanitizeNodeName(name); let b = null; root.traverse(o => { if (!b && (o.name === name || o.name === alt)) b = o; }); return b; }
-// Build arms in the idle pose and seat the pistol in the right hand: gun forward follows the
-// pointing index finger, gun up follows the view's up, and the grip sits in the palm.
+// models/fps_viewmodel.glb is baked by tools/retarget.mjs: Drillimpact arms (CC0) driven by
+// Quaternius UAL pistol clips (CC0), M1911 seated in the right hand, plus a camera_anchor node.
+// M1911 parts: BarrelGuard = slide, Bolt = hammer, Trigger, Mag. Muzzle is +z, slide is +y.
+const GUN_FWD = new THREE.Vector3(0, 0, 1), GUN_UP = new THREE.Vector3(0, 1, 0);
+let vmGltf = null;
+async function loadViewmodelAssets() { vmGltf = await loader.parseAsync(b64ToBuf(VM_B64), ""); }
 function buildViewmodel() {
   const root = new THREE.Group(); root.name = "viewmodel";
-  const arms = skeletonClone(armsGltf.scene); root.add(arms);
-  const mixer = new THREE.AnimationMixer(arms);
-  const clip = (n) => THREE.AnimationClip.findByName(armsGltf.animations, n);
-  const idle = mixer.clipAction(clip("finger_gun_idle")); idle.play();
-  mixer.update(0.5); root.updateMatrixWorld(true);
-  // If the rig faces +z, turn it to face the camera's -z.
-  const handR = boneByName(arms, "hand.R");
-  const wp = (n) => boneByName(arms, n).getWorldPosition(new THREE.Vector3());
-  if (wp("hand.R").z > 0) { arms.rotation.y = Math.PI; root.updateMatrixWorld(true); }
-  const i1 = wp("f_index.01.R"), i3 = wp("f_index.03.R"), m1 = wp("f_middle.01.R"), p1 = wp("f_pinky.01.R"), h = wp("hand.R");
-  const fwd = i3.clone().sub(i1).normalize();
-  const up = new THREE.Vector3(0, 1, 0).addScaledVector(fwd, -fwd.y).normalize();
-  const right = new THREE.Vector3().crossVectors(fwd, up).normalize();
-  // gun basis -> view basis
-  const gunRight = new THREE.Vector3().crossVectors(GUN_FWD, GUN_UP).normalize();
-  const mGun = new THREE.Matrix4().makeBasis(gunRight, GUN_UP, GUN_FWD);
-  const mView = new THREE.Matrix4().makeBasis(right, up, fwd);
-  const rot = new THREE.Quaternion().setFromRotationMatrix(mView.multiply(mGun.invert()));
-  const gun = gunGltf.scene.clone(true); gun.name = "m1911";
-  gun.quaternion.copy(rot);
-  // Grip point on the gun (top of the grip, under the slide) in gun space; seat it in the palm.
-  const gripLocal = new THREE.Vector3(0, 0.045, 0.012).add(VM_TUNE.gripNudge);
-  const palm = h.clone().lerp(m1.clone().lerp(p1, 0.5), 0.55).addScaledVector(up, VM_TUNE.palmUp);
-  gun.position.copy(palm).sub(gripLocal.clone().applyQuaternion(rot));
-  root.add(gun); gun.updateMatrixWorld(true);
-  handR.attach(gun); // follow the hand from now on
+  const model = skeletonClone(vmGltf.scene); root.add(model);
+  model.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+  // put the camera anchor at the origin, looking down -z
+  model.updateMatrixWorld(true);
+  const anchor = model.getObjectByName("camera_anchor");
+  anchor.matrixWorld.clone().invert().decompose(model.position, model.quaternion, model.scale);
+  const mixer = new THREE.AnimationMixer(model);
+  const clip = (n) => THREE.AnimationClip.findByName(vmGltf.animations, n);
+  const idle = mixer.clipAction(clip("pistol_idle")); idle.play();
+  const once = (n) => { const a = mixer.clipAction(clip(n)); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; return a; };
+  const actions = { idle, shoot: once("pistol_shoot"), reload: once("pistol_reload") };
+  mixer.addEventListener("finished", (e) => { e.action.fadeOut(0.15); idle.setEffectiveWeight(1); idle.fadeIn(0.15); });
+  const gun = model.getObjectByName("m1911");
   const parts = {};
   gun.traverse(o => { for (const k of ["BarrelGuard", "Bolt", "Trigger", "Mag"]) if (o.name.endsWith("_" + k)) parts[k] = o; });
   for (const p of Object.values(parts)) p.userData.rest = { pos: p.position.clone(), quat: p.quaternion.clone() };
-  const slide = parts.BarrelGuard ? new THREE.Box3().setFromObject(parts.BarrelGuard) : null;
-  gun.updateMatrixWorld(true);
-  const muzzleLocal = new THREE.Vector3(0, -0.004, 0.14), ejectLocal = new THREE.Vector3(0.02, -0.02, 0.03);
-  return { root, arms, mixer, gun, parts, muzzleLocal, ejectLocal, actions: { idle }, clip };
+  // muzzle and ejection port in gun space, measured from the slide
+  const g0 = gun.clone(); g0.position.set(0, 0, 0); g0.quaternion.identity(); g0.scale.set(1, 1, 1); g0.updateMatrixWorld(true);
+  let slideName = parts.BarrelGuard?.name, sb = new THREE.Box3().setFromObject(slideName ? g0.getObjectByName(slideName) : g0);
+  const sc = sb.getCenter(new THREE.Vector3());
+  const muzzleLocal = new THREE.Vector3(sc.x, sc.y, sb.max.z), ejectLocal = new THREE.Vector3(sc.x, sb.max.y, sc.z - 0.01);
+  return { root, model, mixer, gun, parts, muzzleLocal, ejectLocal, actions, clip };
 }
-// Hand-tuned offsets for the grip fit and where the viewmodel sits in front of the camera.
-const VM_TUNE = { gripNudge: new THREE.Vector3(0, 0, 0), palmUp: 0.0, offset: new THREE.Vector3(0.0, -1.58, 0.05), rotY: 0 };
+function playOnce(a, fade = 0.06) {
+  for (const o of [vm.actions.shoot, vm.actions.reload]) if (o !== a) o.stop();
+  a.reset(); a.setEffectiveWeight(1); a.play(); a.fadeIn(fade); vm.actions.idle.fadeOut(fade);
+}
+// Sway/bob offsets around the camera anchor.
+const VM_TUNE = { offset: new THREE.Vector3(0, 0, 0), rotY: 0 };
 
 /* ---------- Renderer, world scene, viewmodel scene ---------- */
 const host = document.getElementById("game");
@@ -433,7 +416,7 @@ function fire() {
   firedThisPress = true;
   if (a.mag <= 0) { startReload(); return; }
   a.mag--; player.cooldown = 60 / GUN.rpm;
-  anim.slide = 1; anim.trigger = 1; anim.kick = 1;
+  anim.slide = 1; anim.trigger = 1; anim.kick = 1; playOnce(vm.actions.shoot);
   player.recoil += 0.035 + Math.random() * 0.01; player.yaw += (Math.random() - 0.5) * 0.01;
   // ray from the eye through the crosshair, with a little spread
   const spread = GUN.spread + player.spread;
@@ -464,7 +447,7 @@ function fire() {
 }
 function startReload() {
   const a = save.ammo; if (player.reloading > 0 || a.mag >= GUN.mag || a.reserve <= 0) return;
-  player.reloading = GUN.reload; dropMag = false; renderAmmo();
+  player.reloading = GUN.reload; dropMag = false; playOnce(vm.actions.reload, 0.1); renderAmmo();
 }
 function finishReload() { const a = save.ammo, take = Math.min(GUN.mag - a.mag, a.reserve); a.mag += take; a.reserve -= take; writeSave(); renderAmmo(); }
 let dropMag = false;
@@ -493,8 +476,8 @@ function updateViewmodel(dt) {
   anim.swayX = damp(anim.swayX, -lookDX * 0.0006, 10, dt); anim.swayY = damp(anim.swayY, lookDY * 0.0006, 10, dt);
   const speed = Math.hypot(player.vel.x, player.vel.z), bobAmt = player.grounded ? Math.min(1, speed / 4.5) : 0;
   const bx = Math.sin(player.bob) * 0.012 * bobAmt, by = -Math.abs(Math.cos(player.bob)) * 0.012 * bobAmt;
-  vm.root.position.set(VM_TUNE.offset.x + anim.swayX + bx, VM_TUNE.offset.y + anim.swayY + by - rl * 0.08 + Math.min(0, player.vy) * 0.004, VM_TUNE.offset.z + anim.kick * 0.045);
-  vm.root.rotation.set(anim.kick * 0.12 + rl * 0.35, VM_TUNE.rotY + anim.swayX * 2, rl * 0.45 + anim.swayX * 1.5);
+  vm.root.position.set(VM_TUNE.offset.x + anim.swayX + bx, VM_TUNE.offset.y + anim.swayY + by + Math.min(0, player.vy) * 0.004, VM_TUNE.offset.z + anim.kick * 0.02);
+  vm.root.rotation.set(anim.kick * 0.05, VM_TUNE.rotY + anim.swayX * 2, anim.swayX * 1.5);
 }
 
 /* ---------- Dev kit ---------- */
@@ -519,8 +502,7 @@ const perfEl = document.getElementById("perf");
 
 /* ---------- Model viewer ---------- */
 const MODELS = [
-  { id: "viewmodel", label: "Arms + M1911", src: "fps_arms.glb (CC0) + m1911.glb", make: () => { const v = buildViewmodel(); v.root.userData.mixer = v.mixer; v.root.userData.clip = v.clip; v.root.userData.actions = v.actions; return v.root; }, animated: true },
-  { id: "m1911", label: "M1911", src: "m1911.glb · slide, hammer, trigger, mag", make: () => gunGltf.scene.clone(true) },
+  { id: "viewmodel", label: "Arms + M1911", src: "fps_viewmodel.glb · tools/retarget.mjs", make: () => { const v = buildViewmodel(); v.mixer.stopAllAction(); v.root.userData.mixer = v.mixer; return v.root; }, animated: true },
   { id: "shanty", label: "Shanty (baked)", src: "shanty.glb · tools/bake.mjs", make: () => makeShanty() },
 ];
 const viewerEl = document.getElementById("viewer"), stage = document.getElementById("viewerStage"), infoEl = document.getElementById("viewerInfo");
@@ -546,7 +528,7 @@ function vResize() { if (!vr) return; const w = stage.clientWidth, h = stage.cli
 function showModel(m) {
   if (vObj) vScene.remove(vObj);
   vSel = m; vObj = m.make(); vScene.add(vObj); vClipIdx = -1;
-  document.getElementById("vClip").textContent = m.animated ? "Animation: finger_gun_idle" : "Animation: none";
+  document.getElementById("vClip").textContent = m.animated ? "Animation: none (click to cycle)" : "Animation: none";
   document.getElementById("vClip").disabled = !m.animated;
   applyWire();
   const bb = new THREE.Box3().setFromObject(vObj), size = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
@@ -558,7 +540,7 @@ function showModel(m) {
 }
 document.getElementById("vClip").addEventListener("click", (e) => {
   if (!vObj?.userData.mixer) return;
-  const clips = armsGltf.animations; vClipIdx = (vClipIdx + 1) % clips.length;
+  const clips = vmGltf.animations; vClipIdx = (vClipIdx + 1) % clips.length;
   const mixer = vObj.userData.mixer; mixer.stopAllAction(); mixer.clipAction(clips[vClipIdx]).play();
   e.target.textContent = `Animation: ${clips[vClipIdx].name}`;
 });
