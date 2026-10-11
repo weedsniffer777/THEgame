@@ -259,13 +259,14 @@ function genSurface(px, metres, fn) {
 function rustAt(x, y, seed, amount) {
   // Rust mask: blotches plus drips running down from fastener rows every 0.9 m.
   const band = 0.9, fy = (y % band) / band;
-  const drip = Math.pow(vnoise(x * 22, Math.floor(y / band) * 7.3, seed + 4), 5) * (1 - fy) * 1.6;
-  const m = fbm(x * 2.1 + 5, y * 2.1, seed + 3, 5) + drip * 0.3 + (vnoise(x * 0.45, y * 0.45, seed + 9) - 0.5) * 0.35 + amount;
-  return smooth(0.5, 0.66, m);
+  const drip = Math.pow(vnoise(x * 22, Math.floor(y / band) * 7.3, seed + 4), 6) * (1 - fy) * 1.2;
+  const m = fbm(x * 2.1 + 5, y * 2.1, seed + 3, 5) + drip * 0.25 + (vnoise(x * 0.45, y * 0.45, seed + 9) - 0.5) * 0.3 + amount;
+  return smooth(0.55, 0.7, m) * 0.85;
 }
 function rustColor(x, y, seed) {
-  const c = fbm(x * 5, y * 5, seed + 5, 3), dark = vnoise(x * 90, y * 90, seed + 6) > 0.8 ? 0.55 : 1;
-  return [(70 + c * 110) * dark, (34 + c * 52) * dark, (18 + c * 20) * dark];
+  // Oxidised steel: ochre to umber browns, kept desaturated so it never reads as red.
+  const c = fbm(x * 5, y * 5, seed + 5, 3), dark = vnoise(x * 90, y * 90, seed + 6) > 0.8 ? 0.7 : 1;
+  return [(92 + c * 70) * dark, (70 + c * 44) * dark, (50 + c * 22) * dark];
 }
 let SURF = null;
 function surfaces() {
