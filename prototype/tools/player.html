@@ -54,7 +54,7 @@ const skullHalf = bandXs[Math.floor(bandXs.length * (window.EAR_PCT ?? 0.6))];
 let earTris = 0;
 for (let i = 0; i < pos.count; i++) {
   const dx = pos.getX(i) - pelvis.x;
-  if (inBand(pos.getY(i)) && Math.abs(dx) > skullHalf) { pos.setX(i, pelvis.x + Math.sign(dx) * skullHalf); earTris++; }
+  if (inBand(pos.getY(i)) && Math.abs(dx) > skullHalf) { pos.setX(i, pelvis.x + Math.sign(dx) * skullHalf * 0.88); earTris++; }
 }
 pos.needsUpdate = true;
 
@@ -103,7 +103,31 @@ for (let i = 0; i < P.count; i++) {
 geo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(si, 4));
 geo.setAttribute("skinWeight", new THREE.Float32BufferAttribute(sw, 4));
 geo.computeVertexNormals();
-const body = new THREE.SkinnedMesh(geo, new THREE.MeshStandardMaterial({ color: 0xc9b8a6, roughness: 0.75, flatShading: true }));
+// ---- outfit: survivor look painted per triangle by body region
+const OUTFIT = { skin: 0xc29a7e, jacket: 0x4a5133, jacketDark: 0x3c422a, pants: 0x34363a, boots: 0x1d1b19, belt: 0x2c2219, beanie: 0x2b2f2c };
+const region = (bone, y) => {
+  const n = skeleton.bones[bone].name;
+  if (n === "Head") return y > headTop - (headTop - neckY) * 0.42 ? "beanie" : "skin";
+  if (n === "neck_01") return y > wp(B("neck_01")).y + 0.03 ? "skin" : "jacket"; // collar covers the shoulders
+  if (/^hand_/.test(n)) return "skin";
+  if (/^(foot|ball)_/.test(n)) return "boots";
+  if (/^calf_/.test(n)) return y < ualBox.min.y + H * 0.1 ? "boots" : "pants";
+  if (/^thigh_/.test(n)) return "pants";
+  const beltY = wp(B("spine_01")).y;
+  if (n === "pelvis" || n === "spine_01") return Math.abs(y - beltY) < 0.035 ? "belt" : y < beltY ? "pants" : "jacket";
+  if (/^lowerarm_/.test(n)) return "jacketDark";
+  return "jacket";
+};
+const col = new Float32Array(P.count * 3), tmpC = new THREE.Color();
+for (let t = 0; t < P.count; t += 3) {
+  const score = new Map(); let cy = 0;
+  for (let k = 0; k < 3; k++) { const i = t + k; cy += P.getY(i) / 3; for (let j = 0; j < 2; j++) score.set(si[i * 4 + j], (score.get(si[i * 4 + j]) || 0) + sw[i * 4 + j]); }
+  const bone = [...score.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  tmpC.setHex(OUTFIT[region(bone, cy)]);
+  for (let k = 0; k < 3; k++) col.set([tmpC.r, tmpC.g, tmpC.b], (t + k) * 3);
+}
+geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+const body = new THREE.SkinnedMesh(geo, new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.85, flatShading: true }));
 body.name = "player_body";
 root.add(body); body.bind(skeleton, new THREE.Matrix4());
 

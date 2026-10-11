@@ -27,7 +27,6 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #reticle .v { width: 2px; height: 7px; left: -1px; }
 #reticle .l { left: -11px; } #reticle .r { left: 4px; } #reticle .t { top: -11px; } #reticle .b { top: 4px; }
 #game canvas { display: block; }
-#game.pixel canvas { image-rendering: pixelated; }
 .hud { position: fixed; pointer-events: none; z-index: 2; }
 /* Pixel HUD: hard edges, stepped borders, bone-white text on charcoal, rust accent. */
 .px { font-family: "Pixelify Sans", "Courier New", monospace; -webkit-font-smoothing: none; font-smooth: never; image-rendering: pixelated; }
@@ -127,10 +126,6 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
     <button id="btnViewer" type="button">Open model viewer</button>
   </section>
   <section>
-    <h2>Display</h2>
-    <div class="row"><button id="btnPixel" type="button">Pixel scale: 1×</button></div>
-  </section>
-  <section>
     <h2>Cheats</h2>
     <div class="row">
       <button id="btnAmmo" type="button">Refill ammo</button>
@@ -165,6 +160,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const PLAYER_B64 = "__PLAYER_B64__";
 const M1911_B64 = "__M1911_B64__";
@@ -298,9 +294,56 @@ function makeBlockHands(gun) {
 // Legs and body play UAL locomotion clips blended by speed; both arms are two-bone IK onto the gun.
 let playerGltf = null;
 async function loadPlayer() { playerGltf = await loader.parseAsync(b64ToBuf(PLAYER_B64), ""); }
+// Rigid gear on the bones: boonie hat, collar, chest rig with pouches, belt with buckle/pouches,
+// thigh holster, backpack with bedroll, knee pads. Sized from the body mesh at bind pose.
+function addGear(model) {
+  model.updateMatrixWorld(true);
+  let body = null; model.traverse(o => { if (o.isSkinnedMesh && !body) body = o; });
+  const P = body.geometry.attributes.position, bone = (n) => model.getObjectByName(n), wpos = (o) => o.getWorldPosition(new THREE.Vector3());
+  const slice = (y, band = 0.03, side = 0) => {   // body cross-section at height y (widens until it hits a vertex ring)
+    let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+    for (let tries = 0; tries < 6 && minX > maxX; tries++, band *= 1.6) for (let i = 0; i < P.count; i++) { const py = P.getY(i), px = P.getX(i); if (Math.abs(py - y) > band) continue; if (side && Math.sign(px) !== side) continue; if (!side && Math.abs(px) > 0.22) continue;
+      minX = Math.min(minX, px); maxX = Math.max(maxX, px); minZ = Math.min(minZ, P.getZ(i)); maxZ = Math.max(maxZ, P.getZ(i)); }
+    return { cx: (minX + maxX) / 2, cz: (minZ + maxZ) / 2, hx: (maxX - minX) / 2, hz: (maxZ - minZ) / 2, front: maxZ, back: minZ };
+  };
+  let top = -1e9; for (let i = 0; i < P.count; i++) top = Math.max(top, P.getY(i));
+  const M = (c, rough = 0.9) => new THREE.MeshStandardMaterial({ color: c, roughness: rough, flatShading: true });
+  const olive = M(0x55603a), oliveDk = M(0x3d4529), khaki = M(0x7a6e4e), strap = M(0x2a2520), metal = M(0x8a8478, 0.5), pad = M(0x2b2d2f);
+  const put = (geo, mat, x, y, z, boneName, rot) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (rot) m.rotation.set(...rot); m.castShadow = true; m.userData.gear = true; model.add(m); m.updateMatrixWorld(true); bone(boneName).attach(m); return m; };
+  // boonie hat
+  const hs = slice(top - 0.08, 0.04), hr = Math.max(hs.hx, hs.hz) + 0.015;
+  put(new THREE.CylinderGeometry(hr * 0.92, hr * 1.02, 0.09, 10), khaki, hs.cx, top - 0.03, hs.cz, "Head");
+  put(new THREE.CylinderGeometry(hr * 1.75, hr * 1.75, 0.012, 14), khaki, hs.cx, top - 0.075, hs.cz, "Head", [0.06, 0, 0]);
+  put(new THREE.CylinderGeometry(hr * 0.97, hr * 1.0, 0.022, 10), strap, hs.cx, top - 0.06, hs.cz, "Head");
+  // collar
+  const neck = wpos(bone("neck_01")), ns = slice(neck.y + 0.01, 0.025);
+  const collar = put(new THREE.TorusGeometry(1, 0.28, 5, 12), oliveDk, ns.cx, neck.y, ns.cz, "spine_03", [Math.PI / 2, 0, 0]); collar.scale.set(ns.hx + 0.025, ns.hz + 0.03, 0.09);
+  // chest rig: plate, three mag pouches, shoulder straps
+  const chestY = wpos(bone("spine_03")).y - 0.02, cs = slice(chestY, 0.04);
+  put(new THREE.BoxGeometry(cs.hx * 1.5, 0.24, 0.05), oliveDk, cs.cx, chestY, cs.front + 0.012, "spine_03", [-0.08, 0, 0]);
+  for (let k = -1; k <= 1; k++) put(new THREE.BoxGeometry(0.065, 0.1, 0.045), olive, cs.cx + k * 0.075, chestY - 0.05, cs.front + 0.05, "spine_03", [-0.08, 0, 0]);
+  for (const s of [-1, 1]) put(new THREE.BoxGeometry(0.05, 0.03, (cs.front - cs.back) + 0.06), strap, cs.cx + s * cs.hx * 0.55, chestY + 0.15, cs.cz, "spine_03");
+  // backpack + bedroll
+  const backY = wpos(bone("spine_02")).y + 0.06, bs = slice(backY, 0.05);
+  put(new THREE.BoxGeometry(bs.hx * 1.45, 0.34, 0.15), olive, bs.cx, backY, bs.back - 0.075, "spine_03");
+  put(new THREE.BoxGeometry(bs.hx * 1.2, 0.12, 0.05), oliveDk, bs.cx, backY - 0.06, bs.back - 0.165, "spine_03");
+  put(new THREE.CylinderGeometry(0.055, 0.055, bs.hx * 1.7, 8), khaki, bs.cx, backY + 0.22, bs.back - 0.08, "spine_03", [0, 0, Math.PI / 2]);
+  // belt, buckle, pouches
+  const beltY = wpos(bone("spine_01")).y, ws = slice(beltY, 0.03);
+  const belt = put(new THREE.TorusGeometry(1, 0.12, 4, 18), strap, ws.cx, beltY, ws.cz, "pelvis", [Math.PI / 2, 0, 0]); belt.scale.set(ws.hx + 0.012, ws.hz + 0.012, 0.22);
+  put(new THREE.BoxGeometry(0.05, 0.04, 0.015), metal, ws.cx, beltY, ws.front + 0.016, "pelvis");
+  for (const s of [-1, 1]) put(new THREE.BoxGeometry(0.06, 0.08, 0.07), olive, ws.cx + s * (ws.hx + 0.02), beltY - 0.03, ws.cz - 0.02, "pelvis");
+  put(new THREE.BoxGeometry(0.12, 0.08, 0.06), olive, ws.cx, beltY - 0.02, ws.back - 0.03, "pelvis");
+  // thigh holster (right leg)
+  const thighR = wpos(bone("thigh_r")), sR = Math.sign(thighR.x) || -1, ts = slice(thighR.y - 0.14, 0.04, sR);
+  put(new THREE.BoxGeometry(0.05, 0.16, 0.09), strap, ts.cx + sR * (ts.hx + 0.02), thighR.y - 0.14, ts.cz, "thigh_r");
+  // knee pads
+  for (const s of ["l", "r"]) { const k = wpos(bone(`calf_${s}`)), ks = slice(k.y, 0.03, Math.sign(k.x) || 1); put(new THREE.BoxGeometry(ks.hx * 1.7, 0.09, 0.03), pad, ks.cx, k.y, ks.front + 0.01, `calf_${s}`); }
+}
 function makePlayer() {
   const model = skeletonClone(playerGltf.scene); model.name = "player";
   model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+  addGear(model);
   const mixer = new THREE.AnimationMixer(model);
   const act = (n) => { const a = mixer.clipAction(THREE.AnimationClip.findByName(playerGltf.animations, n)); a.play(); a.setEffectiveWeight(0); return a; };
   const loco = { idle: act("Idle_Loop"), walk: act("Walk_Loop"), jog: act("Jog_Fwd_Loop"), sprint: act("Sprint_Loop") };
@@ -313,9 +356,11 @@ function makePlayer() {
   const chestRestQ = model.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(chest.getWorldQuaternion(new THREE.Quaternion()));
   const legs = ["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"].map(n => { const b = bone(n); return { b, rest: b.quaternion.clone() }; });
   // faint silhouette drawn only where something is in front of the player
-  const silMat = new THREE.MeshBasicMaterial({ color: 0xe8e2d4, transparent: true, opacity: 0.32, depthFunc: THREE.GreaterDepth, depthWrite: false, toneMapped: false });
+  const silMat = new THREE.MeshBasicMaterial({ color: 0xf4f2ea, transparent: true, opacity: 0.6, depthFunc: THREE.GreaterDepth, depthWrite: false, toneMapped: false,
+    stencilWrite: true, stencilRef: 0, stencilFunc: THREE.EqualStencilFunc, stencilZPass: THREE.IncrementStencilOp, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp });
   const skinned = []; model.traverse(o => { if (o.isSkinnedMesh) skinned.push(o); });
   for (const m of skinned) { const sil = new THREE.SkinnedMesh(m.geometry, silMat); sil.bind(m.skeleton, m.bindMatrix); sil.renderOrder = 20; sil.frustumCulled = false; m.parent.add(sil); }
+  model.traverse(o => { if (o.userData.gear) { const sil = new THREE.Mesh(o.geometry, silMat); sil.renderOrder = 20; o.add(sil); } });
   return { model, mixer, loco, arms, chest, chestRestPos, chestRestQ, legs };
 }
 const _v = (o) => o.getWorldPosition(new THREE.Vector3()), _wq = (o) => o.getWorldQuaternion(new THREE.Quaternion());
@@ -365,7 +410,7 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0xc9ccd0, 1.5));
 const sun = new THREE.DirectionalLight(0xfff4e6, 2.4);
 sun.position.set(-6, 14, 9); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
-Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, near: 1, far: 50 });
+Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 1, far: 60 }); // covers the whole view; 2048 map ≈ 39 px/m
 scene.add(sun); scene.add(sun.target);
 
 // Isometric camera: orthographic, yaw 45°, pitch ~35°
@@ -422,9 +467,9 @@ vec3 groundColor(vec2 p) {
   float big = fbm2(p.x * 0.06, p.y * 0.06, 43), mid = fbm2(p.x * 0.35, p.y * 0.35, 44);
   vec3 dirt = lin(vec3(72.0, 61.0, 42.0) + big * vec3(24.0, 20.0, 12.0) + mid * vec3(9.0, 7.0, 5.0));        // dark warm forest dirt
   vec3 dust = lin(vec3(118.0, 104.0, 76.0) + mid * vec3(14.0, 12.0, 9.0));                                     // trampled base dust
-  vec3 dry  = lin(vec3(72.0, 72.0, 38.0) + vn(p.x * 0.8, p.y * 0.8, 47) * vec3(30.0, 22.0, 9.0));             // dry grass
+  vec3 dry  = lin(vec3(48.0, 70.0, 30.0) + vn(p.x * 0.8, p.y * 0.8, 47) * vec3(22.0, 30.0, 12.0));  // grass
   vec3 c = mix(dirt, dust, base * 0.85);
-  c = mix(c, dry, grass * 0.8);
+  c = mix(c, dry, grass * 0.9);
   float speck = h2(int(floor(p.x * 12.0)), int(floor(p.y * 12.0)), 45);
   if (speck > 0.993) c = mix(c, lin(vec3(150.0)), 0.6); else if (speck < 0.012) c *= 0.65;
   return c;
@@ -461,7 +506,7 @@ function scatterDebris() {
     m.compose(v.set(x, 0.035, z), q.setFromEuler(e.set(0, rnd() * 6.3, 0)), sc.set(1, 1, 1)); return Math.hypot(x - BASE_C.x, z - BASE_C.y) < 16; });
   // grass tufts: crossed alpha cards, only where the ground texture has grass
   const tc = document.createElement("canvas"); tc.width = 64; tc.height = 64; const tx = tc.getContext("2d");
-  for (let i = 0; i < 26; i++) { const bx = 32 + (rnd() - 0.5) * 34, h = 30 + rnd() * 30, lean = (rnd() - 0.5) * 18; tx.strokeStyle = `rgb(${120 + rnd() * 50},${120 + rnd() * 30},${60 + rnd() * 20})`; tx.lineWidth = 1.5 + rnd(); tx.beginPath(); tx.moveTo(bx, 64); tx.quadraticCurveTo(bx + lean * 0.3, 64 - h * 0.6, bx + lean, 64 - h); tx.stroke(); }
+  for (let i = 0; i < 40; i++) { const bx = 32 + (rnd() - 0.5) * 40, h = 26 + rnd() * 34, lean = (rnd() - 0.5) * 22; tx.strokeStyle = `rgb(${50 + rnd() * 40},${85 + rnd() * 50},${30 + rnd() * 20})`; tx.lineWidth = 1 + rnd() * 0.8; tx.beginPath(); tx.moveTo(bx, 64); tx.quadraticCurveTo(bx + lean * 0.3, 64 - h * 0.6, bx + lean, 64 - h); tx.stroke(); }
   const tt = new THREE.CanvasTexture(tc); tt.colorSpace = THREE.SRGBColorSpace;
   const tuftGeo = new THREE.BufferGeometry(); { const P = [], U = [], I = []; for (let k = 0; k < 2; k++) { const a = k * Math.PI / 2, cx = Math.cos(a) * 0.25, cz = Math.sin(a) * 0.25, b = P.length / 3; P.push(-cx, 0, -cz, cx, 0, cz, cx, 0.4, cz, -cx, 0.4, -cz); U.push(0, 0, 1, 0, 1, 1, 0, 1); I.push(b, b + 1, b + 2, b, b + 2, b + 3); } tuftGeo.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); tuftGeo.setAttribute("uv", new THREE.Float32BufferAttribute(U, 2)); tuftGeo.setIndex(I); tuftGeo.computeVertexNormals(); }
   const tufts = place(tuftGeo, new THREE.MeshStandardMaterial({ map: tt, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 1 }), 900, (x, z, m) => {
@@ -536,21 +581,39 @@ function buildTreeline() {
       spots.push([x, z]);
     }
   }
+  // Split the treeline into 12 m chunks, each merged into one trunk mesh + one foliage mesh.
+  // Every chunk has its own bounds, so three.js frustum-culls the ones off camera (and off the
+  // sun's shadow camera) instead of always drawing the whole ring.
   const variants = [1, 2, 3].map(buildPineGeos), m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
   const group = new THREE.Group(); group.name = "treeline";
-  variants.forEach((v, vi) => {
-    const mine = spots.filter((_, i) => i % 3 === vi);
-    const trunks = new THREE.InstancedMesh(v.trunk, barkMat, mine.length), leaves = new THREE.InstancedMesh(v.foliage, leafMat, mine.length);
-    leaves.customDepthMaterial = leafDepth;
-    mine.forEach(([x, z], i) => {
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rndp() * Math.PI * 2); const s = 0.8 + rndp() * 0.45; sc.set(s, s * (0.9 + rndp() * 0.2), s);
-      m.compose(new THREE.Vector3(x, 0, z), q, sc); trunks.setMatrixAt(i, m); leaves.setMatrixAt(i, m);
-    });
-    for (const im of [trunks, leaves]) { im.castShadow = true; im.receiveShadow = true; group.add(im); }
+  const CHUNK = 12, chunks = new Map();
+  spots.forEach(([x, z], i) => {
+    const key = `${Math.floor(x / CHUNK)},${Math.floor(z / CHUNK)}`, v = variants[i % 3];
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rndp() * Math.PI * 2); const s = 0.8 + rndp() * 0.45; sc.set(s, s * (0.9 + rndp() * 0.2), s);
+    m.compose(new THREE.Vector3(x, 0, z), q, sc);
+    const c = chunks.get(key) || chunks.set(key, { trunks: [], leaves: [] }).get(key);
+    c.trunks.push(v.trunk.clone().applyMatrix4(m)); c.leaves.push(v.foliage.clone().applyMatrix4(m));
   });
+  for (const c of chunks.values()) {
+    const trunks = new THREE.Mesh(mergeGeometries(c.trunks), barkMat), leaves = new THREE.Mesh(mergeGeometries(c.leaves), leafMat);
+    leaves.customDepthMaterial = leafDepth;
+    for (const mesh of [trunks, leaves]) { mesh.castShadow = true; mesh.receiveShadow = true; mesh.geometry.computeBoundingSphere(); group.add(mesh); }
+  }
   return group;
 }
 scene.add(buildTreeline()); // enemies will come out of the woods from every side
+// A few lone pines inside the arena; circle colliders for the player and for bullets.
+const treeColliders = [];
+{
+  const rnd = (() => { let st = 90210; return () => ((st = (st * 16807) % 2147483647) / 2147483647); })();
+  for (let n = 0, tries = 0; n < 7 && tries < 200; tries++) {
+    const x = (rnd() - 0.5) * 50, z = (rnd() - 0.5) * 50;
+    if (Math.hypot(x - BASE_C.x, z - BASE_C.y) < 15 || Math.hypot(x - save.pos[0], z - save.pos[1]) < 8 || treeColliders.some(c => Math.hypot(c.x - x, c.z - z) < 7)) continue;
+    const t = makePine(4 + n); t.position.set(x, 0, z); t.rotation.y = rnd() * 6.3; t.scale.setScalar(0.85 + rnd() * 0.35);
+    t.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (o.material === pineMaterials().leafMat) o.customDepthMaterial = pineMaterials().leafDepth; } });
+    scene.add(t); treeColliders.push({ x, z, r: 0.35 * t.scale.x }); n++;
+  }
+}
 
 // Axis-aligned box colliders: [minX, maxX, minZ, maxZ]
 const boxColliders = [[-2.95, 2.95, SHACK_Z - 2.05, SHACK_Z + 2.05], [3.05, 4.55, SHACK_Z + 1.5, SHACK_Z + 3.3]];
@@ -677,6 +740,7 @@ function fire() {
   let hitD = RANGE, hit = null;
   for (const d of dummies) { if (d.dead > 0) continue; const t = rayCircle(ox, oz, dir.x, dir.z, d.x, d.z, d.r); if (t !== null && t < hitD) { hitD = t; hit = d; } }
   for (const bx of boxColliders) { const t = rayBox(ox, oz, dir.x, dir.z, bx); if (t !== null && t < hitD) { hitD = t; hit = null; } }
+  for (const c of treeColliders) { const t = rayCircle(ox, oz, dir.x, dir.z, c.x, c.z, c.r); if (t !== null && t < hitD) { hitD = t; hit = null; } }
   const muzzleAlong = (from.x - ox) * dir.x + (from.z - oz) * dir.z;
   const to = new THREE.Vector3(ox, from.y, oz).addScaledVector(dir, hitD);
   if (hitD > muzzleAlong + 0.05) {
@@ -724,21 +788,6 @@ document.getElementById("btnResetYes").addEventListener("click", () => {
 });
 document.getElementById("btnAmmo").addEventListener("click", () => { save.ammo = { mag: GUN.mag, reserve: GUN.reserve }; writeSave(); renderAmmo(); toast("Ammo refilled"); });
 const perfEl = document.getElementById("perf");
-// Pixel scale: render at 1/n resolution and upscale with hard pixels (also cuts GPU fill cost by n²)
-let pixelScale = 1;
-try { pixelScale = +localStorage.getItem("gametest.pixel") || 1; } catch (e) {}
-function applyPixelScale() {
-  renderer.setPixelRatio(pixelScale === 1 ? Math.min(devicePixelRatio, 2) : 1 / pixelScale);
-  renderer.setSize(innerWidth, innerHeight);
-  host.classList.toggle("pixel", pixelScale > 1);
-  document.getElementById("btnPixel").textContent = `Pixel scale: ${pixelScale}×`;
-}
-document.getElementById("btnPixel").addEventListener("click", () => {
-  pixelScale = pixelScale >= 3 ? 1 : pixelScale + 1;
-  try { localStorage.setItem("gametest.pixel", pixelScale); } catch (e) {}
-  applyPixelScale();
-});
-applyPixelScale();
 
 /* ---------- Model viewer ---------- */
 const MODELS = [
@@ -831,6 +880,7 @@ function update(dt) {
   if (mv.lengthSq() > 0) mv.normalize().multiplyScalar(sprint ? 7.5 : 4.5);
   player.vel.lerp(mv, 1 - Math.exp(-dt * 14));
   player.pos.addScaledVector(player.vel, dt);
+  for (const c of treeColliders) { const dx = player.pos.x - c.x, dz = player.pos.z - c.z, d = Math.hypot(dx, dz), min = c.r + 0.35; if (d < min && d > 1e-4) { player.pos.x = c.x + dx / d * min; player.pos.z = c.z + dz / d * min; } }
   for (const [x0, x1, z0, z1] of boxColliders) {
     const px = player.pos.x, pz = player.pos.z, r = 0.35;
     if (px > x0 - r && px < x1 + r && pz > z0 - r && pz < z1 + r) {
