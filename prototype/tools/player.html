@@ -1,0 +1,136 @@
+<!doctype html><meta charset="utf-8"><title>player rig</title>
+<script type="importmap">{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+// Auto-rigs "Low-Poly Male Body" (Tidominer, CC BY 4.0; static mesh) onto the Quaternius Universal
+// Animation Library skeleton (CC0) so it plays UAL locomotion clips directly, and removes the ears.
+// Steps: align + scale the body to the skeleton, swing the arm bones onto the body's arms, cut ear
+// triangles, compute skin weights from distance to bone segments, export skeleton + mesh + clips.
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+
+const L = new GLTFLoader();
+const [bodyG, ual] = await Promise.all([L.loadAsync("/tools/src/body.glb"), L.loadAsync("/tools/src/ual_standard.glb")]);
+const wp = (o) => o.getWorldPosition(new THREE.Vector3());
+const wq = (o) => o.getWorldQuaternion(new THREE.Quaternion());
+function setWorldQuat(o, q) { const pq = o.parent ? wq(o.parent) : new THREE.Quaternion(); o.quaternion.copy(pq.invert().multiply(q)); o.updateMatrixWorld(true); }
+
+// ---- skeleton in bind pose, its own mesh removed
+const root = ual.scene; root.updateMatrixWorld(true);
+let ualMesh = null; root.traverse(o => { if (o.isSkinnedMesh && !ualMesh) ualMesh = o; });
+const skeleton = ualMesh.skeleton; skeleton.pose(); root.updateMatrixWorld(true);
+const ualBox = new THREE.Box3().setFromObject(ualMesh);
+const removeMeshes = []; root.traverse(o => { if (o.isMesh) removeMeshes.push(o); });
+removeMeshes.forEach(m => m.parent.remove(m));
+const B = (n) => skeleton.bones.find(b => b.name === n);
+const H = ualBox.max.y - ualBox.min.y;
+
+// ---- body geometry in world space, scaled to the skeleton's height, feet on the ground
+bodyG.scene.updateMatrixWorld(true);
+let bodyMesh = null; bodyG.scene.traverse(o => { if (o.isMesh && !bodyMesh) bodyMesh = o; });
+let geo = bodyMesh.geometry.clone().applyMatrix4(bodyMesh.matrixWorld);
+geo = geo.index ? geo.toNonIndexed() : geo;
+geo.computeBoundingBox();
+let bb = geo.boundingBox, s = H / (bb.max.y - bb.min.y);
+geo.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); geo.scale(s, s, s);
+const pelvis = wp(B("pelvis")); geo.translate(pelvis.x, ualBox.min.y, pelvis.z);
+// face the same way as the skeleton (+z): the nose sticks out of the head on the facing side
+const pos = geo.attributes.position;
+const headY = ualBox.min.y + H * 0.9;
+let zs = []; for (let i = 0; i < pos.count; i++) if (pos.getY(i) > headY) zs.push(pos.getZ(i));
+const zMin = Math.min(...zs), zMax = Math.max(...zs), zMean = zs.reduce((a, b) => a + b, 0) / zs.length;
+const facesPlusZ = (zMax - zMean) > (zMean - zMin);
+if (!facesPlusZ) { geo.rotateY(Math.PI); geo.translate(2 * pelvis.x, 0, 2 * pelvis.z); }
+
+// ---- remove the ears: in the ear band, clamp vertices that stick out sideways back onto the skull
+// (pulling them in instead of deleting triangles keeps the head closed)
+const neckY = wp(B("neck_01")).y, headTop = ualBox.max.y;
+const inBand = (y) => y > neckY + (headTop - neckY) * 0.2 && y < neckY + (headTop - neckY) * 0.85;
+const bandXs = []; for (let i = 0; i < pos.count; i++) if (inBand(pos.getY(i))) bandXs.push(Math.abs(pos.getX(i) - pelvis.x));
+bandXs.sort((a, b) => a - b);
+const skullHalf = bandXs[Math.floor(bandXs.length * (window.EAR_PCT ?? 0.6))];
+let earTris = 0;
+for (let i = 0; i < pos.count; i++) {
+  const dx = pos.getX(i) - pelvis.x;
+  if (inBand(pos.getY(i)) && Math.abs(dx) > skullHalf) { pos.setX(i, pelvis.x + Math.sign(dx) * skullHalf); earTris++; }
+}
+pos.needsUpdate = true;
+
+// ---- swing the arm bones onto the body's arms (body pose may differ from the skeleton's bind)
+const P = geo.attributes.position, V = (i) => new THREE.Vector3(P.getX(i), P.getY(i), P.getZ(i));
+for (const s of ["l", "r"]) {
+  const up = B(`upperarm_${s}`), lo = B(`lowerarm_${s}`), ha = B(`hand_${s}`);
+  const sh = wp(up), sign = Math.sign(sh.x - pelvis.x);
+  // arm vertices: beyond the shoulder sideways, above the hips
+  const pts = []; for (let i = 0; i < P.count; i++) { const v = V(i); if ((v.x - pelvis.x) * sign > Math.abs(sh.x - pelvis.x) + 0.04 && v.y > wp(B("pelvis")).y) pts.push(v); }
+  if (!pts.length) continue;
+  // tip = farthest arm vertex from the shoulder; elbow = arm vertices at ~half that distance
+  let tip = pts[0]; for (const v of pts) if (v.distanceTo(sh) > tip.distanceTo(sh)) tip = v;
+  const len = tip.distanceTo(sh);
+  const mid = pts.filter(v => Math.abs(v.distanceTo(sh) - len * 0.5) < len * 0.08), elbow = mid.reduce((a, v) => a.add(v), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, mid.length));
+  const wristPts = pts.filter(v => Math.abs(v.distanceTo(sh) - len * 0.85) < len * 0.06), wrist = wristPts.reduce((a, v) => a.add(v), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, wristPts.length));
+  const swing = (bone, child, target) => { const d0 = wp(child).sub(wp(bone)).normalize(), d1 = target.clone().sub(wp(bone)).normalize(); setWorldQuat(bone, new THREE.Quaternion().setFromUnitVectors(d0, d1).multiply(wq(bone))); };
+  swing(up, lo, elbow); swing(lo, ha, wrist);
+  // stretch bone lengths to the body's arm
+  lo.position.multiplyScalar(elbow.distanceTo(wp(up)) / wp(lo).distanceTo(wp(up))); lo.updateMatrixWorld(true);
+  ha.position.multiplyScalar(wrist.distanceTo(wp(lo)) / wp(ha).distanceTo(wp(lo))); ha.updateMatrixWorld(true);
+}
+root.updateMatrixWorld(true);
+skeleton.calculateInverses();
+
+// ---- skin weights: two nearest bone segments, inverse-distance weighted
+const SKIN = ["pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "Head", "clavicle_l", "upperarm_l", "lowerarm_l", "hand_l", "clavicle_r", "upperarm_r", "lowerarm_r", "hand_r", "thigh_l", "calf_l", "foot_l", "ball_l", "thigh_r", "calf_r", "foot_r", "ball_r"];
+const segs = SKIN.map(n => {
+  const b = B(n), kids = b.children.filter(c => c.isBone);
+  const pref = { pelvis: "spine_01", spine_03: "neck_01", hand_l: "middle_01_l", hand_r: "middle_01_r", clavicle_l: "upperarm_l", clavicle_r: "upperarm_r" }[n];
+  const child = pref ? B(pref) : kids[0];
+  const a = wp(b), e = child ? wp(child) : a.clone().add(wp(b).sub(wp(b.parent)).multiplyScalar(0.6));
+  if (n === "Head") e.copy(a).add(new THREE.Vector3(0, headTop - a.y, 0));
+  return { i: skeleton.bones.indexOf(b), a, e, n };
+});
+const segDist = (p, s) => { const ab = s.e.clone().sub(s.a), t = THREE.MathUtils.clamp(p.clone().sub(s.a).dot(ab) / Math.max(1e-9, ab.lengthSq()), 0, 1); return p.distanceTo(s.a.clone().addScaledVector(ab, t)); };
+const si = new Uint16Array(P.count * 4), sw = new Float32Array(P.count * 4);
+for (let i = 0; i < P.count; i++) {
+  const v = V(i);
+  if (v.y > neckY + (headTop - neckY) * 0.15) { si[i * 4] = segs.find(s => s.n === "Head").i; sw[i * 4] = 1; continue; }
+  const sideOK = (s) => !/_(l|r)$/.test(s.n) || Math.sign(s.a.x - pelvis.x) === Math.sign(v.x - pelvis.x) || Math.abs(v.x - pelvis.x) < 0.02;
+  const ds = segs.filter(sideOK).map(s => [s, segDist(v, s)]).sort((a, b) => a[1] - b[1]).slice(0, 2);
+  const w = ds.map(([, d]) => 1 / Math.pow(d + 1e-4, 4)), tw = w[0] + w[1];
+  si[i * 4] = ds[0][0].i; sw[i * 4] = w[0] / tw; si[i * 4 + 1] = ds[1][0].i; sw[i * 4 + 1] = w[1] / tw;
+}
+geo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(si, 4));
+geo.setAttribute("skinWeight", new THREE.Float32BufferAttribute(sw, 4));
+geo.computeVertexNormals();
+const body = new THREE.SkinnedMesh(geo, new THREE.MeshStandardMaterial({ color: 0xc9b8a6, roughness: 0.75, flatShading: true }));
+body.name = "player_body";
+root.add(body); body.bind(skeleton, new THREE.Matrix4());
+
+// ---- clips to keep
+const KEEP = ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Pistol_Idle_Loop"];
+const clips = ual.animations.filter(c => KEEP.includes(c.name));
+
+// ---- previews: front (ears), side walk, idle
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); renderer.setSize(640, 640);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xdfe5ea);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x888070, 1.6)); const dl = new THREE.DirectionalLight(0xffffff, 2); dl.position.set(2, 4, 3); scene.add(dl);
+scene.add(root);
+const cam = new THREE.PerspectiveCamera(35, 1, 0.01, 50), mixer = new THREE.AnimationMixer(root), previews = {};
+const shot = (name, clip, t, camPos, look) => {
+  mixer.stopAllAction(); if (clip) { const a = mixer.clipAction(clips.find(c => c.name === clip)); a.play(); a.time = t; mixer.update(0); } else skeleton.pose();
+  root.updateMatrixWorld(true); cam.position.copy(camPos); cam.lookAt(look); renderer.render(scene, cam);
+  previews[name] = renderer.domElement.toDataURL("image/jpeg", 0.85);
+};
+const mid = new THREE.Vector3(pelvis.x, ualBox.min.y + H * 0.5, pelvis.z);
+shot("bind_front", null, 0, mid.clone().add(new THREE.Vector3(0, 0.2, 4.2)), mid);
+shot("head", null, 0, new THREE.Vector3(pelvis.x + 0.25, headTop - 0.12, pelvis.z + 0.7), new THREE.Vector3(pelvis.x, headTop - 0.13, pelvis.z));
+shot("walk_side", "Walk_Loop", 0.3, mid.clone().add(new THREE.Vector3(4.2, 0.3, 0.5)), mid);
+shot("jog_iso", "Jog_Fwd_Loop", 0.2, mid.clone().add(new THREE.Vector3(3, 3.2, 3)), mid);
+mixer.stopAllAction(); skeleton.pose(); scene.remove(root);
+
+const glb = await new GLTFExporter().parseAsync(root, { binary: true, animations: clips });
+const bytes = new Uint8Array(glb); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+window.__player = { b64: btoa(bin), previews, info: { earTris, H, facesPlusZ, clips: clips.map(c => c.name), verts: P.count } };
+</script>
