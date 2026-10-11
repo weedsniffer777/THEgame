@@ -268,7 +268,7 @@ function buildShack() {
 
   // Shed roof: purlins, then overlapping sheets running down the slope with a ragged eave
   const slope = Math.atan2(HF - HB, W);
-  const roof = new THREE.Group(); roof.position.set(0, FLOOR + (HF + HB) / 2 + 0.08, 0); roof.rotation.x = -slope; g.add(roof);
+  const roof = new THREE.Group(); roof.position.set(0, FLOOR + (HF + HB) / 2 + 0.08, 0); roof.rotation.x = -slope; roof.userData.roof = true; g.add(roof);
   const roofLen = W / Math.cos(slope);
   for (const z of [-roofLen / 2 + 0.1, -0.2, roofLen / 2 - 0.15]) { const p = new THREE.Mesh(surfBox(L + 0.7 + rnd() * 0.3, 0.1, 0.09, S.wood, rnd), S.woodMat); p.position.set((rnd() - 0.5) * 0.2, -0.05, z); roof.add(p); }
   let x = -L / 2 - 0.35, flip = 0;
@@ -288,13 +288,13 @@ function buildShack() {
 
   // Stovepipe with rain cap
   const pipeMat = new THREE.MeshStandardMaterial({ map: S.galv.map, roughnessMap: S.galv.roughnessMap, color: 0xb08868, roughness: 1, metalness: 0.4 });
-  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.5, 12), pipeMat); pipe.position.set(-1.9, wallTop(-1) + 0.55, -1.0); g.add(pipe);
-  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.14, 12), pipeMat); cap.position.set(-1.9, wallTop(-1) + 1.42, -1.0); g.add(cap);
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.5, 12), pipeMat); pipe.position.set(-1.9, wallTop(-1) + 0.55, -1.0); pipe.userData.roof = true; g.add(pipe);
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.14, 12), pipeMat); cap.position.set(-1.9, wallTop(-1) + 1.42, -1.0); cap.userData.roof = true; g.add(cap);
 
   // Satellite dish on a bracket at the front corner
   const dishPaint = new THREE.MeshStandardMaterial({ map: S.paint.map, roughnessMap: S.paint.roughnessMap, color: 0xf2efe6, roughness: 1, metalness: 0.2, side: THREE.DoubleSide });
   const dishPts = []; for (let i = 0; i <= 12; i++) { const r = (i / 12) * 0.48; dishPts.push(new THREE.Vector2(r, (r * r) / 0.9)); }
-  const dishG = new THREE.Group(); dishG.position.set(L / 2 - 0.35, wallTop(1.2) + 0.55, 1.2); g.add(dishG);
+  const dishG = new THREE.Group(); dishG.position.set(L / 2 - 0.35, wallTop(1.2) + 0.55, 1.2); dishG.userData.roof = true; g.add(dishG);
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.75, 8), iron); mast.position.y = -0.3; dishG.add(mast);
   const dishHead = new THREE.Group(); dishHead.rotation.set(-1.0, 0.7, 0); dishG.add(dishHead);
   dishHead.add(new THREE.Mesh(new THREE.LatheGeometry(dishPts, 20), dishPaint));
@@ -303,11 +303,11 @@ function buildShack() {
 
   // Antenna mast with crossbars and guy wires
   const mx = -L / 2 + 0.4, mz = -W / 2 + 0.4, my = wallTop(mz);
-  const mastM = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 2.4, 6), iron); mastM.position.set(mx, my + 1.2, mz); g.add(mastM);
-  [[2.2, 0.9], [1.9, 0.7], [1.6, 0.5]].forEach(([h, w]) => { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, w, 4), iron); b.rotation.z = Math.PI / 2; b.rotation.y = 0.5; b.position.set(mx, my + h, mz); g.add(b); });
+  const mastM = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 2.4, 6), iron); mastM.position.set(mx, my + 1.2, mz); mastM.userData.roof = true; g.add(mastM);
+  [[2.2, 0.9], [1.9, 0.7], [1.6, 0.5]].forEach(([h, w]) => { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, w, 4), iron); b.rotation.z = Math.PI / 2; b.rotation.y = 0.5; b.position.set(mx, my + h, mz); b.userData.roof = true; g.add(b); });
   const cable = (a, b, sag, r = 0.006, mtl = S.wireMat) => {
     const mid = a.clone().lerp(b, 0.5); mid.y -= sag;
-    const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a, mid, b), 10, r, 3), mtl); g.add(m); return m;
+    const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a, mid, b), 10, r, 3), mtl); m.userData.roof = true; g.add(m); return m;
   };
   cable(new THREE.Vector3(mx, my + 2.0, mz), new THREE.Vector3(mx + 1.4, wallTop(mz + 1) + 0.12, mz + 1.0), 0.05);
   cable(new THREE.Vector3(mx, my + 2.0, mz), new THREE.Vector3(mx + 1.2, wallTop(mz) + 0.12, mz + 0.05), 0.05);

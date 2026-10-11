@@ -20,7 +20,7 @@ html, body { height: 100%; }
 body { background: var(--night); color: var(--fg); font-family: var(--body); overflow: hidden; user-select: none; }
 #game { position: fixed; inset: 0; cursor: none; }
 #reticle { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 6; }
-#reticle .ring { position: absolute; width: 30px; height: 30px; left: -15px; top: -15px; border: 1.5px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.35); transition: transform .06s; }
+#reticle .ring { position: absolute; box-sizing: border-box; width: 30px; height: 30px; left: -15px; top: -15px; border: 1.5px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.35); transition: transform .06s; }
 #reticle i { position: absolute; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
 #reticle .dot { width: 2px; height: 2px; left: -1px; top: -1px; }
 #reticle .h { width: 7px; height: 2px; top: -1px; }
@@ -38,6 +38,14 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #ammoHud .pips { display: flex; gap: 4px; height: 16px; align-items: flex-end; }
 #ammoHud .pips i { width: 6px; height: 16px; background: #e8e2d4; box-shadow: inset 0 3px 0 #c9873f; }
 #ammoHud .pips i.spent { background: #3a3c38; box-shadow: none; }
+#doorMarker { left: 0; top: 0; }
+#doorMarker .bob { display: flex; flex-direction: column; align-items: center; gap: 2px; animation: bob .7s ease-in-out infinite alternate; }
+#doorMarker .tag { background: #7dff6e; color: #0f1a0d; font-size: 12px; font-weight: 600; letter-spacing: .14em; padding: 2px 6px; box-shadow: 0 0 0 2px #0f1a0d; }
+#doorMarker .arrow { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 10px solid #7dff6e; filter: drop-shadow(0 2px 0 #0f1a0d); }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+@media (prefers-reduced-motion: reduce) { #doorMarker .bob { animation: none; } }
+#perfHud { left: 18px; top: calc(14px + env(safe-area-inset-top, 0px)); padding: 4px 8px; font-size: 12px; letter-spacing: .08em; color: #9d978a; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#perfHud b { color: #e8e2d4; font-weight: 400; }
 #doorPrompt { left: 0; top: 0; padding: 4px 8px; font-size: 13px; letter-spacing: .12em; white-space: nowrap; }
 #doorPrompt b { color: #c9873f; font-weight: 600; margin-right: 4px; }
 #ammoHud .status { font-size: 12px; letter-spacing: .12em; color: #c9873f; height: 14px; }
@@ -90,6 +98,8 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 </div>
 <div class="hud pxbox" id="toast"></div>
 <div class="hud px pxbox" id="doorPrompt" hidden><b>E</b> ENTER</div>
+<div class="hud px" id="doorMarker" hidden><div class="bob"><span class="tag">DOOR</span><span class="arrow"></span></div></div>
+<div class="hud px pxbox" id="perfHud">—</div>
 <div id="reticle" hidden><span class="ring" id="reticleRing"></span><i class="dot"></i><i class="h l"></i><i class="h r"></i><i class="v t"></i><i class="v b"></i></div>
 <button id="devBtn" type="button" aria-expanded="false" aria-controls="devPanel">Dev kit</button>
 <div class="dev" id="devPanel" hidden>
@@ -254,8 +264,14 @@ function makeShanty() {
   // highlight: two extruded back-face hulls behind the model (white close, black further out)
   const outline = new THREE.Group(); outline.visible = false; outline.name = "outline";
   const white = outlineMat(0xffffff, 0.035), black = outlineMat(0x000000, 0.1);
-  body.traverse(o => { if (o.isMesh) for (const [m, order] of [[black, -2], [white, -1]]) { const h = new THREE.Mesh(o.geometry, m); h.matrix.copy(o.matrixWorld); h.matrixAutoUpdate = false; h.renderOrder = order; outline.add(h); } });
+  (body.getObjectByName("shack") || body).traverse(o => { if (o.isMesh) for (const [m, order] of [[black, -2], [white, -1]]) { const h = new THREE.Mesh(o.geometry, m); h.matrix.copy(o.matrixWorld); h.matrixAutoUpdate = false; h.renderOrder = order; outline.add(h); } });
   g.add(outline); g.userData.outline = outline;
+  // door highlight: a bright frame around the door opening
+  const doorFrame = new THREE.Group(); doorFrame.visible = false;
+  const fm = new THREE.MeshBasicMaterial({ color: 0x7dff6e, toneMapped: false });
+  const dx = SH.doorX, dz = SH.W / 2 + 0.16, y0 = SH.FLOOR, y1 = SH.FLOOR + 2.12, hw = 0.5;
+  for (const [w, h, x, y] of [[0.06, y1 - y0, dx - hw, (y0 + y1) / 2], [0.06, y1 - y0, dx + hw, (y0 + y1) / 2], [hw * 2 + 0.06, 0.06, dx, y1]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.04), fm); b.position.set(x, y, dz); doorFrame.add(b); }
+  g.add(doorFrame); g.userData.doorFrame = doorFrame;
   return g;
 }
 
@@ -304,6 +320,10 @@ function makePlayer() {
   const chestRestPos = model.worldToLocal(chest.getWorldPosition(new THREE.Vector3()));
   const chestRestQ = model.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(chest.getWorldQuaternion(new THREE.Quaternion()));
   const legs = ["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"].map(n => { const b = bone(n); return { b, rest: b.quaternion.clone() }; });
+  // faint silhouette drawn only where something is in front of the player
+  const silMat = new THREE.MeshBasicMaterial({ color: 0xe8e2d4, transparent: true, opacity: 0.32, depthFunc: THREE.GreaterDepth, depthWrite: false, toneMapped: false });
+  const skinned = []; model.traverse(o => { if (o.isSkinnedMesh) skinned.push(o); });
+  for (const m of skinned) { const sil = new THREE.SkinnedMesh(m.geometry, silMat); sil.bind(m.skeleton, m.bindMatrix); sil.renderOrder = 20; sil.frustumCulled = false; m.parent.add(sil); }
   return { model, mixer, loco, arms, chest, chestRestPos, chestRestQ, legs };
 }
 const _v = (o) => o.getWorldPosition(new THREE.Vector3()), _wq = (o) => o.getWorldQuaternion(new THREE.Quaternion());
@@ -370,6 +390,7 @@ addEventListener("resize", resize); resize();
 
 // Blank white work platform with a 1 m grid (5 m major lines)
 // Arena: 60 x 60 m of packed dirt inside a fence, pine treeline beyond, 4 lanes (N/E/S/W) through it.
+const SHACK_Z = -4;
 const ARENA = 60, PLATFORM = ARENA - 2; // player is kept inside the fence
 const LANE_HALF = 3.2;
 function dirtTexture() {
@@ -389,8 +410,102 @@ function dirtTexture() {
   x.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(14, 14); t.anisotropy = 8; return t;
 }
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(160, 160).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: dirtTexture(), roughness: 1 }));
+// Outer ground under the trees: tiled dirt. Arena ground: one unique 64 m texture (no repeats) with
+// worn paths from each lane to the door, dry grass patches, and a fine tiled grain on top.
+const outerGround = new THREE.Mesh(new THREE.PlaneGeometry(160, 160).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: dirtTexture(), roughness: 1, color: 0xb8b0a0 }));
+outerGround.position.y = -0.02; outerGround.receiveShadow = true; outerGround.renderOrder = -11; scene.add(outerGround);
+const GROUND_M = 64;
+const DOOR_W = new THREE.Vector2(SH.doorX, SHACK_Z + SH.W / 2 + 1.2);
+const PATHS = [[0, -32], [32, 0], [0, 32], [-32, 0]].map(([x, z], k) => {
+  const pts = []; for (let i = 0; i <= 24; i++) { const t = i / 24, wob = Math.sin(t * Math.PI) * (vnoise(t * 3, k * 7, 21) - 0.5) * 6;
+    const px = x + (DOOR_W.x - x) * t, pz = z + (DOOR_W.y - z) * t, dx = DOOR_W.x - x, dz = DOOR_W.y - z, L = Math.hypot(dx, dz);
+    pts.push(new THREE.Vector2(px - dz / L * wob, pz + dx / L * wob)); }
+  return pts;
+});
+function pathDist(x, z) {
+  let best = 1e9; const p = new THREE.Vector2(x, z);
+  for (const pts of PATHS) for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], ab = b.clone().sub(a), t = THREE.MathUtils.clamp(p.clone().sub(a).dot(ab) / ab.lengthSq(), 0, 1);
+    best = Math.min(best, p.distanceTo(a.clone().addScaledVector(ab, t)));
+  }
+  return best;
+}
+const fbm2 = (x, z, seed) => vnoise(x, z, seed) * 0.55 + vnoise(x * 2.1, z * 2.1, seed + 1) * 0.3 + vnoise(x * 4.3, z * 4.3, seed + 2) * 0.15;
+function grassAt(x, z) {                 // 0..1 dry-grass coverage, kept off paths and the yard
+  const wx = x + (fbm2(x * 0.05, z * 0.05, 31) - 0.5) * 12, wz = z + (fbm2(x * 0.05, z * 0.05, 32) - 0.5) * 12;
+  let g = THREE.MathUtils.smoothstep(fbm2(wx * 0.09, wz * 0.09, 33), 0.48, 0.66);
+  g *= THREE.MathUtils.smoothstep(pathDist(x, z), 1.2, 3.2);
+  g *= THREE.MathUtils.smoothstep(Math.hypot(x, z - SHACK_Z), 6, 10);
+  return g;
+}
+function arenaGroundTexture() {
+  const N = 1024, c = document.createElement("canvas"); c.width = c.height = N; const ctx = c.getContext("2d"), img = ctx.createImageData(N, N);
+  const pd = new Float32Array((N / 4) * (N / 4));                 // path distance on a coarse grid, then sampled
+  for (let j = 0; j < N / 4; j++) for (let i = 0; i < N / 4; i++) pd[j * (N / 4) + i] = pathDist((i * 4 / N - 0.5) * GROUND_M, (j * 4 / N - 0.5) * GROUND_M);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const x = (i / N - 0.5) * GROUND_M, z = (j / N - 0.5) * GROUND_M;
+    const wx = x + (fbm2(x * 0.04, z * 0.04, 41) - 0.5) * 10, wz = z + (fbm2(x * 0.04, z * 0.04, 42) - 0.5) * 10;
+    const big = fbm2(wx * 0.06, wz * 0.06, 43), mid = fbm2(x * 0.35, z * 0.35, 44), fine = hash2(i, j, 45);
+    let r = 118 + big * 34 + mid * 12, g = 108 + big * 30 + mid * 10, b = 80 + big * 20 + mid * 8;          // dirt
+    const dp = pd[(j >> 2) * (N / 4) + (i >> 2)];
+    const path = 1 - THREE.MathUtils.smoothstep(dp, 0.8, 1.9);
+    if (path > 0) {                                                // compacted, lighter path with two darker ruts
+      const rut = Math.max(0, 1 - Math.abs(Math.abs(dp - 0) - 0.45) / 0.12) * (vnoise(x * 1.3, z * 1.3, 46) > 0.35 ? 1 : 0.3);
+      r = r + (152 - r) * path * 0.55 - rut * 18 * path; g = g + (140 - g) * path * 0.55 - rut * 16 * path; b = b + (110 - b) * path * 0.55 - rut * 12 * path;
+    }
+    const gr = grassAt(x, z);
+    if (gr > 0) { const tone = vnoise(x * 0.8, z * 0.8, 47), blade = hash2(i >> 1, j, 48);
+      r = r + ((96 + tone * 50) - r) * gr * (0.75 + blade * 0.25); g = g + ((104 + tone * 34) - g) * gr * (0.75 + blade * 0.25); b = b + ((56 + tone * 14) - b) * gr * 0.8; }
+    if (fine > 0.992) { r = g = b = 170; } else if (fine < 0.01) { r *= 0.7; g *= 0.7; b *= 0.7; }
+    const o = (j * N + i) * 4; img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+function grainTexture() {
+  const N = 128, c = document.createElement("canvas"); c.width = c.height = N; const ctx = c.getContext("2d"), img = ctx.createImageData(N, N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const v = 128 + (hash2(i, j, 51) - 0.5) * 70 + (vnoise(i / 6, j / 6, 52) - 0.5) * 60; const o = (j * N + i) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = v; img.data[o + 3] = 255; }
+  ctx.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+const groundMat = new THREE.MeshStandardMaterial({ map: arenaGroundTexture(), roughness: 1 });
+const grain = grainTexture();
+groundMat.onBeforeCompile = (sh) => {
+  sh.uniforms.grainMap = { value: grain };
+  sh.fragmentShader = sh.fragmentShader.replace("#include <map_pars_fragment>", "#include <map_pars_fragment>\nuniform sampler2D grainMap;")
+    .replace("#include <map_fragment>", "#include <map_fragment>\n diffuseColor.rgb *= 0.82 + 0.36 * texture2D(grainMap, vMapUv * 40.0).r;");
+};
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_M, GROUND_M).rotateX(-Math.PI / 2), groundMat);
 ground.receiveShadow = true; ground.name = "ground"; ground.renderOrder = -10; scene.add(ground); // drawn first so outline rims survive
+// 2 x 2 m build grid over the arena, faint
+const grid = new THREE.GridHelper(60, 30, 0x2a2618, 0x2a2618); grid.material.transparent = true; grid.material.opacity = 0.16; grid.material.depthWrite = false; grid.position.y = 0.01; grid.renderOrder = -9; scene.add(grid);
+// Scattered debris: rocks, sticks, cans and grass tufts (instanced)
+function scatterDebris() {
+  const g = new THREE.Group(); g.name = "debris";
+  const rnd = (() => { let st = 777; return () => ((st = (st * 16807) % 2147483647) / 2147483647); })();
+  const okSpot = (x, z) => Math.abs(x) < 29 && Math.abs(z) < 29 && !(Math.abs(x) < 4.5 && Math.abs(z - SHACK_Z) < 4);
+  const place = (geo, mat, count, fn) => {
+    const im = new THREE.InstancedMesh(geo, mat, count), m = new THREE.Matrix4(); let n = 0;
+    for (let tries = 0; n < count && tries < count * 20; tries++) { const x = (rnd() - 0.5) * 58, z = (rnd() - 0.5) * 58; if (!okSpot(x, z)) continue; const r = fn(x, z, m); if (!r) continue; im.setMatrixAt(n++, m); }
+    im.count = n; im.castShadow = true; im.receiveShadow = true; g.add(im); return im;
+  };
+  const q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  place(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0x8a857b, roughness: 1, flatShading: true }), 260, (x, z, m) => {
+    const s = 0.04 + Math.pow(rnd(), 3) * 0.22; m.compose(v.set(x, s * 0.3, z), q.setFromEuler(e.set(rnd() * 3, rnd() * 3, rnd() * 3)), sc.set(s, s * 0.6, s * (0.8 + rnd() * 0.4))); return true; });
+  place(new THREE.CylinderGeometry(0.025, 0.03, 1, 5).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x5a4636, roughness: 1 }), 110, (x, z, m) => {
+    const l = 0.3 + rnd() * 0.9; m.compose(v.set(x, 0.03, z), q.setFromEuler(e.set(0, rnd() * 6.3, (rnd() - 0.5) * 0.1)), sc.set(l, 1, 1)); return true; });
+  place(new THREE.CylinderGeometry(0.035, 0.035, 0.11, 8).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x8c3a2a, roughness: 0.5, metalness: 0.6 }), 18, (x, z, m) => {
+    m.compose(v.set(x, 0.035, z), q.setFromEuler(e.set(0, rnd() * 6.3, 0)), sc.set(1, 1, 1)); return pathDist(x, z) < 6; });
+  // grass tufts: crossed alpha cards, only where the ground texture has grass
+  const tc = document.createElement("canvas"); tc.width = 64; tc.height = 64; const tx = tc.getContext("2d");
+  for (let i = 0; i < 26; i++) { const bx = 32 + (rnd() - 0.5) * 34, h = 30 + rnd() * 30, lean = (rnd() - 0.5) * 18; tx.strokeStyle = `rgb(${120 + rnd() * 50},${120 + rnd() * 30},${60 + rnd() * 20})`; tx.lineWidth = 1.5 + rnd(); tx.beginPath(); tx.moveTo(bx, 64); tx.quadraticCurveTo(bx + lean * 0.3, 64 - h * 0.6, bx + lean, 64 - h); tx.stroke(); }
+  const tt = new THREE.CanvasTexture(tc); tt.colorSpace = THREE.SRGBColorSpace;
+  const tuftGeo = new THREE.BufferGeometry(); { const P = [], U = [], I = []; for (let k = 0; k < 2; k++) { const a = k * Math.PI / 2, cx = Math.cos(a) * 0.25, cz = Math.sin(a) * 0.25, b = P.length / 3; P.push(-cx, 0, -cz, cx, 0, cz, cx, 0.4, cz, -cx, 0.4, -cz); U.push(0, 0, 1, 0, 1, 1, 0, 1); I.push(b, b + 1, b + 2, b, b + 2, b + 3); } tuftGeo.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); tuftGeo.setAttribute("uv", new THREE.Float32BufferAttribute(U, 2)); tuftGeo.setIndex(I); tuftGeo.computeVertexNormals(); }
+  const tufts = place(tuftGeo, new THREE.MeshStandardMaterial({ map: tt, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 1 }), 900, (x, z, m) => {
+    if (grassAt(x, z) < 0.45 + rnd() * 0.3) return false; const s = 0.6 + rnd() * 0.8; m.compose(v.set(x, 0, z), q.setFromEuler(e.set(0, rnd() * 6.3, 0)), sc.set(s, s * (0.8 + rnd() * 0.5), s)); return true; });
+  tufts.castShadow = false;
+  return g;
+}
+scene.add(scatterDebris());
 
 // Realistic pines: tapered bark trunk + whorls of drooping branch cards textured with a real
 // pine sprig (Poly Haven "Pine Tree 01", CC0). 3 variants, instanced: ~6 draw calls for the treeline.
@@ -484,7 +599,6 @@ function buildFence() {
 }
 scene.add(buildTreeline()); scene.add(buildFence());
 
-const SHACK_Z = -4;
 // Axis-aligned box colliders: [minX, maxX, minZ, maxZ]
 const boxColliders = [[-2.95, 2.95, SHACK_Z - 2.05, SHACK_Z + 2.05], [3.05, 4.55, SHACK_Z + 1.5, SHACK_Z + 3.3]];
 
@@ -714,7 +828,7 @@ const FWD = new THREE.Vector3(-1, 0, -1).normalize(), RIGHT = new THREE.Vector3(
 
 // ---- Shack door: prompt, highlight, enter/exit
 let shanty = null, shantyBox = null;
-const doorPrompt = document.getElementById("doorPrompt");
+const doorPrompt = document.getElementById("doorPrompt"), doorMarker = document.getElementById("doorMarker");
 const doorPos = () => new THREE.Vector3(SH.doorX, 0, SHACK_Z + SH.W / 2 + 0.6);
 const nearDoor = () => player.pos.distanceTo(doorPos()) < 2.4;
 function toggleInside() {
@@ -726,7 +840,13 @@ function updateDoor() {
   if (!shanty) return;
   const ray = raycaster.ray, hover = shantyBox && ray.intersectsBox(shantyBox), near = nearDoor();
   shanty.userData.outline.visible = hover || near || player.inside;
+  shanty.userData.doorFrame.visible = hover || near;
   doorPrompt.hidden = !(near || player.inside);
+  doorMarker.hidden = !(hover && !near && !player.inside);
+  if (!doorMarker.hidden) {
+    const mp = new THREE.Vector3(SH.doorX, SH.FLOOR + 2.6, SHACK_Z + SH.W / 2 + 0.1).project(camera);
+    doorMarker.style.transform = `translate(${(mp.x * 0.5 + 0.5) * innerWidth}px, ${(-mp.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`;
+  }
   if (!doorPrompt.hidden) {
     doorPrompt.innerHTML = `<b>E</b> ${player.inside ? "EXIT" : "ENTER"}`;
     const sp = new THREE.Vector3(SH.doorX, SH.FLOOR + 2.75, SHACK_Z + SH.W / 2 + 0.1).project(camera);
@@ -805,15 +925,19 @@ function update(dt) {
   saveTimer += dt; if (saveTimer > 2) { saveTimer = 0; save.pos = [+player.pos.x.toFixed(2), +player.pos.z.toFixed(2)]; writeSave(); }
 }
 
+const perfHud = document.getElementById("perfHud"); let cpuMs = 0, perfLast = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const tSec = now / 1000;
   if (viewerEl.hidden) {
+    const t0 = performance.now();
     update(dt); scene.traverse(o => o.userData.tick?.(tSec)); renderer.render(scene, camera);
-    frames++; perfTimer += dt;
+    cpuMs += performance.now() - t0; frames++; perfTimer += (now - perfLast) / 1000; perfLast = now;
     if (perfTimer > 0.5) {
-      if (!devPanel.hidden) { const i = renderer.info.render; perfEl.textContent = `${Math.round(frames / perfTimer)} fps · ${i.calls} draw calls · ${i.triangles.toLocaleString()} tris`; }
-      frames = 0; perfTimer = 0;
+      const i = renderer.info.render, fps = Math.round(frames / perfTimer), ms = (cpuMs / frames).toFixed(1);
+      perfHud.innerHTML = `<b>${fps}</b> FPS · <b>${ms}</b> MS · <b>${i.calls}</b> CALLS · <b>${(i.triangles / 1000).toFixed(0)}K</b> TRIS`;
+      if (!devPanel.hidden) perfEl.textContent = `${fps} fps · ${i.calls} draw calls · ${i.triangles.toLocaleString()} tris`;
+      frames = 0; perfTimer = 0; cpuMs = 0;
     }
   } else if (vr) {
     
@@ -824,7 +948,7 @@ function frame(now) {
 }
 
 await Promise.all([loadPlayer(), loadGun(), loadShanty().catch(e => { console.error(e); toast("Couldn't load the shanty model"); })]);
-if (shantyTemplate) { shanty = makeShanty(); shanty.position.set(0, 0, SHACK_Z); scene.add(shanty); shanty.updateMatrixWorld(true); shantyBox = new THREE.Box3().setFromObject(shanty.children[0]); }
+if (shantyTemplate) { shanty = makeShanty(); shanty.position.set(0, 0, SHACK_Z); scene.add(shanty); shanty.updateMatrixWorld(true); shantyBox = new THREE.Box3().setFromObject(shanty.children[0].getObjectByName("shack") || shanty.children[0]); }
 document.getElementById("loading").hidden = true;
 pl = makePlayer(); playerModel = pl.model; scene.add(playerModel);
 gunMount = new THREE.Group(); playerModel.add(gunMount);
