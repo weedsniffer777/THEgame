@@ -80,7 +80,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 <div id="game"></div>
 <div class="hud" id="crosshair"><i class="dot"></i><i class="h" id="chL"></i><i class="h" id="chR"></i><i class="v" id="chT"></i><i class="v" id="chB"></i></div>
 <div class="hud" id="weapon">
-  <span class="name">M1911</span>
+  <span class="name" id="weaponName">M1911</span>
   <span class="ammo" id="ammo"><b>7</b> / 49</span>
   <span class="bar"><i id="ammoBar"></i></span>
 </div>
@@ -153,12 +153,16 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 
-const VM_B64 = "__VM_B64__";
+// Weapons are data: tools/weapons.json defines each gun (parts, stats, hold type) and
+// tools/retarget.mjs bakes its viewmodel to models/vm_<id>.glb. Both are inlined at build time.
+const WEAPONS = __WEAPONS_JSON__;
+const VM_B64 = __VM_MAP__;
 const SHANTY_B64 = "__SHANTY_B64__"; // baked by tools/bake.mjs; embedded because the artifact host does not serve .glb
 
 /* ---------- Save ---------- */
 const SAVE_KEY = "gametest.save.v3";
-const GUN = { name: "M1911", mag: 7, reserve: 49, rpm: 400, spread: 0.004, moveSpread: 0.02, reload: 1.67 };
+let weaponId = "m1911";
+let GUN = { name: WEAPONS.weapons[weaponId].name, ...WEAPONS.weapons[weaponId].stats };
 const defaultSave = () => ({ version: 3, ammo: { mag: GUN.mag, reserve: GUN.reserve }, pos: [0, 4], yaw: 0 });
 function loadSave() {
   try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { const s = JSON.parse(raw); if (s.version === 3) return Object.assign(defaultSave(), s); } } catch (e) {}
@@ -224,11 +228,13 @@ function makeShanty() { const g = new THREE.Group(); g.name = "shanty"; g.add(sh
 /* ---------- Arms + M1911 viewmodel ---------- */
 // models/fps_viewmodel.glb is baked by tools/retarget.mjs: Drillimpact arms (CC0) driven by
 // Quaternius UAL pistol clips (CC0), M1911 seated in the right hand, plus a camera_anchor node.
-// M1911 parts: BarrelGuard = slide, Bolt = hammer, Trigger, Mag. Muzzle is +z, slide is +y.
+// Part roles (slide, hammer, trigger, mag) map to node names per weapon in weapons.json.
+// Weapon models use +z for the muzzle and +y for up.
 const GUN_FWD = new THREE.Vector3(0, 0, 1), GUN_UP = new THREE.Vector3(0, 1, 0);
-let vmGltf = null;
-async function loadViewmodelAssets() { vmGltf = await loader.parseAsync(b64ToBuf(VM_B64), ""); }
-function buildViewmodel() {
+const vmGltfs = {};
+async function loadViewmodelAssets() { await Promise.all(Object.entries(VM_B64).map(async ([id, b]) => { vmGltfs[id] = await loader.parseAsync(b64ToBuf(b), ""); })); }
+function buildViewmodel(id = weaponId) {
+  const vmGltf = vmGltfs[id], W = WEAPONS.weapons[id];
   const root = new THREE.Group(); root.name = "viewmodel";
   const model = skeletonClone(vmGltf.scene); root.add(model);
   model.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
@@ -238,22 +244,22 @@ function buildViewmodel() {
   anchor.matrixWorld.clone().invert().decompose(model.position, model.quaternion, model.scale);
   const mixer = new THREE.AnimationMixer(model);
   const clip = (n) => THREE.AnimationClip.findByName(vmGltf.animations, n);
-  const idle = mixer.clipAction(clip("pistol_aim")); idle.play(); // steady hold; the idle clip swings the arms out of view
+  const idle = mixer.clipAction(clip("hold")); idle.play();
   const once = (n) => { const a = mixer.clipAction(clip(n)); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; return a; };
-  const actions = { idle, shoot: once("pistol_shoot"), reload: once("pistol_reload") };
+  const actions = { idle, shoot: once("shoot"), reload: once("reload") };
   // One-shot clips swap in at full weight and hand back to the hold pose when they end. No fades:
   // a fade to zero disables an action in three.js, which left every weight at 0 (arms snapped to bind pose).
   mixer.addEventListener("finished", (e) => { e.action.stop(); idle.enabled = true; idle.setEffectiveWeight(1); });
-  const gun = model.getObjectByName("m1911");
+  const gun = model.getObjectByName("weapon");
   const parts = {};
-  gun.traverse(o => { for (const k of ["BarrelGuard", "Bolt", "Trigger", "Mag"]) if (o.name.endsWith("_" + k)) parts[k] = o; });
+  gun.traverse(o => { for (const [role, name] of Object.entries(W.parts)) if (!parts[role] && o.name.endsWith("_" + name)) parts[role] = o; });
   for (const p of Object.values(parts)) p.userData.rest = { pos: p.position.clone(), quat: p.quaternion.clone() };
   // muzzle and ejection port in gun space, measured from the slide
   const g0 = gun.clone(); g0.position.set(0, 0, 0); g0.quaternion.identity(); g0.scale.set(1, 1, 1); g0.updateMatrixWorld(true);
-  let slideName = parts.BarrelGuard?.name, sb = new THREE.Box3().setFromObject(slideName ? g0.getObjectByName(slideName) : g0);
+  let slideName = parts.slide?.name, sb = new THREE.Box3().setFromObject(slideName ? g0.getObjectByName(slideName) : g0);
   const sc = sb.getCenter(new THREE.Vector3());
   const muzzleLocal = new THREE.Vector3(sc.x, sc.y, sb.max.z), ejectLocal = new THREE.Vector3(sc.x, sb.max.y, sc.z - 0.01);
-  return { root, model, mixer, gun, parts, muzzleLocal, ejectLocal, actions, clip };
+  return { root, model, mixer, gun, parts, muzzleLocal, ejectLocal, actions, clip, travel: W.slideTravel ?? 0.03 };
 }
 function playOnce(a) {
   for (const o of [vm.actions.shoot, vm.actions.reload]) if (o !== a) o.stop();
@@ -461,19 +467,19 @@ function updateViewmodel(dt) {
   // slide blowback, hammer and trigger
   anim.slide = Math.max(0, anim.slide - dt * 14); anim.trigger = Math.max(0, anim.trigger - dt * 10);
   const P = vm.parts, emptyLock = save.ammo.mag === 0 && player.reloading <= 0 ? 1 : 0;
-  const slideBack = Math.max(Math.sin(Math.min(1, anim.slide) * Math.PI), emptyLock) * 0.032;
-  if (P.BarrelGuard) P.BarrelGuard.position.copy(P.BarrelGuard.userData.rest.pos).addScaledVector(GUN_FWD, -slideBack);
-  if (P.Trigger) P.Trigger.position.copy(P.Trigger.userData.rest.pos).addScaledVector(GUN_FWD, -anim.trigger * 0.006);
-  if (P.Bolt) { P.Bolt.quaternion.copy(P.Bolt.userData.rest.quat); P.Bolt.rotateX(anim.slide > 0.5 ? 0.6 : 0); }
+  const slideBack = Math.max(Math.sin(Math.min(1, anim.slide) * Math.PI), emptyLock) * vm.travel;
+  if (P.slide) P.slide.position.copy(P.slide.userData.rest.pos).addScaledVector(GUN_FWD, -slideBack);
+  if (P.trigger) P.trigger.position.copy(P.trigger.userData.rest.pos).addScaledVector(GUN_FWD, -anim.trigger * 0.006);
+  if (P.hammer) { P.hammer.quaternion.copy(P.hammer.userData.rest.quat); P.hammer.rotateX(anim.slide > 0.5 ? 0.6 : 0); }
   // reload: hands dip and tilt, the mag drops out and a fresh one slides in
   let rl = 0, magOff = 0;
   if (player.reloading > 0) {
     const t = 1 - player.reloading / GUN.reload;
     rl = Math.sin(Math.min(1, t * 1.15) * Math.PI);
     if (t < 0.35) magOff = (t / 0.35) * 0.25; else if (t < 0.55) magOff = 0.25; else if (t < 0.8) magOff = 0.25 * (1 - (t - 0.55) / 0.25); else magOff = 0;
-    if (t > 0.86 && P.BarrelGuard) P.BarrelGuard.position.copy(P.BarrelGuard.userData.rest.pos).addScaledVector(GUN_FWD, -0.032 * (1 - (t - 0.86) / 0.14));
+    if (t > 0.86 && P.slide) P.slide.position.copy(P.slide.userData.rest.pos).addScaledVector(GUN_FWD, -vm.travel * (1 - (t - 0.86) / 0.14));
   }
-  if (P.Mag) { P.Mag.position.copy(P.Mag.userData.rest.pos).addScaledVector(GUN_UP, -magOff); P.Mag.visible = magOff < 0.24; }
+  if (P.mag) { P.mag.position.copy(P.mag.userData.rest.pos).addScaledVector(GUN_UP, -magOff); P.mag.visible = magOff < 0.24; }
   // kick, sway, bob
   anim.kick = Math.max(0, anim.kick - dt * 9);
   const cl = (v) => THREE.MathUtils.clamp(v, -0.012, 0.012);
@@ -507,7 +513,7 @@ const perfEl = document.getElementById("perf");
 
 /* ---------- Model viewer ---------- */
 const MODELS = [
-  { id: "viewmodel", label: "Arms + M1911", src: "fps_viewmodel.glb · tools/retarget.mjs", make: () => { const v = buildViewmodel(); v.mixer.stopAllAction(); v.root.userData.mixer = v.mixer; return v.root; }, animated: true },
+  ...Object.keys(VM_B64).map(id => ({ id: "vm_" + id, label: `Arms + ${WEAPONS.weapons[id].name}`, src: `vm_${id}.glb · tools/retarget.mjs`, make: () => { const v = buildViewmodel(id); v.mixer.stopAllAction(); v.root.userData.mixer = v.mixer; v.root.userData.clips = vmGltfs[id].animations; return v.root; }, animated: true })),
   { id: "shanty", label: "Shanty (baked)", src: "shanty.glb · tools/bake.mjs", make: () => makeShanty() },
 ];
 const viewerEl = document.getElementById("viewer"), stage = document.getElementById("viewerStage"), infoEl = document.getElementById("viewerInfo");
@@ -545,7 +551,7 @@ function showModel(m) {
 }
 document.getElementById("vClip").addEventListener("click", (e) => {
   if (!vObj?.userData.mixer) return;
-  const clips = vmGltf.animations; vClipIdx = (vClipIdx + 1) % clips.length;
+  const clips = vObj.userData.clips; vClipIdx = (vClipIdx + 1) % clips.length;
   const mixer = vObj.userData.mixer; mixer.stopAllAction(); mixer.clipAction(clips[vClipIdx]).play();
   e.target.textContent = `Animation: ${clips[vClipIdx].name}`;
 });

@@ -5,7 +5,8 @@
 <script type="module">
 // Retargets Quaternius' Universal Animation Library pistol clips (CC0, Unreal-style skeleton) onto
 // Drillimpact's PSX First Person Arms (CC0, Rigify-style names), seats the M1911 in the right hand,
-// adds a camera anchor at the source character's eye, and exports one viewmodel GLB.
+// adds a camera anchor at the source character's eye, and exports one viewmodel GLB per weapon.
+// Everything weapon-specific comes from tools/weapons.json (?weapon=<id>).
 //
 // Method: (1) pose-match the arms' rest pose to the source's bind pose bone by bone (direction
 // swing; full basis for hands), (2) per frame, take each source bone's world-space rotation change
@@ -16,8 +17,11 @@ import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 
 const Q = new URLSearchParams(location.search);
 const TUNE = JSON.parse(Q.get("tune") || "{}");
+const CFG = await (await fetch("/tools/weapons.json")).json();
+const WID = Q.get("weapon") || "m1911", W = CFG.weapons[WID], HOLD = CFG.holds[W.hold];
+let FINGERS_ON = false;
 const L = new GLTFLoader();
-const [src, tgt, gunG] = await Promise.all([L.loadAsync("/tools/src/ual_standard.glb"), L.loadAsync("/models/fps_arms.glb"), L.loadAsync("/models/m1911.glb")]);
+const [src, tgt, gunG] = await Promise.all([L.loadAsync("/tools/src/ual_standard.glb"), L.loadAsync("/models/fps_arms.glb"), L.loadAsync("/" + W.model)]);
 const san = THREE.PropertyBinding.sanitizeNodeName;
 const find = (root, n) => { let b = null; const a = san(n); root.traverse(o => { if (!b && (o.name === n || o.name === a)) b = o; }); return b; };
 const wq = (o) => o.getWorldQuaternion(new THREE.Quaternion());
@@ -57,7 +61,7 @@ tgtRoot.updateMatrixWorld(true);
 // source facing from the aim pose
 const srcMixer = new THREE.AnimationMixer(srcRoot);
 const sclip = (n) => THREE.AnimationClip.findByName(src.animations, n);
-let act = srcMixer.clipAction(sclip("Pistol_Aim_Neutral")); act.play(); srcMixer.update(0.01); srcRoot.updateMatrixWorld(true);
+let act = srcMixer.clipAction(sclip(HOLD.clips.hold)); act.play(); srcMixer.update(0.01); srcRoot.updateMatrixWorld(true);
 const srcFwdZ = Math.sign(wp(find(srcRoot, "hand_r")).z - wp(find(srcRoot, "upperarm_r")).z) || 1;
 act.stop(); for (const m of srcSkinned) m.skeleton.pose(); srcRoot.updateMatrixWorld(true);
 const R = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), srcFwdZ === tgtFwdZ ? 0 : Math.PI), Ri = R.clone().invert();
@@ -87,25 +91,22 @@ const sW = wp(find(srcRoot, "upperarm_r")).distanceTo(wp(find(srcRoot, "upperarm
 const scale = tW / sW;
 const head = find(srcRoot, "Head"), eyeS = wp(head).add(new THREE.Vector3(0, 0.09, 0.1 * srcFwdZ).multiplyScalar(1 / scale));
 const anchor = new THREE.Object3D(); anchor.name = "camera_anchor";
-anchor.position.copy(tMid).add(eyeS.sub(sMid).applyQuaternion(R).multiplyScalar(scale)).add(new THREE.Vector3(...(TUNE.eye || [0, 0, 0])));
+anchor.position.copy(tMid).add(eyeS.sub(sMid).applyQuaternion(R).multiplyScalar(scale)).add(new THREE.Vector3(...(TUNE.eye || W.eye || [0, 0, 0])));
 anchor.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), tgtFwdZ < 0 ? 0 : Math.PI); // camera looks down -Z
 tgtRoot.add(anchor);
 
 // ---- (2) bake clips
 const FPS = 30;
-const CLIPS = [["Pistol_Idle_Loop", "pistol_idle"], ["Pistol_Aim_Neutral", "pistol_aim"], ["Pistol_Shoot", "pistol_shoot"], ["Pistol_Reload", "pistol_reload"], ["Pistol_Aim_Up", "pistol_aim_up"], ["Pistol_Aim_Down", "pistol_aim_down"]];
-// Extra curl on the right index finger (radians, about the knuckle line) so it sits in the trigger guard.
-const TRIGGER_CURL = TUNE.curl ?? 0;
-function poseTargetFromSource() {
-  for (const p of pairs) {
-    const delta = wq(p.s).multiply(p.srcRest.clone().invert());
-    setWorldQuat(p.t, R.clone().multiply(delta).multiply(Ri).multiply(p.tgtRest));
-    if (TRIGGER_CURL && p.names[1] === "f_index.01.R") {
-      const axis = wp(find(tgtRoot, "f_index.01.R")).sub(wp(find(tgtRoot, "f_pinky.01.R"))).normalize();
-      setWorldQuat(p.t, new THREE.Quaternion().setFromAxisAngle(axis, TRIGGER_CURL).multiply(wq(p.t)));
-    }
-  }
-  if (SUPPORT_IK) supportHandIK();
+// Per-action options from the hold type: blend toward the hold pose (keeps e.g. reloads on screen)
+// and whether the support hand is pulled onto the grip.
+const targetsNow = () => pairs.map(p => R.clone().multiply(wq(p.s).multiply(p.srcRest.clone().invert())).multiply(Ri).multiply(p.tgtRest));
+let holdTargets = null;
+function poseTargetFromSource(action = "hold") {
+  const T = targetsNow(), k = HOLD.blendToHold?.[action] || 0;
+  if (k && holdTargets) T.forEach((q, i) => q.slerp(holdTargets[i], k));
+  pairs.forEach((p, i) => setWorldQuat(p.t, T[i]));
+  if (HOLD.supportHandIK?.[action]) supportHandIK();
+  if (FINGERS_ON) fingerContact();
 }
 // Arm lengths differ from the source, so the left (support) hand lands short of the grip.
 // Two-bone IK pulls it onto the right hand: under the grip, on the left side, keeping its rotation.
@@ -115,7 +116,7 @@ function supportHandIK() {
   const handRot = wq(ha);
   const camQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), tgtFwdZ < 0 ? 0 : Math.PI);
   const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camQ), camUp = new THREE.Vector3(0, 1, 0), camFwdV = new THREE.Vector3(0, 0, -1).applyQuaternion(camQ);
-  const o = TUNE.ikOff || [-0.045, -0.05, -0.01]; // right/up/forward offset from the right wrist
+  const o = TUNE.ikOff || HOLD.supportOffset || [-0.045, -0.05, -0.01]; // right/up/forward offset from the right wrist
   const T = wp(hr).addScaledVector(camRight, o[0]).addScaledVector(camUp, o[1]).addScaledVector(camFwdV, o[2]);
   const S = wp(up), E = wp(fo), W = wp(ha), a = E.distanceTo(S), b = W.distanceTo(E);
   const toT = T.clone().sub(S), d = THREE.MathUtils.clamp(toT.length(), 0.01, a + b - 1e-4), dir = toT.normalize();
@@ -127,33 +128,21 @@ function supportHandIK() {
   setWorldQuat(fo, new THREE.Quaternion().setFromUnitVectors(W3.sub(E3).normalize(), T.clone().sub(E3).normalize()).multiply(wq(fo)));
   setWorldQuat(ha, handRot);
 }
-const out = [];
-for (const [sn, tn] of CLIPS) {
-  const c = sclip(sn); if (!c) { console.warn("missing clip", sn); continue; }
-  srcMixer.stopAllAction(); const a = srcMixer.clipAction(c); a.play();
-  const n = Math.max(2, Math.round(c.duration * FPS) + 1), times = [], vals = pairs.map(() => []);
-  for (let i = 0; i < n; i++) {
-    const t = Math.min(c.duration, i / FPS); a.time = t; srcMixer.update(0); srcRoot.updateMatrixWorld(true);
-    poseTargetFromSource(); times.push(t);
-    pairs.forEach((p, k) => { const q = p.t.quaternion; vals[k].push(q.x, q.y, q.z, q.w); });
-  }
-  out.push(new THREE.AnimationClip(tn, c.duration, pairs.map((p, k) => new THREE.QuaternionKeyframeTrack(`${p.t.name}.quaternion`, times, vals[k]))));
-}
-
 // ---- seat the M1911 in the right hand at the aim pose
-srcMixer.stopAllAction(); const aimA = srcMixer.clipAction(sclip("Pistol_Aim_Neutral")); aimA.play(); aimA.time = 0; srcMixer.update(0); srcRoot.updateMatrixWorld(true); poseTargetFromSource();
+srcMixer.stopAllAction(); const aimA = srcMixer.clipAction(sclip(HOLD.clips.hold)); aimA.play(); aimA.time = 0; srcMixer.update(0); srcRoot.updateMatrixWorld(true);
+holdTargets = targetsNow(); poseTargetFromSource("hold");
 const handR = find(tgtRoot, "hand.R");
-const gun = gunG.scene; gun.name = "m1911"; gun.updateMatrixWorld(true);
-// Measure the gun in its own space: grip = Mag part, slide = BarrelGuard part.
+const gun = gunG.scene; gun.name = "weapon"; gun.updateMatrixWorld(true);
+// Measure the gun in its own space using the part roles from weapons.json.
 const part = (k) => { let o = null; gun.traverse(c => { if (!o && c.name.endsWith("_" + k)) o = c; }); return o; };
-const magB = new THREE.Box3().setFromObject(part("Mag")), slideB = new THREE.Box3().setFromObject(part("BarrelGuard"));
+const magB = new THREE.Box3().setFromObject(part(W.parts.grip)), slideB = new THREE.Box3().setFromObject(part(W.parts.slide));
 const magC = magB.getCenter(new THREE.Vector3()), slideC = slideB.getCenter(new THREE.Vector3());
 const gUp = new THREE.Vector3(0, Math.sign(slideC.y - magC.y) || 1, 0);                        // grip -> slide
 const gFwd = new THREE.Vector3(0, 0, (slideB.max.z - magC.z) > (magC.z - slideB.min.z) ? 1 : -1); // muzzle side
-const RAKE = TUNE.rake ?? 0.32;                                                                  // 1911 grip angle
+const RAKE = TUNE.rake ?? W.gripRake ?? 0.3;                                                                  // 1911 grip angle
 const gGrip = gUp.clone().multiplyScalar(Math.cos(RAKE)).addScaledVector(gFwd, -Math.sin(RAKE)).normalize();
 // where the hand closes: top part of the grip, just under the slide
-const gHold = magC.clone().lerp(new THREE.Vector3(magC.x, slideB.min.y * (gUp.y > 0 ? 1 : 0) + slideB.max.y * (gUp.y < 0 ? 1 : 0), magC.z), TUNE.holdT ?? 0.35);
+const gHold = magC.clone().lerp(new THREE.Vector3(magC.x, slideB.min.y * (gUp.y > 0 ? 1 : 0) + slideB.max.y * (gUp.y < 0 ? 1 : 0), magC.z), TUNE.holdT ?? W.gripHoldT ?? 0.35);
 // Hand side: knuckle line (pinky -> index) is the grip axis; fist centre sits between palm and curled fingers.
 const P = (n) => wp(find(tgtRoot, n));
 const wGrip = P("f_index.01.R").sub(P("f_pinky.01.R")).normalize();
@@ -173,6 +162,48 @@ gun.position.copy(fist).sub(gHold.clone().applyQuaternion(rot));
 window.__gunInfo = { magC: magC.toArray(), slideC: slideC.toArray(), gUp: gUp.y, gFwd: gFwd.z };
 tgtRoot.add(gun); gun.updateMatrixWorld(true); handR.attach(gun);
 
+
+// ---- finger contact: curl each right finger until its tip meets the grip (index: the trigger)
+const gunSpace = (o) => { const c = o.clone(); c.position.set(0, 0, 0); c.quaternion.identity(); c.scale.set(1, 1, 1); c.updateMatrixWorld(true); return c; };
+const g0 = gunSpace(gun), boxOf = (k) => { let n = null; g0.traverse(c => { if (!n && c.name.endsWith("_" + k)) n = c; }); return new THREE.Box3().setFromObject(n); };
+const recB = boxOf(W.parts.frame), magB2 = boxOf(W.parts.grip), slideB2 = boxOf(W.parts.slide), trigB = boxOf(W.parts.trigger);
+const gripBox = new THREE.Box3(new THREE.Vector3(recB.min.x, magB2.min.y, magB2.min.z), new THREE.Vector3(recB.max.x, slideB2.min.y, magB2.max.z)).expandByScalar(TUNE.gripPad ?? 0.004);
+const trigC = trigB.getCenter(new THREE.Vector3());
+const depthIn = (q) => gripBox.containsPoint(q) ? Math.min(q.x - gripBox.min.x, gripBox.max.x - q.x, q.y - gripBox.min.y, gripBox.max.y - q.y, q.z - gripBox.min.z, gripBox.max.z - q.z) : 0;
+function fingerContact() {
+  const axis0 = wp(find(tgtRoot, "f_index.01.R")).sub(wp(find(tgtRoot, "f_pinky.01.R"))).normalize();
+  for (const F of ["f_middle", "f_ring", "f_pinky", "f_index"]) {
+    const js = [1, 2, 3].map(i => find(tgtRoot, `${F}.0${i}.R`)), saved = js.map(j => j.quaternion.clone());
+    const trial = (c) => {
+      js.forEach((j, i) => j.quaternion.copy(saved[i])); js[0].updateMatrixWorld(true);
+      const qa = new THREE.Quaternion().setFromAxisAngle(axis0, c * 0.45); setWorldQuat(js[0], qa.clone().multiply(wq(js[0])));
+      const ax1 = axis0.clone().applyQuaternion(qa), qb = new THREE.Quaternion().setFromAxisAngle(ax1, c * 0.35); setWorldQuat(js[1], qb.clone().multiply(wq(js[1])));
+      const ax2 = ax1.clone().applyQuaternion(qb); setWorldQuat(js[2], new THREE.Quaternion().setFromAxisAngle(ax2, c * 0.2).multiply(wq(js[2])));
+      const p2 = wp(js[1]), p3 = wp(js[2]), tip = p3.clone().add(p3.clone().sub(p2).multiplyScalar(0.8));
+      const L = (v) => gun.worldToLocal(v.clone());
+      const pen = depthIn(L(p2)) + depthIn(L(p3)) + depthIn(L(tip));
+      const d = F === "f_index" ? L(tip).distanceTo(trigC) : gripBox.distanceToPoint(L(tip));
+      return d + pen * 12;
+    };
+    let best = 0, bestCost = Infinity;
+    for (let c = -1.0; c <= 1.6001; c += 0.05) { const k = trial(c); if (k < bestCost) { bestCost = k; best = c; } }
+    trial(best);
+  }
+}
+FINGERS_ON = true;
+const out = [];
+for (const [action, sn] of Object.entries(HOLD.clips)) {
+  const c = sclip(sn); if (!c) { console.warn("missing clip", sn); continue; }
+  srcMixer.stopAllAction(); const a = srcMixer.clipAction(c); a.play();
+  const n = Math.max(2, Math.round(c.duration * FPS) + 1), times = [], vals = pairs.map(() => []);
+  for (let i = 0; i < n; i++) {
+    const t = Math.min(c.duration, i / FPS); a.time = t; srcMixer.update(0); srcRoot.updateMatrixWorld(true);
+    poseTargetFromSource(action); times.push(t);
+    pairs.forEach((p, k) => { const q = p.t.quaternion; vals[k].push(q.x, q.y, q.z, q.w); });
+  }
+  out.push(new THREE.AnimationClip(action, c.duration, pairs.map((p, k) => new THREE.QuaternionKeyframeTrack(`${p.t.name}.quaternion`, times, vals[k]))));
+}
+
 // ---- gloves
 const tex = await new THREE.TextureLoader().loadAsync("/models/fps_arms_gloves.jpg");
 tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace; tex.userData.mimeType = "image/jpeg";
@@ -188,7 +219,7 @@ const cam = new THREE.PerspectiveCamera(60, 960 / 540, 0.01, 50);
 const previews = {};
 const dbg = new THREE.Mesh(new THREE.SphereGeometry(0.03), new THREE.MeshBasicMaterial({ color: 0xff0000 })); anchor.getWorldPosition(dbg.position);
 const tm = new THREE.AnimationMixer(tgtRoot);
-for (const [clipName, t] of [["pistol_aim", 0], ["pistol_idle", 0.5], ["pistol_reload", 0.45], ["pistol_shoot", 0.08]]) {
+for (const [clipName, t] of [["hold", 0], ["reload", 0.45], ["shoot", 0.08]]) {
   tm.stopAllAction(); const a = tm.clipAction(out.find(c => c.name === clipName)); a.play(); a.time = t * a.getClip().duration; tm.update(0);
   tgtRoot.updateMatrixWorld(true); anchor.getWorldPosition(cam.position); anchor.getWorldQuaternion(cam.quaternion);
   renderer.render(scene, cam); previews[clipName] = renderer.domElement.toDataURL("image/jpeg", 0.85);
