@@ -259,14 +259,34 @@ function genSurface(px, metres, fn) {
 function rustAt(x, y, seed, amount) {
   // Rust mask: blotches plus drips running down from fastener rows every 0.9 m.
   const band = 0.9, fy = (y % band) / band;
-  const drip = Math.pow(vnoise(x * 22, Math.floor(y / band) * 7.3, seed + 4), 6) * (1 - fy) * 1.2;
-  const m = fbm(x * 2.1 + 5, y * 2.1, seed + 3, 5) + drip * 0.25 + (vnoise(x * 0.45, y * 0.45, seed + 9) - 0.5) * 0.3 + amount;
-  return smooth(0.55, 0.7, m) * 0.85;
+  const drip = Math.pow(vnoise(x * 22, Math.floor(y / band) * 7.3, seed + 4), 5) * (1 - fy) * 1.6;
+  const m = fbm(x * 2.1 + 5, y * 2.1, seed + 3, 5) + drip * 0.3 + (vnoise(x * 0.45, y * 0.45, seed + 9) - 0.5) * 0.35 + amount;
+  return smooth(0.5, 0.66, m);
+}
+// Wide, soft stain around rust: the metal yellows and browns before it actually rusts.
+function stainAt(x, y, seed, amount) {
+  const band = 0.9, fy = (y % band) / band;
+  const drip = Math.pow(vnoise(x * 22, Math.floor(y / band) * 7.3, seed + 4), 5) * (1 - fy) * 1.6;
+  const m = fbm(x * 2.1 + 5, y * 2.1, seed + 3, 5) + drip * 0.3 + (vnoise(x * 0.45, y * 0.45, seed + 9) - 0.5) * 0.35 + amount;
+  return smooth(0.3, 0.58, m);
 }
 function rustColor(x, y, seed) {
-  // Oxidised steel: ochre to umber browns, kept desaturated so it never reads as red.
-  const c = fbm(x * 5, y * 5, seed + 5, 3), dark = vnoise(x * 90, y * 90, seed + 6) > 0.8 ? 0.7 : 1;
-  return [(92 + c * 70) * dark, (70 + c * 44) * dark, (50 + c * 22) * dark];
+  const c = fbm(x * 5, y * 5, seed + 5, 3), dark = vnoise(x * 90, y * 90, seed + 6) > 0.8 ? 0.55 : 1;
+  return [(70 + c * 110) * dark, (34 + c * 52) * dark, (18 + c * 20) * dark];
+}
+// Graded discolouration: clean -> dull yellow-grey -> tan -> rust.
+function weather(r, g, b, x, y, seed, amount) {
+  const st = stainAt(x, y, seed, amount), t = rustAt(x, y, seed, amount);
+  const v = (r + g + b) / 3, mottle = fbm(x * 9, y * 9, seed + 12, 3);
+  // stage 1: desaturate and warm the base
+  r = mix(r, v * 1.04 + 6, st * 0.8); g = mix(g, v * 0.97, st * 0.8); b = mix(b, v * 0.86 - 6, st * 0.8);
+  // stage 2: tan staining that deepens toward the rust edge
+  const tan = st * st * (0.55 + mottle * 0.3);
+  r = mix(r, 150, tan * 0.55); g = mix(g, 112, tan * 0.55); b = mix(b, 78, tan * 0.55);
+  // stage 3: rust core, lighter orange at its edge, darker inside
+  const [rr, rg, rb] = rustColor(x, y, seed), edge = 1 - smooth(0.35, 1, t);
+  const er = mix(rr, 168, edge * 0.45), eg = mix(rg, 104, edge * 0.45), eb = mix(rb, 58, edge * 0.45);
+  return [mix(r, er, t), mix(g, eg, t), mix(b, eb, t), st, t];
 }
 let SURF = null;
 function surfaces() {
@@ -275,9 +295,8 @@ function surfaces() {
     const mott = fbm(x * 1.1, y * 1.1, 1, 4), fine = vnoise(x * 70, y * 70, 2);
     const rib = 0.5 + 0.5 * Math.cos((x / RIB) * Math.PI * 2);
     let v = 118 + mott * 62 + fine * 10 - (1 - rib) * 14;
-    let r = v * 0.96, g = v * 0.98, b = v * 1.0;
-    const t = rustAt(x, y, 30, 0.04), [rr, rg, rb] = rustColor(x, y, 30);
-    return [mix(r, rr, t), mix(g, rg, t), mix(b, rb, t), mix(0.5, 0.97, t), 0.45 + t * 0.35 + fine * 0.2];
+    const [r, g, b, st, t] = weather(v * 0.96, v * 0.98, v, x, y, 30, 0.04);
+    return [r, g, b, mix(0.5, 0.97, Math.max(t, st * 0.6)), 0.45 + t * 0.35 + st * 0.05 + fine * 0.2];
   });
   const PAINTS = [[86, 122, 117], [138, 66, 52], [176, 166, 136], [104, 110, 76], [78, 96, 120], [150, 120, 70]];
   const paint = genSurface(1024, 5, (x, y) => {
@@ -286,11 +305,11 @@ function surfaces() {
     const rib = 0.5 + 0.5 * Math.cos((x / RIB) * Math.PI * 2);
     const chip = fbm(x * 3.2, y * 3.2, 43, 5) + Math.pow(vnoise(x * 20, Math.floor(y / 0.9) * 3, 44), 6) * (1 - (y % 0.9) / 0.9);
     const bare = smooth(0.56, 0.6, chip);                  // paint gone
-    const t = Math.max(bare * smooth(0.5, 0.62, chip + 0.05), rustAt(x, y, 45, -0.1) * 0.8);
     const k = (0.78 + fade * 0.32) - (1 - rib) * 0.07;
-    let r = col[0] * k + 25 * fade, g = col[1] * k + 25 * fade, b = col[2] * k + 25 * fade;
-    const [rr, rg, rb] = rustColor(x, y, 45);
-    r = mix(r, rr, t); g = mix(g, rg, t); b = mix(b, rb, t);
+    let [r, g, b, st, t0] = weather(col[0] * k + 25 * fade, col[1] * k + 25 * fade, col[2] * k + 25 * fade, x, y, 45, -0.1);
+    const chipT = bare * smooth(0.5, 0.62, chip + 0.05), t = Math.max(chipT, t0 * 0.8);
+    const [rr, rg, rb] = rustColor(x, y, 46);
+    r = mix(r, rr, chipT); g = mix(g, rg, chipT); b = mix(b, rb, chipT);
     return [r, g, b, mix(0.75, 0.97, t), 0.5 + bare * 0.25 - t * 0.1 + fine * 0.15];
   });
   const wood = genSurface(1024, 4, (x, y) => {
