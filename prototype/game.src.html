@@ -637,14 +637,14 @@ function renderAmmo() {
   if (ammoPips.children.length !== GUN.mag) ammoPips.innerHTML = "<i></i>".repeat(GUN.mag);
   const shown = player.reloading > 0 ? Math.floor((1 - player.reloading / GUN.reload) * GUN.mag) : a.mag;
   [...ammoPips.children].forEach((pip, i) => pip.classList.toggle("spent", i >= shown));
-  ammoReserve.textContent = a.reserve;
+  ammoReserve.textContent = "∞";
   ammoStatus.textContent = player.reloading > 0 ? "RELOADING" : a.mag === 0 ? (a.reserve ? "PRESS R" : "NO AMMO") : "";
 }
 function startReload() {
   const a = save.ammo; if (player.reloading > 0 || a.mag >= GUN.mag || a.reserve <= 0) return;
   player.reloading = GUN.reload;
 }
-function finishReload() { const a = save.ammo, take = Math.min(GUN.mag - a.mag, a.reserve); a.mag += take; a.reserve -= take; writeSave(); }
+function finishReload() { const a = save.ammo, take = Math.min(GUN.mag - a.mag, a.reserve); a.mag += take; // M1911 has infinite reserve writeSave(); }
 const toastEl = document.getElementById("toast"); let toastT = 0;
 function toast(msg) { toastEl.textContent = msg; toastEl.classList.add("show"); toastT = 2; }
 
