@@ -1,4 +1,4 @@
-<title>Treeline Prototype</title>
+<title>Game Test</title>
 <style>
 /* Layout: full-bleed first-person canvas, crosshair centred, ammo bottom-right, dev kit as a right-side drawer. */
 :root {
@@ -87,7 +87,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 <div class="hud" id="toast"></div>
 <div id="start">
   <div class="card">
-    <h1>Treeline</h1>
+    <h1>Game Test</h1>
     <p id="startMsg">Loading…</p>
     <div class="keys">
       <div><kbd>WASD</kbd> move · <kbd>Shift</kbd> sprint · <kbd>Space</kbd> jump</div>
@@ -159,7 +159,7 @@ const M1911_B64 = "__M1911_B64__";
 const SHANTY_B64 = "__SHANTY_B64__"; // baked by tools/bake.mjs; embedded because the artifact host does not serve .glb
 
 /* ---------- Save ---------- */
-const SAVE_KEY = "treeline.save.v3";
+const SAVE_KEY = "gametest.save.v3";
 const GUN = { name: "M1911", mag: 7, reserve: 49, rpm: 450, spread: 0.004, moveSpread: 0.02, reload: 1.7 };
 const defaultSave = () => ({ version: 3, ammo: { mag: GUN.mag, reserve: GUN.reserve }, pos: [0, 4], yaw: 0 });
 function loadSave() {
@@ -234,7 +234,8 @@ async function loadViewmodelAssets() {
   tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace;
   armsGltf.scene.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.map = tex; o.material.roughness = 0.85; o.material.metalness = 0; o.frustumCulled = false; } });
 }
-function boneByName(root, name) { let b = null; root.traverse(o => { if (!b && o.name === name) b = o; }); return b; }
+// GLTFLoader strips "." from node names (hand.R -> handR), so match either spelling.
+function boneByName(root, name) { const alt = THREE.PropertyBinding.sanitizeNodeName(name); let b = null; root.traverse(o => { if (!b && (o.name === name || o.name === alt)) b = o; }); return b; }
 // Build arms in the idle pose and seat the pistol in the right hand: gun forward follows the
 // pointing index finger, gun up follows the view's up, and the grip sits in the palm.
 function buildViewmodel() {
