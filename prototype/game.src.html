@@ -209,13 +209,30 @@ body.def #game { cursor: default; }
 .tcard .cost { font-size: 15px; color: #ffd23a; } .tcard .k { position: absolute; left: 6px; top: 3px; font-size: 11px; color: #9d978a; }
 .tcard .cnt { position: absolute; right: 6px; top: 3px; font-size: 10px; color: #9d978a; }
 .tcard.sel { transform: translateY(-8px); box-shadow: 0 0 0 3px #e0b04a, 0 0 0 5px #101211, 0 10px 0 #101211; }
-.tcard.poor { opacity: .55; } .tcard.deny { animation: deny .25s; } .tcard.poor .cost { color: #e8584a; }
+.tcard.poor { opacity: .55; } .tcard.locked { opacity: .35; filter: grayscale(1); } .tcard.locked .cost { color: #9d978a; font-size: 11px; } .tcard.deny { animation: deny .25s; } .tcard.poor .cost { color: #e8584a; }
 .tcard.free .cost { color: #7dffd6; }
 .tcard.flash { animation: tflash .8s ease-in-out infinite; } @keyframes tflash { 50% { box-shadow: 0 0 0 3px #7dffd6, 0 0 0 5px #101211, 0 0 24px 6px rgba(125, 255, 214, .6); } }
 #orbLayer { inset: 0; z-index: 3; overflow: hidden; }
 .orb { position: absolute; left: 0; top: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #9fd2ff; transform: rotate(45deg); box-shadow: 0 0 8px 3px rgba(60, 150, 255, .8); will-change: transform; }
 .orb.gold { background: #ffd23a; box-shadow: 0 0 8px 3px rgba(255, 200, 60, .8); }
 .orb.big { width: 14px; height: 14px; margin: -7px 0 0 -7px; }
+#meta { position: fixed; inset: 0; z-index: 9; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 14px; padding: calc(18px + env(safe-area-inset-top, 0px)) 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(10, 12, 11, .55), rgba(10, 12, 11, .2) 30%, rgba(10, 12, 11, .2) 70%, rgba(10, 12, 11, .7)); overflow-y: auto; }
+#meta .mhead { display: flex; align-items: center; gap: 22px; text-shadow: 0 3px 0 #000; } #meta .mhead b { font-size: 34px; letter-spacing: .2em; color: #f2ede0; }
+#meta .mcash { display: flex; align-items: center; gap: 10px; font-size: 30px; color: #ffd23a; } #meta .coin { width: 18px; height: 18px; background: #ffd23a; transform: rotate(45deg); box-shadow: 0 0 12px 3px rgba(255, 200, 60, .6); }
+#meta .mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; width: min(1000px, 100%); align-content: start; }
+.mt { position: relative; display: grid; justify-items: center; gap: 4px; padding: 8px 8px 10px; border: 0; border-radius: 10px; font-family: inherit; color: #f2ede0; cursor: pointer;
+  background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, .14), rgba(255, 255, 255, .02) 60%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); transition: transform .12s, box-shadow .12s; }
+.mt:hover:not(:disabled) { transform: translateY(-4px); box-shadow: inset 0 0 0 2px #e0b04a, 0 10px 24px rgba(0, 0, 0, .35); }
+.mt img { width: 112px; height: 112px; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .55)); } .mt .big { font-size: 64px; line-height: 112px; height: 112px; text-shadow: 0 6px 12px rgba(0, 0, 0, .5); }
+.mt b { font-size: 13px; letter-spacing: .12em; text-shadow: 0 2px 0 #000; } .mt small { font-size: 11px; color: #c9c3b4; text-shadow: 0 1px 0 #000; }
+.mt .pips { display: flex; gap: 4px; } .mt .pips i { width: 14px; height: 5px; background: rgba(255, 255, 255, .18); } .mt .pips i.on { background: #e0b04a; box-shadow: 0 0 6px rgba(224, 176, 74, .7); }
+.mt .price { font-size: 16px; color: #ffd23a; text-shadow: 0 2px 0 #000; } .mt.poor .price { color: #e8584a; } .mt:disabled { cursor: default; }
+.mt.lock img { filter: grayscale(1) brightness(.5) drop-shadow(0 8px 10px rgba(0, 0, 0, .55)); } .mt.lock .price::before { content: "UNLOCK · "; color: #f2ede0; }
+.mt.maxed .price { color: #7dff6e; }
+#metaGo { font-family: inherit; font-size: 24px; letter-spacing: .16em; padding: 14px 42px; border: 0; border-radius: 8px; color: #0f1a0d; background: #6fe05a; box-shadow: 0 6px 0 #2e6e22, 0 10px 24px rgba(0, 0, 0, .4); cursor: pointer; }
+#metaGo:hover { background: #8cf576; }
+body.mobile .mt img, body.mobile .mt .big { width: 72px; height: 72px; line-height: 72px; font-size: 40px; } body.mobile #meta .mhead b { font-size: 22px; } body.mobile #meta .mcash { font-size: 20px; }
 #marq { left: 0; top: 0; z-index: 4; border: 2px dashed #e0b04a; background: rgba(224, 176, 74, .12); }
 .ptr.front .lbl { background: #ff4a3a; color: #fff; } .ptr.front .arr { border-top-color: #ff4a3a; }
 body.def #spot { z-index: 5; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .38), inset 0 0 30px 10px rgba(0, 0, 0, .38); }
@@ -334,6 +351,11 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
 <div class="hud px" id="defTop"><div id="defTimer">DAY 1 / 5</div><div id="defPhase">NIGHT IN 0:30</div><div class="brow"><span>BASE</span><div class="bbar"><i id="defBase"></i></div><span id="defBaseNum">1000</span></div></div>
 <div class="hud px" id="tray"><div class="pxbox" id="bank"><span class="coin"></span><span id="bankNum">0</span></div><div id="trayCards" style="display:flex;gap:10px"></div></div>
 <div class="hud" id="orbLayer"></div>
+<div class="px" id="meta" hidden>
+  <div class="mhead"><b>WORKSHOP</b><span class="mcash"><i class="coin"></i><span id="metaCash">0</span></span></div>
+  <div class="mgrid" id="metaGrid"></div>
+  <button type="button" id="metaGo">NEXT RUN ▶</button>
+</div>
 <div class="hud" id="ovh"><div class="wbar own"><i id="ovhHp"></i></div><div class="wbar st"><i id="ovhSt"></i></div></div>
 <div class="hud" id="spot" hidden></div>
 <div class="hud px pxbox" id="banner" hidden></div>
@@ -422,6 +444,7 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
     <div class="row">
       <button id="btnAmmo" type="button">+100 scrap</button>
       <button id="btnXpBig" type="button">+1,000,000 scrap</button>
+      <button id="btnCash" type="button">+1,000 workshop cash</button>
       <button id="btnBoom" type="button">Destroy the base</button>
     </div>
   </section>
@@ -477,8 +500,12 @@ let save = loadSave();
 const DEF = true, NIGHTS = 3, CYC = 60, RUN_LEN = NIGHTS * CYC;   // a level: survive 3 nights (30 s day + 30 s night each)
 const run = { t: 0, slow: 1, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: {}, mods: {}, fronts: [], picks: 0, events: {} };
 const MOD = (id) => run.mods[id] || 0;
-let ptrOn = false;   // a pointer is over the map (mouse hovering, or a finger down)
 if (!save.def) save.def = { cash: 0, best: 0, runs: 0, wins: 0, tut: 0 };
+// meta progression (kept between runs): unlocked builds, a power level per build, base perks
+if (!save.def.meta) save.def.meta = { unlock: { sentry: 1, wall: 1, rocket: 1 }, power: {}, perk: {} };
+const META = save.def.meta, powerOf = (k) => 1 + 0.1 * (META.power[k] || 0), perkOf = (k) => META.perk[k] || 0;
+let ptrOn = false;   // a pointer is over the map (mouse hovering, or a finger down)
+
 
 /* ---------- Small helpers ---------- */
 const mat = (c, extra = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8, flatShading: true, ...extra });
@@ -1868,7 +1895,7 @@ function updateRockets(dt) {
     let boom = d < 0.6 || r.pos.y < 0.12 || r.age > 3;
     if (!boom) for (const e of enemies) if (!e.dead && r.pos.y < 2 && Math.hypot(e.pos.x - r.pos.x, e.pos.z - r.pos.z) < 0.55) { boom = true; break; }
     if (!boom && r.pos.y < 3.2 && r.age > 0.25) for (const [x0, x1, z0, z1] of boxColliders) if (r.pos.x > x0 && r.pos.x < x1 && r.pos.z > z0 && r.pos.z < z1) { boom = true; break; }
-    if (boom) { scene.remove(r.m); rockets.splice(i, 1); const hv = r.lvl >= 3 ? 1 : 0; explode(r.pos.clone().setY(Math.max(0.35, r.pos.y)), ROCKET.radius * (1 + MOD("rrad")) * (1 + hv * 0.3), ROCKET.dmg * (1 + hv * 0.6) * (1 + 0.25 * card("sdmg") + MOD("rdmg")), { small: !hv }); }
+    if (boom) { scene.remove(r.m); rockets.splice(i, 1); const hv = r.lvl >= 3 ? 1 : 0; explode(r.pos.clone().setY(Math.max(0.35, r.pos.y)), ROCKET.radius * (1 + MOD("rrad")) * (1 + hv * 0.3), ROCKET.dmg * (1 + hv * 0.6) * powerOf("rocket") * (1 + 0.25 * card("sdmg") + MOD("rdmg")), { small: !hv }); }
   }
 }
 function updateRocketTurret(t, dt) {
@@ -1906,52 +1933,75 @@ function xMats() {
   return XMATS;
 }
 const xAdd = (parent, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
-// Flamethrower: fuel tanks on a skid, a turning head with the nozzle(s) and a blue pilot light.
-// LV2 a third tank and a longer nozzle, LV3 twin nozzles, LV4 a wide nozzle with a heat shield.
+// Flamethrower turret: an octagonal pedestal and turntable; the turning head is an armoured box with fuel
+// tanks strapped to its flanks, hoses into the nozzle, a perforated heat shroud and a blue pilot light.
+// LV2 a third tank on top and a longer nozzle, LV3 twin nozzles, LV4 a wide nozzle behind a heat shield.
 function makeFlamerModel(level = 1) {
   const M = xMats(), g = new THREE.Group(); g.name = "flamer";
-  xAdd(g, new THREE.BoxGeometry(1.0, 0.08, 0.8), M.dark, 0, 0.04, 0);
-  const nt = level >= 2 ? 3 : 2;
-  for (let i = 0; i < nt; i++) { const x = (i - (nt - 1) / 2) * 0.28;
-    xAdd(g, new THREE.CylinderGeometry(0.12, 0.12, 0.5, 12), M.tank, x, 0.33, -0.24); xAdd(g, new THREE.SphereGeometry(0.12, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), M.tank, x, 0.58, -0.24);
-    xAdd(g, new THREE.BoxGeometry(0.26, 0.04, 0.05), M.dark, x, 0.42, -0.1); }
-  xAdd(g, new THREE.CylinderGeometry(0.11, 0.14, 0.3, 10), M.metal, 0, 0.23, 0.14);
-  const hose = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.6, -0.24), new THREE.Vector3(0, 0.72, -0.05), new THREE.Vector3(0, 0.5, 0.1)]), 12, 0.025, 6); xAdd(g, hose, M.hose, 0, 0, 0);
-  const head = new THREE.Group(); head.position.set(0, 0.42, 0.14); g.add(head);
-  xAdd(head, new THREE.BoxGeometry(0.24, 0.17, 0.34), M.metal, 0, 0.04, 0);
-  const muzzles = [], len = 0.45 + level * 0.06, xs = level === 3 ? [-0.07, 0.07] : [0], r = level >= 4 ? 0.065 : 0.045;
-  for (const x of xs) {
-    xAdd(head, new THREE.CylinderGeometry(r, r * 0.85, len, 10), M.dark, x, 0.05, 0.17 + len / 2, Math.PI / 2);
-    xAdd(head, new THREE.CylinderGeometry(r * 1.6, r, 0.08, 10), M.metal, x, 0.05, 0.17 + len + 0.03, Math.PI / 2);
-    xAdd(head, new THREE.SphereGeometry(0.02, 6, 4), M.pilot, x, 0.05 - r - 0.02, 0.17 + len);
-    muzzles.push(new THREE.Vector3(x, 0.05, 0.22 + len));
+  xAdd(g, new THREE.CylinderGeometry(0.4, 0.48, 0.22, 8), M.dark, 0, 0.11, 0);
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 + Math.PI / 8; xAdd(g, new THREE.CylinderGeometry(0.025, 0.025, 0.04, 6), M.metal, Math.cos(a) * 0.43, 0.23, Math.sin(a) * 0.43); }
+  xAdd(g, new THREE.CylinderGeometry(0.33, 0.33, 0.05, 16), M.metal, 0, 0.245, 0);
+  const head = new THREE.Group(); head.position.y = 0.27; g.add(head);
+  xAdd(head, new THREE.BoxGeometry(0.44, 0.3, 0.5), M.gun, 0, 0.17, -0.02);
+  xAdd(head, new THREE.BoxGeometry(0.44, 0.16, 0.16), M.gun, 0, 0.27, 0.2, -0.65);   // sloped front plate
+  xAdd(head, new THREE.BoxGeometry(0.3, 0.05, 0.3), M.dark, 0, 0.345, -0.1);         // hatch
+  const tanks = [[-0.32, 0.2, -0.05], [0.32, 0.2, -0.05]]; if (level >= 2) tanks.push([0, 0.46, -0.12]);
+  for (const [x, y, z] of tanks) {
+    xAdd(head, new THREE.CylinderGeometry(0.11, 0.11, 0.48, 12), M.tank, x, y, z, Math.PI / 2);
+    for (const s of [-1, 1]) xAdd(head, new THREE.SphereGeometry(0.11, 12, 6), M.tank, x, y, z + s * 0.24);
+    for (const zz of [-0.12, 0.12]) xAdd(head, new THREE.CylinderGeometry(0.118, 0.118, 0.03, 12), M.dark, x, y, z + zz, Math.PI / 2);
   }
-  if (level >= 4) xAdd(head, new THREE.CylinderGeometry(0.2, 0.2, 0.025, 14), M.plate, 0, 0.05, 0.3, Math.PI / 2);
+  const muzzles = [], len = 0.42 + level * 0.06, xs = level === 3 ? [-0.09, 0.09] : [0], r = level >= 4 ? 0.06 : 0.04;
+  for (const x of xs) {
+    xAdd(head, new THREE.CylinderGeometry(r * 2.1, r * 2.1, len * 0.45, 10), M.metal, x, 0.16, 0.25 + len * 0.22, Math.PI / 2);   // heat shroud
+    for (let k = 0; k < 4; k++) xAdd(head, new THREE.CylinderGeometry(r * 2.18, r * 2.18, 0.015, 10), M.dark, x, 0.16, 0.28 + k * len * 0.11, Math.PI / 2);
+    xAdd(head, new THREE.CylinderGeometry(r, r * 0.85, len, 10), M.dark, x, 0.16, 0.25 + len / 2, Math.PI / 2);
+    xAdd(head, new THREE.CylinderGeometry(r * 1.7, r, 0.09, 10), M.metal, x, 0.16, 0.27 + len, Math.PI / 2);
+    xAdd(head, new THREE.BoxGeometry(0.06, 0.05, 0.08), M.dark, x, 0.16 - r - 0.04, 0.2 + len);
+    xAdd(head, new THREE.SphereGeometry(0.022, 6, 4), M.pilot, x, 0.16 - r - 0.04, 0.25 + len);
+    for (const [tx] of tanks.slice(0, 2)) xAdd(head, new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(tx, 0.2, 0.18), new THREE.Vector3(tx * 0.6, 0.06, 0.3), new THREE.Vector3(x, 0.12, 0.34)]), 10, 0.018, 5), M.hose, 0, 0, 0);
+    muzzles.push(new THREE.Vector3(x, 0.16, 0.32 + len));
+  }
+  if (level >= 4) xAdd(head, new THREE.BoxGeometry(0.6, 0.36, 0.035), M.plate, 0, 0.2, 0.36);
   mergeByMaterial(g); mergeByMaterial(head);
   return { g, head, muzzles };
 }
-// Cannon: a Bofors-style 40 mm on a cruciform base; the barrels (one per level) sit in a cradle that pitches.
+// Cannon: a Bofors 40 mm on its round base. Two tall riveted cheek frames and boxy gear housings either side,
+// the cradle with the breech, the clip guide of shells on top, recoil springs under a long dark barrel ending
+// in a big conical flash hider. One barrel per level. The barrels idle pointing up, as AA guns rest.
 function makeCannonModel(level = 1) {
-  const M = xMats(), g = new THREE.Group(); g.name = "cannon";
-  for (const a of [Math.PI / 4, -Math.PI / 4]) { xAdd(g, new THREE.BoxGeometry(1.35, 0.07, 0.12), M.dark, 0, 0.05, 0, 0, a); }
-  for (const [x, z] of [[0.48, 0.48], [-0.48, 0.48], [0.48, -0.48], [-0.48, -0.48]]) xAdd(g, new THREE.CylinderGeometry(0.08, 0.09, 0.05, 8), M.dark, x, 0.03, z);
-  xAdd(g, new THREE.CylinderGeometry(0.2, 0.26, 0.24, 10), M.gun, 0, 0.18, 0);
-  const head = new THREE.Group(); head.position.y = 0.3; g.add(head);
-  xAdd(head, new THREE.CylinderGeometry(0.32, 0.32, 0.05, 14), M.gun, 0, 0.025, 0);
-  const n = level, spread = 0.13, cw = 0.16 + (n - 1) * spread;
-  for (const s of [-1, 1]) xAdd(head, new THREE.BoxGeometry(0.04, 0.38, 0.46), M.gun, s * (cw / 2 + 0.06), 0.24, -0.02);
-  if (level >= 2) xAdd(head, new THREE.BoxGeometry(cw + 0.3, 0.3, 0.03), M.gun, 0, 0.32, 0.28);   // gun shield
-  xAdd(head, new THREE.BoxGeometry(0.12, 0.08, 0.14), M.dark, -(cw / 2 + 0.16), 0.3, 0.05);    // sight box
-  const box = new THREE.Group(); box.position.y = 0.34; head.add(box);
+  const M = xMats(), G = M.grey || (M.grey = new THREE.MeshStandardMaterial({ color: 0xa3a9ac, roughness: 0.55, metalness: 0.25 })), B = M.barrel || (M.barrel = new THREE.MeshStandardMaterial({ color: 0x2a2c2e, roughness: 0.45, metalness: 0.5 }));
+  const g = new THREE.Group(); g.name = "cannon";
+  xAdd(g, new THREE.CylinderGeometry(0.58, 0.64, 0.07, 24), G, 0, 0.035, 0);
+  for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; xAdd(g, new THREE.BoxGeometry(0.03, 0.08, 0.14), G, Math.cos(a) * 0.5, 0.1, Math.sin(a) * 0.5, 0, -a, 0); }   // ribs on the base
+  xAdd(g, new THREE.CylinderGeometry(0.32, 0.4, 0.18, 16), G, 0, 0.16, 0);
+  const head = new THREE.Group(); head.position.y = 0.25; g.add(head);
+  const n = level, spread = 0.2, cw = 0.2 + (n - 1) * spread;
+  xAdd(head, new THREE.BoxGeometry(cw + 0.5, 0.08, 0.7), G, 0, 0.04, -0.02);
+  for (const s of [-1, 1]) {
+    xAdd(head, new THREE.BoxGeometry(0.05, 0.62, 0.36), G, s * (cw / 2 + 0.06), 0.38, -0.04);                  // cheek frame
+    xAdd(head, new THREE.BoxGeometry(0.05, 0.3, 0.26), G, s * (cw / 2 + 0.06), 0.62, -0.2, 0.5);               // its swept back top
+    xAdd(head, new THREE.BoxGeometry(0.24, 0.26, 0.32), G, s * (cw / 2 + 0.22), 0.2, 0.06);                    // gear housing
+    for (let k = 0; k < 4; k++) xAdd(head, new THREE.CylinderGeometry(0.012, 0.012, 0.02, 6), M.dark, s * (cw / 2 + 0.345), 0.12 + k * 0.05, 0.06, 0, 0, Math.PI / 2);
+    xAdd(head, new THREE.TorusGeometry(0.07, 0.012, 6, 14), M.dark, s * (cw / 2 + 0.35), 0.24, -0.06, 0, Math.PI / 2, 0);   // handwheel
+  }
+  xAdd(head, new THREE.BoxGeometry(0.22, 0.3, 0.12), G, -(cw / 2 + 0.22), 0.5, -0.12, 0.25);                   // sight post
+  xAdd(head, new THREE.CylinderGeometry(0.08, 0.08, 0.02, 10), M.dark, cw / 2 + 0.3, 0.42, -0.32);            // gunner's seat
+  xAdd(head, new THREE.CylinderGeometry(0.015, 0.015, 0.2, 6), M.dark, cw / 2 + 0.3, 0.32, -0.32);
+  const box = new THREE.Group(); box.position.y = 0.6; head.add(box);
   const muzzles = [];
   for (let i = 0; i < n; i++) {
     const x = (i - (n - 1) / 2) * spread;
-    xAdd(box, new THREE.BoxGeometry(0.13, 0.17, 0.46), M.dark, x, 0, -0.04);               // breech
-    xAdd(box, new THREE.BoxGeometry(0.1, 0.15, 0.09), M.brass, x, 0.15, -0.08);            // ammo clip on top
-    xAdd(box, new THREE.CylinderGeometry(0.05, 0.05, 0.34, 10), M.metal, x, 0, 0.36, Math.PI / 2);   // recoil spring
-    xAdd(box, new THREE.CylinderGeometry(0.028, 0.033, 1.1, 10), M.dark, x, 0, 0.8, Math.PI / 2);
-    xAdd(box, new THREE.CylinderGeometry(0.055, 0.034, 0.15, 10), M.dark, x, 0, 1.42, Math.PI / 2);  // flash hider
-    muzzles.push(new THREE.Vector3(x, 0, 1.52));
+    xAdd(box, new THREE.BoxGeometry(0.17, 0.22, 0.6), G, x, 0, -0.05);                                         // breech casing
+    xAdd(box, new THREE.CylinderGeometry(0.07, 0.07, 0.3, 12), G, x, 0.02, 0.36, Math.PI / 2);               // barrel jacket
+    for (let k = 0; k < 3; k++) xAdd(box, new THREE.BoxGeometry(0.075, 0.012, 0.02), M.dark, x + 0.04, 0.09, 0.28 + k * 0.05);
+    for (const s of [-1, 1]) xAdd(box, new THREE.BoxGeometry(0.018, 0.26, 0.12), G, x + s * 0.06, 0.24, -0.08);   // clip guide rails
+    for (let k = 0; k < 4; k++) xAdd(box, new THREE.CylinderGeometry(0.022, 0.022, 0.1, 8), M.brass, x, 0.15 + k * 0.05, -0.08, Math.PI / 2);   // shells in the clip
+    for (const s of [-1, 1]) xAdd(box, new THREE.CylinderGeometry(0.03, 0.03, 0.42, 8), G, x + s * 0.045, -0.12, 0.38, Math.PI / 2);   // recoil springs
+    xAdd(box, new THREE.CylinderGeometry(0.033, 0.038, 1.3, 10), B, x, 0.02, 1.15, Math.PI / 2);
+    xAdd(box, new THREE.CylinderGeometry(0.08, 0.045, 0.24, 12), G, x, 0.02, 1.9, Math.PI / 2);              // flash hider
+    xAdd(box, new THREE.CircleGeometry(0.07, 12), M.dark, x, 0.02, 2.021);
+    muzzles.push(new THREE.Vector3(x, 0.02, 2.05));
   }
   mergeByMaterial(g); mergeByMaterial(head); mergeByMaterial(box);
   return { g, head, box, muzzles };
@@ -2008,7 +2058,7 @@ function updateFlamer(t, dt) {
     if (Math.random() < 0.15) spawnSprite(from.clone().addScaledVector(dir, range * 0.6), new THREE.Vector3(0, 1.2, 0), { color: 0x3a3330, size: 0.6, grow: 3, life: 1.0, opacity: 0.35, drag: 1 });
   }
   t.tick = (t.tick || 0) - dt; if (t.tick > 0) return; t.tick = 0.15;
-  const dmg = FLAME.dps[t.level] * 0.15 * (1 + 0.25 * card("sdmg") + MOD("sdmg"));
+  const dmg = FLAME.dps[t.level] * 0.15 * powerOf("flamer") * (1 + 0.25 * card("sdmg") + MOD("sdmg"));
   for (const e of enemies) {   // everything in the cone burns
     if (e.dead) continue; const dx = e.pos.x - t.x, dz = e.pos.z - t.z, d = Math.hypot(dx, dz); if (d > range + 0.5) continue;
     const da = Math.atan2(Math.sin(Math.atan2(dx, dz) - t.yaw), Math.cos(Math.atan2(dx, dz) - t.yaw)); if (Math.abs(da) > cone + 0.3 / Math.max(1, d)) continue;
@@ -2017,8 +2067,9 @@ function updateFlamer(t, dt) {
 }
 function updateCannon(t, dt) {
   t.retarget -= dt; if (t.retarget <= 0 || (t.target && (t.target.dead || !enemies.includes(t.target)))) { t.retarget = 0.3; t.target = pickTarget(t, turretRange(t)); }
-  const aligned = turnTo(t, dt, 2.5 + t.level * 0.6);
-  t.recoil = Math.max(0, (t.recoil || 0) - dt * 4); t.box.position.z = -t.recoil * 0.15; t.box.rotation.x = -0.06;
+  const aligned = turnTo(t, dt, 2.5 + t.level * 0.6) && (t.pitch ?? 1) < 0.15;
+  t.recoil = Math.max(0, (t.recoil || 0) - dt * 4); t.box.position.z = -t.recoil * 0.15;
+  t.pitch = THREE.MathUtils.lerp(t.pitch ?? 0.6, t.target ? 0.07 : 0.6, Math.min(1, dt * 3)); t.box.rotation.x = -t.pitch;   // resting barrels point up, AA style
   t.cool -= dt; if (!t.target || !aligned || t.cool > 0) return;
   t.cool = CANNON.rate / t.muzzles.length / (1 + 0.2 * card("srate") + MOD("srate")); t.recoil = 1;
   t.g.updateMatrixWorld(true);
@@ -2031,7 +2082,7 @@ function updateCannon(t, dt) {
   spawnTracer(from, to, 2.6);
   spawnSprite(from.clone().addScaledVector(dir, 0.15), dir.clone().multiplyScalar(3), { color: 0xffc46b, size: 1.1, grow: 0.6, life: 0.08, opacity: 1, additive: true, drag: 0 });
   for (let k = 0; k < 3; k++) spawnSprite(from.clone(), dir.clone().multiplyScalar(1.5).add(new THREE.Vector3((Math.random() - 0.5), 0.6, (Math.random() - 0.5))), { color: 0xd8d4cc, size: 0.4, grow: 2.5, life: 0.9, opacity: 0.4, drag: 2 });
-  if (hit || hitD < turretRange(t) + 1.9) explode(to, 1.4, CANNON.dmg[t.level] * (1 + 0.25 * card("sdmg") + MOD("sdmg")), { small: true });
+  if (hit || hitD < turretRange(t) + 1.9) explode(to, 1.4, CANNON.dmg[t.level] * powerOf("cannon") * (1 + 0.25 * card("sdmg") + MOD("sdmg")), { small: true });
   shake = Math.max(shake, 0.05);
 }
 function updateTraps(dt) {
@@ -2039,14 +2090,14 @@ function updateTraps(dt) {
   for (const t of traps) {
     const inside = enemies.filter(e => !e.dead && Math.abs(e.pos.x - t.x) < 1.05 && Math.abs(e.pos.z - t.z) < 1.05);
     if (t.kind === "wire") {
-      for (const e of inside) { e.slowT = 0.3; e.wireT = (e.wireT || 0) + dt; if (e.wireT > 0.5) { e.wireT = 0; hurtEnemy(e, t.level >= 2 ? 16 : 5, zero, 0, false, true);
+      for (const e of inside) { e.slowT = 0.3; e.wireT = (e.wireT || 0) + dt; if (e.wireT > 0.5) { e.wireT = 0; hurtEnemy(e, Math.round((t.level >= 2 ? 16 : 5) * powerOf("wire")), zero, 0, false, true);
         if (t.level >= 2) for (let k = 0; k < 3; k++) spawnSprite(e.pos.clone().setY(0.4 + Math.random()), new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3), { color: 0x9fd0ff, size: 0.1, life: 0.2, opacity: 1, additive: true, drag: 1 }); } }
       if (t.level >= 2 && Math.random() < dt * 3) spawnSprite(new THREE.Vector3(t.x + (Math.random() - 0.5) * 1.8, 0.4 + Math.random() * 0.4, t.z + (Math.random() < 0.5 ? -0.45 : 0.45)), zero.clone(), { color: 0x8fb8ff, size: 0.18, grow: 0.5, life: 0.1, opacity: 1, additive: true, drag: 0 });
     } else if (t.kind === "spikes") {
       t.cd = Math.max(0, (t.cd || 0) - dt); t.pop = Math.max(0, (t.pop || 0) - dt);
       if (!t.cd && inside.length && t.pack <= 0) {
         t.cd = t.level >= 2 ? 1.0 : 1.6; t.pop = 0.6;
-        for (const e of inside) hurtEnemy(e, Math.round((t.level >= 2 ? 110 : 60) * (1 + MOD("sdmg"))), new THREE.Vector3(0, 1, 0), 0);
+        for (const e of inside) hurtEnemy(e, Math.round((t.level >= 2 ? 110 : 60) * powerOf("spikes") * (1 + MOD("sdmg"))), new THREE.Vector3(0, 1, 0), 0);
         sparkFx(new THREE.Vector3(t.x, 0.4, t.z), new THREE.Vector3(0, 1, 0), 8);
       }
       t.spikes.position.y = t.pop > 0.45 ? 0 : -0.62 * (1 - t.pop / 0.45);   // out in a flash, back down slowly
@@ -2188,7 +2239,7 @@ function hitStruct(s, n) {
   if (up) { hurtStruct(up, n / 2); hurtStruct(s, n / 2); } else hurtStruct(s, n);
 }
 function hurtStruct(s, n) {
-  n *= (1 - Math.min(0.7, MOD("armor"))) / (1 + 0.43 * card("fort"));   // Fortify: less damage taken
+  n *= (1 - Math.min(0.7, MOD("armor"))) / (1 + 0.43 * card("fort")) / (s.kind === "wall" ? powerOf("wall") : 1);   // Fortify: less damage taken
   s.hp -= n; if (!s.bar) s.bar = worldBar(true);
   sparkFx(new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 1.4 : 1.0), s.z), new THREE.Vector3(0, 1, 0), 3);
   if (s.hp <= 0) {
@@ -2279,7 +2330,7 @@ function updateSentries(dt) {
       spawnTracer(from, to, t.level >= 3 ? 1.5 : 0.8, !hit && hitD >= sentryRange(t) + 2 - 0.01);
       spawnSprite(from.clone().addScaledVector(dir, 0.06), dir.clone().multiplyScalar(2), { color: 0xffc46b, size: 0.45, grow: 0.3, life: 0.05, opacity: 1, additive: true, drag: 0 });
       if (t.shot % 3 === 0) spawnCasing(from.clone().addScaledVector(dir, -0.5).add(new THREE.Vector3(0, -0.05, 0)), dir);
-      if (hit) hurtEnemy(hit, Math.round(SENTRY.dmg * LV_DMG[t.level] * (1 + 0.25 * card("sdmg") + MOD("sdmg"))), dir);
+      if (hit) hurtEnemy(hit, Math.round(SENTRY.dmg * LV_DMG[t.level] * powerOf("sentry") * (1 + 0.25 * card("sdmg") + MOD("sdmg"))), dir);
     }
   }
   const regen = 3 * card("regen"); if (regen) for (const s of structs()) s.hp = Math.min(STRUCT[s.kind].hp[s.level], s.hp + regen * dt);
@@ -2888,7 +2939,7 @@ const BASE_T = { kind: "base" };   // what enemies aim at when they go for the b
 const BASE_HP = [0, 1000, 1800, 2800];
 let runOver = false, picking = 0, baseHitBanner = 0;
 const BASE_BOX = () => boxColliders[0];
-const baseMax = () => Math.round(BASE_HP[Math.min(save.base, 3)] * (1 + 0.3 * card("basehp")));
+const baseMax = () => Math.round(BASE_HP[Math.min(save.base, BASE_HP.length - 1)] * (1 + 0.3 * card("basehp")) * (DEF ? 1 + 0.1 * perkOf("armor") : 1));
 function baseDist(p) { const [x0, x1, z0, z1] = BASE_BOX(); const cx = THREE.MathUtils.clamp(p.x, x0, x1), cz = THREE.MathUtils.clamp(p.z, z0, z1); return [Math.hypot(p.x - cx, p.z - cz), cx, cz]; }
 const baseBarEl = document.getElementById("baseBar"), baseHpEl = document.getElementById("baseHpNum");
 function renderBaseHp() { if (save.baseHp === undefined) save.baseHp = baseMax(); baseBarEl.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; baseHpEl.textContent = Math.max(0, Math.ceil(save.baseHp)); }
@@ -3003,6 +3054,7 @@ document.getElementById("btnResetYes").addEventListener("click", () => {
 });
 document.getElementById("btnAmmo").addEventListener("click", () => { save.xp += 100; renderXp(); writeSave(); });
 document.getElementById("btnBoom").addEventListener("click", () => { if (!runOver) { tut.step = "done"; save.tut = 1; hurtBase(1e9); } });
+document.getElementById("btnCash").addEventListener("click", () => { save.def.cash += 1000; writeSave(); if (!metaEl.hidden) metaTiles(); });
 document.getElementById("btnXpBig").addEventListener("click", () => { save.xp += 1000000; renderXp(); writeSave(); });
 const perfEl = document.getElementById("perf");
 
@@ -3406,6 +3458,7 @@ renderer.domElement.addEventListener("wheel", (e) => { if (!DEF) return; e.preve
 function renderTray() {
   bankNum.textContent = save.xp;
   trayCards.innerHTML = BUILDS.map((b, i) => { const c = b.cost(), n = countOf(b.id), cap = capOf(b.id), free = run.free[b.id] > 0;
+    if (locked(i)) return `<button type="button" class="tcard locked" data-i="${i}"><span class="k">${i + 1}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">LOCKED</span></button>`;
     return `<button type="button" class="tcard${buildSel === i && buildMode ? " sel" : ""}${save.xp < c || n >= cap ? " poor" : ""}${free ? " free" : ""}" data-i="${i}"><span class="k">${i + 1}</span><span class="cnt">${n}/${cap}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">${free ? freeLabel(b.id) : c}</span></button>`; }).join("");
   if (!run.started && !run.events.firstPick) trayCards.children[0]?.classList.add("flash");
 }
@@ -3418,7 +3471,8 @@ function pickUp(t) {   // back into the tray; a merged turret comes back as the 
   for (let k = 0; k < 6; k++) spawnSprite(new THREE.Vector3(t.x, (t.y || 0) + 0.6, t.z), new THREE.Vector3((Math.random() - 0.5) * 2, 2 + Math.random(), (Math.random() - 0.5) * 2), { color: 0x7dffd6, size: 0.12, life: 0.6, opacity: 1, additive: true, drag: 1.5 });
   popNumber(new THREE.Vector3(t.x, (t.y || 0) + 2, t.z), `+${n} ${STRUCT[t.kind].name}`, true, "dmg");
 }
-const affordable = (i) => { const b = BUILDS[i]; return save.xp >= b.cost() && countOf(b.id) < capOf(b.id); };
+const locked = (i) => DEF && !META.unlock[BUILDS[i].id];
+const affordable = (i) => { const b = BUILDS[i]; if (locked(i)) return false; return save.xp >= b.cost() && countOf(b.id) < capOf(b.id); };
 function setBuild(i) {
   if (i >= 0 && !affordable(i)) { deny(trayCards.children[i]); return; }   // can't pay for it (or at the cap): no picking it up
   if (carry) cancelCarryDef();
@@ -3672,9 +3726,9 @@ function defReset() {
   for (const o of orbs) { o.el.remove(); orbPool.push(o.el); } orbs.length = 0;
   for (const el of frontEls) el.remove(); frontEls.length = 0; camPan.set(0, 0, 0); camZoom = 1;
   carry = null; buildSel = -1; buildMode = false; showGhost(); closeMenu();
-  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { sentry: 3 }, freeTotal: { sentry: 3 }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, final: false, nightN: 0, nightSpawned: 0 });
+  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { sentry: 3 + perkOf("spare") }, freeTotal: { sentry: 3 + perkOf("spare") }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, final: false, nightN: 0, nightSpawned: 0 });
   spT = { walker: 1.5, runner: 0, bomber: 0 };
-  runOver = false; shantyGone = false; player.dead = 0; save.xp = 25; save.base = 1;   // the base starts every run at level 1 save.cards = []; save.builds = [];
+  runOver = false; shantyGone = false; player.dead = 0; save.xp = 25 + 20 * perkOf("scrap"); save.base = 1;   // the base starts every run at level 1 save.cards = []; save.builds = [];
   applyBaseLevel(); save.baseHp = baseMax(); renderBaseHp(); runEl.hidden = true; cardsEl.hidden = true; picking = 0;
   shanty && (shanty.userData.outline.visible = false);
   // the opening: a first front, a few walkers already on their way in slow motion, a free sentry to place
@@ -3704,10 +3758,42 @@ function defResults(won) {
   document.getElementById("rSub").innerHTML = `${won ? "You held through every night" : `Survived ${nights} of ${NIGHTS} nights`} · ${run.kills} kills · reached LV ${run.lvl}<br>Best: ${save.def.bestN} night${save.def.bestN === 1 ? "" : "s"}`;
   let earn = runEl.querySelector(".earn"); if (!earn) { earn = document.createElement("div"); earn.className = "earn"; runEl.querySelector(".rbox").insertBefore(earn, document.getElementById("rRespawn")); }
   earn.innerHTML = `+${cash} CASH · ${save.def.cash} total<small>Permanent tower and base upgrades are coming next</small>`;
-  document.getElementById("rRespawn").innerHTML = "PLAY AGAIN";
+  document.getElementById("rRespawn").innerHTML = "TO THE WORKSHOP ▶";
   runEl.hidden = false;
 }
-document.getElementById("rRespawn").addEventListener("click", () => { if (DEF) defReset(); }, true);
+document.getElementById("rRespawn").addEventListener("click", () => { if (DEF) { runEl.hidden = true; openMeta(); } }, true);
+// ---- the workshop: unlock builds, power them up, buy base perks; big pictures, light text
+const metaEl = document.getElementById("meta"), metaGrid = document.getElementById("metaGrid");
+const UNLOCK_COST = { flamer: 150, cannon: 220, spikes: 80, wire: 70 };
+const PERKS = [
+  { id: "armor", name: "BASE ARMOUR", txt: "+10% base HP", icon: "base", max: 5, cost: (l) => Math.round(80 * 1.6 ** l) },
+  { id: "scrap", name: "SCAVENGED SCRAP", txt: "+20 scrap at the start", icon: "◆", max: 5, cost: (l) => Math.round(60 * 1.6 ** l) },
+  { id: "spare", name: "SPARE SENTRY", txt: "+1 free sentry at the start", icon: "sentry", max: 3, cost: (l) => Math.round(120 * 2 ** l) },
+];
+const powerCost = (l) => Math.round(50 * 1.7 ** l);
+function metaTiles() {
+  const pips = (l, m) => `<span class="pips">${Array.from({ length: m }, (_, i) => `<i class="${i < l ? "on" : ""}"></i>`).join("")}</span>`;
+  const tile = (key, img, name, sub, lvl, max, price, cls = "") => { const maxed = lvl >= max && !cls.includes("lock"); const poor = !maxed && save.def.cash < price;
+    return `<button type="button" class="mt ${cls}${maxed ? " maxed" : ""}${poor ? " poor" : ""}" data-k="${key}" ${maxed ? "disabled" : ""}>${img}<b>${name}</b><small>${sub}</small>${cls.includes("lock") ? "" : pips(lvl, max)}<span class="price">${maxed ? "MAXED" : price}</span></button>`; };
+  const img = (k) => ICONS[k] ? `<img alt="" src="${ICONS[k]}">` : `<span class="big">${k}</span>`;
+  let h = "";
+  for (const b of BUILDS) {
+    const k = b.id, l = META.power[k] || 0;
+    h += META.unlock[k] ? tile("p:" + k, img(k), b.name, k === "wall" ? `Power: ${l * 10}% tougher` : `Power: +${l * 10}% damage`, l, 5, powerCost(l)) : tile("u:" + k, img(k), b.name, "Locked", 0, 1, UNLOCK_COST[k], "lock");
+  }
+  for (const p of PERKS) { const l = perkOf(p.id); h += tile("k:" + p.id, img(p.icon), p.name, p.txt, l, p.max, p.cost(l)); }
+  metaGrid.innerHTML = h; document.getElementById("metaCash").textContent = save.def.cash;
+}
+function openMeta() { metaTiles(); metaEl.hidden = false; }
+metaGrid.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-k]"); if (!b || b.disabled) return; const [t, k] = b.dataset.k.split(":");
+  const price = t === "u" ? UNLOCK_COST[k] : t === "p" ? powerCost(META.power[k] || 0) : PERKS.find(p => p.id === k).cost(perkOf(k));
+  if (save.def.cash < price) { b.animate([{ transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "none" }], { duration: 200 }); return; }
+  save.def.cash -= price;
+  if (t === "u") META.unlock[k] = 1; else if (t === "p") META.power[k] = (META.power[k] || 0) + 1; else META.perk[k] = perkOf(k) + 1;
+  writeSave(); metaTiles(); const nb = metaGrid.querySelector(`[data-k="${b.dataset.k}"], [data-k="p:${k}"]`); nb?.animate([{ transform: "scale(1.12)" }, { transform: "none" }], { duration: 260 });
+});
+document.getElementById("metaGo").addEventListener("click", () => { metaEl.hidden = true; defReset(); });
 const fmtT = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
 
 // ---- per frame
@@ -3787,7 +3873,7 @@ function defUpdate(rdt) {
 // cheap tray refresh (affordability) without rebuilding the buttons
 function renderTrayState() {
   bankNum.textContent = save.xp;
-  [...trayCards.children].forEach((el, i) => { const b = BUILDS[i], c = b.cost(); el.classList.toggle("poor", save.xp < c || countOf(b.id) >= capOf(b.id)); el.classList.toggle("sel", buildMode && buildSel === i); el.querySelector(".cost").textContent = run.free[b.id] > 0 ? freeLabel(b.id) : c; el.classList.toggle("free", run.free[b.id] > 0); el.querySelector(".cnt").textContent = `${countOf(b.id)}/${capOf(b.id)}`; });
+  [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], c = b.cost(); el.classList.toggle("poor", save.xp < c || countOf(b.id) >= capOf(b.id)); el.classList.toggle("sel", buildMode && buildSel === i); el.querySelector(".cost").textContent = run.free[b.id] > 0 ? freeLabel(b.id) : c; el.classList.toggle("free", run.free[b.id] > 0); el.querySelector(".cnt").textContent = `${countOf(b.id)}/${capOf(b.id)}`; });
 }
 
 // ---- Pause menu (P)
@@ -3838,7 +3924,8 @@ renderAmmo(); renderSaveDump(); killEl.textContent = `${kills} KILLS`;
 for (const id of SLOT_IDS) ICONS[id] = "data:image/png;base64," + GUN_ICON[id]; ICONS.m1911 = ICONS.pistol;
 for (const [k, mk] of Object.entries(SUPPLY_MODELS)) ICONS[k] = renderIcon(mk());
 ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.rocket = renderIcon(makeRocketModel().g);
-for (const k of ["flamer", "cannon", "spikes", "wire"]) ICONS[k] = renderIcon(MODEL_OF[k](1).g); ICONS.wall = renderIcon(makeWallModel(1));
+for (const k of ["flamer", "cannon", "spikes", "wire"]) { const m = MODEL_OF[k](1); if (m.spikes) m.spikes.position.y = 0; ICONS[k] = renderIcon(m.g); }   // the spike trap's icon shows it sprung
+if (shantyTemplate) ICONS.base = renderIcon(makeShanty()); ICONS.wall = renderIcon(makeWallModel(1));
 if (!DEF) for (const [l] of interior?.userData.lights || []) shanty.add(l);   // no going inside in defense mode
 applyBaseLevel(); buildBaseFootprint();
 if (!DEF) for (const b of save.builds) if (STRUCT[b.t]) addStruct(b.t, b.x, b.z, b.lv || 1, b.spent ?? (b.t === "sentry" ? 5 : 20), undefined, b.y || 0);
