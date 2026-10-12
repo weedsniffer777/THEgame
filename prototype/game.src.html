@@ -1123,7 +1123,7 @@ function killEnemy(e, dir, amt, silent = false) {
   if (silent) return;
   sparkFx(at, dir, 14);
   comboT = 2.5; combo++;
-  const gemVal = Math.max(1, Math.round(0.5 + 0.5 * hpMul())), n = T.xp + (combo >= 3 ? 1 : 0);
+  const gemVal = Math.max(1, Math.round(0.5 + 0.5 * hpMul())), n = T.xp * 2 + (combo >= 3 ? 2 : 0);
   for (let i = 0; i < n; i++) dropXp(e.pos, gemVal);
   if (combo >= 3) popNumber(at.clone().setY(2.7), `x${combo} COMBO`, true, "dmg combo");
   kills++; save.kills = kills; writeSave(); killEl.textContent = `${kills} KILLS`;
@@ -1737,6 +1737,9 @@ function buildBaseFootprint() {
     if (Math.hypot(cx - door.x, cz - door.z) < 1.6) hit = true;
     if (hit) BASE_FOOT.add(`${x},${z}`);
   }
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+  for (const k of BASE_FOOT) { const [x, z] = k.split(",").map(Number); x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+  for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) BASE_FOOT.add(`${x},${z}`);
 }
 // height to place `kind` at (x, z), or -1 when it can't go there
 function placeHeight(kind, x, z, ignore) {
@@ -1774,13 +1777,17 @@ function updateTiles() {
   if (buildMode) {
     for (const k of BASE_FOOT) { const [x, z] = k.split(",").map(Number); if (Math.abs(x - player.pos.x) < 26 && Math.abs(z - player.pos.z) < 26) put(x + 0.5, z + 0.5, TILE_RED); }
     for (const s of structs()) if (!s.y) for (const [x, z] of cellsOf(s)) put(x, z, TILE_WHITE);
-  } else if (menuTarget && menuTarget !== "base") for (const [x, z] of cellsOf(menuTarget)) put(x, z, TILE_GREEN);
+  } else {
+    const sel = menuTarget || (hovered?.kind ? hovered : baseHover && !player.inside ? "base" : null);
+    if (sel === "base") for (const k of BASE_FOOT) { const [x, z] = k.split(",").map(Number); put(x + 0.5, z + 0.5, TILE_RED); }
+    else if (sel) for (const [x, z] of cellsOf(sel)) put(x, z, TILE_GREEN);
+  }
   tileMesh.count = n; tileMesh.instanceMatrix.needsUpdate = true; if (tileMesh.instanceColor) tileMesh.instanceColor.needsUpdate = true;
 }
 function updateGhost() {
   if (!buildMode || !ghost) return;
   const kind = carry ? carry.s.kind : BUILDS[buildSel].id;
-  const x = kind === "wall" ? Math.floor(aimPoint.x) + 0.5 : Math.floor(aimPoint.x / 2) * 2 + 1, z = kind === "wall" ? Math.floor(aimPoint.z) + 0.5 : Math.floor(aimPoint.z / 2) * 2 + 1;
+  const x = kind === "wall" ? Math.floor(aimPoint.x) + 0.5 : Math.round(aimPoint.x), z = kind === "wall" ? Math.floor(aimPoint.z) + 0.5 : Math.round(aimPoint.z);
   ghost.position.set(x, 0, z);
   const y = placeHeight(kind, x, z, carry?.s);
   let ok = y >= 0;
