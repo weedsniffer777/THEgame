@@ -3371,7 +3371,7 @@ const frontEls = [];
 function addFront(a) {
   if (a === undefined) for (let tries = 0; tries < 30; tries++) { a = Math.random() * Math.PI * 2; if (run.fronts.every(f => Math.abs(Math.atan2(Math.sin(a - f.a), Math.cos(a - f.a))) > 1.0)) break; }
   run.fronts.push({ a });
-  const el = document.createElement("div"); el.className = "hud px ptr front"; el.innerHTML = '<span class="lbl">INCOMING</span><span class="arr"></span>'; document.body.appendChild(el); frontEls.push(el);
+  // directions aren't fixed any more: the first one only aims the opening lesson
 }
 function shiftFront() { const f = run.fronts[Math.floor(Math.random() * run.fronts.length)]; const others = run.fronts.filter(o => o !== f); for (let tries = 0; tries < 30; tries++) { const a = Math.random() * Math.PI * 2; if (others.every(o => Math.abs(Math.atan2(Math.sin(a - o.a), Math.cos(a - o.a))) > 1.0) && Math.abs(Math.atan2(Math.sin(a - f.a), Math.cos(a - f.a))) > 1.2) { f.a = a; break; } } }
 // spawn points: in among the trees, a few metres into the treeline along the front's direction (r forces a distance)
@@ -3382,28 +3382,29 @@ function frontPoint(f, r, spread = 0.7) {
   let t = 10; while (inClearing(BC.x + dx * t, BC.z + dz * t, -depth)) t += 0.5;
   return [BC.x + dx * t, BC.z + dz * t];
 }
-const spawnAt = (type, f) => { const [x, z] = frontPoint(f || run.fronts[Math.floor(Math.random() * run.fronts.length)]); return spawnEnemy(type, x, z); };
+const anyDir = () => ({ a: Math.random() * Math.PI * 2 });   // gangs come from anywhere around the clearing
+const spawnAt = (type, f) => { const [x, z] = frontPoint(f || anyDir(), undefined, 0.35); return spawnEnemy(type, x, z); };
 // day/night: each cycle is a 30 s day (a trickle, time to build) then a 30 s night (the waves)
 const phaseOf = (t) => { const c = t % CYC; return { n: Math.floor(t / CYC) + 1, c, night: c >= DAY_LEN, left: c >= DAY_LEN ? CYC - c : DAY_LEN - c }; };
 const nightKAt = (t) => { const c = t % CYC; return c >= DAY_LEN ? 1 - THREE.MathUtils.smoothstep(c, CYC - FADE, CYC) : THREE.MathUtils.smoothstep(c, DAY_LEN - FADE, DAY_LEN); };
 const nightStart = (n) => (n - 1) * CYC + DAY_LEN;
 const EVENTS = [
-  [nightStart(2) + 2, () => { addFront(); showBanner("A NEW FRONT OPENS!", 3, true); }],
-  [nightStart(3), () => { shiftFront(); spawnAt("brute"); showBanner("THE HORDE SHIFTS · A BRUTE IS COMING!", 3.5, true); }],
-  [nightStart(4), () => { addFront(); spawnAt("brute"); spawnAt("brute"); showBanner("ANOTHER FRONT · TWO BRUTES!", 3.5, true); }],
-  [nightStart(5), () => { shiftFront(); for (const f of run.fronts) spawnAt("brute", f); showBanner("THE LAST NIGHT · HOLD ON!", 4, true); }],
+  [nightStart(3), () => { gang("brute", 1); showBanner("A BRUTE IS COMING!", 3.5, true); }],
+  [nightStart(4), () => { gang("brute", 1); gang("brute", 1); showBanner("TWO BRUTES!", 3.5, true); }],
+  [nightStart(5), () => { for (let i = 0; i < 3; i++) gang("brute", 1); showBanner("THE LAST NIGHT · HOLD ON!", 4, true); }],
 ];
 let spT = { walker: 1, runner: 0, bomber: 0 };
 function defSpawns(dt) {
   const t = run.t, k = clamp(t / RUN_LEN, 0, 1), ph = phaseOf(t), surge = ph.night ? (ph.n === NIGHTS ? 0.65 : 0.9) : 2.6;   // days are a trickle
   for (const [at, fn] of EVENTS) if (!run.events[at] && t >= at) { run.events[at] = 1; fn(); }
   const alive = enemies.reduce((a, e) => a + !e.dead, 0); if (alive > 160) return;
-  // walkers come in packs that grow over the run; runners and bombers trickle in, then come in pairs
-  const rate = { walker: lerp(1.7, 0.85, Math.pow(k, 0.8)) * surge, runner: !ph.night || ph.n < 2 && ph.c < DAY_LEN + 10 ? 0 : lerp(5, 0.9, k) * surge, bomber: !ph.night || ph.n < 2 ? 0 : lerp(8, 2.0, k) * surge };
-  const pack = { walker: 1 + Math.floor(Math.random() * (1 + k * (ph.night ? 5 : 2))), runner: 1 + (Math.random() < k ? 1 : 0), bomber: 1 + (Math.random() < k * 0.5 ? 1 : 0) };
-  for (const type of ["walker", "runner", "bomber"]) { if (!rate[type]) continue; spT[type] -= dt; if (spT[type] <= 0) { spT[type] = rate[type] * (0.7 + Math.random() * 0.6);
-    const f = run.fronts[Math.floor(Math.random() * run.fronts.length)]; for (let i = 0; i < pack[type]; i++) spawnAt(type, f); } }
+  // gangs from random directions: mostly small, sometimes a big mob (the size range grows over the run and at night)
+  const rate = { walker: lerp(2.6, 1.3, Math.pow(k, 0.8)) * surge, runner: !ph.night || ph.n < 2 && ph.c < DAY_LEN + 10 ? 0 : lerp(6, 1.6, k) * surge, bomber: !ph.night || ph.n < 2 ? 0 : lerp(9, 2.6, k) * surge };
+  const size = (max) => 1 + Math.floor(Math.pow(Math.random(), 2.2) * max);
+  const pack = { walker: size(ph.night ? 3 + k * 22 : 2 + k * 5), runner: size(1 + k * 5), bomber: size(1 + k * 2) };
+  for (const type of ["walker", "runner", "bomber"]) { if (!rate[type]) continue; spT[type] -= dt; if (spT[type] <= 0) { spT[type] = rate[type] * (0.7 + Math.random() * 0.6); gang(type, pack[type]); } }
 }
+function gang(type, n) { const f = anyDir(); for (let i = 0; i < n; i++) spawnAt(type, f); }   // one direction, a tight bunch
 function updateFronts() {
   for (let i = 0; i < frontEls.length; i++) {
     const f = run.fronts[i], el = frontEls[i]; if (!f) { el.hidden = true; continue; }
