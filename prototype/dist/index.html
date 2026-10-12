@@ -56,6 +56,9 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #runOver .big { font-size: 22px; padding: 14px 10px; color: #0f1a0d; background: #6fe05a; box-shadow: 0 0 0 3px #0f1a0d, 0 6px 0 #0f1a0d; } #runOver .big:hover { background: #8cf576; }
 #runOver .big small { display: block; font-size: 12px; letter-spacing: .12em; margin-top: 4px; }
 #runOver .sec { font-size: 12px; padding: 8px; color: #9d978a; background: #2b2e2b; }
+#runOver .rconfirm { display: grid; gap: 8px; padding: 10px; background: rgba(160, 40, 30, .15); box-shadow: inset 0 0 0 2px #7a2a20; font-size: 12px; color: #e8e2d4; line-height: 1.4; }
+#runOver .rconfirm b { font-weight: 400; color: #ff8a6a; letter-spacing: .14em; font-size: 14px; } #runOver .rrow { display: flex; gap: 8px; } #runOver .rrow button { flex: 1; }
+#runOver .danger { font-size: 12px; padding: 8px; color: #fff; background: #b8361e; } #runOver .danger:hover { background: #d0452a; }
 #rAcct { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; text-align: left; font-size: 11px; color: #9d978a; } #rAcct .bar { height: 9px; background: #3a3c38; } #rAcct span { grid-column: 1 / -1; }
 #runOver .unl h3 { margin: 0 0 6px; font-size: 11px; font-weight: 400; letter-spacing: .16em; color: #9d978a; text-align: left; }
 #rUnl { display: grid; gap: 4px; } #rUnl .u { display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, .05); padding: 4px 8px; font-size: 12px; text-align: left; }
@@ -278,6 +281,8 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
   <div class="unl"><h3>NEXT UNLOCKS</h3><div id="rUnl"></div></div>
   <div class="bp"><b>BATTLE PASS · SEASON 1</b><span>coming soon</span><div class="bar"><i id="rBp"></i></div></div>
   <button type="button" id="rNew" class="sec">NEW RUN FROM DAY 1</button>
+  <div class="rconfirm" id="rConfirm" hidden><b>ARE YOU SURE?</b><span>Your current run will be lost. Unlocked upgrades and currency will be kept.</span>
+    <div class="rrow"><button type="button" id="rNo" class="sec">CANCEL</button><button type="button" id="rYes" class="danger">YES, START OVER</button></div></div>
 </div></div>
 <div class="px" id="cards" hidden><div class="cbox"><h2>UPGRADE</h2><div class="cleft" id="cardLeft"></div><div class="crow" id="cardRow"></div></div></div>
 <div class="hud px pxbox" id="xpHud"><span class="gem"></span><span id="xpNum">0</span><small>SCRAP</small></div>
@@ -2321,7 +2326,10 @@ function showRunOver() {
   runEl.hidden = false;
 }
 document.getElementById("rRespawn").addEventListener("click", () => { const f = fallInfo; startRun(f.respawnDay, Math.min(5, f.reached)); });
-document.getElementById("rNew").addEventListener("click", () => startRun(1, 0, true));
+const rConfirm = document.getElementById("rConfirm");
+document.getElementById("rNew").addEventListener("click", () => { rConfirm.hidden = false; });
+document.getElementById("rNo").addEventListener("click", () => { rConfirm.hidden = true; });
+document.getElementById("rYes").addEventListener("click", () => { rConfirm.hidden = true; startRun(1, 0, true); });
 // checkpoints: the base as it stood at dawn, kept for the last few days
 function takeCheckpoint(day) {
   save.ckpt = save.ckpt || {}; save.ckpt[day] = structs().map(s => ({ t: s.kind, x: s.x, z: s.z, y: s.y, lv: s.level, spent: s.spent }));
