@@ -1508,8 +1508,8 @@ function renderMenu() {
 function placeMenu() {
   const t = menuTarget; if (!t) return;
   const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, t.kind === "wall" ? 1.3 : 1.9, t.z);
-  const [x, y] = toScreen(at), w = smenu.offsetWidth, h = smenu.offsetHeight;
-  smenu.style.transform = `translate(${THREE.MathUtils.clamp(x - w / 2, 8, innerWidth - w - 8)}px, ${THREE.MathUtils.clamp(y - h - 14, 8, innerHeight - h - 8)}px)`;
+  const [x, y] = toScreen(at.setY(at.y * 0.5)), w = smenu.offsetWidth, h = smenu.offsetHeight;
+  smenu.style.transform = `translate(${THREE.MathUtils.clamp(x + 70, 8, innerWidth - w - 8)}px, ${THREE.MathUtils.clamp(y - h / 2, 8, innerHeight - h - 8)}px)`;
 }
 function updateMenu(dt) { if (!menuTarget) return; menuT -= dt; if (menuT <= 0) { menuT = 0.2; renderMenu(); } placeMenu(); }
 document.getElementById("smClose").addEventListener("click", closeMenu);
@@ -1616,7 +1616,7 @@ function updateTutorial() {
   let target = null, label = "", spot = false, ban = "";
   if (tut.step === "shoot") {
     let best = Infinity; for (const f of tut.foes) if (!f.dead) { const d = f.pos.distanceTo(player.pos); if (d < best) { best = d; target = f; } }
-    if (target) { label = "CLICK TO SHOOT!"; spot = !target.hit; ban = "WALKERS INCOMING! AIM WITH THE MOUSE, CLICK TO SHOOT"; }
+    if (target) { label = "CLICK TO SHOOT!"; spot = !target.hit; }
   } else if (tut.step === "xp") {
     if (save.xp >= 5) tut.step = "build";
     else { let best = Infinity; for (const g of gems) { const d = g.m.position.distanceTo(player.pos); if (d < best) { best = d; target = g; } }
@@ -1902,7 +1902,10 @@ function update(dt) {
 
   const wantView = player.inside ? 5.2 : VIEW;
   if (Math.abs(curView - wantView) > 0.01) { curView += (wantView - curView) * (1 - Math.exp(-dt * 6)); camFrustum(); }
-  const camTarget = player.inside ? new THREE.Vector3(0, 0, SHACK_Z).lerp(player.pos, 0.35) : player.pos.clone(); camTarget.y = 0.8;
+  // an open structure menu centres the camera on that structure; walking closes it
+  if (menuTarget && moving) closeMenu();
+  const focus = menuTarget === "base" ? new THREE.Vector3(0, 0, SHACK_Z) : menuTarget ? new THREE.Vector3(menuTarget.x, 0, menuTarget.z) : null;
+  const camTarget = player.inside ? new THREE.Vector3(0, 0, SHACK_Z).lerp(player.pos, 0.35) : focus || player.pos.clone(); camTarget.y = 0.8;
   camera.position.lerp(camTarget.clone().add(CAM_OFFSET), 1 - Math.exp(-dt * 8));
   camera.lookAt(camera.position.clone().sub(CAM_OFFSET));
   if (shake > 0) { shake = Math.max(0, shake - dt); camera.position.add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.6)); }
