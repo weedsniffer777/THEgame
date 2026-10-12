@@ -55,7 +55,9 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 .dmg { position: absolute; left: 0; top: 0; font-family: "Pixelify Sans", monospace; font-size: 17px; color: #fff; text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000; white-space: nowrap; will-change: transform, opacity; }
 .dmg.kill { color: #ffcf5a; font-size: 21px; }
 #deathMsg { left: 50%; top: 38%; transform: translate(-50%, -50%); text-align: center; font-size: 46px; letter-spacing: .14em; color: #e8584a; text-shadow: 0 4px 0 #000; z-index: 4; }
-#deathMsg small { display: block; font-size: 14px; color: #e8e2d4; margin-top: 8px; }
+#deathMsg small { display: block; font-size: 64px; color: #e8e2d4; margin-top: 6px; }
+#deathFx { inset: 0; z-index: 3; opacity: 0; background: radial-gradient(ellipse at center, rgba(0, 0, 0, .25) 20%, rgba(90, 0, 0, .75) 100%), rgba(0, 0, 0, .35); }
+#shieldFx { inset: 0; z-index: 1; background: radial-gradient(ellipse at center, transparent 55%, rgba(140, 200, 255, .5) 100%); box-shadow: inset 0 0 0 4px rgba(170, 220, 255, .55); }
 #xpHud { left: 22px; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 10px; padding: 7px 12px; font-size: 18px; letter-spacing: .08em; }
 #xpHud .gem { width: 12px; height: 12px; background: #7dffd6; transform: rotate(45deg); box-shadow: 0 0 8px 2px rgba(61, 255, 184, .7); }
 #xpHud small { font-size: 12px; color: #9d978a; letter-spacing: .14em; }
@@ -85,6 +87,9 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #buildBar.flash .bkey { animation: flashk .8s ease-in-out infinite; }
 @keyframes flash { 50% { filter: drop-shadow(0 0 10px #e0b04a) brightness(1.4); } }
 @keyframes flashk { 50% { background: #e0b04a; color: #1a1408; } }
+#hoverTip { left: 0; top: 0; z-index: 4; padding: 5px 9px 6px; font-size: 13px; letter-spacing: .08em; min-width: 120px; display: grid; gap: 3px; }
+#hoverTip span { color: #e0b04a; margin-left: 6px; } #hoverTip small { font-size: 10px; color: #9d978a; }
+#hoverTip .bar { height: 5px; background: #3a3c38; } #hoverTip .bar i { display: block; height: 100%; background: #7dff6e; }
 #spot { z-index: 3; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .5), inset 0 0 24px 8px rgba(0, 0, 0, .5); transition: left .08s, top .08s; }
 #banner { left: 50%; top: calc(84px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 5; padding: 8px 16px; font-size: 20px; letter-spacing: .1em; text-align: center; max-width: calc(100vw - 32px); }
 #banner.warn { color: #ff8a6a; }
@@ -211,6 +216,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 <div class="hud" id="ovh"><div class="wbar own"><i id="ovhHp"></i></div><div class="wbar st"><i id="ovhSt"></i></div></div>
 <div class="hud" id="spot" hidden></div>
 <div class="hud px pxbox" id="banner" hidden></div>
+<div class="hud px pxbox" id="hoverTip" hidden></div>
 <div class="hud px ptr" id="tutPtr" hidden><span class="lbl"></span><span class="arr"></span></div>
 <div class="hud px ptr base" id="basePtr" hidden><span class="lbl">BASE</span><span class="arr"></span></div>
 <div class="px pxbox" id="smenu" hidden>
@@ -251,7 +257,9 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 <div class="hud" id="hurt"></div>
 <div class="hud" id="dmgLayer"></div>
 <div class="hud px pxbox" id="cycleHud"><div class="top"><span id="dayLabel">DAY 1</span><span id="killCount">0 KILLS</span><span id="cycleTime">0:45</span></div><div class="bar"><i id="cycleBar"></i></div></div>
-<div class="hud px" id="deathMsg" hidden>YOU DIED<small id="deathSub">BACK AT THE SHACK IN 4</small></div>
+<div class="hud" id="deathFx" hidden></div>
+<div class="hud" id="shieldFx" hidden></div>
+<div class="hud px" id="deathMsg" hidden>YOU DIED<small id="deathSub">4</small></div>
 <div class="hud px pxbox" id="doorPrompt" hidden><b>E</b> ENTER</div>
 <div class="hud px" id="doorMarker" hidden><div class="bob"><span class="tag">DOOR</span><span class="arrow"></span></div></div>
 <div class="hud px pxbox" id="perfHud">—</div>
@@ -794,13 +802,16 @@ const reticle = document.getElementById("reticle"), reticleRing = document.getEl
 renderer.domElement.addEventListener("pointerleave", () => { reticle.hidden = true; });
 renderer.domElement.addEventListener("pointermove", (e) => { reticle.hidden = false; reticle.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 renderer.domElement.addEventListener("pointerdown", (e) => {
-  if (buildMode) { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); if (e.button === 0) tryPlace(); else if (e.button === 2) setBuildMode(false); return; }
-  mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-  if (e.button === 0) {   // click a structure (or the base, when no enemies are close) for its menu; otherwise shoot
-    const pick = hovered?.kind ? hovered : (baseHover && !player.inside ? "base" : null);
-    if (pick && !player.dead) { openMenu(pick); return; }
-    if (menuTarget) { closeMenu(); return; }
+  if (buildMode) {   // build mode: place the held build, or with an empty cursor click a structure / the base for its menu
+    mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+    if (e.button === 2) { setBuildMode(false); return; }
+    if (e.button !== 0) return;
+    if (carry || buildSel >= 0) { tryPlace(); return; }
+    const pick = hovered?.kind ? hovered : baseHover ? "base" : null;
+    if (pick) openMenu(pick); else closeMenu();
+    return;
   }
+  mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   if (e.button === 0) { mouseDown = true; firedThisPress = false; } mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 addEventListener("pointerup", () => { mouseDown = false; });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -916,7 +927,7 @@ function fire() {
       else { if (endD > muzzleAlong + 0.05) spawnTracer(from, to, 2.4, fade); if (wallHit) impactFx(to, dir.clone().negate(), false); }
     }
     for (const [e, { dmg, dir, d }] of dmgBy) {   // bullets land when the tracer gets there
-      const hit = () => { if (!e.dead) hurtEnemy(e, Math.round(dmg), dir, w.pellets ? 0.45 : w.pierce ? 0.5 : 0.18); };
+      const hit = () => { if (!e.dead) hurtEnemy(e, Math.round(dmg), dir, w.pellets ? 0.45 : w.pierce ? 0.5 : 0.18, true); };
       if (w.bullet) pendingHits.push({ t: d / w.bullet, hit }); else hit();
     }
   }
@@ -973,7 +984,7 @@ function updateGrenades(dt) {
     if (!boom) for (const e of enemies) if (!e.dead && p.y < 2 && Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < 0.5) { boom = true; break; }
     if (!boom) for (const bx of boxColliders) if (p.y < 2.5 && p.x > bx[0] && p.x < bx[1] && p.z > bx[2] && p.z < bx[3]) { boom = true; break; }
     if (!boom) for (const c of treeColliders) if (p.y < 3 && Math.hypot(p.x - c.x, p.z - c.z) < c.r) { boom = true; break; }
-    if (boom) { scene.remove(n.m); grenades.splice(i, 1); explode(p.setY(Math.max(0.3, p.y)), n.g.radius, n.g.dmg, { player: false }); }
+    if (boom) { scene.remove(n.m); grenades.splice(i, 1); explode(p.setY(Math.max(0.3, p.y)), n.g.radius, n.g.dmg, { player: false, byPlayer: true }); }
   }
 }
 
@@ -1045,9 +1056,9 @@ function updateBooms(dt) {
   if (flash.intensity > 8) flash.distance = Math.max(6, flash.distance - dt * 20); else flash.distance = 6;
 }
 // Damage in a radius with falloff. Player grenades hurt enemies only; bombers hurt everything.
-function explode(pos, radius, dmg, { player: hitsPlayer = false, structures = false, enemies: hitsEnemies = true } = {}) {
+function explode(pos, radius, dmg, { player: hitsPlayer = false, structures = false, enemies: hitsEnemies = true, byPlayer = false } = {}) {
   boomFx(pos, radius);
-  if (hitsEnemies) for (const e of [...enemies]) { if (e.dead) continue; const d = Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z); if (d < radius) { const dir = new THREE.Vector3(e.pos.x - pos.x, 0, e.pos.z - pos.z).normalize(); hurtEnemy(e, Math.round(dmg * (1 - 0.6 * d / radius)), dir, 1.2 * (1 - d / radius)); } }
+  if (hitsEnemies) for (const e of [...enemies]) { if (e.dead) continue; const d = Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z); if (d < radius) { const dir = new THREE.Vector3(e.pos.x - pos.x, 0, e.pos.z - pos.z).normalize(); hurtEnemy(e, Math.round(dmg * (1 - 0.6 * d / radius)), dir, 1.2 * (1 - d / radius), byPlayer); } }
   if (structures) for (const s of [...structs()]) { const d = Math.hypot(s.x - pos.x, s.z - pos.z); if (d < radius + 0.4) hurtStruct(s, dmg * 1.6 * (1 - 0.5 * d / (radius + 0.4))); }
   if (hitsPlayer && !player.inside && !player.dead) { const d = player.pos.distanceTo(pos.clone().setY(0)); if (d < radius) hurtPlayer(Math.round(dmg * (1 - 0.6 * d / radius))); }
 }
@@ -1072,11 +1083,11 @@ function rayCircle(ox, oz, dx, dz, cx, cz, r) {
 // day and with how much you've invested in your base.
 const enemies = [], enemyPools = { walker: [], runner: [], bomber: [] };
 const ENEMY_TYPES = {
-  walker: { hp: 50, dmg: 12, speed: [1.5, 2.1], color: 0xa3241b, xp: 3, clip: "Walk_Loop", clipSpeed: 1.3, arms: true, weight: 5,
+  walker: { hp: 50, dmg: 12, speed: [1.5, 2.1], color: 0xa3241b, xp: 1, bonus: 2, clip: "Walk_Loop", clipSpeed: 1.3, arms: true, weight: 5,
     cap: (day, night) => night ? Math.min(45, 12 + (day - 1) * 4) : Math.min(22, 7 + (day - 1) * 2) },
-  runner: { hp: 35, dmg: 9, speed: [5.0, 5.6], color: 0xd9452c, xp: 4, clip: "Jog_Fwd_Loop", clipSpeed: 3.8, scale: 0.95, weight: 3,
+  runner: { hp: 35, dmg: 9, speed: [5.0, 5.6], color: 0xd9452c, xp: 2, bonus: 2, clip: "Jog_Fwd_Loop", clipSpeed: 3.8, scale: 0.95, weight: 3,
     cap: (day, night) => night ? Math.min(20, 5 + (day - 1) * 2) : Math.min(10, 3 + (day - 1)) },
-  bomber: { hp: 28, dmg: 45, speed: [4.6, 5.0], color: 0xb8361e, xp: 5, clip: "Jog_Fwd_Loop", clipSpeed: 3.8, weight: 1.8, bomber: true,
+  bomber: { hp: 28, dmg: 45, speed: [4.6, 5.0], color: 0xb8361e, xp: 3, bonus: 4, clip: "Jog_Fwd_Loop", clipSpeed: 3.8, weight: 1.8, bomber: true,
     cap: (day, night) => night ? Math.min(9, 2 + (day - 1)) : Math.min(5, 1 + Math.floor((day - 1) / 1)) },
 };
 const NIGHT_GLOW = new THREE.Color(0x4a0804), HIT_GLOW = new THREE.Color(0xfff0b8), BOMB_YELLOW = new THREE.Color(0xffd23a);
@@ -1132,15 +1143,15 @@ function sparkFx(pos, dir, n = 5) {
   spawnSprite(pos, new THREE.Vector3(), { color: 0xfff0b0, size: 0.5, grow: 0.6, life: 0.12, opacity: 0.8, additive: true, drag: 0 });
 }
 let combo = 0, comboT = 0;
-function hurtEnemy(e, amt, dir, knock = 0.18) {
+function hurtEnemy(e, amt, dir, knock = 0.18, byPlayer = false) {
   if (e.dead) return;
   e.hp -= amt; e.flash = 0.12; e.hit = true; e.pos.addScaledVector(dir, knock);
   const at = e.pos.clone().setY(1.25); sparkFx(at, dir.clone().negate(), 4);
   if (!e.bar) e.bar = worldBar(false);
-  if (e.hp <= 0) killEnemy(e, dir, amt);
+  if (e.hp <= 0) killEnemy(e, dir, amt, false, byPlayer);
   else popNumber(at.setY(2.1), amt, false);
 }
-function killEnemy(e, dir, amt, silent = false) {
+function killEnemy(e, dir, amt, silent = false, byPlayer = false) {
   if (hovered === e) { showHulls(e, false); hovered = null; }
   const at = e.pos.clone().setY(1.25), T = ENEMY_TYPES[e.type];
   e.dead = true; e.deadT = 0; e.yaw = Math.atan2(-dir.x, -dir.z); removeBar(e.bar); e.bar = null; e.mark?.remove(); e.mark = null;   // face the shot, fall away from it
@@ -1148,8 +1159,8 @@ function killEnemy(e, dir, amt, silent = false) {
   if (silent) return;
   sparkFx(at, dir, 14);
   comboT = 2.5; combo++;
-  const gemVal = Math.max(1, Math.round(0.5 + 0.5 * hpMul())), n = T.xp * 2 + (combo >= 3 ? 2 : 0);
-  for (let i = 0; i < n; i++) dropXp(e.pos, gemVal);
+  dropXp(e.pos, T.xp);                          // one green orb
+  if (byPlayer) dropXp(e.pos, T.bonus, true);   // plus a big blue one when you got the kill yourself
   if (combo >= 3) popNumber(at.clone().setY(2.7), `x${combo} COMBO`, true, "dmg combo");
   kills++; save.kills = kills; writeSave(); killEl.textContent = `${kills} KILLS`;
   popNumber(at.setY(2.1), amt, true); tutEvent("kill", e);
@@ -1388,15 +1399,17 @@ function updateHover() {
 // Bright spinning gems pop out of dead enemies, hover, and fly to the player when close. Builds cost XP.
 const xpGeo = new THREE.OctahedronGeometry(0.12, 0), xpMat = new THREE.MeshStandardMaterial({ color: 0x9affe0, emissive: 0x3dffb8, emissiveIntensity: 1.6, roughness: 0.3, flatShading: true });
 const xpGlowMat = new THREE.SpriteMaterial({ map: softTex, color: 0x3dffb8, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
+const xpBigGeo = new THREE.OctahedronGeometry(0.19, 0), xpBlueMat = new THREE.MeshStandardMaterial({ color: 0x9fd0ff, emissive: 0x2a8cff, emissiveIntensity: 1.8, roughness: 0.3, flatShading: true });
+const xpBlueGlow = new THREE.SpriteMaterial({ map: softTex, color: 0x3a9cff, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending });
 const gems = [];
 const xpHud = document.getElementById("xpHud"), xpNum = document.getElementById("xpNum");
 function renderXp() { xpNum.textContent = save.xp; renderBuildBar(); if (!shopEl.hidden) renderShop(); }
 const XP_CAP = 800;   // max XP lying on the ground; the oldest gems go first
-function dropXp(at, value) {
+function dropXp(at, value, blue = false) {
   let onGround = gems.reduce((a, g) => a + g.value, 0);
   while (gems.length && onGround + value > XP_CAP) { const g = gems.shift(); onGround -= g.value; scene.remove(g.m); }
-  const m = new THREE.Mesh(xpGeo, xpMat); m.position.set(at.x, 1.0, at.z);
-  const glowS = new THREE.Sprite(xpGlowMat); glowS.scale.setScalar(0.75); m.add(glowS); scene.add(m);
+  const m = new THREE.Mesh(blue ? xpBigGeo : xpGeo, blue ? xpBlueMat : xpMat); m.position.set(at.x, 1.0, at.z);
+  const glowS = new THREE.Sprite(blue ? xpBlueGlow : xpGlowMat); glowS.scale.setScalar(blue ? 1.1 : 0.75); m.add(glowS); scene.add(m);
   const a = Math.random() * Math.PI * 2, sp = 1.2 + Math.random() * 1.8;
   gems.push({ m, value, vel: new THREE.Vector3(Math.cos(a) * sp, 4 + Math.random() * 2, Math.sin(a) * sp), t: 0, seed: Math.random() * 6, landed: false });
 }
@@ -1726,16 +1739,16 @@ function renderHotbar() {
 }
 function renderBuildBar() {
   buildSlots.innerHTML = BUILDS.map((b, i) => { const lock = lockOf(b); if (lock) return slotHtml(i, b, null, "", false, lock); const c = b.cost(), n = countOf(b.id), cap = capOf(b.id); return slotHtml(i, { name: `${b.name} ${n}/${cap}` }, ICONS[b.id], `${c} XP`, save.xp < c || n >= cap); }).join("");
-  if (buildMode) buildSlots.children[buildSel]?.classList.add("sel");
+  if (buildMode && buildSel >= 0) buildSlots.children[buildSel]?.classList.add("sel");
   buildBar.classList.toggle("mini", !buildMode);
-  buildKey.textContent = buildMode ? (carry ? "[B] PUT BACK · CLICK TO PLACE" : "[B] CLOSE · CLICK TO PLACE") : "[B] BUILD";
+  buildKey.textContent = !buildMode ? "[B] BUILD" : carry ? "[B] PUT BACK · CLICK TO PLACE" : buildSel >= 0 ? `[B] CLOSE · CLICK TO PLACE · [${buildSel + 1}] AGAIN FOR CURSOR` : "[B] CLOSE · CLICK A BUILD TO MANAGE IT";
 }
 function deny(el) { if (!el) return; el.classList.remove("deny"); void el.offsetWidth; el.classList.add("deny"); }
 function selectSlot(i) {
   if (buildMode) {
     if (i >= BUILDS.length) return; if (lockOf(BUILDS[i])) { deny(buildSlots.children[i]); return; }
     if (carry) cancelCarry();
-    buildSel = i; showGhost(); renderBuildBar();
+    buildSel = buildSel === i ? -1 : i; showGhost(); renderBuildBar();   // pressing the active key again empties your hand
   } else { if (i >= SLOT_IDS.length) return; if (!owns(SLOT_IDS[i])) { deny(weaponSlots.children[i]); return; } equip(SLOT_IDS[i]); }
 }
 const ghosts = {};
@@ -1750,13 +1763,14 @@ function makeGhosts() {
   const c2 = new THREE.Mesh(new THREE.PlaneGeometry(0.98, 0.98).rotateX(-Math.PI / 2), cellM()); c2.position.y = 0.025; w.add(c2); w.userData.marks = [c2];
   for (const [k, g] of [["sentry", s], ["wall", w]]) { g.visible = false; scene.add(g); ghosts[k] = g; }
 }
-function showGhost() { const id = carry ? carry.s.kind : BUILDS[buildSel].id; for (const k in ghosts) ghosts[k].visible = buildMode && k === id; ghost = buildMode ? ghosts[id] : null; }
+function showGhost() { const id = carry ? carry.s.kind : buildSel >= 0 ? BUILDS[buildSel].id : null; for (const k in ghosts) ghosts[k].visible = buildMode && k === id; ghost = buildMode && id ? ghosts[id] : null; }
 function setBuildMode(on) {
   if (on && (player.inside || player.dead)) return;
   if (!on && carry) cancelCarry();
-  if (on) closeMenu();
+  if (!on) closeMenu();
+  if (on && !buildMode && !carry) buildSel = tut.step === "done" ? -1 : 0;   // after the tutorial, build mode opens with an empty cursor
   buildMode = on; mouseDown = false;
-  if (on && lockOf(BUILDS[buildSel])) buildSel = 0;
+  if (on && buildSel >= 0 && lockOf(BUILDS[buildSel])) buildSel = -1;
   showGhost(); renderBuildBar();
 }
 buildSlots.addEventListener("click", (e) => { const s = e.target.closest(".slot"); if (!s) return; if (!buildMode) setBuildMode(true); selectSlot(+s.dataset.i); });
@@ -1777,6 +1791,7 @@ function buildBaseFootprint() {
   }
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
   for (const k of BASE_FOOT) { const [x, z] = k.split(",").map(Number); x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+  x0 -= 1;   // one more column on the left so the long side is even
   for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) BASE_FOOT.add(`${x},${z}`);
 }
 // height to place `kind` at (x, z), or -1 when it can't go there
@@ -1835,6 +1850,7 @@ function updateGhost() {
   const col = ok ? 0x7dff6e : 0xff4a3a; ghostMat.color.setHex(col); for (const m of ghost.userData.marks) m.material.color.setHex(col);
 }
 function tryPlace() {
+  if (!ghost) return;
   if (!ghostOk) { deny(buildSlots.children[buildSel]); return; }
   const x = ghost.position.x, z = ghost.position.z, y = ghost.userData.y || 0;
   for (let k = 0; k < 4; k++) spawnSprite(ghost.position.clone().setY(0.2), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0xc9a45c, size: 0.4, grow: 2, life: 0.7, opacity: 0.45, drag: 2.5 });
@@ -1904,7 +1920,16 @@ function placeMenu() {
   const [x, y] = toScreen(at.setY(at.y * 0.5)), w = smenu.offsetWidth, h = smenu.offsetHeight;
   smenu.style.transform = `translate(${THREE.MathUtils.clamp(x + 70, 8, innerWidth - w - 8)}px, ${THREE.MathUtils.clamp(y - h / 2, 8, innerHeight - h - 8)}px)`;
 }
-function updateMenu(dt) { if (!menuTarget) return; menuT -= dt; if (menuT <= 0) { menuT = 0.2; renderMenu(); } placeMenu(); }
+const hoverTip = document.getElementById("hoverTip");
+function updateHoverTip() {
+  const t = !buildMode && !player.inside && !player.dead ? (hovered?.kind ? hovered : baseHover ? "base" : null) : null;
+  hoverTip.hidden = !t; if (!t) return;
+  if (t === "base") hoverTip.innerHTML = `<b>BASE</b> <span>LV ${save.base}</span><small>Press B, then click it to manage</small>`;
+  else { const max = STRUCT[t.kind].hp[t.level]; hoverTip.innerHTML = `<b>${STRUCT[t.kind].name}</b> <span>LV ${t.level}</span><div class="bar"><i style="width:${Math.max(0, t.hp / max) * 100}%"></i></div><small>${Math.ceil(t.hp)}/${max} HP</small>`; }
+  const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, (t.y || 0) + (t.kind === "wall" ? 1.2 : 1.8), t.z);
+  const [x, y] = toScreen(at); hoverTip.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+}
+function updateMenu(dt) { updateHoverTip(); if (!menuTarget) return; menuT -= dt; if (menuT <= 0) { menuT = 0.2; renderMenu(); } placeMenu(); }
 document.getElementById("smClose").addEventListener("click", closeMenu);
 smUp.addEventListener("click", () => {
   const t = menuTarget; if (!t) return;
@@ -1946,22 +1971,28 @@ const STATS = [
 const statLv = (id) => save.stats?.[id] || 0, statCost = (s) => Math.round(s.base * Math.pow(1.6, statLv(s.id)));
 const maxHp = () => 100 + 20 * statLv("hp"), maxSt = () => 100 + 25 * statLv("st"), spdMul = () => 1 + 0.05 * statLv("spd");
 const hpBar = document.getElementById("hpBar"), hpNum = document.getElementById("hpNum"), hurtEl = document.getElementById("hurt"), killEl = document.getElementById("killCount");
-const deathMsg = document.getElementById("deathMsg"), deathSub = document.getElementById("deathSub");
+const deathMsg = document.getElementById("deathMsg"), deathSub = document.getElementById("deathSub"), deathFx = document.getElementById("deathFx"), shieldEl = document.getElementById("shieldFx");
 let hurtFlash = 0;
 function hurtPlayer(n) {
-  if (player.inside || player.dead) return;
+  if (player.inside || player.dead || player.shield > 0) return;
   player.hp = Math.max(0, player.hp - n); player.sinceHurt = 0; hurtFlash = 0.7; shake = 0.25;
-  if (player.hp <= 0) { player.dead = 4; playerModel.visible = false; player.reloading = 0; setBuildMode(false); closeMenu(); sparkFx(player.pos.clone().setY(1), new THREE.Vector3(0, 1, 0), 18); deathMsg.hidden = false; }
+  if (player.hp <= 0) { player.dead = 4; player.reloading = 0; player.vel.set(0, 0, 0); setBuildMode(false); closeMenu(); sparkFx(player.pos.clone().setY(1), new THREE.Vector3(0, 1, 0), 18); deathMsg.hidden = false; deathFx.hidden = false; }
 }
 function updatePlayerHealth(dt) {
   const mh = maxHp();
   if (player.dead > 0) {
-    player.dead -= dt; deathSub.textContent = `BACK AT BASE IN ${Math.ceil(player.dead)}`;
-    if (player.dead <= 0) { player.dead = 0; player.hp = mh; player.pos.copy(doorPos()).add(new THREE.Vector3(0, 0, 0.6)); player.vel.set(0, 0, 0); playerModel.visible = true; deathMsg.hidden = true; }
+    player.dead -= dt; deathSub.textContent = Math.ceil(player.dead);
+    deathFx.style.opacity = String(Math.min(1, (4 - player.dead) / 0.6));
+    if (player.dead <= 0) {   // respawn inside the base; spawn protection starts when you walk out
+      player.dead = 0; player.hp = mh; player.vel.set(0, 0, 0); deathMsg.hidden = true; deathFx.hidden = true;
+      player.shieldPending = true; if (shanty) setInside(true); else player.pos.copy(doorPos());
+    }
   } else {
     player.sinceHurt += dt;
     if (player.sinceHurt > 6) player.hp = Math.min(mh, player.hp + 3 * dt);   // slow heal once out of combat
   }
+  player.shield = Math.max(0, (player.shield || 0) - dt);   // spawn protection after respawning
+  shieldEl.hidden = !(player.shield > 0); if (player.shield > 0) shieldEl.style.opacity = String(Math.min(1, player.shield / 1.2) * (0.75 + 0.25 * Math.sin(performance.now() / 120)));
   hpBar.style.width = `${player.hp / mh * 100}%`; hpNum.textContent = Math.ceil(player.hp);
   hurtFlash = Math.max(0, hurtFlash - dt * 1.5); hurtEl.style.opacity = String(Math.max(hurtFlash, player.hp < mh * 0.3 && !player.dead ? 0.35 + Math.sin(performance.now() / 180) * 0.15 : 0));
   updatePops(dt);
@@ -2291,6 +2322,7 @@ function setInside(on) {
   for (const [l, i] of interior.userData.lights) l.intensity = on ? i : 0;
   barsEl.hidden = on; shopEl.hidden = !on; document.getElementById("leaveBtn").hidden = !on; if (on) { setBuildMode(false); closeMenu(); renderShop(); }
   player.pos.copy(on ? innerDoor() : doorPos().add(new THREE.Vector3(0, 0, 0.5)));
+  if (!on && player.shieldPending) { player.shieldPending = false; player.shield = 5; }
 }
 // Base level: swap the baked level groups and add the outhouse collider at level 2
 const OUTHOUSE_BOX = [5.25, 6.75, SHACK_Z - 1.65, SHACK_Z - 0.15];
@@ -2331,6 +2363,7 @@ function update(dt) {
   if (keys.has("w")) mv.add(FWD); if (keys.has("s")) mv.sub(FWD);
   if (keys.has("d")) mv.add(RIGHT); if (keys.has("a")) mv.sub(RIGHT);
   if (player.dead) mv.set(0, 0, 0);
+  if (player.dead) { player.vel.set(0, 0, 0); }
   // stamina: sprinting drains it, it refills slowly after a short pause; empty means walk until 30
   const moving = mv.lengthSq() > 0;
   const sprint = keys.has("shift") && !mouseDown && !player.inside && moving && !player.tired && player.stamina > 0;
@@ -2363,7 +2396,8 @@ function update(dt) {
   player.phase += dt * spd * 2.1;
   player.aim += ((sprint ? 0 : 1) - player.aim) * Math.min(1, dt * 10);
   playerModel.position.copy(player.pos); if (player.inside) playerModel.position.y = SH.FLOOR;
-  playerModel.rotation.y = player.yaw;
+  if (player.dead > 0) { const k = Math.min(1, (4 - player.dead) / 0.45); playerModel.rotation.set(-k * k * Math.PI / 2, player.yaw, 0, "YXZ"); }   // the body topples
+  else playerModel.rotation.set(0, player.yaw, 0, "YXZ");
   const facing = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
   updatePlayerAnim(pl, dt, spd, spd > 0.3 && player.vel.dot(facing) < -0.3 * spd);
   player.kick = Math.max(0, player.kick - dt * 10);
@@ -2399,12 +2433,12 @@ function update(dt) {
   updateParticles(dt);
   updateCycle(dt); updateEnemies(dt); updateSentries(dt); updateGrenades(dt); updateBooms(dt); updateShots(dt); updateGems(dt); updatePlayerHealth(dt); updateMenu(dt); updateTiles(); updateUpFx(dt);
 
-  const wantView = player.inside ? 5.2 : W().view || VIEW;
+  const wantView = player.dead > 0 ? 5.5 : player.inside ? 5.2 : W().view || VIEW;
   if (Math.abs(curView - wantView) > 0.01) { curView += (wantView - curView) * (1 - Math.exp(-dt * 6)); camFrustum(); }
   // an open structure menu centres the camera on that structure; walking out of its radius closes it
   if (menuTarget && player.pos.distanceTo(menuFrom) > 7) closeMenu();
   const focus = menuTarget === "base" ? new THREE.Vector3(0, 0, SHACK_Z) : menuTarget ? new THREE.Vector3(menuTarget.x, 0, menuTarget.z) : null;
-  const camTarget = player.inside ? new THREE.Vector3(0, 0, SHACK_Z).lerp(player.pos, 0.35) : focus || player.pos.clone(); camTarget.y = 0.8;
+  const camTarget = player.inside ? new THREE.Vector3(0, 0, SHACK_Z).lerp(player.pos, 0.35) : player.dead ? player.pos.clone() : focus || player.pos.clone(); camTarget.y = 0.8;
   camera.position.lerp(camTarget.clone().add(CAM_OFFSET), 1 - Math.exp(-dt * 8));
   camera.lookAt(camera.position.clone().sub(CAM_OFFSET));
   if (shake > 0) { shake = Math.max(0, shake - dt); camera.position.add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.6)); }
