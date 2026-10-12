@@ -1909,9 +1909,8 @@ function wallGeometries() {
     out[3] = [[cm, mergeGeometries(clean)], [M.steel, mergeGeometries(steel)]]; }
   return (WALL_GEO = out);
 }
-// a 2 x 2 wall is four 1 m blocks, each turned a different way so the sheets don't repeat; still one mesh per material
-const WALL2 = {}, WALL_H = 2;   // 2 x 2 x 2 m: eight 1 m blocks
-const wall2Geometries = (level) => WALL2[level] ||= wallGeometries()[level].map(([m, g]) => [m, mergeGeometries([0, 1].flatMap(y => [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]].map(([x, z], i) => g.clone().rotateY((i + y * 2) * Math.PI / 2).translate(x, y, z))))]);
+const WALL2 = {}, WALL_H = 2;   // 2 x 2 x 2 m: the 1 m block model scaled up
+const wall2Geometries = (level) => WALL2[level] ||= wallGeometries()[level].map(([m, g]) => [m, g.clone().scale(2, 2, 2)]);
 function makeWallModel(level = 1) {
   const g = new THREE.Group(); g.name = "wall";
   for (const [m, geo] of wall2Geometries(level)) { const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh); }
