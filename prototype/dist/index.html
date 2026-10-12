@@ -104,13 +104,30 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #smenu button.up, #smenu .btns button, #shop button, #pause button { font-family: inherit; font-size: 12px; letter-spacing: .1em; background: #2b2e2b; color: #e8e2d4; border: 0; box-shadow: 0 0 0 2px #101211; padding: 6px 9px; cursor: pointer; }
 #smenu .btns .up { background: #4a6a2a; flex: 1 0 100%; }
 #smenu button:disabled, #shop button:disabled { opacity: .45; cursor: default; }
-#shop { position: fixed; left: 22px; top: calc(140px + env(safe-area-inset-top, 0px)); z-index: 4; width: min(340px, calc(100vw - 44px)); padding: 12px; display: grid; gap: 10px; }
-#shop .shead { display: flex; justify-content: space-between; align-items: center; font-size: 16px; letter-spacing: .12em; }
-#shop .shead .gem { display: inline-block; width: 9px; height: 9px; background: #7dffd6; transform: rotate(45deg); box-shadow: 0 0 6px 1px rgba(61, 255, 184, .7); }
+#shopWrap .spanel { position: fixed; z-index: 4; padding: 12px; display: grid; gap: 8px; align-content: start; overflow: auto; }
+#inv { left: 22px; top: calc(140px + env(safe-area-inset-top, 0px)); width: min(270px, calc(50vw - 30px)); max-height: calc(100vh - 260px); }
+#shop { right: 22px; top: calc(84px + env(safe-area-inset-top, 0px)); width: min(340px, calc(50vw - 30px)); max-height: calc(100vh - 300px); }
+#shopWrap .shead { display: flex; justify-content: space-between; align-items: center; font-size: 18px; letter-spacing: .14em; }
+#shopWrap .shead b { font-weight: 400; color: #e0b04a; }
+#shopWrap .gem { display: inline-block; width: 9px; height: 9px; background: #7dffd6; transform: rotate(45deg); box-shadow: 0 0 6px 1px rgba(61, 255, 184, .7); }
+#shopWrap .sec { font-size: 11px; letter-spacing: .16em; color: #9d978a; margin-top: 4px; }
 #shop .tabs { display: flex; gap: 4px; } #shop .tabs button { flex: 1; color: #9d978a; } #shop .tabs button.on { background: #e0b04a; color: #1a1408; }
-#shopBody { display: grid; gap: 6px; max-height: 50vh; overflow: auto; }
-.srow { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(255, 255, 255, .04); padding: 6px 8px; }
-.srow b { display: block; font-weight: 400; font-size: 13px; letter-spacing: .08em; } .srow small { color: #9d978a; font-size: 11px; } .srow .pips { color: #e0b04a; font-size: 10px; letter-spacing: 1px; }
+.tiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.tiles.big { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tile { position: relative; display: grid; justify-items: center; gap: 3px; padding: 5px 4px 6px; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); text-align: center; }
+.tile .ico { width: 100%; aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #3a3d36, #1b1d1b); box-shadow: inset 0 0 0 2px #101211; }
+.tile .ico img { width: 86%; height: 86%; object-fit: contain; image-rendering: pixelated; }
+.tile .k { position: absolute; left: 6px; top: 4px; font-size: 10px; color: #9d978a; }
+.tile .cnt { position: absolute; right: 6px; top: 4px; font-size: 10px; color: #e8e2d4; }
+.tile b { font-weight: 400; font-size: 11px; letter-spacing: .06em; line-height: 1.1; }
+.tile small { font-size: 9px; color: #9d978a; line-height: 1.2; }
+.tile .pips { color: #e0b04a; font-size: 9px; letter-spacing: 1px; }
+.tile button { width: 100%; padding: 4px 2px !important; font-size: 11px !important; }
+.tile.locked .ico img { opacity: .3; filter: grayscale(1); } .tile.locked b { color: #9d978a; }
+.tile.eq { box-shadow: inset 0 0 0 2px #e0b04a; }
+.tiles:not(.big) .tile b { font-size: 9px; }
+#invStats { display: grid; gap: 3px; font-size: 11px; letter-spacing: .06em; }
+#invStats div { display: flex; justify-content: space-between; } #invStats span { color: #e0b04a; letter-spacing: 1px; }
 #shop .sfoot { font-size: 11px; letter-spacing: .12em; color: #9d978a; text-align: center; }
 #pause { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; background: rgba(10, 12, 11, .6); }
 #pause .pbox { padding: 18px 22px; display: grid; gap: 14px; justify-items: center; max-width: calc(100vw - 32px); }
@@ -190,11 +207,17 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
   <div class="info" id="smInfo"></div>
   <div class="btns"><button type="button" id="smUp" class="up">UPGRADE</button><button type="button" id="smMove">MOVE</button><button type="button" id="smSell">SELL</button></div>
 </div>
-<div class="px pxbox" id="shop" hidden>
-  <div class="shead"><b>BASE SHOP</b><span><span class="gem"></span> <span id="shopXp">0</span> XP</span></div>
-  <div class="tabs"><button type="button" data-tab="weapons" class="on">WEAPONS</button><button type="button" data-tab="supplies">SUPPLIES</button><button type="button" data-tab="upgrades">UPGRADES</button></div>
-  <div id="shopBody"></div>
-  <div class="sfoot">WALK TO THE DOOR · E TO LEAVE</div>
+<div class="px" id="shopWrap" hidden>
+  <div class="pxbox spanel" id="inv"><div class="shead"><b>INVENTORY</b></div>
+    <div class="sec">WEAPONS</div><div class="tiles" id="invWeapons"></div>
+    <div class="sec">SUPPLIES</div><div class="tiles" id="invSupplies"></div>
+    <div class="sec">STATS</div><div class="stats" id="invStats"></div>
+  </div>
+  <div class="pxbox spanel" id="shop"><div class="shead"><b>SHOP</b><span><span class="gem"></span> <span id="shopXp">0</span> XP</span></div>
+    <div class="tabs"><button type="button" data-tab="weapons" class="on">WEAPONS</button><button type="button" data-tab="supplies">SUPPLIES</button><button type="button" data-tab="upgrades">UPGRADES</button></div>
+    <div class="tiles big" id="shopBody"></div>
+    <div class="sfoot">WALK TO THE DOOR · E TO LEAVE</div>
+  </div>
 </div>
 <div class="px" id="pause" hidden><div class="pbox pxbox"><h1>PAUSED</h1>
   <div class="keys"><span><b>WASD</b> MOVE</span><span><b>MOUSE</b> AIM · CLICK TO SHOOT</span><span><b>SHIFT</b> SPRINT</span><span><b>R</b> RELOAD</span><span><b>B</b> BUILD MENU</span><span><b>1-6</b> PICK SLOT</span><span><b>E</b> ENTER / LEAVE BASE</span><span><b>CLICK</b> A BUILD FOR ITS MENU</span><span><b>P</b> PAUSE</span></div>
@@ -1555,19 +1578,51 @@ function updatePlayerHealth(dt) {
   updatePops(dt);
 }
 
-/* ---------- Base shop (shown while inside) ---------- */
-const shopEl = document.getElementById("shop"), shopBody = document.getElementById("shopBody"), shopXp = document.getElementById("shopXp"), barsEl = document.getElementById("bars");
+/* ---------- Base shop (shown while inside): inventory on the left, shop on the right ---------- */
+const shopEl = document.getElementById("shopWrap"), shopBody = document.getElementById("shopBody"), shopXp = document.getElementById("shopXp"), barsEl = document.getElementById("bars");
+const invWeapons = document.getElementById("invWeapons"), invSupplies = document.getElementById("invSupplies"), invStats = document.getElementById("invStats");
 let shopTab = "weapons";
-const SLOT_TYPES = ["PISTOL", "SHOTGUN", "SMG / RIFLE", "SNIPER", "EXPLOSIVE"];
-const SUPPLIES = [["MEDKIT", "Heal 50 HP"], ["SHIELD", "Absorbs the next 50 damage"], ["ADRENALINE", "Sprint without stamina for 10 s"], ["GRENADES", "Throw for area damage"]];
+// Pixel icons drawn on a 16x16 grid (one string row per line, letters index the palette)
+const PIX = {
+  shotgun: ["................", "................", "................", "................", "........k.......", "kkkkkkkkkkkkkk..", "kkkkkkkkkkkkkkww", "..wwwkkkk.......", ".wwww.k.........", "wwww............", "www.............", "................"],
+  smg: ["................", "................", "................", "......k.........", "...kkkkkkkkkkk..", "kkkkkkkkkkkkkkkk", "kkk.kkkkkkk.....", "kk...kk..k......", "kk...kk.........", ".....kk.........", "......k........."],
+  sniper: ["................", "................", ".....kkkkk......", "......k.k.......", "wwwkkkkkkkkkkkkk", "wwwwkkkkkk......", "www..k.k........", "ww..............", "................"],
+  launcher: ["................", "................", "..........ooo...", "kkkkkkkkkkkoooo.", "kkkkkkkkkkkoooo.", "kkkkkkkkkkkooo..", "....k..k........", "....k...........", "................"],
+  medkit: ["................", "................", ".....kkkkkk.....", "....k......k....", "..wwwwwwwwwwww..", "..wwwwwrrwwwww..", "..wwwwwrrwwwww..", "..wwwrrrrrrwww..", "..wwwrrrrrrwww..", "..wwwwwrrwwwww..", "..wwwwwrrwwwww..", "..wwwwwwwwwwww..", "................"],
+  shield: ["................", "...bbbbbbbbbb...", "..bccccccccccb..", "..bccccccccccb..", "..bcccbbbbcccb..", "..bccccccccccb..", "...bccccccccb...", "...bccccccccb...", "....bccccccb....", ".....bccccb.....", "......bccb......", ".......bb......."],
+  adrenaline: ["................", "............k...", "...........kk...", "..........ggk...", ".........ggg....", "........ggg.....", ".......ggg......", "......ggg.......", ".....wgg........", "....ww..........", "...w............", "..w............."],
+  grenade: ["................", "........kk......", ".......k..k.....", "......gggg......", ".....gggggg.....", "....gggggggg....", "....gdgdgdgg....", "....gggggggg....", "....gdgdgdgg....", ".....gggggg.....", "......gggg......", "................"],
+  heart: ["................", "................", "...rr....rr.....", "..rrrr..rrrr....", ".rrwrrrrrrrrr...", ".rrrrrrrrrrrr...", ".rrrrrrrrrrrr...", "..rrrrrrrrrr....", "...rrrrrrrr.....", "....rrrrrr......", ".....rrrr.......", "......rr........"],
+  bolt: ["................", ".......yyyy.....", "......yyyy......", ".....yyyy.......", "....yyyy........", "...yyyyyyyy.....", ".......yyy......", "......yyy.......", ".....yyy........", "....yy..........", "...y............"],
+  bullet: ["................", "................", "......oo........", ".....oooo.......", ".....oooo.......", ".....yyyy.......", ".....yyyy.......", ".....yyyy.......", ".....yyyy.......", ".....yyyy.......", ".....kkkk.......", "................"],
+  speed: ["................", "................", ".y....y.........", "..y....y........", "...y....y.......", "....y....y......", "...y....y.......", "..y....y........", ".y....y.........", "................"],
+};
+const PAL = { k: "#2a2c2e", w: "#8a6a48", r: "#d0453a", o: "#c9873f", b: "#5a7ab0", c: "#9fc4ff", g: "#6a8a3a", d: "#3e5426", y: "#f2c84b" };
+const iconCache = {};
+function pixIcon(name) {
+  if (iconCache[name]) return iconCache[name];
+  const rows = PIX[name], c = document.createElement("canvas"); c.width = c.height = 16; const x = c.getContext("2d"), oy = Math.floor((16 - rows.length) / 2);
+  rows.forEach((r, j) => [...r].forEach((ch, i) => { if (PAL[ch]) { x.fillStyle = ch === "k" && /shotgun|smg|sniper|launcher/.test(name) ? "#c9c3b4" : PAL[ch]; x.fillRect(i, j + oy, 1, 1); } }));
+  return (iconCache[name] = c.toDataURL());
+}
+const SLOT_TYPES = [["PISTOL", null], ["SHOTGUN", "shotgun"], ["SMG", "smg"], ["SNIPER", "sniper"], ["EXPLOSIVE", "launcher"]];
+const SUPPLIES = [["MEDKIT", "medkit", "Heal 50 HP"], ["SHIELD", "shield", "Blocks 50 damage"], ["ADRENALINE", "adrenaline", "10 s free sprint"], ["GRENADE", "grenade", "Area damage"]];
+const STAT_ICON = { hp: "heart", st: "bolt", dmg: "bullet", spd: "speed" };
+const tile = ({ img, name, sub = "", btn = "", disabled = true, data = "", cls = "", k = "", cnt = "" }) =>
+  `<div class="tile ${cls}">${k ? `<span class="k">${k}</span>` : ""}${cnt !== "" ? `<span class="cnt">${cnt}</span>` : ""}<div class="ico">${img ? `<img alt="" src="${img}">` : ""}</div><b>${name}</b>${sub ? `<small>${sub}</small>` : ""}${btn ? `<button type="button" ${disabled ? "disabled" : ""} ${data}>${btn}</button>` : ""}</div>`;
 function renderShop() {
   shopXp.textContent = save.xp;
   document.querySelectorAll("#shop .tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === shopTab));
-  const row = (name, desc, btn, disabled, data = "") => `<div class="srow"><div><b>${name}</b><small>${desc}</small></div><button type="button" ${disabled ? "disabled" : ""} ${data}>${btn}</button></div>`;
-  if (shopTab === "weapons") shopBody.innerHTML = SLOT_TYPES.map((t, i) => row(`${i + 1} · ${t}`, i === 0 ? "M1911 · infinite ammo" : "No guns for this slot yet", i === 0 ? "EQUIPPED" : "SOON", true)).join("");
-  if (shopTab === "supplies") shopBody.innerHTML = SUPPLIES.map(([n, d]) => row(n, d, "SOON", true)).join("");
+  // inventory
+  invWeapons.innerHTML = SLOT_TYPES.map(([t, ic], i) => i === 0 ? tile({ img: ICONS.m1911, name: "M1911", k: 1, cls: "eq" }) : tile({ name: "EMPTY", k: i + 1, cls: "locked", img: pixIcon(ic) })).join("");
+  invSupplies.innerHTML = SUPPLIES.map(([n, ic]) => tile({ img: pixIcon(ic), name: n, cnt: 0, cls: "locked" })).join("");
+  invStats.innerHTML = STATS.map(s => `<div>${s.name}<span>${"■".repeat(statLv(s.id))}${"□".repeat(s.max - statLv(s.id))}</span></div>`).join("");
+  // shop
+  if (shopTab === "weapons") shopBody.innerHTML = tile({ img: ICONS.m1911, name: "M1911", sub: "Pistol · infinite ammo", btn: "OWNED", cls: "eq" }) +
+    SLOT_TYPES.slice(1).map(([t, ic]) => tile({ img: pixIcon(ic), name: t, sub: "Coming soon", btn: "SOON", cls: "locked" })).join("");
+  if (shopTab === "supplies") shopBody.innerHTML = SUPPLIES.map(([n, ic, d]) => tile({ img: pixIcon(ic), name: n, sub: d, btn: "SOON", cls: "locked" })).join("");
   if (shopTab === "upgrades") shopBody.innerHTML = STATS.map(s => { const lv = statLv(s.id), max = lv >= s.max, c = statCost(s);
-    return row(`${s.name} <span class="pips">${"■".repeat(lv)}${"□".repeat(s.max - lv)}</span>`, s.desc, max ? "MAX" : `${c} XP`, max || save.xp < c, `data-stat="${s.id}"`); }).join("");
+    return tile({ img: pixIcon(STAT_ICON[s.id]), name: s.name, sub: `${s.desc}<br><span class="pips">${"■".repeat(lv)}${"□".repeat(s.max - lv)}</span>`, btn: max ? "MAX" : `${c} XP`, disabled: max || save.xp < c, data: `data-stat="${s.id}"` }); }).join("");
 }
 document.querySelector("#shop .tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { shopTab = b.dataset.tab; renderShop(); } });
 shopBody.addEventListener("click", (e) => {
@@ -1616,7 +1671,7 @@ function updateTutorial() {
   let target = null, label = "", spot = false, ban = "";
   if (tut.step === "shoot") {
     let best = Infinity; for (const f of tut.foes) if (!f.dead) { const d = f.pos.distanceTo(player.pos); if (d < best) { best = d; target = f; } }
-    if (target) { label = "CLICK TO SHOOT!"; spot = !target.hit; }
+    if (target) { label = "CLICK TO SHOOT!"; spot = !target.hit; ban = "AIM WITH THE MOUSE, CLICK TO SHOOT"; }
   } else if (tut.step === "xp") {
     if (save.xp >= 5) tut.step = "build";
     else { let best = Infinity; for (const g of gems) { const d = g.m.position.distanceTo(player.pos); if (d < best) { best = d; target = g; } }
@@ -1638,7 +1693,7 @@ function updateTutorial() {
   if (player.inside) { tutPtr.hidden = true; spotEl.hidden = true; }
   // the base is always pointed at when it's off screen
   basePtr.hidden = player.inside || player.dead > 0;
-  if (!basePtr.hidden && placePtr(basePtr, new THREE.Vector3(0, 3.6, SHACK_Z))) basePtr.hidden = true;
+  if (!basePtr.hidden && placePtr(basePtr, new THREE.Vector3(0, 1.5, SHACK_Z))) basePtr.hidden = true;
 }
 
 /* ---------- Day / night ---------- */
