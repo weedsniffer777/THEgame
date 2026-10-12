@@ -808,13 +808,13 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
     if (carry || buildSel >= 0) { tryPlace(); return; }
     const pick = hovered?.kind ? hovered : baseHover ? "base" : null;
-    if (pick) openMenu(pick); else closeMenu();
+    if (pick && pick !== menuTarget) openMenu(pick); else closeMenu();
     return;
   }
   mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   if (e.button === 0 && !player.dead) {   // click a structure or the base for its menu; otherwise shoot
     const pick = hovered?.kind ? hovered : baseHover && !player.inside ? "base" : null;
-    if (pick) { openMenu(pick); return; }
+    if (pick) { if (pick === menuTarget) closeMenu(); else openMenu(pick); return; }   // clicking the selected one again unselects it
     if (menuTarget) { closeMenu(); return; }
   }
   if (e.button === 0) { mouseDown = true; firedThisPress = false; } mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
