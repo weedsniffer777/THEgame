@@ -1192,7 +1192,7 @@ const ENEMY_HIT_R = 0.62;
 const enemies = [], enemyPools = { walker: [], runner: [], bomber: [] };
 const ENEMY_TYPES = {
   walker: { hp: 50, dmg: 12, speed: [1.5, 2.1], color: 0xa3241b, xp: 1, bonus: 2, clip: "Walk_Loop", clipSpeed: 1.3, arms: true, weight: 5,
-    cap: (day, night) => night ? Math.min(45, 12 + (day - 1) * 4) : Math.min(22, 7 + (day - 1) * 2) },
+    cap: (day, night) => night ? Math.min(80, 24 + (day - 1) * 12) : Math.min(45, 12 + (day - 1) * 6) },   // fodder: their own fast stream, huge waves
   runner: { hp: 35, dmg: 9, speed: [5.0, 5.6], color: 0xd9452c, xp: 2, bonus: 2, clip: "Jog_Fwd_Loop", clipSpeed: 3.8, scale: 0.95, weight: 3,
     cap: (day, night) => night ? Math.min(20, 5 + (day - 1) * 2) : Math.min(10, 3 + (day - 1)) },
   bomber: { hp: 28, dmg: 45, speed: [4.6, 5.0], color: 0xb8361e, xp: 3, bonus: 4, clip: "Jog_Fwd_Loop", clipSpeed: 3.8, weight: 1.8, bomber: true,
@@ -1239,7 +1239,7 @@ function spawnEnemy(type, px, pz, slow) {
     if (Math.hypot(x - player.pos.x, z - player.pos.z) > 16) break;
   }
   const T = ENEMY_TYPES[type], e = enemyPools[type].pop() || makeEnemy(type);
-  const night = cycle.t >= DAY_LEN, d = cycle.day - 1, hp = Math.round(T.hp * hpMul() * (night ? 1.4 : 1));   // night enemies are tougher and faster
+  const night = cycle.t >= DAY_LEN, d = cycle.day - 1, hp = Math.round(T.hp * (type === "walker" ? 1 + (hpMul() - 1) * 0.5 : hpMul()) * (night ? 1.4 : 1));   // night enemies are tougher and faster
   Object.assign(e, { pos: new THREE.Vector3(x, 0, z), vel: new THREE.Vector3(), yaw: Math.atan2(-x, -z), hp, maxHp: hp, dmg: T.dmg * dmgMul() * (night ? 1.15 : 1), dead: false, deadT: 0, flash: 0, atk: 0, lunge: 0, bar: null,
     speed: slow ? 1.3 : (T.speed[0] + Math.random() * (T.speed[1] - T.speed[0]) + d * 0.06) * (night ? 1.2 : 1), seed: Math.random() * 10, hit: false, wallT: null, aggro: null, fuse: 0, coil: 0, seenT: -1, mark: null, quiet: false });
   if (T.bomber) { e.mark = document.createElement("div"); e.mark.className = "bang"; e.mark.textContent = "!"; barLayer.appendChild(e.mark); }
@@ -1328,7 +1328,7 @@ function pushOut(pos, r, x0, x1, z0, z1) {
   const pushes = [[x0 - r - pos.x, 0], [x1 + r - pos.x, 0], [0, z0 - r - pos.z], [0, z1 + r - pos.z]];
   pushes.sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1])); pos.x += pushes[0][0]; pos.z += pushes[0][1];
 }
-let spawnT = 2, rushLeft = 0;
+let spawnT = 2, walkerT = 3, rushLeft = 0;
 
 /* ---------- Flow-field pathfinding ---------- */
 // 0.5 m grid over the arena. Static scenery blocks it (base, outhouse, barrels, trees, fences and wire
@@ -1388,9 +1388,9 @@ function ffDir(x, z, gx, gz, out) {
   return out.set(bi, 0, bj).normalize();
 }
 
-function pickType(night) {
+function pickType(night, skip) {
   const alive = { walker: 0, runner: 0, bomber: 0 }; for (const e of enemies) if (!e.dead) alive[e.type]++;
-  const opts = Object.entries(ENEMY_TYPES).filter(([k, T]) => alive[k] < T.cap(cycle.day, night));
+  const opts = Object.entries(ENEMY_TYPES).filter(([k, T]) => k !== skip && alive[k] < T.cap(cycle.day, night));
   let tot = opts.reduce((a, [, T]) => a + T.weight, 0), r = Math.random() * tot;
   for (const [k, T] of opts) { if ((r -= T.weight) <= 0) return k; }
   return null;
@@ -1402,7 +1402,11 @@ function updateEnemies(dt) {
   if (tut.step !== "done") spawnT = Math.max(spawnT, 2); else spawnT -= dt;   // no extra spawns during the tutorial
   if (spawnT <= 0) {   // right after the tutorial a quick burst, then a steady stream
     const rush = rushLeft > 0; if (rush) rushLeft--;
-    spawnT = rush ? 0.45 : night ? Math.max(0.28, 0.75 - d * 0.06) : Math.max(0.8, 2.0 - d * 0.18); const k = pickType(night); if (k) spawnEnemy(k); }
+    spawnT = rush ? 0.45 : night ? Math.max(0.28, 0.75 - d * 0.06) : Math.max(0.8, 2.0 - d * 0.18); const k = pickType(night, rush ? null : "walker"); if (k) spawnEnemy(k); }
+  if (tut.step === "done") walkerT -= dt;
+  if (walkerT <= 0) {   // walkers come in their own, much faster stream
+    walkerT = night ? Math.max(0.12, 0.35 - d * 0.04) : Math.max(0.3, 0.8 - d * 0.08);
+    if (enemies.reduce((a, e) => a + (!e.dead && e.type === "walker"), 0) < ENEMY_TYPES.walker.cap(cycle.day, night)) spawnEnemy("walker"); }
   const tmp = new THREE.Vector3(), glow = cycle.nightK, door = doorPos(), now = performance.now() / 1000;
   ffT -= dt; if (ffT <= 0) { ffT = 0.25; if (hidden) ffSolve(door.x, door.z + 1.5); else ffSolve(player.pos.x, player.pos.z); }
   for (let i = enemies.length - 1; i >= 0; i--) {
@@ -1841,7 +1845,7 @@ function updateSentries(dt) {
 // swaps the number keys to it. "Move" on a structure picks it up into the build hand.
 
 const BUILDS = [
-  { id: "sentry", name: "SENTRY", req: 1, cost: () => save.firstSentry ? 50 : 5 },
+  { id: "sentry", name: "SENTRY", req: 1, cost: () => save.firstSentry ? 25 : 5 },
   { id: "wall", name: "WALL", req: 1, cost: () => 20 },
   { id: "wire", name: "BARBED WIRE", req: 2, soon: true }, { id: "spikes", name: "SPIKES", req: 3, soon: true },
   { id: "pump", name: "OIL PUMP", req: 3, soon: true }, { id: "heal", name: "HEAL POOL", req: 4, soon: true },
@@ -2224,7 +2228,7 @@ let alertT = 0, alertQ = [];
 function goals() {
   const g = [];
   for (const id of SLOT_IDS) if (!owns(id)) g.push({ key: "gun_" + id, cost: WEAPONS_DEF[id].price, img: ICONS[id], text: `${WEAPONS_DEF[id].name} · buy it in the base` });
-  g.push({ key: "sentry2", cost: 50, img: ICONS.sentry, text: "ANOTHER SENTRY · press B", ok: () => save.firstSentry && sentries.length < capOf("sentry") });
+  g.push({ key: "sentry2", cost: 25, img: ICONS.sentry, text: "ANOTHER SENTRY · press B", ok: () => save.firstSentry && sentries.length < capOf("sentry") });
   g.push({ key: "wall", cost: 20, img: ICONS.wall, text: "WALLS · press B", ok: () => save.tut });
   g.push({ key: "sentryLv2", cost: 150, img: ICONS.sentry, text: "SENTRY LV 2 · click a sentry", ok: () => sentries.some(t => t.level === 1) });
   g.push({ key: "base2", cost: BASE_UP[2], img: null, text: "BASE LV 2 · click your base", ok: () => save.base < 2 });
@@ -2272,7 +2276,7 @@ function startTutorial() {
 function tutEvent(kind, arg) {
   if (kind === "kill" && tut.step === "shoot" && tut.foes.every(f => f.dead)) tut.step = "xp";
   if (kind === "placed" && arg === "sentry" && (tut.step === "build" || tut.step === "place" || tut.step === "xp")) {
-    tut.step = "done"; save.tut = 1; writeSave(); buildBar.classList.remove("flash"); rushLeft = 8; spawnT = 1.5;
+    tut.step = "done"; save.tut = 1; writeSave(); buildBar.classList.remove("flash"); rushLeft = 8; spawnT = 1.5; walkerT = 4;
     showBanner("NICE! BUILD UP YOUR BASE · NIGHT COMES AT DUSK", 4.5);
   }
 }
@@ -2306,8 +2310,8 @@ function updateTutorial() {
 }
 
 /* ---------- Day / night ---------- */
-// 45 s of day, 45 s of night, with a 10 s dusk and dawn. Paused during the tutorial.
-const DAY_LEN = 45, NIGHT_LEN = 45, FADE = 10;
+// 30 s of day, 30 s of night, with an 8 s dusk and dawn. Paused during the tutorial.
+const DAY_LEN = 30, NIGHT_LEN = 30, FADE = 8;
 const cycle = { day: 1, t: 0, nightK: 0 };
 const cycleHud = document.getElementById("cycleHud"), dayLabel = document.getElementById("dayLabel"), cycleBar = document.getElementById("cycleBar"), cycleTime = document.getElementById("cycleTime");
 const lantern = new THREE.PointLight(0xffcf96, 0, 14, 1.2); scene.add(lantern);
@@ -2401,7 +2405,7 @@ function startRun(day, picks, fresh = false) {
   enemies.length = 0; hovered = null;
   for (const g of gems) scene.remove(g.m); gems.length = 0;
   pendingHits.length = 0;
-  cycle.day = day; cycle.t = 0; spawnT = 5; rushLeft = 0;
+  cycle.day = day; cycle.t = 0; spawnT = 5; walkerT = 5; rushLeft = 0;
   // the run's losses: guns, carried scrap, cards
   save.xp = 0; save.guns = ["pistol"]; save.mags = {}; save.cards = []; equip("pistol");
   applyBaseLevel(); const b = shanty?.children[0]; if (b) for (const n of ["shack", "shack_roof"]) { const o = b.getObjectByName(n); if (o) o.visible = true; }
