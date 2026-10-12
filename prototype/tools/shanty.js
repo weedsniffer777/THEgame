@@ -133,6 +133,7 @@ function surfaces() {
     rubberMat: new THREE.MeshStandardMaterial({ color: 0x1b1b1c, roughness: 0.92 }),
     wireMat: new THREE.MeshStandardMaterial({ color: 0x5d544c, roughness: 0.55, metalness: 0.6 }),
   };
+  SURF.galvMat.name = "galv"; SURF.paintMat.name = "paint"; SURF.woodMat.name = "wood"; SURF.concreteMat.name = "concrete";
   return SURF;
 }
 
@@ -261,10 +262,46 @@ function buildShack() {
   plank(1.3, 0.08, 0.1, winX, FLOOR + 0.98, W / 2 + 0.1, 0, 0, -0.02); plank(1.3, 0.08, 0.1, winX, FLOOR + 1.88, W / 2 + 0.1);
   plank(0.08, 1.0, 0.1, winX - 0.6, FLOOR + 1.43, W / 2 + 0.1); plank(0.08, 1.0, 0.1, winX + 0.6, FLOOR + 1.43, W / 2 + 0.1);
   [[0.28, 0.05, 1.35], [-0.02, -0.04, 1.3], [-0.3, 0.07, 1.38], [0.0, 0.62, 1.45]].forEach(([dy, rz, w], i) =>
-    plank(w, 0.17, 0.035, winX + (rnd() - 0.5) * 0.08, FLOOR + 1.43 + dy, W / 2 + 0.16 + i * 0.012, 0, 0, rz));
+    plank(w, 0.17, 0.035, winX + (rnd() - 0.5) * 0.08, FLOOR + 1.43 + dy, W / 2 + 0.16 + i * 0.012, 0, 0, rz).userData.lvl = 1);
   // Side window: boarded up with crooked planks
   const sx = L / 2 + 0.13, sz = W / 2 - 1.72;
-  [[0.32, 0.06], [0.08, -0.05], [-0.18, 0.04], [-0.38, -0.03], [0.0, 0.55]].forEach(([dy, rot], i) => plank(0.035, 0.17, 1.3, sx + i * 0.012, FLOOR + 1.4 + dy, sz, rot, 0, 0));
+  [[0.32, 0.06], [0.08, -0.05], [-0.18, 0.04], [-0.38, -0.03], [0.0, 0.55]].forEach(([dy, rot], i) => plank(0.035, 0.17, 1.3, sx + i * 0.012, FLOOR + 1.4 + dy, sz, rot, 0, 0).userData.lvl = 1);
+
+  // ---- Level 2 (base upgrade): cage windows, patched holes, corner flashing, trim over the gaps
+  const l2 = new THREE.Group(); l2.userData.lvl = 2; g.add(l2);
+  const steel = new THREE.MeshStandardMaterial({ color: 0x3c3a37, roughness: 0.55, metalness: 0.6 }); steel.name = "steel";
+  const cage = (cx, cy, cz, w, h, ry) => {   // welded frame with a square bar grid
+    const c = new THREE.Group(); c.position.set(cx, cy, cz); c.rotation.y = ry; l2.add(c);
+    const bar = (bw, bh, x, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.025), steel); m.position.set(x, y, 0); c.add(m); };
+    bar(w + 0.06, 0.05, 0, h / 2); bar(w + 0.06, 0.05, 0, -h / 2); bar(0.05, h, -w / 2, 0); bar(0.05, h, w / 2, 0);
+    for (let x = -w / 2 + 0.11; x < w / 2 - 0.05; x += 0.11) bar(0.016, h, x, 0);
+    for (let y = -h / 2 + 0.14; y < h / 2 - 0.05; y += 0.14) bar(w, 0.016, 0, y);
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.03, 6), steel); b.rotation.x = Math.PI / 2; b.position.set(sx * (w / 2 + 0.01), sy * (h / 2 + 0.01), 0.015); c.add(b); }
+  };
+  cage(winX, FLOOR + 1.43, W / 2 + 0.17, 1.15, 0.9, 0);
+  cage(sx + 0.04, FLOOR + 1.4, sz, 1.1, 0.95, Math.PI / 2);
+  cage(0.4, FLOOR + 1.4, -W / 2 - 0.12, 0.85, 0.65, Math.PI);
+  const l2sheet = (w, h, x, y, z, ry, painted) => sheet(w, h, x, y, z, ry, { parent: l2, painted, dent: 0.015, grimeBottom: 0.1 });
+  // patches over the worst holes
+  [[0.6, 0.55, -0.35, FLOOR + 0.55, W / 2 + 0.115, 0, true], [0.5, 0.5, 2.05, FLOOR + 0.5, W / 2 + 0.115, 0, false],
+   [0.7, 0.6, -1.6, FLOOR + 0.9, -W / 2 - 0.115, Math.PI, true], [0.55, 0.7, 1.9, FLOOR + 0.6, -W / 2 - 0.115, Math.PI, false],
+   [0.6, 0.6, L / 2 + 0.115, FLOOR + 0.5, -1.1, Math.PI / 2, true], [0.65, 0.55, -L / 2 - 0.115, FLOOR + 1.2, 0.5, -Math.PI / 2, false]]
+    .forEach(([w, h, x, y, z, ry, p]) => { const m = l2sheet(w, h, x, y, z, ry, p); m.rotation.z = (rnd() - 0.5) * 0.12; });
+  // corner flashing: two narrow sheets per corner
+  for (const [cx, cz] of [[-L / 2, -W / 2], [L / 2, -W / 2], [-L / 2, W / 2], [L / 2, W / 2]]) {
+    const h = wallTop(cz) - FLOOR + 0.1, sxn = Math.sign(cx), szn = Math.sign(cz);
+    l2sheet(0.22, h, cx - sxn * 0.03, FLOOR + h / 2 - 0.08, cz + szn * 0.13, szn > 0 ? 0 : Math.PI, false);
+    l2sheet(0.22, h, cx + sxn * 0.13, FLOOR + h / 2 - 0.08, cz - szn * 0.03, sxn > 0 ? Math.PI / 2 : -Math.PI / 2, false);
+  }
+  // trim boards over the top and bottom gaps
+  const trim = (w, h, d, x, y, z, rx = 0, ry = 0) => { const m = new THREE.Mesh(surfBox(w, h, d, S.wood, rnd), S.woodMat); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); l2.add(m); };
+  trim(L + 0.4, 0.14, 0.04, 0, wallTop(W / 2) - 0.1, W / 2 + 0.14); trim(L + 0.4, 0.14, 0.04, 0, wallTop(-W / 2) - 0.1, -W / 2 - 0.14);
+  trim(L + 0.4, 0.16, 0.04, 0, FLOOR - 0.04, W / 2 + 0.14); trim(L + 0.4, 0.16, 0.04, 0, FLOOR - 0.04, -W / 2 - 0.14);
+  const slopeA = Math.atan2(HF - HB, W);
+  for (const sx2 of [-1, 1]) {
+    trim(0.04, 0.14, W + 0.3, sx2 * (L / 2 + 0.14), (wallTop(W / 2) + wallTop(-W / 2)) / 2 - 0.1, 0, slopeA, 0);
+    trim(0.04, 0.16, W + 0.3, sx2 * (L / 2 + 0.14), FLOOR - 0.04, 0);
+  }
 
   // Shed roof: purlins, then overlapping sheets running down the slope with a ragged eave
   const slope = Math.atan2(HF - HB, W);
@@ -412,4 +449,43 @@ function buildShackYard() {
   return shadowed(g);
 }
 
-export { buildShack, buildShackYard, surfaces, vnoise };
+/* ---------- Level 2 yard: longer fence, more coils, an outhouse on the right ---------- */
+function buildYardL2() {
+  const S = surfaces(), rnd = seeded(9191);
+  const g = new THREE.Group(); g.name = "yard_l2"; WIRE = [];
+  const barbs = barbedRun(g, [[5.4, 4.7, 0.06], [7.0, 3.1, -0.05], [8.1, 0.8, 0.04], [8.2, -1.6, -0.06], [7.2, -3.7, 0.05], [5.2, -4.6, -0.04]], S, rnd);
+  barbs.push(...barbedRun(g, [[-5.2, -3.2, 0.03], [-4.6, -4.8, -0.05], [-2.6, -5.3, 0.06]], S, rnd));
+  barbs.push(...concertina(g, new THREE.Vector3(-6.1, 0, 2.6), new THREE.Vector3(-6.3, 0, -2.4), S, rnd, 0.34));
+  barbs.push(...concertina(g, new THREE.Vector3(4.2, 0, -4.9), new THREE.Vector3(7.6, 0, -3.0), S, rnd, 0.32));
+  barbs.push(...concertina(g, new THREE.Vector3(8.8, 0, 1.6), new THREE.Vector3(8.9, 0, -1.8), S, rnd, 0.3));
+  addBarbs(g, barbs, S, rnd);
+  const wire = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(WIRE), new THREE.LineBasicMaterial({ color: 0x4a443e }));
+  wire.name = "wire"; g.add(wire);
+  // Outhouse: corrugated booth on cinder blocks, plank door with a moon, shed roof and a vent pipe
+  const o = new THREE.Group(); o.position.set(6.0, 0, -0.9); o.rotation.y = -0.12; g.add(o);
+  const OW = 1.2, OD = 1.2, OH = 2.15, F = 0.18;
+  const box = (w, h, d, surf, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(surfBox(w, h, d, surf, rnd), mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); o.add(m); return m; };
+  for (const x of [-0.45, 0.45]) for (const z of [-0.45, 0.45]) box(0.36, 0.18, 0.18, S.concrete, S.concreteMat, x, 0.09, z, 0, rnd() * 0.3);
+  box(OW + 0.1, 0.05, OD + 0.1, S.wood, S.woodMat, 0, F, 0);
+  for (const x of [-OW / 2, OW / 2]) for (const z of [-OD / 2, OD / 2]) box(0.08, OH - (z < 0 ? 0.2 : 0), 0.08, S.wood, S.woodMat, x, F + (OH - (z < 0 ? 0.2 : 0)) / 2, z);
+  const osheet = (w, h, x, y, z, ry, painted) => { const m = new THREE.Mesh(sheetGeo(w, h, rnd, painted ? S.paint : S.galv, { dent: 0.03 }), painted ? S.paintMat : S.galvMat); m.position.set(x, y, z); m.rotation.set(0, ry, (rnd() - 0.5) * 0.03); o.add(m); };
+  osheet(OW + 0.05, OH - 0.25, 0, F + (OH - 0.25) / 2, -OD / 2 - 0.05, Math.PI, false);
+  for (const sx of [-1, 1]) { osheet(0.65, OH - 0.1, sx * (OW / 2 + 0.05), F + (OH - 0.1) / 2, -0.28, sx * Math.PI / 2, sx > 0); osheet(0.65, OH - 0.1, sx * (OW / 2 + 0.07), F + (OH - 0.1) / 2, 0.3, sx * Math.PI / 2, false); }
+  osheet(0.18, OH, -OW / 2 + 0.06, F + OH / 2, OD / 2 + 0.05, 0, false); osheet(0.18, OH, OW / 2 - 0.06, F + OH / 2, OD / 2 + 0.05, 0, true);
+  // door
+  const door = new THREE.Group(); door.position.set(0, F, OD / 2 + 0.07); o.add(door);
+  for (let i = 0; i < 5; i++) { const p = new THREE.Mesh(surfBox(0.16, 1.85, 0.03, S.wood, rnd), S.woodMat); p.position.set(-0.33 + i * 0.165, 0.95, 0); door.add(p); }
+  for (const y of [0.35, 1.55]) { const p = new THREE.Mesh(surfBox(0.8, 0.1, 0.03, S.wood, rnd), S.woodMat); p.position.set(0, y, 0.03); door.add(p); }
+  const moon = new THREE.Shape(); moon.absarc(0, 0, 0.1, Math.PI * 0.3, Math.PI * 1.7, false); moon.absarc(0.05, 0, 0.08, Math.PI * 1.62, Math.PI * 0.38, true);
+  const mm = new THREE.Mesh(new THREE.ShapeGeometry(moon, 8), S.darkMat); mm.position.set(0.02, 1.7, 0.02); door.add(mm);
+  const iron = new THREE.MeshStandardMaterial({ color: 0x2f2a26, roughness: 0.7, metalness: 0.5 });
+  for (const y of [0.3, 1.6]) { const h = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.012), iron); h.position.set(-0.24, y, 0.05); door.add(h); }
+  // shed roof sloping back
+  const roof = new THREE.Group(); roof.position.set(0, F + OH - 0.05, 0); roof.rotation.x = -Math.atan2(0.2, OD); o.add(roof);
+  for (let i = 0; i < 2; i++) { const s = new THREE.Mesh(sheetGeo(0.8, OD + 0.45, rnd, i ? S.paint : S.galv, { dent: 0.03 }), i ? S.paintMat : S.galvMat); s.rotation.set(-Math.PI / 2, 0, 0); s.position.set(-0.32 + i * 0.66, 0.04 + i * 0.02, 0.08); roof.add(s); }
+  const t = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.09, 8, 16), S.rubberMat); t.rotation.x = Math.PI / 2; t.scale.z = 0.85; t.position.set(0.15, 0.13, 0.1); roof.add(t);
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 10), new THREE.MeshStandardMaterial({ map: S.galv.map, color: 0xa47a5c, roughness: 1, metalness: 0.4 })); pipe.position.set(0.4, F + OH + 0.2, -0.45); o.add(pipe);
+  return shadowed(g);
+}
+
+export { buildShack, buildShackYard, buildYardL2, surfaces, vnoise };

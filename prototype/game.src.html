@@ -74,8 +74,49 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 .slot .lock { font-size: 9px; letter-spacing: .08em; color: #9d978a; text-align: center; line-height: 1.2; padding: 0 4px; }
 .slot.deny { animation: deny .25s; }
 @keyframes deny { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
-#buildBar { display: grid; gap: 6px; justify-items: center; }
-#buildBar .hint { font-size: 11px; letter-spacing: .14em; color: #e0b04a; text-shadow: 0 2px 0 #000; }
+#buildBar { display: flex; align-items: center; gap: 10px; }
+#buildBar .bkey { pointer-events: auto; cursor: pointer; font-family: inherit; font-size: 12px; letter-spacing: .12em; color: #e0b04a; background: rgba(18, 20, 19, .82); border: 0; box-shadow: 0 0 0 2px #2b2e2b; padding: 5px 8px; white-space: nowrap; }
+#buildBar.mini .slot { width: 38px; height: 38px; }
+#buildBar.mini .slot img { width: 32px; height: 32px; }
+#buildBar.mini .slot .nm, #buildBar.mini .slot .meta, #buildBar.mini .slot .lock { display: none; }
+#buildBar.mini .slot .k { font-size: 9px; left: 2px; top: 0; }
+#buildBar.mini .slot.locked::after { content: "×"; color: #6a6660; font-size: 14px; }
+#buildBar.flash .slots { animation: flash .8s ease-in-out infinite; }
+#buildBar.flash .bkey { animation: flashk .8s ease-in-out infinite; }
+@keyframes flash { 50% { filter: drop-shadow(0 0 10px #e0b04a) brightness(1.4); } }
+@keyframes flashk { 50% { background: #e0b04a; color: #1a1408; } }
+#spot { z-index: 3; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .5), inset 0 0 24px 8px rgba(0, 0, 0, .5); transition: left .08s, top .08s; }
+#banner { left: 50%; top: calc(84px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 5; padding: 8px 16px; font-size: 20px; letter-spacing: .1em; text-align: center; max-width: calc(100vw - 32px); }
+#banner.warn { color: #ff8a6a; }
+.ptr { left: 0; top: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ptr .lbl { background: #e0b04a; color: #1a1408; font-size: 13px; letter-spacing: .12em; padding: 2px 7px; box-shadow: 0 0 0 2px #1a1408; white-space: nowrap; }
+.ptr .arr { width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 12px solid #e0b04a; filter: drop-shadow(0 2px 0 #1a1408); }
+.ptr.on > * { animation: bob .6s ease-in-out infinite alternate; }
+.ptr.base .lbl { background: #7dff6e; } .ptr.base .arr { border-top-color: #7dff6e; }
+#smenu { position: fixed; left: 0; top: 0; z-index: 6; width: 250px; padding: 10px 12px; display: grid; gap: 8px; }
+#smenu .t { display: flex; align-items: baseline; gap: 8px; font-size: 16px; letter-spacing: .1em; }
+#smenu .t span { color: #e0b04a; font-size: 13px; }
+#smenu .t button { margin-left: auto; background: none; border: 0; color: #9d978a; font-size: 14px; cursor: pointer; }
+#smenu .hprow { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9d978a; }
+#smenu .hprow .bar { flex: 1; height: 8px; background: #3a3c38; } #smenu .hprow i { display: block; height: 100%; background: #7dff6e; }
+#smenu .info { font-size: 12px; line-height: 1.45; color: #c9c3b4; } #smenu .info b { color: #e0b04a; font-weight: 400; }
+#smenu .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+#smenu button.up, #smenu .btns button, #shop button, #pause button { font-family: inherit; font-size: 12px; letter-spacing: .1em; background: #2b2e2b; color: #e8e2d4; border: 0; box-shadow: 0 0 0 2px #101211; padding: 6px 9px; cursor: pointer; }
+#smenu .btns .up { background: #4a6a2a; flex: 1 0 100%; }
+#smenu button:disabled, #shop button:disabled { opacity: .45; cursor: default; }
+#shop { position: fixed; left: 22px; top: calc(140px + env(safe-area-inset-top, 0px)); z-index: 4; width: min(340px, calc(100vw - 44px)); padding: 12px; display: grid; gap: 10px; }
+#shop .shead { display: flex; justify-content: space-between; align-items: center; font-size: 16px; letter-spacing: .12em; }
+#shop .shead .gem { display: inline-block; width: 9px; height: 9px; background: #7dffd6; transform: rotate(45deg); box-shadow: 0 0 6px 1px rgba(61, 255, 184, .7); }
+#shop .tabs { display: flex; gap: 4px; } #shop .tabs button { flex: 1; color: #9d978a; } #shop .tabs button.on { background: #e0b04a; color: #1a1408; }
+#shopBody { display: grid; gap: 6px; max-height: 50vh; overflow: auto; }
+.srow { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(255, 255, 255, .04); padding: 6px 8px; }
+.srow b { display: block; font-weight: 400; font-size: 13px; letter-spacing: .08em; } .srow small { color: #9d978a; font-size: 11px; } .srow .pips { color: #e0b04a; font-size: 10px; letter-spacing: 1px; }
+#shop .sfoot { font-size: 11px; letter-spacing: .12em; color: #9d978a; text-align: center; }
+#pause { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; background: rgba(10, 12, 11, .6); }
+#pause .pbox { padding: 18px 22px; display: grid; gap: 14px; justify-items: center; max-width: calc(100vw - 32px); }
+#pause h1 { margin: 0; font-size: 34px; letter-spacing: .2em; font-weight: 400; color: #e0b04a; }
+#pause .keys { display: grid; grid-template-columns: repeat(2, auto); gap: 6px 22px; font-size: 13px; color: #c9c3b4; } #pause .keys b { color: #e8e2d4; font-weight: 400; margin-right: 6px; }
+#pause .pbtns { display: flex; gap: 8px; } #pause button { font-size: 14px; padding: 8px 14px; }
 #barLayer { inset: 0; z-index: 2; overflow: hidden; }
 .wbar { position: absolute; left: 0; top: 0; width: 44px; height: 6px; background: #1a1b1a; box-shadow: 0 0 0 1px #000; }
 .wbar i { display: block; height: 100%; background: #e8584a; }
@@ -95,7 +136,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #doorPrompt { left: 0; top: 0; padding: 4px 8px; font-size: 13px; letter-spacing: .12em; white-space: nowrap; }
 #doorPrompt b { color: #c9873f; font-weight: 600; margin-right: 4px; }
 #ammoHud .status { font-size: 12px; letter-spacing: .12em; color: #c9873f; height: 14px; }
-#toast { top: calc(84px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-family: "Pixelify Sans", monospace; font-size: 14px; letter-spacing: .08em; padding: 6px 12px; opacity: 0; transition: opacity .2s; }
+#toast { top: calc(132px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-family: "Pixelify Sans", monospace; font-size: 14px; letter-spacing: .08em; padding: 6px 12px; opacity: 0; transition: opacity .2s; }
 #toast.show { opacity: 1; }
 #loading { inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: 13px; color: #5d6a70; }
 
@@ -135,12 +176,31 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Pixelify+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
 
 <div id="game"></div>
-<div class="hud" id="loading">Loading the shanty…</div>
+<div class="hud" id="loading">Loading…</div>
 
 <div class="hud" id="barLayer"></div>
 <div class="hud" id="ovh"><div class="wbar own"><i id="ovhHp"></i></div><div class="wbar st"><i id="ovhSt"></i></div></div>
+<div class="hud" id="spot" hidden></div>
+<div class="hud px pxbox" id="banner" hidden></div>
+<div class="hud px ptr" id="tutPtr" hidden><span class="lbl"></span><span class="arr"></span></div>
+<div class="hud px ptr base" id="basePtr" hidden><span class="lbl">BASE</span><span class="arr"></span></div>
+<div class="px pxbox" id="smenu" hidden>
+  <div class="t"><b id="smTitle">SENTRY</b><span id="smLv">LV 1</span><button type="button" id="smClose" aria-label="Close">✕</button></div>
+  <div class="hprow" id="smHpRow"><div class="bar"><i id="smHp"></i></div><span id="smHpT"></span></div>
+  <div class="info" id="smInfo"></div>
+  <div class="btns"><button type="button" id="smUp" class="up">UPGRADE</button><button type="button" id="smMove">MOVE</button><button type="button" id="smSell">SELL</button></div>
+</div>
+<div class="px pxbox" id="shop" hidden>
+  <div class="shead"><b>BASE SHOP</b><span><span class="gem"></span> <span id="shopXp">0</span> XP</span></div>
+  <div class="tabs"><button type="button" data-tab="weapons" class="on">WEAPONS</button><button type="button" data-tab="supplies">SUPPLIES</button><button type="button" data-tab="upgrades">UPGRADES</button></div>
+  <div id="shopBody"></div>
+  <div class="sfoot">WALK TO THE DOOR · E TO LEAVE</div>
+</div>
+<div class="px" id="pause" hidden><div class="pbox pxbox"><h1>PAUSED</h1>
+  <div class="keys"><span><b>WASD</b> MOVE</span><span><b>MOUSE</b> AIM · CLICK TO SHOOT</span><span><b>SHIFT</b> SPRINT</span><span><b>R</b> RELOAD</span><span><b>B</b> BUILD MENU</span><span><b>1-6</b> PICK SLOT</span><span><b>E</b> ENTER / LEAVE BASE</span><span><b>CLICK</b> A BUILD FOR ITS MENU</span><span><b>P</b> PAUSE</span></div>
+  <div class="pbtns"><button type="button" id="pResume">RESUME</button><button type="button" id="pDev">DEV KIT</button></div></div></div>
 <div class="hud px pxbox" id="xpHud"><span class="gem"></span><span id="xpNum">0</span><small>XP</small></div>
-<div class="hud px" id="bars"><div id="buildBar" hidden><div class="hint">BUILD MODE · CLICK TO PLACE · B TO CLOSE</div><div class="slots" id="buildSlots"></div></div><div class="slots" id="weaponSlots"></div></div>
+<div class="hud px" id="bars"><div id="buildBar" class="mini"><button type="button" class="bkey" id="buildKey">[B] BUILD</button><div class="slots" id="buildSlots"></div></div><div class="slots" id="weaponSlots"></div></div>
 <div class="hud" id="brHud">
 <div class="px pxbox" id="hpHud"><span class="lbl">HP</span><div class="bar"><i id="hpBar"></i></div><span id="hpNum">100</span></div>
 <div class="px pxbox" id="ammoHud">
@@ -227,7 +287,7 @@ const TWIG_B64 = "__TWIG_B64__", BARK_B64 = "__BARK_B64__"; // baked by tools/ba
 /* ---------- Save ---------- */
 const SAVE_KEY = "gametest.iso.v1";
 const GUN = { name: "M1911", mag: 7, reserve: 49, rpm: 420, dmg: 35, spread: 0.018, reload: 1.15 };
-const defaultSave = () => ({ version: 2, ammo: { mag: GUN.mag, reserve: GUN.reserve }, kills: 0, pos: [0, 2], xp: 0, builds: [] });
+const defaultSave = () => ({ version: 2, ammo: { mag: GUN.mag, reserve: GUN.reserve }, kills: 0, pos: [0, 2], xp: 0, builds: [], base: 1, firstSentry: false, tut: 0, stats: {} });
 function loadSave() {
   try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { const s = JSON.parse(raw); if (s.version === 2) return Object.assign(defaultSave(), s); } } catch (e) {}
   return defaultSave();
@@ -300,7 +360,7 @@ const CUT = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1000);
 function makeShanty() {
   const g = new THREE.Group(); g.name = "shanty"; const body = shantyTemplate.clone(); g.add(body); addShantyLights(g);
   // the building (not the yard) gets the cutaway plane: walls are sliced at waist height while inside
-  const cut = []; for (const n of ["shack", "shack_roof"]) body.getObjectByName(n)?.traverse(o => { if (o.isMesh || o.isLine) cut.push(o); });
+  const cut = []; for (const n of ["shack", "shack_l1", "shack_l2", "shack_roof"]) body.getObjectByName(n)?.traverse(o => { if (o.isMesh || o.isLine) cut.push(o); });
   for (const c of g.children) if (c !== body) c.traverse(o => { if (o.isMesh) cut.push(o); });
   for (const o of cut) { o.material = o.material.clone(); o.material.clippingPlanes = [CUT]; o.material.clipShadows = true; }
   g.userData.roof = body.getObjectByName("shack_roof");
@@ -435,12 +495,8 @@ scene.add(sun); scene.add(sun.target);
 const VIEW = 11; let curView = VIEW;
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
 const CAM_OFFSET = new THREE.Vector3(1, 1.15, 1).normalize().multiplyScalar(40);
-function resize() {
-  const w = innerWidth, h = innerHeight, a = w / h;
-  renderer.setSize(w, h);
-  camera.left = -curView * a; camera.right = curView * a; camera.top = curView; camera.bottom = -curView;
-  camera.updateProjectionMatrix();
-}
+function camFrustum() { const a = innerWidth / innerHeight; camera.left = -curView * a; camera.right = curView * a; camera.top = curView; camera.bottom = -curView; camera.updateProjectionMatrix(); }
+function resize() { renderer.setSize(innerWidth, innerHeight); camFrustum(); }
 addEventListener("resize", resize); resize();
 
 // Blank white work platform with a 1 m grid (5 m major lines)
@@ -648,11 +704,14 @@ const keys = new Set();
 const mouse = new THREE.Vector2(); let mouseDown = false, firedThisPress = false;
 addEventListener("keydown", (e) => {
   if (!viewerEl.hidden) { if (e.key === "Escape") closeViewer(); return; }
-  const k = e.key.toLowerCase(); keys.add(k);
+  const k = e.key.toLowerCase();
+  if (k === "p") { setPaused(!paused); return; }
+  if (paused) { if (k === "escape") setPaused(false); return; }
+  keys.add(k);
   if (k === "r") startReload();
   if (k === "e") { setBuildMode(false); toggleInside(); }
   if (k === "b") setBuildMode(!buildMode);
-  if (k === "escape") setBuildMode(false);
+  if (k === "escape") { setBuildMode(false); closeMenu(); }
   if (/^[1-9]$/.test(k)) selectSlot(+k - 1);
   if (k === "`") toggleDev();
 });
@@ -663,6 +722,13 @@ renderer.domElement.addEventListener("pointerleave", () => { reticle.hidden = tr
 renderer.domElement.addEventListener("pointermove", (e) => { reticle.hidden = false; reticle.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 renderer.domElement.addEventListener("pointerdown", (e) => {
   if (buildMode) { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); if (e.button === 0) tryPlace(); else if (e.button === 2) setBuildMode(false); return; }
+  mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  if (e.button === 0) {   // click a structure (or the base, when no walkers are close) for its menu; otherwise shoot
+    const calm = !enemies.some(w => !w.dead && w.pos.distanceTo(player.pos) < 8);
+    const pick = hovered?.kind ? hovered : (baseHover && calm && !player.inside ? "base" : null);
+    if (pick && !player.dead) { openMenu(pick); return; }
+    if (menuTarget) { closeMenu(); return; }
+  }
   if (e.button === 0) { mouseDown = true; firedThisPress = false; } mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 addEventListener("pointerup", () => { mouseDown = false; });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -772,7 +838,7 @@ function fire() {
   }
   reticleRing.style.transform = "scale(1.35)"; setTimeout(() => { reticleRing.style.transform = ""; }, 70);
   if (hitD < RANGE && !hit) impactFx(to, dir.clone().negate(), false);
-  if (hit) hurtEnemy(hit, GUN.dmg, dir);
+  if (hit) hurtEnemy(hit, gunDmg(), dir);
   if (a.mag === 0) startReload();
   renderAmmo();
 }
@@ -804,20 +870,21 @@ function makeWalker() {
   const bone = (n) => model.getObjectByName(n);
   return { model, mat: m, mixer, walk, idle, hulls: addHulls(model), chest: bone("spine_03"), arms: { r: ["upperarm_r", "lowerarm_r", "hand_r", "middle_01_r"].map(bone), l: ["upperarm_l", "lowerarm_l", "hand_l", "middle_01_l"].map(bone) } };
 }
-function spawnWalker() {
-  let x, z;
-  for (let tries = 0; tries < 20; tries++) {   // just inside the treeline, never right next to the player
+function spawnWalker(px, pz, slow) {
+  let x = px, z = pz;
+  if (x === undefined) for (let tries = 0; tries < 20; tries++) {   // just inside the treeline, never right next to the player
     const side = Math.floor(Math.random() * 4), t = (Math.random() - 0.5) * 64;
     [x, z] = [[t, -33], [t, 33], [-33, t], [33, t]][side];
     if (Math.hypot(x - player.pos.x, z - player.pos.z) > 16) break;
   }
   const e = enemyPool.pop() || makeWalker();
-  const night = cycle.t >= DAY_LEN, d = cycle.day - 1, hp = 50;
+  const night = cycle.t >= DAY_LEN, d = cycle.day - 1, hp = night ? 70 : 50;   // night walkers are tougher and faster
   Object.assign(e, { pos: new THREE.Vector3(x, 0, z), vel: new THREE.Vector3(), yaw: Math.atan2(-x, -z), hp, maxHp: hp, dead: false, deadT: 0, flash: 0, atk: 0, lunge: 0, bar: null,
-    speed: (1.5 + Math.random() * 0.6 + d * 0.08) * (night ? 1.25 : 1), seed: Math.random() * 10 });
+    speed: slow ? 1.3 : (1.5 + Math.random() * 0.6 + d * 0.08) * (night ? 1.25 : 1), seed: Math.random() * 10, hit: false, wallT: null });
   e.model.rotation.set(0, e.yaw, 0, "YXZ"); e.model.position.copy(e.pos); e.model.scale.setScalar(1); e.model.visible = true;
   e.walk.time = Math.random() * e.walk.getClip().duration; showHulls(e, false);
   scene.add(e.model); enemies.push(e);
+  return e;
 }
 // hits make walkers glow; no blood
 function sparkFx(pos, dir, n = 5) {
@@ -829,7 +896,7 @@ function sparkFx(pos, dir, n = 5) {
 }
 function hurtEnemy(e, amt, dir) {
   if (e.dead) return;
-  e.hp -= amt; e.flash = 0.12; e.pos.addScaledVector(dir, 0.18);
+  e.hp -= amt; e.flash = 0.12; e.hit = true; e.pos.addScaledVector(dir, 0.18);
   const at = e.pos.clone().setY(1.25); sparkFx(at, dir.clone().negate(), 4);
   if (!e.bar) e.bar = worldBar(false);
   if (e.hp <= 0) {
@@ -838,7 +905,7 @@ function hurtEnemy(e, amt, dir) {
     sparkFx(at, dir, 14);
     for (let i = 0; i < 3; i++) dropXp(e.pos, 1);
     kills++; save.kills = kills; writeSave(); killEl.textContent = `${kills} KILLS`;
-    popNumber(at.setY(2.1), amt, true);
+    popNumber(at.setY(2.1), amt, true); tutEvent("kill", e);
   } else popNumber(at.setY(2.1), amt, false);
 }
 // floating damage numbers
@@ -863,7 +930,10 @@ function worldBar(own) { const el = document.createElement("div"); el.className 
 function removeBar(b) { if (b) b.el.remove(); }
 function placeBar(b, pos, k) { const [x, y] = toScreen(pos); b.el.style.transform = `translate(${x - 22}px, ${y}px)`; b.fill.style.width = `${Math.max(0, k) * 100}%`; }
 
+// pushes pos out of everything solid; returns the wall it bumped into, if any
 function collideCircle(pos, r) {
+  let bumped = null;
+  for (const w of walls) { const [x0, x1, z0, z1] = wallBox(w); if (pos.x > x0 - r && pos.x < x1 + r && pos.z > z0 - r && pos.z < z1 + r) { pushOut(pos, r, x0, x1, z0, z1); bumped = w; } }
   for (const c of treeColliders) { const dx = pos.x - c.x, dz = pos.z - c.z, d = Math.hypot(dx, dz), min = c.r + r; if (d < min && d > 1e-4) { pos.x = c.x + dx / d * min; pos.z = c.z + dz / d * min; } }
   for (const t of sentries) { const dx = pos.x - t.x, dz = pos.z - t.z, d = Math.hypot(dx, dz), min = 0.55 + r; if (d < min && d > 1e-4) { pos.x = t.x + dx / d * min; pos.z = t.z + dz / d * min; } }
   for (const [x0, x1, z0, z1] of boxColliders) {
@@ -872,14 +942,69 @@ function collideCircle(pos, r) {
       pushes.sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1])); pos.x += pushes[0][0]; pos.z += pushes[0][1];
     }
   }
+  return bumped;
+}
+function pushOut(pos, r, x0, x1, z0, z1) {
+  const pushes = [[x0 - r - pos.x, 0], [x1 + r - pos.x, 0], [0, z0 - r - pos.z], [0, z1 + r - pos.z]];
+  pushes.sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1])); pos.x += pushes[0][0]; pos.z += pushes[0][1];
 }
 let spawnT = 2;
+// Max alive per enemy type climbs slowly with the day, so walkers left alive can't pile up forever.
+const ENEMY_TYPES = { walker: { cap: (day, night) => night ? Math.min(40, 8 + (day - 1) * 3) : Math.min(16, 4 + (day - 1)) } };
+
+/* ---------- Flow-field pathfinding ---------- */
+// 0.5 m grid over the arena. Only static scenery (base, outhouse, barrels, trees) blocks it; walls and
+// sentries are deliberately left out so walkers walk into them and have to break through.
+const FF = { cell: 0.5, half: 36 }; FF.n = Math.round(FF.half * 2 / FF.cell);
+const ffBlocked = new Uint8Array(FF.n * FF.n), ffDist = new Int32Array(FF.n * FF.n);
+let ffGoal = -1, ffT = 0;
+const ffIdx = (x, z) => { const i = Math.floor((x + FF.half) / FF.cell), j = Math.floor((z + FF.half) / FF.cell); return i < 0 || j < 0 || i >= FF.n || j >= FF.n ? -1 : j * FF.n + i; };
+function ffBuildBlocked() {
+  ffBlocked.fill(0); const r = 0.42;
+  for (let j = 0; j < FF.n; j++) for (let i = 0; i < FF.n; i++) {
+    const x = -FF.half + (i + 0.5) * FF.cell, z = -FF.half + (j + 0.5) * FF.cell;
+    let b = false;
+    for (const [x0, x1, z0, z1] of boxColliders) if (x > x0 - r && x < x1 + r && z > z0 - r && z < z1 + r) { b = true; break; }
+    if (!b) for (const c of treeColliders) if (Math.hypot(x - c.x, z - c.z) < c.r + r) { b = true; break; }
+    ffBlocked[j * FF.n + i] = b ? 1 : 0;
+  }
+  ffGoal = -1;
+}
+const ffQ = new Int32Array(FF.n * FF.n);
+function ffSolve(gx, gz) {   // BFS distance field from the goal cell (8-connected, no corner cutting)
+  const g = ffIdx(gx, gz); if (g < 0 || g === ffGoal) return; ffGoal = g;
+  ffDist.fill(-1); let h = 0, t = 0; ffDist[g] = 0; ffQ[t++] = g; const n = FF.n;
+  while (h < t) {
+    const c = ffQ[h++], ci = c % n, cj = (c - ci) / n, d = ffDist[c] + 1;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      if (!di && !dj) continue; const i = ci + di, j = cj + dj; if (i < 0 || j < 0 || i >= n || j >= n) continue;
+      const k = j * n + i; if (ffDist[k] >= 0 || ffBlocked[k]) continue;
+      if (di && dj && (ffBlocked[cj * n + i] || ffBlocked[j * n + ci])) continue;
+      ffDist[k] = d; ffQ[t++] = k;
+    }
+  }
+}
+// direction to walk from (x, z): straight at the goal when nothing static is in the way, else down the field
+function ffDir(x, z, gx, gz, out) {
+  const dx = gx - x, dz = gz - z, d = Math.hypot(dx, dz);
+  if (d < 0.01) return out.set(0, 0, 0);
+  if (d < 1.5 || losClear(x, z, dx / d, dz / d, d)) return out.set(dx / d, 0, dz / d);
+  const c = ffIdx(x, z); if (c < 0 || ffDist[c] < 0) return out.set(dx / d, 0, dz / d);
+  const n = FF.n, ci = c % n, cj = (c - ci) / n; let best = ffDist[c], bi = 0, bj = 0;
+  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+    const i = ci + di, j = cj + dj; if ((!di && !dj) || i < 0 || j < 0 || i >= n || j >= n) continue;
+    const k = j * n + i; if (ffDist[k] >= 0 && ffDist[k] < best) { best = ffDist[k]; bi = di; bj = dj; }
+  }
+  if (!bi && !bj) return out.set(dx / d, 0, dz / d);
+  return out.set(bi, 0, bj).normalize();
+}
 function updateEnemies(dt) {
   const night = cycle.t >= DAY_LEN, d = cycle.day - 1, hidden = player.inside || player.dead > 0;
-  spawnT -= dt;
-  const cap = night ? Math.min(60, 12 + d * 6) : Math.min(24, 4 + d * 2);
+  if (tut.step !== "done") spawnT = Math.max(spawnT, 2); else spawnT -= dt;   // no extra spawns during the tutorial
+  const cap = ENEMY_TYPES.walker.cap(cycle.day, night);
   if (spawnT <= 0) { spawnT = night ? Math.max(0.4, 1.4 - d * 0.12) : Math.max(2, 5 - d * 0.4); if (enemies.filter(e => !e.dead).length < cap) spawnWalker(); }
   const tmp = new THREE.Vector3(), glow = cycle.nightK, door = doorPos();
+  ffT -= dt; if (ffT <= 0) { ffT = 0.25; if (hidden) ffSolve(door.x, door.z + 1.5); else ffSolve(player.pos.x, player.pos.z); }
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
     if (e.dead) {   // topple backwards glowing, then sink into the dirt
@@ -891,7 +1016,7 @@ function updateEnemies(dt) {
       if (e.deadT > 2.4) { scene.remove(e.model); enemies.splice(i, 1); enemyPool.push(e); }
       continue;
     }
-    // target: the player, or a sentry when it's clearly closer; with the player in the shack, crowd the door
+    // target: the player, or a sentry when it's clearly closer; with the player in the base, crowd the door
     const pd = hidden ? Infinity : Math.hypot(player.pos.x - e.pos.x, player.pos.z - e.pos.z);
     let tgt = null, td = Infinity;
     for (const t of sentries) { const dd = Math.hypot(t.x - e.pos.x, t.z - e.pos.z); if (dd < td) { td = dd; tgt = t; } }
@@ -901,18 +1026,21 @@ function updateEnemies(dt) {
     else if (!hidden) { gx = tx = player.pos.x; gz = tz = player.pos.z; reach = 1.15; }
     else { const a = e.seed * 2.4; gx = door.x + Math.cos(a) * 2.2; gz = door.z + 1.2 + Math.abs(Math.sin(a)) * 2; tx = door.x; tz = door.z; reach = 0; }
     const dx = gx - e.pos.x, dz = gz - e.pos.z, dist = Math.hypot(dx, dz), stop = reach ? dist < reach - 0.2 : dist < 0.5;
-    tmp.set(0, 0, 0); if (!stop) tmp.set(dx / dist, 0, dz / dist).multiplyScalar(e.speed);
+    tmp.set(0, 0, 0); if (!stop) ffDir(e.pos.x, e.pos.z, gx, gz, tmp).multiplyScalar(e.speed);
     for (const o of enemies) { if (o === e || o.dead) continue; const sx = e.pos.x - o.pos.x, sz = e.pos.z - o.pos.z, s2 = sx * sx + sz * sz; if (s2 < 0.64 && s2 > 1e-6) { const s = Math.sqrt(s2); tmp.x += sx / s * (0.8 - s) * 4; tmp.z += sz / s * (0.8 - s) * 4; } }
     e.vel.lerp(tmp, 1 - Math.exp(-dt * 6)); e.pos.addScaledVector(e.vel, dt);
-    collideCircle(e.pos, 0.35);
+    const bumped = collideCircle(e.pos, 0.35);
+    if (bumped) e.wallT = bumped; else if (e.wallT && (!walls.includes(e.wallT) || Math.hypot(e.wallT.x - e.pos.x, e.wallT.z - e.pos.z) > 1.3)) e.wallT = null;
     // face the target when close or stopped, else where they're walking
-    const tdist = Math.hypot(tx - e.pos.x, tz - e.pos.z);
-    const look = stop || tdist < 4 ? Math.atan2(tx - e.pos.x, tz - e.pos.z) : Math.atan2(e.vel.x, e.vel.z);
+    let tdist = Math.hypot(tx - e.pos.x, tz - e.pos.z);
+    const wallHit = e.wallT && !(reach && tdist < reach);   // stuck on a wall: tear it down
+    if (wallHit) { tx = e.wallT.x; tz = e.wallT.z; tdist = 0; }
+    const look = wallHit || stop || tdist < 4 ? Math.atan2(tx - e.pos.x, tz - e.pos.z) : Math.atan2(e.vel.x, e.vel.z);
     let dy = look - e.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); e.yaw += dy * Math.min(1, dt * 6);
     // melee: wind up, then swipe if still in reach
-    if (reach && tdist < reach) {
+    if (wallHit || (reach && tdist < reach)) {
       if (e.atk <= 0) e.atk = 0.45; e.atk -= dt;
-      if (e.atk <= 0) { e.lunge = 0.25; e.atk = 1.1; if (tgt) hurtSentry(tgt, 15); else if (tdist < reach + 0.3) hurtPlayer(12); }
+      if (e.atk <= 0) { e.lunge = 0.25; e.atk = 1.1; if (wallHit) hurtStruct(e.wallT, 15); else if (tgt) hurtStruct(tgt, 15); else if (tdist < reach + 0.3) hurtPlayer(12); }
     } else e.atk = 0;
     e.lunge = Math.max(0, e.lunge - dt); e.flash = Math.max(0, e.flash - dt);
     const spd = e.vel.length(), wk = THREE.MathUtils.clamp(spd / 1.2, 0, 1);
@@ -955,7 +1083,7 @@ function updateHover() {
   let best = null, bestD = Infinity; const ray = raycaster.ray, hit = new THREE.Vector3();
   if (!player.inside) {
     for (const e of enemies) { if (e.dead) continue; _hb.min.set(e.pos.x - 0.38, 0, e.pos.z - 0.38); _hb.max.set(e.pos.x + 0.38, 1.9, e.pos.z + 0.38); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = e; } } }
-    for (const t of sentries) { _hb.min.set(t.x - 0.6, 0, t.z - 0.6); _hb.max.set(t.x + 0.6, 1.55, t.z + 0.6); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = t; } } }
+    for (const t of structs()) { const r = t.kind === "wall" ? 0.5 : 0.6; _hb.min.set(t.x - r, 0, t.z - r); _hb.max.set(t.x + r, t.kind === "wall" ? 1.0 : 1.55, t.z + r); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = t; } } }
   }
   if (best !== hovered) { showHulls(hovered, false); showHulls(best, true); hovered = best; }
 }
@@ -966,7 +1094,7 @@ const xpGeo = new THREE.OctahedronGeometry(0.12, 0), xpMat = new THREE.MeshStand
 const xpGlowMat = new THREE.SpriteMaterial({ map: softTex, color: 0x3dffb8, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
 const gems = [];
 const xpHud = document.getElementById("xpHud"), xpNum = document.getElementById("xpNum");
-function renderXp() { xpNum.textContent = save.xp; renderBuildBar(); }
+function renderXp() { xpNum.textContent = save.xp; renderBuildBar(); if (!shopEl.hidden) renderShop(); }
 function dropXp(at, value) {
   const m = new THREE.Mesh(xpGeo, xpMat); m.position.set(at.x, 1.0, at.z);
   const glowS = new THREE.Sprite(xpGlowMat); glowS.scale.setScalar(0.75); m.add(glowS); scene.add(m);
@@ -1036,7 +1164,7 @@ function mergeByMaterial(grp) {
   }
   for (const [m, geos] of byMat) { const mesh = new THREE.Mesh(mergeGeometries(geos), m); mesh.castShadow = true; mesh.receiveShadow = true; grp.add(mesh); }
 }
-function makeSentryModel() {
+function makeSentryModel(level = 1) {
   const M = sentryMats(), g = new THREE.Group(); g.name = "sentry";
   const add = (parent, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
   const beam = (parent, a, b, w, d, mat) => {   // box from a to b
@@ -1051,7 +1179,7 @@ function makeSentryModel() {
     const top = new THREE.Vector3(ca * 0.07, HUB - 0.03, sa * 0.07), knee = new THREE.Vector3(ca * 0.36, 0.38, sa * 0.36), foot = new THREE.Vector3(ca * 0.62, 0.05, sa * 0.62);
     beam(g, top, knee, 0.05, 0.04, M.leg);
     beam(g, knee.clone().lerp(top, 0.12), foot, 0.062, 0.05, M.leg);           // lower sleeve, a bit thicker
-    const clamp = beam(g, knee.clone().lerp(top, 0.18), knee.clone().lerp(foot, 0.08), 0.08, 0.065, M.dark);
+    beam(g, knee.clone().lerp(top, 0.18), knee.clone().lerp(foot, 0.08), 0.08, 0.065, M.dark);
     const hnd = knee.clone().lerp(top, 0.55); add(g, new THREE.BoxGeometry(0.012, 0.12, 0.05), M.dark, hnd.x + sa * 0.04, hnd.y, hnd.z - ca * 0.04, 0, -a, 0);
     add(g, new THREE.CylinderGeometry(0.02, 0.02, 0.06, 5), M.dark, top.x * 1.6, HUB - 0.02, top.z * 1.6, Math.PI / 2, 0, -a + Math.PI / 2);
     add(g, new THREE.CylinderGeometry(0.075, 0.075, 0.016, 3), M.dark, foot.x, 0.035, foot.z, 0, -a, 0);
@@ -1072,42 +1200,127 @@ function makeSentryModel() {
   add(gun, new THREE.BoxGeometry(0.018, 0.018, 0.018), M.led, 0.04, 0.19, -0.16);
   add(gun, new THREE.CylinderGeometry(0.004, 0.004, 0.2, 3), M.dark, 0.05, 0.27, -0.17);   // antenna
   add(gun, new THREE.BoxGeometry(0.05, 0.13, 0.06), M.dark, 0.0, -0.14, 0.12, 0.25);       // front grip
-  add(gun, new THREE.CylinderGeometry(0.085, 0.085, 0.13, 6), M.metal, 0, 0, 0.23, Math.PI / 2);   // motor housing
-  const spin = new THREE.Group(); spin.position.z = 0.3; gun.add(spin);
-  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; add(spin, new THREE.CylinderGeometry(0.012, 0.012, 0.58, 4), M.dark, Math.cos(a) * 0.038, Math.sin(a) * 0.038, 0.29, Math.PI / 2); }
-  add(spin, new THREE.CylinderGeometry(0.016, 0.016, 0.56, 4), M.metal, 0, 0, 0.28, Math.PI / 2);
-  for (const z of [0.06, 0.2, 0.34]) add(spin, new THREE.CylinderGeometry(0.066, 0.066, 0.035, 6), M.metal, 0, 0, z, Math.PI / 2);
-  add(spin, new THREE.CylinderGeometry(0.085, 0.085, 0.13, 6), M.metal, 0, 0, 0.53, Math.PI / 2);     // muzzle shroud
-  add(spin, new THREE.CircleGeometry(0.07, 6), M.dark, 0, 0, 0.596);
-  // ammo can on the left side + belt into the receiver
-  add(gun, new THREE.BoxGeometry(0.2, 0.22, 0.32), M.olive, 0.2, -0.03, -0.03);
-  add(gun, new THREE.PlaneGeometry(0.3, 0.2), M.label, 0.301, -0.03, -0.03, 0, Math.PI / 2, 0);
-  add(gun, new THREE.BoxGeometry(0.21, 0.03, 0.33), M.olive, 0.2, 0.09, -0.03);             // lid lip
-  add(gun, new THREE.BoxGeometry(0.012, 0.03, 0.12), M.dark, 0.2, 0.12, -0.03);             // handle
-  add(gun, new THREE.BoxGeometry(0.02, 0.07, 0.04), M.dark, 0.305, 0.0, -0.13);            // latch
-  for (let i = 0; i < 6; i++) { const t = i / 5; add(gun, new THREE.BoxGeometry(0.014, 0.012, 0.055), M.brass, 0.2 - t * 0.12, 0.11 + Math.sin(t * Math.PI) * 0.04, 0.05, 0, 0, 0.3); }
-  for (const grp of [g, head, gun, spin]) mergeByMaterial(grp);   // ~15 draw calls instead of ~75
-  return { g, head, spin, muzzle: new THREE.Vector3(0, 0, 0.92), gun };
+  // barrel pod: motor housing + six spinning barrels; level 2 adds a second pod and ammo can on the right
+  const spins = [], muzzles = [];
+  const pod = (x, y) => {
+    add(gun, new THREE.CylinderGeometry(0.085, 0.085, 0.13, 6), M.metal, x, y, 0.23, Math.PI / 2);
+    const spin = new THREE.Group(); spin.position.set(x, y, 0.3); gun.add(spin);
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; add(spin, new THREE.CylinderGeometry(0.012, 0.012, 0.58, 4), M.dark, Math.cos(a) * 0.038, Math.sin(a) * 0.038, 0.29, Math.PI / 2); }
+    add(spin, new THREE.CylinderGeometry(0.016, 0.016, 0.56, 4), M.metal, 0, 0, 0.28, Math.PI / 2);
+    for (const z of [0.06, 0.2, 0.34]) add(spin, new THREE.CylinderGeometry(0.066, 0.066, 0.035, 6), M.metal, 0, 0, z, Math.PI / 2);
+    add(spin, new THREE.CylinderGeometry(0.085, 0.085, 0.13, 6), M.metal, 0, 0, 0.53, Math.PI / 2);     // muzzle shroud
+    add(spin, new THREE.CircleGeometry(0.07, 6), M.dark, 0, 0, 0.596);
+    spins.push(spin); muzzles.push(new THREE.Vector3(x, y, 0.92));
+  };
+  const can = (s) => {   // ammo can on side s (+1 left, -1 right) with a belt into the receiver
+    const cx = s * (level >= 2 && s < 0 ? 0.42 : 0.2);
+    add(gun, new THREE.BoxGeometry(0.2, 0.22, 0.32), M.olive, cx, -0.03, -0.03);
+    add(gun, new THREE.PlaneGeometry(0.3, 0.2), M.label, cx + s * 0.101, -0.03, -0.03, 0, s * Math.PI / 2, 0);
+    add(gun, new THREE.BoxGeometry(0.21, 0.03, 0.33), M.olive, cx, 0.09, -0.03);             // lid lip
+    add(gun, new THREE.BoxGeometry(0.012, 0.03, 0.12), M.dark, cx, 0.12, -0.03);             // handle
+    add(gun, new THREE.BoxGeometry(0.02, 0.07, 0.04), M.dark, cx + s * 0.105, 0.0, -0.13);   // latch
+    const tx = s < 0 && level >= 2 ? -0.21 : 0;
+    for (let i = 0; i < 6; i++) { const t = i / 5; add(gun, new THREE.BoxGeometry(0.014, 0.012, 0.055), M.brass, cx + (tx - cx) * t * 0.6, 0.11 + Math.sin(t * Math.PI) * 0.04, 0.05, 0, 0, 0.3 * s); }
+  };
+  pod(0, 0); can(1);
+  if (level >= 2) {
+    add(gun, new THREE.BoxGeometry(0.1, 0.07, 0.3), M.metal, -0.12, -0.02, 0.05);           // bracket to the second pod
+    pod(-0.21, -0.02); can(-1);
+  }
+  for (const grp of [g, head, gun, ...spins]) mergeByMaterial(grp);   // ~15 draw calls instead of ~75
+  return { g, head, spins, muzzles, gun };
 }
-const sentries = [];
-const SENTRY = { range: 10, rate: 0.11, dmg: 10, hp: 250 };
-function placeSentry(x, z, save_ = true) {
-  const s = makeSentryModel(); s.g.position.set(x, 0, z); s.g.scale.setScalar(1.35); scene.add(s.g);
-  const t = { ...s, hulls: addHulls(s.g), x, z, yaw: Math.atan2(x - BASE_C.x, z - BASE_C.y), hp: SENTRY.hp, cool: 0, spinV: 0, target: null, retarget: 0, bar: null, shot: 0 };
-  t.head.rotation.y = t.yaw; sentries.push(t);
-  if (save_) { save.builds.push({ t: "sentry", x, z }); writeSave(); }
-  return t;
+
+/* ---------- Walls ---------- */
+// 1 x 1 x 1 m blocks. Level 1: timber frame with patchwork corrugated sheets like the base;
+// level 2: fully sheeted in cleaner galvanised steel with steel corner angles.
+let WALL_GEO = null;
+function wallMats() {
+  const find = (n) => { let m = null; shantyTemplate?.traverse(o => { if (!m && o.isMesh && o.material.name === n) m = o.material; }); return m || new THREE.MeshStandardMaterial({ color: 0x8a8278, roughness: 0.9 }); };
+  const galv = find("galv"), paint = find("paint"), wood = find("wood");
+  const clean = galv.clone(); clean.color.setHex(0xe8eef2); clean.metalness = 0.55;
+  return { galv, paint, wood, clean, steel: new THREE.MeshStandardMaterial({ color: 0x55595d, roughness: 0.5, metalness: 0.5 }) };
 }
-function hurtSentry(t, n) {
-  t.hp -= n; if (!t.bar) t.bar = worldBar(true);
-  sparkFx(new THREE.Vector3(t.x, 1.0, t.z), new THREE.Vector3(0, 1, 0), 3);
-  if (t.hp <= 0) {
-    if (hovered === t) hovered = null; removeBar(t.bar); scene.remove(t.g); sentries.splice(sentries.indexOf(t), 1);
-    const i = save.builds.findIndex(b => b.x === t.x && b.z === t.z); if (i >= 0) save.builds.splice(i, 1); writeSave(); renderBuildBar();
-    for (let k = 0; k < 3; k++) spawnSprite(new THREE.Vector3(t.x, 0.8, t.z), new THREE.Vector3((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2), { color: 0x6b6862, size: 0.6, grow: 2.5, life: 1.4, opacity: 0.6, drag: 1.5 });
-    sparkFx(new THREE.Vector3(t.x, 1.0, t.z), new THREE.Vector3(0, 1, 0), 20);
+function wallGeometries() {
+  if (WALL_GEO) return WALL_GEO;
+  const M = wallMats(), rnd = (() => { let s = 99; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
+  // atlas-mapped quad (u/v in metres / atlas size), grime darker toward the bottom
+  const quad = (w, h, metres, mx = new THREE.Matrix4()) => {
+    const geo = new THREE.PlaneGeometry(w, h), uv = geo.attributes.uv, pos = geo.attributes.position, u0 = rnd() * (metres - w), v0 = rnd() * (metres - h);
+    const col = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) { uv.setXY(i, (u0 + uv.getX(i) * w) / metres, (v0 + uv.getY(i) * h) / metres); const k = 0.72 + 0.28 * Math.min(1, (pos.getY(i) + h / 2) / (h * 0.4)); col.set([k, k * 0.98, k * 0.95], i * 3); }
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3)); return geo.applyMatrix4(mx);
+  };
+  const box = (w, h, d, metres, x, y, z) => {
+    const geo = new THREE.BoxGeometry(w, h, d), uv = geo.attributes.uv, u0 = rnd() * (metres - 1.2), v0 = rnd() * (metres - 1.2);
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (u0 + uv.getX(i) * Math.max(w, d)) / metres, (v0 + uv.getY(i) * Math.max(h, 0.1)) / metres);
+    geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3).fill(0.9), 3)); return geo.translate(x, y, z);
+  };
+  const face = (i, inset, w, h, y) => new THREE.Matrix4().makeRotationY(i * Math.PI / 2).multiply(new THREE.Matrix4().makeTranslation(0, y, inset));
+  const out = {};
+  // level 1
+  { const wood = [], galv = [], paint = [];
+    for (const [x, z] of [[-0.46, -0.46], [0.46, -0.46], [-0.46, 0.46], [0.46, 0.46]]) wood.push(box(0.08, 1, 0.08, 4, x, 0.5, z));
+    for (const y of [0.05, 0.96]) { wood.push(box(0.92, 0.07, 0.07, 4, 0, y, -0.46), box(0.92, 0.07, 0.07, 4, 0, y, 0.46), box(0.07, 0.07, 0.92, 4, -0.46, y, 0), box(0.07, 0.07, 0.92, 4, 0.46, y, 0)); }
+    for (let i = 0; i < 3; i++) wood.push(box(0.98, 0.04, 0.3, 4, 0, 1.0, -0.31 + i * 0.31));
+    for (let i = 0; i < 4; i++) (i === 1 ? paint : galv).push(quad(0.88, 0.86, 5, face(i, 0.43, 0.88, 0.86, 0.5)));
+    out[1] = [[M.wood, mergeGeometries(wood)], [M.galv, mergeGeometries(galv)], [M.paint, mergeGeometries(paint)]]; }
+  // level 2
+  { const clean = [], steel = [];
+    for (let i = 0; i < 4; i++) clean.push(quad(1.0, 1.0, 5, face(i, 0.5, 1, 1, 0.5)));
+    clean.push(quad(1.0, 1.0, 5, new THREE.Matrix4().makeTranslation(0, 1.0, 0).multiply(new THREE.Matrix4().makeRotationX(-Math.PI / 2))));
+    for (const [x, z] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) steel.push(new THREE.BoxGeometry(0.06, 1.02, 0.06).translate(x, 0.51, z));
+    for (const y of [0.03, 1.0]) steel.push(new THREE.BoxGeometry(1.04, 0.04, 0.04).translate(0, y, -0.51), new THREE.BoxGeometry(1.04, 0.04, 0.04).translate(0, y, 0.51), new THREE.BoxGeometry(0.04, 0.04, 1.04).translate(-0.51, y, 0), new THREE.BoxGeometry(0.04, 0.04, 1.04).translate(0.51, y, 0));
+    for (const g of steel) g.deleteAttribute("uv");
+    for (const g of clean) g.deleteAttribute("color");
+    const cm = M.clean.clone(); cm.vertexColors = false;
+    out[2] = [[cm, mergeGeometries(clean)], [M.steel, mergeGeometries(steel)]]; }
+  return (WALL_GEO = out);
+}
+function makeWallModel(level = 1) {
+  const g = new THREE.Group(); g.name = "wall";
+  for (const [m, geo] of wallGeometries()[level]) { const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh); }
+  return g;
+}
+
+/* ---------- Structures: sentries + walls, stats, placement, damage ---------- */
+const sentries = [], walls = [];
+const SENTRY = { range: 10, rate: 0.11, dmg: 10 };
+const STRUCT = {
+  sentry: { name: "SENTRY", hp: [0, 250, 400], up: [0, 150], baseReq: [0, 0], info: ["", "Six-barrel gun, 10 m range", "Twin barrels: double fire rate"] },
+  wall: { name: "WALL", hp: [0, 300, 650], up: [0, 30], baseReq: [0, 2], info: ["", "Blocks walkers; they have to break through", "Reinforced steel sheeting"] },
+};
+const CAPS = { sentry: [0, 3, 5], wall: [0, 30, 60] };
+const structs = () => [...sentries, ...walls];
+const saveBuilds = () => { save.builds = structs().map(s => ({ t: s.kind, x: s.x, z: s.z, lv: s.level, spent: s.spent })); writeSave(); };
+function buildModel(s) {
+  if (s.g) { scene.remove(s.g); }
+  if (s.kind === "sentry") { const m = makeSentryModel(s.level); Object.assign(s, m); m.g.scale.setScalar(1.35); m.head.rotation.y = s.yaw; }
+  else s.g = makeWallModel(s.level);
+  s.g.position.set(s.x, 0, s.z); scene.add(s.g); s.hulls = addHulls(s.g);
+  if (hovered === s) showHulls(s, true);
+}
+function addStruct(kind, x, z, level = 1, spent = 0, hp) {
+  const s = { kind, x, z, level, spent, hp: hp ?? STRUCT[kind].hp[level], g: null, bar: null, yaw: Math.atan2(x - BASE_C.x, z - BASE_C.y), cool: 0, spinV: 0, target: null, retarget: 0, shot: 0 };
+  buildModel(s); (kind === "sentry" ? sentries : walls).push(s);
+  return s;
+}
+function removeStruct(s) {
+  const list = s.kind === "sentry" ? sentries : walls, i = list.indexOf(s); if (i >= 0) list.splice(i, 1);
+  scene.remove(s.g); removeBar(s.bar); s.bar = null;
+  if (hovered === s) { showHulls(s, false); hovered = null; }
+  if (menuTarget === s) closeMenu();
+}
+function hurtStruct(s, n) {
+  s.hp -= n; if (!s.bar) s.bar = worldBar(true);
+  sparkFx(new THREE.Vector3(s.x, s.kind === "wall" ? 0.7 : 1.0, s.z), new THREE.Vector3(0, 1, 0), 3);
+  if (s.hp <= 0) {
+    removeStruct(s); saveBuilds(); renderBuildBar();
+    for (let k = 0; k < 3; k++) spawnSprite(new THREE.Vector3(s.x, 0.7, s.z), new THREE.Vector3((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2), { color: 0x6b6862, size: 0.6, grow: 2.5, life: 1.4, opacity: 0.6, drag: 1.5 });
+    sparkFx(new THREE.Vector3(s.x, 0.8, s.z), new THREE.Vector3(0, 1, 0), 20);
   }
 }
+const wallBox = (w) => [w.x - 0.5, w.x + 0.5, w.z - 0.5, w.z + 0.5];
 function losClear(ox, oz, dx, dz, dist) {
   for (const bx of boxColliders) { const t = rayBox(ox, oz, dx, dz, bx); if (t !== null && t < dist) return false; }
   for (const c of treeColliders) { const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.r); if (t !== null && t < dist) return false; }
@@ -1134,12 +1347,12 @@ function updateSentries(dt) {
     }
     t.head.rotation.y = t.yaw;
     t.spinV += ((t.target ? 1 : 0) - t.spinV) * Math.min(1, dt * (t.target ? 3 : 1.2));
-    t.spin.rotation.z += t.spinV * 40 * dt;
+    for (const sp of t.spins) sp.rotation.z += t.spinV * 40 * dt;
     t.cool -= dt;
     if (t.target && aligned && t.spinV > 0.75 && t.cool <= 0) {
-      t.cool = SENTRY.rate; t.shot++;
+      t.cool = SENTRY.rate / t.muzzles.length; t.shot++;
       t.g.updateMatrixWorld(true);
-      const from = t.gun.localToWorld(t.muzzle.clone()), ang = t.yaw + (Math.random() - 0.5) * 0.06, dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
+      const from = t.gun.localToWorld(t.muzzles[t.shot % t.muzzles.length].clone()), ang = t.yaw + (Math.random() - 0.5) * 0.06, dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
       let hitD = SENTRY.range + 2, hit = null;
       for (const e of enemies) { if (e.dead) continue; const d = rayCircle(t.x, t.z, dir.x, dir.z, e.pos.x, e.pos.z, 0.42); if (d !== null && d < hitD) { hitD = d; hit = e; } }
       for (const bx of boxColliders) { const d = rayBox(t.x, t.z, dir.x, dir.z, bx); if (d !== null && d < hitD) { hitD = d; hit = null; } }
@@ -1150,131 +1363,311 @@ function updateSentries(dt) {
       if (t.shot % 3 === 0) spawnCasing(from.clone().addScaledVector(dir, -0.5).add(new THREE.Vector3(0, -0.05, 0)), dir);
       if (hit) hurtEnemy(hit, SENTRY.dmg, dir);
     }
-    if (t.bar) placeBar(t.bar, new THREE.Vector3(t.x, 1.9, t.z), t.hp / SENTRY.hp);
   }
+  for (const s of structs()) if (s.bar) placeBar(s.bar, new THREE.Vector3(s.x, s.kind === "wall" ? 1.45 : 1.9, s.z), s.hp / STRUCT[s.kind].hp[s.level]);
 }
 
 /* ---------- Hotbar & build mode ---------- */
-// Weapon hotbar (1-5) at the bottom; B swaps the number keys to the build bar shown above it.
+// Weapon hotbar (1-5) at the bottom with a small build bar above it; B enlarges the build bar and
+// swaps the number keys to it. "Move" on a structure picks it up into the build hand.
 const WEAPONS = [{ name: "M1911" }, { name: "SHOTGUN", locked: true }, { name: "SMG", locked: true }, { name: "SNIPER", locked: true }, { name: "LAUNCHER", locked: true }];
 const BUILDS = [
-  { id: "sentry", name: "SENTRY", cost: 20, cap: 2 },
-  { id: "wall", name: "WALL", locked: "SHACK LV2" }, { id: "wire", name: "BARBED WIRE", locked: "SHACK LV2" },
-  { id: "spikes", name: "SPIKES", locked: "SHACK LV3" }, { id: "pump", name: "OIL PUMP", locked: "SHACK LV3" }, { id: "heal", name: "HEAL POOL", locked: "SHACK LV4" },
+  { id: "sentry", name: "SENTRY", req: 1, cost: () => save.firstSentry ? 50 : 5 },
+  { id: "wall", name: "WALL", req: 1, cost: () => 20 },
+  { id: "wire", name: "BARBED WIRE", req: 2, soon: true }, { id: "spikes", name: "SPIKES", req: 3, soon: true },
+  { id: "pump", name: "OIL PUMP", req: 3, soon: true }, { id: "heal", name: "HEAL POOL", req: 4, soon: true },
 ];
+const lockOf = (b) => save.base < b.req ? `BASE LV${b.req}` : b.soon ? "SOON" : "";
+const countOf = (id) => id === "sentry" ? sentries.length : id === "wall" ? walls.length : 0;
+const capOf = (id) => CAPS[id]?.[Math.min(save.base, 2)] ?? 0;
 const ICONS = {};
-const weaponSlots = document.getElementById("weaponSlots"), buildSlots = document.getElementById("buildSlots"), buildBar = document.getElementById("buildBar");
-let buildMode = false, buildSel = 0, weaponSel = 0, ghost = null, ghostOk = false;
+const weaponSlots = document.getElementById("weaponSlots"), buildSlots = document.getElementById("buildSlots"), buildBar = document.getElementById("buildBar"), buildKey = document.getElementById("buildKey");
+let buildMode = false, buildSel = 0, weaponSel = 0, ghost = null, ghostOk = false, carry = null;
 const ghostMat = new THREE.MeshBasicMaterial({ color: 0x7dff6e, transparent: true, opacity: 0.45, depthWrite: false });
-function slotHtml(i, item, icon, meta, metaNo) {
-  return `<div class="slot${item.locked ? " locked" : ""}" data-i="${i}"><span class="k">${i + 1}</span>${item.locked ? `<span class="lock">LOCKED${typeof item.locked === "string" ? "<br>" + item.locked : ""}</span>` : icon ? `<img alt="" src="${icon}">` : ""}${meta ? `<span class="meta${metaNo ? " no" : ""}">${meta}</span>` : ""}<span class="nm">${item.name}</span></div>`;
+function slotHtml(i, item, icon, meta, metaNo, lock) {
+  return `<div class="slot${lock ? " locked" : ""}" data-i="${i}"><span class="k">${i + 1}</span>${lock ? `<span class="lock">LOCKED<br>${lock === true ? "" : lock}</span>` : icon ? `<img alt="" src="${icon}">` : ""}${meta ? `<span class="meta${metaNo ? " no" : ""}">${meta}</span>` : ""}<span class="nm">${item.name}</span></div>`;
 }
 function renderHotbar() {
-  weaponSlots.innerHTML = WEAPONS.map((w, i) => slotHtml(i, w, i === 0 ? ICONS.m1911 : null)).join("");
+  weaponSlots.innerHTML = WEAPONS.map((w, i) => slotHtml(i, w, i === 0 ? ICONS.m1911 : null, "", false, w.locked)).join("");
   weaponSlots.children[weaponSel].classList.add("sel");
   renderBuildBar();
 }
 function renderBuildBar() {
-  if (!buildSlots) return;
-  buildSlots.innerHTML = BUILDS.map((b, i) => { const n = b.id === "sentry" ? sentries.length : 0; return slotHtml(i, b, ICONS[b.id], b.locked ? "" : `${b.cost} XP`, !b.locked && (save.xp < b.cost || n >= b.cap)); }).join("");
-  buildSlots.children[buildSel]?.classList.add("sel");
-  const b = BUILDS[buildSel]; if (!b.locked) buildSlots.children[buildSel].querySelector(".nm").textContent = `${b.name} ${sentries.length}/${b.cap}`;
+  buildSlots.innerHTML = BUILDS.map((b, i) => { const lock = lockOf(b); if (lock) return slotHtml(i, b, null, "", false, lock); const c = b.cost(), n = countOf(b.id), cap = capOf(b.id); return slotHtml(i, { name: `${b.name} ${n}/${cap}` }, ICONS[b.id], `${c} XP`, save.xp < c || n >= cap); }).join("");
+  if (buildMode) buildSlots.children[buildSel]?.classList.add("sel");
+  buildBar.classList.toggle("mini", !buildMode);
+  buildKey.textContent = buildMode ? (carry ? "[B] PUT BACK · CLICK TO PLACE" : "[B] CLOSE · CLICK TO PLACE") : "[B] BUILD";
 }
 function deny(el) { if (!el) return; el.classList.remove("deny"); void el.offsetWidth; el.classList.add("deny"); }
 function selectSlot(i) {
-  if (buildMode) { if (i >= BUILDS.length) return; if (BUILDS[i].locked) { deny(buildSlots.children[i]); return; } buildSel = i; renderBuildBar(); }
-  else { if (i >= WEAPONS.length) return; if (WEAPONS[i].locked) { deny(weaponSlots.children[i]); return; } weaponSel = i; renderHotbar(); }
+  if (buildMode) {
+    if (i >= BUILDS.length) return; if (lockOf(BUILDS[i])) { deny(buildSlots.children[i]); return; }
+    if (carry) cancelCarry();
+    buildSel = i; showGhost(); renderBuildBar();
+  } else { if (i >= WEAPONS.length) return; if (WEAPONS[i].locked) { deny(weaponSlots.children[i]); return; } weaponSel = i; renderHotbar(); }
 }
+const ghosts = {};
+function makeGhosts() {
+  const tint = (g) => { g.traverse(o => { if (o.isMesh) { o.material = ghostMat; o.castShadow = false; } }); return g; };
+  const cellM = () => new THREE.MeshBasicMaterial({ color: 0x7dff6e, transparent: true, opacity: 0.18, depthWrite: false });
+  const s = tint(makeSentryModel().g); s.scale.setScalar(1.35);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(SENTRY.range - 0.06, SENTRY.range + 0.06, 128).rotateX(-Math.PI / 2), cellM()); ring.material.opacity = 0.3; ring.position.y = 0.03; ring.scale.setScalar(1 / 1.35); s.add(ring);
+  const c1 = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9).rotateX(-Math.PI / 2), cellM()); c1.position.y = 0.025; c1.scale.setScalar(1 / 1.35); s.add(c1);
+  s.userData.marks = [ring, c1];
+  const w = tint(new THREE.Group()); const wb = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), ghostMat); w.add(wb);
+  const c2 = new THREE.Mesh(new THREE.PlaneGeometry(0.98, 0.98).rotateX(-Math.PI / 2), cellM()); c2.position.y = 0.025; w.add(c2); w.userData.marks = [c2];
+  for (const [k, g] of [["sentry", s], ["wall", w]]) { g.visible = false; scene.add(g); ghosts[k] = g; }
+}
+function showGhost() { const id = carry ? carry.s.kind : BUILDS[buildSel].id; for (const k in ghosts) ghosts[k].visible = buildMode && k === id; ghost = buildMode ? ghosts[id] : null; }
 function setBuildMode(on) {
   if (on && (player.inside || player.dead)) return;
-  buildMode = on; buildBar.hidden = !on; mouseDown = false;
-  if (on && !ghost) {
-    const s = makeSentryModel(); ghost = s.g; ghost.scale.setScalar(1.35);
-    ghost.traverse(o => { if (o.isMesh) { o.material = ghostMat; o.castShadow = false; } });
-    const ring = new THREE.Mesh(new THREE.RingGeometry(SENTRY.range - 0.06, SENTRY.range + 0.06, 128).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7dff6e, transparent: true, opacity: 0.3, depthWrite: false }));
-    ring.position.y = 0.03; ring.scale.setScalar(1 / 1.35); ghost.add(ring); ghost.userData.ring = ring;
-    const cell = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7dff6e, transparent: true, opacity: 0.18, depthWrite: false }));
-    cell.position.y = 0.025; cell.scale.setScalar(1 / 1.35); ghost.add(cell); ghost.userData.cell = cell;
-    scene.add(ghost);
-  }
-  if (ghost) ghost.visible = on;
-  renderBuildBar();
+  if (!on && carry) cancelCarry();
+  if (on) closeMenu();
+  buildMode = on; mouseDown = false;
+  if (on && lockOf(BUILDS[buildSel])) buildSel = 0;
+  showGhost(); renderBuildBar();
 }
-buildSlots.addEventListener("click", (e) => { const s = e.target.closest(".slot"); if (s) selectSlot(+s.dataset.i); });
+buildSlots.addEventListener("click", (e) => { const s = e.target.closest(".slot"); if (!s) return; if (!buildMode) setBuildMode(true); selectSlot(+s.dataset.i); });
 weaponSlots.addEventListener("click", (e) => { const s = e.target.closest(".slot"); if (s) { if (buildMode) setBuildMode(false); selectSlot(+s.dataset.i); } });
+document.getElementById("buildKey").addEventListener("click", () => setBuildMode(!buildMode));
+function cellFree(kind, x, z, ignore) {
+  const r = kind === "wall" ? 0.5 : 0.6;
+  if (Math.abs(x) > 28 || Math.abs(z) > 28) return false;
+  for (const [x0, x1, z0, z1] of boxColliders) if (x > x0 - r - 0.4 && x < x1 + r + 0.4 && z > z0 - r - 0.4 && z < z1 + r + 0.4) return false;
+  if (Math.hypot(x - doorPos().x, z - doorPos().z) < 1.6) return false;   // never wall off the door
+  for (const c of treeColliders) if (Math.hypot(x - c.x, z - c.z) < c.r + r + 0.2) return false;
+  for (const s of structs()) { if (s === ignore) continue; const sr = s.kind === "wall" ? 0.5 : 0.6; if (Math.abs(x - s.x) < r + sr - 0.01 && Math.abs(z - s.z) < r + sr - 0.01) return false; }
+  if (Math.hypot(x - player.pos.x, z - player.pos.z) < r + 0.35) return false;
+  return true;
+}
 function updateGhost() {
   if (!buildMode || !ghost) return;
-  const x = Math.floor(aimPoint.x / 2) * 2 + 1, z = Math.floor(aimPoint.z / 2) * 2 + 1, b = BUILDS[buildSel];
+  const kind = carry ? carry.s.kind : BUILDS[buildSel].id;
+  const x = kind === "wall" ? Math.floor(aimPoint.x) + 0.5 : Math.floor(aimPoint.x / 2) * 2 + 1, z = kind === "wall" ? Math.floor(aimPoint.z) + 0.5 : Math.floor(aimPoint.z / 2) * 2 + 1;
   ghost.position.set(x, 0, z);
-  let ok = Math.abs(x) < 28 && Math.abs(z) < 28 && save.xp >= b.cost && sentries.length < b.cap;
-  for (const [x0, x1, z0, z1] of boxColliders) if (x > x0 - 1 && x < x1 + 1 && z > z0 - 1 && z < z1 + 1) ok = false;
-  for (const c of treeColliders) if (Math.hypot(x - c.x, z - c.z) < c.r + 0.8) ok = false;
-  for (const t of sentries) if (Math.hypot(x - t.x, z - t.z) < 1.5) ok = false;
+  let ok = cellFree(kind, x, z, carry?.s);
+  if (!carry) { const b = BUILDS[buildSel]; ok = ok && save.xp >= b.cost() && countOf(b.id) < capOf(b.id); }
   ghostOk = ok;
-  const col = ok ? 0x7dff6e : 0xff4a3a; ghostMat.color.setHex(col); ghost.userData.ring.material.color.setHex(col); ghost.userData.cell.material.color.setHex(col);
+  const col = ok ? 0x7dff6e : 0xff4a3a; ghostMat.color.setHex(col); for (const m of ghost.userData.marks) m.material.color.setHex(col);
 }
 function tryPlace() {
-  const b = BUILDS[buildSel];
   if (!ghostOk) { deny(buildSlots.children[buildSel]); return; }
-  save.xp -= b.cost; placeSentry(ghost.position.x, ghost.position.z); renderXp();
+  const x = ghost.position.x, z = ghost.position.z;
   for (let k = 0; k < 4; k++) spawnSprite(ghost.position.clone().setY(0.2), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0xc9a45c, size: 0.4, grow: 2, life: 0.7, opacity: 0.45, drag: 2.5 });
-  if (save.xp < b.cost || sentries.length >= b.cap) setBuildMode(false);
+  if (carry) {   // drop the carried structure here, same level and HP
+    const s = carry.s; carry = null; s.x = x; s.z = z; buildModel(s); (s.kind === "sentry" ? sentries : walls).push(s); saveBuilds(); setBuildMode(false); return;
+  }
+  const b = BUILDS[buildSel], c = b.cost();
+  save.xp -= c; if (b.id === "sentry") save.firstSentry = true;
+  addStruct(b.id, x, z, 1, c); saveBuilds(); renderXp();
+  tutEvent("placed", b.id);
+  if (save.xp < b.cost() || countOf(b.id) >= capOf(b.id)) setBuildMode(false);
+}
+function startCarry(s) {   // "Move": lift it off the map into the build hand
+  removeStruct(s); carry = { s, from: { x: s.x, z: s.z } };
+  buildSel = BUILDS.findIndex(b => b.id === s.kind); setBuildMode(true); showGhost(); renderBuildBar();
+}
+function cancelCarry() {   // swapped out or closed: it goes back where it was, unharmed
+  const { s, from } = carry; carry = null; s.x = from.x; s.z = from.z; buildModel(s); (s.kind === "sentry" ? sentries : walls).push(s); renderBuildBar();
 }
 function renderIcon(obj, dist = 1, lookY = 0) {
   const r = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true }); r.setSize(108, 108); r.toneMapping = THREE.ACESFilmicToneMapping;
-  const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.2)); const dl = new THREE.DirectionalLight(0xffffff, 2); dl.position.set(2, 3, 2); sc.add(dl); sc.add(obj);
+  const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x666666, 3.4)); const dl = new THREE.DirectionalLight(0xffffff, 3.2); dl.position.set(2, 3, 2); sc.add(dl); sc.add(obj);
   const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
   const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 100); cam.position.copy(c).add(new THREE.Vector3(1, 0.55, 1.1).normalize().multiplyScalar(size * 1.75 * dist)); cam.lookAt(c.x, c.y + lookY, c.z);
   r.render(sc, cam); const url = r.domElement.toDataURL(); r.dispose(); r.forceContextLoss(); return url;
 }
 
-// ---- Player health
+/* ---------- Info menus: structures and the base ---------- */
+const BASE_UP = [0, 0, 300];   // XP to reach each base level (level 2 is the max for now)
+const smenu = document.getElementById("smenu"), smTitle = document.getElementById("smTitle"), smLv = document.getElementById("smLv"), smHpRow = document.getElementById("smHpRow"),
+  smHp = document.getElementById("smHp"), smHpT = document.getElementById("smHpT"), smInfo = document.getElementById("smInfo"), smUp = document.getElementById("smUp"), smMove = document.getElementById("smMove"), smSell = document.getElementById("smSell");
+let menuTarget = null, menuT = 0;
+function openMenu(t) { menuTarget = t; smenu.hidden = false; renderMenu(); placeMenu(); }
+function closeMenu() { menuTarget = null; smenu.hidden = true; }
+function renderMenu() {
+  const t = menuTarget; if (!t) return;
+  if (t === "base") {
+    const lv = save.base, next = BASE_UP[lv + 1];
+    smTitle.textContent = "BASE"; smLv.textContent = `LV ${lv}`; smHpRow.hidden = true; smMove.hidden = true; smSell.hidden = true;
+    smInfo.innerHTML = `Walkers can't get inside.<br>Sentries ${sentries.length}/${capOf("sentry")} · Walls ${walls.length}/${capOf("wall")}` +
+      (next ? `<br><b>LV ${lv + 1}:</b> patched walls, caged windows, bigger fence, outhouse · ${CAPS.sentry[lv + 1]} sentries · ${CAPS.wall[lv + 1]} walls · LV 2 walls` : "<br>Max level for now");
+    smUp.hidden = false; smUp.textContent = next ? `UPGRADE · ${next} XP` : "MAX LEVEL"; smUp.disabled = !next || save.xp < next;
+    return;
+  }
+  const D = STRUCT[t.kind], max = D.hp[t.level], nextCost = D.up[t.level], req = D.baseReq[t.level];
+  smTitle.textContent = D.name; smLv.textContent = `LV ${t.level}`; smHpRow.hidden = false; smMove.hidden = false; smSell.hidden = false;
+  smHp.style.width = `${Math.max(0, t.hp / max) * 100}%`; smHpT.textContent = `${Math.ceil(t.hp)}/${max}`;
+  smInfo.innerHTML = D.info[t.level] + (nextCost ? `<br><b>LV ${t.level + 1}:</b> ${D.info[t.level + 1]}` : "");
+  smUp.hidden = false;
+  if (!nextCost) { smUp.textContent = "MAX LEVEL"; smUp.disabled = true; }
+  else if (save.base < req) { smUp.textContent = `NEEDS BASE LV ${req}`; smUp.disabled = true; }
+  else { smUp.textContent = `UPGRADE · ${nextCost} XP`; smUp.disabled = save.xp < nextCost; }
+  smSell.textContent = `SELL +${Math.floor(t.spent / 2)} XP`;
+}
+function placeMenu() {
+  const t = menuTarget; if (!t) return;
+  const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, t.kind === "wall" ? 1.3 : 1.9, t.z);
+  const [x, y] = toScreen(at), w = smenu.offsetWidth, h = smenu.offsetHeight;
+  smenu.style.transform = `translate(${THREE.MathUtils.clamp(x - w / 2, 8, innerWidth - w - 8)}px, ${THREE.MathUtils.clamp(y - h - 14, 8, innerHeight - h - 8)}px)`;
+}
+function updateMenu(dt) { if (!menuTarget) return; menuT -= dt; if (menuT <= 0) { menuT = 0.2; renderMenu(); } placeMenu(); }
+document.getElementById("smClose").addEventListener("click", closeMenu);
+smUp.addEventListener("click", () => {
+  const t = menuTarget; if (!t) return;
+  if (t === "base") { const c = BASE_UP[save.base + 1]; if (!c || save.xp < c) return; save.xp -= c; save.base++; applyBaseLevel(); renderXp(); writeSave(); renderMenu(); return; }
+  const D = STRUCT[t.kind], c = D.up[t.level]; if (!c || save.xp < c || save.base < D.baseReq[t.level]) return;
+  const frac = t.hp / D.hp[t.level]; save.xp -= c; t.spent += c; t.level++; t.hp = D.hp[t.level] * Math.max(frac, 0.5);
+  buildModel(t); saveBuilds(); renderXp(); renderMenu();
+  sparkFx(new THREE.Vector3(t.x, 1.2, t.z), new THREE.Vector3(0, 1, 0), 16);
+});
+smSell.addEventListener("click", () => { const t = menuTarget; if (!t || t === "base") return; save.xp += Math.floor(t.spent / 2); removeStruct(t); saveBuilds(); renderXp(); });
+smMove.addEventListener("click", () => { const t = menuTarget; if (!t || t === "base") return; closeMenu(); startCarry(t); });
+
+// ---- Player stats (bought in the base shop) and health
+const STATS = [
+  { id: "hp", name: "MAX HEALTH", desc: "+20 max HP", base: 40, max: 5 },
+  { id: "st", name: "STAMINA", desc: "+25 max stamina", base: 30, max: 5 },
+  { id: "dmg", name: "PISTOL DAMAGE", desc: "+5 damage per shot", base: 60, max: 5 },
+  { id: "spd", name: "MOVE SPEED", desc: "+5% walk and sprint speed", base: 50, max: 4 },
+];
+const statLv = (id) => save.stats?.[id] || 0, statCost = (s) => Math.round(s.base * Math.pow(1.6, statLv(s.id)));
+const maxHp = () => 100 + 20 * statLv("hp"), maxSt = () => 100 + 25 * statLv("st"), gunDmg = () => GUN.dmg + 5 * statLv("dmg"), spdMul = () => 1 + 0.05 * statLv("spd");
 const hpBar = document.getElementById("hpBar"), hpNum = document.getElementById("hpNum"), hurtEl = document.getElementById("hurt"), killEl = document.getElementById("killCount");
 const deathMsg = document.getElementById("deathMsg"), deathSub = document.getElementById("deathSub");
 let hurtFlash = 0;
 function hurtPlayer(n) {
   if (player.inside || player.dead) return;
   player.hp = Math.max(0, player.hp - n); player.sinceHurt = 0; hurtFlash = 0.7; shake = 0.25;
-  if (player.hp <= 0) { player.dead = 4; playerModel.visible = false; player.reloading = 0; setBuildMode(false); sparkFx(player.pos.clone().setY(1), new THREE.Vector3(0, 1, 0), 18); deathMsg.hidden = false; }
+  if (player.hp <= 0) { player.dead = 4; playerModel.visible = false; player.reloading = 0; setBuildMode(false); closeMenu(); sparkFx(player.pos.clone().setY(1), new THREE.Vector3(0, 1, 0), 18); deathMsg.hidden = false; }
 }
 function updatePlayerHealth(dt) {
+  const mh = maxHp();
   if (player.dead > 0) {
-    player.dead -= dt; deathSub.textContent = `BACK AT THE SHACK IN ${Math.ceil(player.dead)}`;
-    if (player.dead <= 0) { player.dead = 0; player.hp = 100; player.pos.copy(doorPos()).add(new THREE.Vector3(0, 0, 0.6)); player.vel.set(0, 0, 0); playerModel.visible = true; deathMsg.hidden = true; }
+    player.dead -= dt; deathSub.textContent = `BACK AT BASE IN ${Math.ceil(player.dead)}`;
+    if (player.dead <= 0) { player.dead = 0; player.hp = mh; player.pos.copy(doorPos()).add(new THREE.Vector3(0, 0, 0.6)); player.vel.set(0, 0, 0); playerModel.visible = true; deathMsg.hidden = true; }
   } else {
     player.sinceHurt += dt;
-    if (player.inside) player.hp = Math.min(100, player.hp + 25 * dt);
-    else if (player.sinceHurt > 5) player.hp = Math.min(100, player.hp + 3 * dt);
+    if (player.sinceHurt > 6) player.hp = Math.min(mh, player.hp + 3 * dt);   // slow heal once out of combat
   }
-  hpBar.style.width = `${player.hp}%`; hpNum.textContent = Math.ceil(player.hp);
-  hurtFlash = Math.max(0, hurtFlash - dt * 1.5); hurtEl.style.opacity = String(Math.max(hurtFlash, player.hp < 30 && !player.dead ? 0.35 + Math.sin(performance.now() / 180) * 0.15 : 0));
+  hpBar.style.width = `${player.hp / mh * 100}%`; hpNum.textContent = Math.ceil(player.hp);
+  hurtFlash = Math.max(0, hurtFlash - dt * 1.5); hurtEl.style.opacity = String(Math.max(hurtFlash, player.hp < mh * 0.3 && !player.dead ? 0.35 + Math.sin(performance.now() / 180) * 0.15 : 0));
   updatePops(dt);
 }
 
+/* ---------- Base shop (shown while inside) ---------- */
+const shopEl = document.getElementById("shop"), shopBody = document.getElementById("shopBody"), shopXp = document.getElementById("shopXp"), barsEl = document.getElementById("bars");
+let shopTab = "weapons";
+const SLOT_TYPES = ["PISTOL", "SHOTGUN", "SMG / RIFLE", "SNIPER", "EXPLOSIVE"];
+const SUPPLIES = [["MEDKIT", "Heal 50 HP"], ["SHIELD", "Absorbs the next 50 damage"], ["ADRENALINE", "Sprint without stamina for 10 s"], ["GRENADES", "Throw for area damage"]];
+function renderShop() {
+  shopXp.textContent = save.xp;
+  document.querySelectorAll("#shop .tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === shopTab));
+  const row = (name, desc, btn, disabled, data = "") => `<div class="srow"><div><b>${name}</b><small>${desc}</small></div><button type="button" ${disabled ? "disabled" : ""} ${data}>${btn}</button></div>`;
+  if (shopTab === "weapons") shopBody.innerHTML = SLOT_TYPES.map((t, i) => row(`${i + 1} · ${t}`, i === 0 ? "M1911 · infinite ammo" : "No guns for this slot yet", i === 0 ? "EQUIPPED" : "SOON", true)).join("");
+  if (shopTab === "supplies") shopBody.innerHTML = SUPPLIES.map(([n, d]) => row(n, d, "SOON", true)).join("");
+  if (shopTab === "upgrades") shopBody.innerHTML = STATS.map(s => { const lv = statLv(s.id), max = lv >= s.max, c = statCost(s);
+    return row(`${s.name} <span class="pips">${"■".repeat(lv)}${"□".repeat(s.max - lv)}</span>`, s.desc, max ? "MAX" : `${c} XP`, max || save.xp < c, `data-stat="${s.id}"`); }).join("");
+}
+document.querySelector("#shop .tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { shopTab = b.dataset.tab; renderShop(); } });
+shopBody.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-stat]"); if (!b || b.disabled) return;
+  const s = STATS.find(x => x.id === b.dataset.stat), c = statCost(s); if (save.xp < c || statLv(s.id) >= s.max) return;
+  save.xp -= c; save.stats = { ...save.stats, [s.id]: statLv(s.id) + 1 }; if (s.id === "hp") player.hp += 20;
+  writeSave(); renderXp(); renderShop();
+});
+
+/* ---------- Banner, pointers, spotlight ---------- */
+const bannerEl = document.getElementById("banner"), spotEl = document.getElementById("spot"), tutPtr = document.getElementById("tutPtr"), basePtr = document.getElementById("basePtr");
+let bannerT = 0;
+function showBanner(text, dur = 3.5, warn = false) { bannerEl.textContent = text; bannerEl.hidden = false; bannerEl.classList.toggle("warn", warn); bannerT = dur; }
+// Above the target when it's on screen; otherwise pinned to a circle around the screen centre, pointing at it.
+function placePtr(el, world, label) {
+  if (label !== undefined) el.querySelector(".lbl").textContent = label;
+  const [x, y] = toScreen(world), w = innerWidth, h = innerHeight, arr = el.querySelector(".arr");
+  const on = x > 30 && x < w - 30 && y > 40 && y < h - 40;
+  el.classList.toggle("on", on);
+  if (on) { arr.style.transform = ""; el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`; }
+  else {
+    const dx = x - w / 2, dy = y - h / 2, len = Math.hypot(dx, dy) || 1, R = Math.min(w, h) * 0.36;
+    arr.style.transform = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI - 90}deg)`;
+    el.style.transform = `translate(${w / 2 + dx / len * R}px, ${h / 2 + dy / len * R}px) translate(-50%, -50%)`;
+  }
+  return on;
+}
+function spotlight(x, y, w, h = w, round = true) { spotEl.hidden = false; Object.assign(spotEl.style, { left: `${x - w / 2}px`, top: `${y - h / 2}px`, width: `${w}px`, height: `${h}px`, borderRadius: round ? "50%" : "10px" }); }
+
+/* ---------- Tutorial (first run) ---------- */
+// Two slow walkers just off screen -> shoot them -> grab the XP -> press B -> place the first sentry (5 XP).
+const tut = { step: save.tut ? "done" : "shoot", foes: [] };
+function startTutorial() {
+  if (tut.step === "done") return;
+  const clampA = (v) => THREE.MathUtils.clamp(v, -27, 27);
+  for (const [r, f] of [[21, 1.5], [23.5, -1.5]]) { const p = player.pos.clone().addScaledVector(RIGHT, r).addScaledVector(FWD, f); tut.foes.push(spawnWalker(clampA(p.x), clampA(p.z), true)); }
+}
+function tutEvent(kind, arg) {
+  if (kind === "kill" && tut.step === "shoot" && tut.foes.every(f => f.dead)) tut.step = "xp";
+  if (kind === "placed" && arg === "sentry" && (tut.step === "build" || tut.step === "place" || tut.step === "xp")) {
+    tut.step = "done"; save.tut = 1; writeSave(); buildBar.classList.remove("flash");
+    showBanner("NICE! BUILD UP YOUR BASE · NIGHT COMES AT DUSK", 4.5);
+  }
+}
+function updateTutorial() {
+  let target = null, label = "", spot = false, ban = "";
+  if (tut.step === "shoot") {
+    let best = Infinity; for (const f of tut.foes) if (!f.dead) { const d = f.pos.distanceTo(player.pos); if (d < best) { best = d; target = f; } }
+    if (target) { label = "CLICK TO SHOOT!"; spot = !target.hit; ban = "WALKERS INCOMING! AIM WITH THE MOUSE, CLICK TO SHOOT"; }
+  } else if (tut.step === "xp") {
+    if (save.xp >= 5) tut.step = "build";
+    else { let best = Infinity; for (const g of gems) { const d = g.m.position.distanceTo(player.pos); if (d < best) { best = d; target = g; } }
+      if (!target) { save.xp = 5; renderXp(); } else { label = "PICK UP XP"; spot = true; ban = "WALK OVER THE XP TO PICK IT UP"; } }
+  }
+  if (tut.step === "build" && buildMode) tut.step = "place";
+  if (tut.step === "place" && !buildMode) tut.step = "build";
+  if (tut.step === "build") ban = "PRESS [B] TO PLACE A SENTRY TURRET!";
+  if (tut.step === "place") ban = "CLICK TO PLACE IT · SENTRIES SHOOT WALKERS IN RANGE";
+  buildBar.classList.toggle("flash", tut.step === "build" || tut.step === "place");
+  if (tut.step !== "done" && ban) { bannerEl.textContent = ban; bannerEl.hidden = false; bannerEl.classList.remove("warn"); bannerT = 0.2; }
+  spotEl.hidden = true;
+  if (target) {
+    const pos = target.m ? target.m.position.clone().setY(0.5) : target.pos.clone().setY(2.3);
+    tutPtr.hidden = false; const on = placePtr(tutPtr, pos, label);
+    if (on && spot) { const [x, y] = toScreen(target.m ? target.m.position : target.pos.clone().setY(1)); spotlight(x, y, 150); }
+  } else tutPtr.hidden = true;
+  if (tut.step === "build" && !player.inside) { const r = buildBar.getBoundingClientRect(); spotlight(r.left + r.width / 2, r.top + r.height / 2, r.width + 24, r.height + 20, false); }
+  if (player.inside) { tutPtr.hidden = true; spotEl.hidden = true; }
+  // the base is always pointed at when it's off screen
+  basePtr.hidden = player.inside || player.dead > 0;
+  if (!basePtr.hidden && placePtr(basePtr, new THREE.Vector3(0, 3.6, SHACK_Z))) basePtr.hidden = true;
+}
+
 /* ---------- Day / night ---------- */
-// 45 s of day, 45 s of night. Light fades over the last few seconds of each half.
-const DAY_LEN = 45, NIGHT_LEN = 45, FADE = 4;
+// 45 s of day, 45 s of night, with a 10 s dusk and dawn. Paused during the tutorial.
+const DAY_LEN = 45, NIGHT_LEN = 45, FADE = 10;
 const cycle = { day: 1, t: 0, nightK: 0 };
 const cycleHud = document.getElementById("cycleHud"), dayLabel = document.getElementById("dayLabel"), cycleBar = document.getElementById("cycleBar"), cycleTime = document.getElementById("cycleTime");
 const lantern = new THREE.PointLight(0xffcf96, 0, 14, 1.2); scene.add(lantern);
 const DAYC = { sun: new THREE.Color(0xfff4e6), sky: new THREE.Color(0xffffff), gnd: new THREE.Color(0xc9ccd0), bg: new THREE.Color(0xbfc6c4) };
 const NIGHTC = { sun: new THREE.Color(0x8096d8), sky: new THREE.Color(0x5d6fa8), gnd: new THREE.Color(0x3a4152), bg: new THREE.Color(0x232c3e) };
 function updateCycle(dt) {
-  const wasNight = cycle.t >= DAY_LEN;
-  cycle.t += dt;
+  const prev = cycle.t;
+  if (tut.step === "done") cycle.t += dt;
   if (cycle.t >= DAY_LEN + NIGHT_LEN) { cycle.t -= DAY_LEN + NIGHT_LEN; cycle.day++; }
+  if (prev < DAY_LEN - FADE && cycle.t >= DAY_LEN - FADE) showBanner("NIGHT IS COMING — GET TO SAFETY!", 4, true);
+  if (prev < DAY_LEN && cycle.t >= DAY_LEN) showBanner("NIGHT HAS FALLEN · WALKERS ARE STRONGER AND FASTER!", 4.5, true);
   const night = cycle.t >= DAY_LEN;
   const t = cycle.t, k = night ? 1 - THREE.MathUtils.smoothstep(t, DAY_LEN + NIGHT_LEN - FADE, DAY_LEN + NIGHT_LEN) : THREE.MathUtils.smoothstep(t, DAY_LEN - FADE, DAY_LEN);
   cycle.nightK = k;
   sun.intensity = THREE.MathUtils.lerp(2.4, 1.05, k); sun.color.lerpColors(DAYC.sun, NIGHTC.sun, k);
   hemi.intensity = THREE.MathUtils.lerp(1.5, 1.1, k); hemi.color.lerpColors(DAYC.sky, NIGHTC.sky, k); hemi.groundColor.lerpColors(DAYC.gnd, NIGHTC.gnd, k);
   scene.background.lerpColors(DAYC.bg, NIGHTC.bg, k);
-  lantern.intensity = 6 * k; lantern.position.copy(player.pos).setY(3.2); lantern.visible = k > 0.01;
+  lantern.intensity = 6 * k; lantern.position.copy(player.pos).setY(3.2);   // always in the scene: toggling lights recompiles shaders
   const left = night ? DAY_LEN + NIGHT_LEN - t : DAY_LEN - t, len = night ? NIGHT_LEN : DAY_LEN;
   cycleHud.classList.toggle("night", night);
   dayLabel.textContent = `${night ? "NIGHT" : "DAY"} ${cycle.day}`;
-  cycleTime.textContent = `${night ? "DAWN" : "DUSK"} 0:${String(Math.ceil(left)).padStart(2, "0")}`;
+  cycleTime.textContent = tut.step !== "done" ? "PAUSED" : `${night ? "DAWN" : "DUSK"} 0:${String(Math.ceil(left)).padStart(2, "0")}`;
   cycleBar.style.width = `${(left / len) * 100}%`;
+  bannerT -= dt; if (bannerT <= 0) bannerEl.hidden = true;
 }
 
 /* ---------- Dev kit ---------- */
@@ -1346,7 +1739,7 @@ let saveTimer = 0, perfTimer = 0, frames = 0, last = performance.now();
 const FWD = new THREE.Vector3(-1, 0, -1).normalize(), RIGHT = new THREE.Vector3(1, 0, -1).normalize();
 
 // ---- Shack door: prompt, highlight, enter/exit
-let shanty = null, shantyBox = null;
+let shanty = null, shantyBox = null, baseHover = false;
 const doorPrompt = document.getElementById("doorPrompt"), doorMarker = document.getElementById("doorMarker");
 const doorPos = () => new THREE.Vector3(SH.doorX, 0, SHACK_Z + SH.W / 2 + 0.6);
 const nearDoor = () => player.pos.distanceTo(doorPos()) < 2.4;
@@ -1389,8 +1782,9 @@ function buildInterior() {
   cyl(0.25, 0.7, mat(0x4a3428, { metalness: 0.4 }), -2.25, F + 0.35, 1.3, 14); cyl(0.05, 0.6, metalM, -2.25, F + 1.0, 1.3, 8);
   const grate = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.12), new THREE.MeshBasicMaterial({ color: 0xff7a2a, toneMapped: false })); grate.position.set(-2.0, F + 0.3, 1.3); grate.rotation.y = Math.PI / 2; g.add(grate);
   cols.push([-2.55, -1.98, 1.02, 1.62]);
-  const light = new THREE.PointLight(0xffc27a, 7, 8, 1.4); light.position.set(0, F + 2.0, 0); g.add(light);
-  const stoveLight = new THREE.PointLight(0xff7a2a, 2, 3, 1.5); stoveLight.position.set(-1.9, F + 0.4, 1.3); g.add(stoveLight);
+  const light = new THREE.PointLight(0xffc27a, 0, 8, 1.4); light.position.set(0, F + 2.0, 0);
+  const stoveLight = new THREE.PointLight(0xff7a2a, 0, 3, 1.5); stoveLight.position.set(-1.9, F + 0.4, 1.3);
+  g.userData.lights = [[light, 7], [stoveLight, 2]];   // added to the shanty by the caller, always present
   interiorColliders = cols.map(([x0, x1, z0, z1]) => [x0, x1, z0 + SHACK_Z, z1 + SHACK_Z]);
   return g;
 }
@@ -1399,7 +1793,18 @@ function setInside(on) {
   CUT.constant = on ? SH.FLOOR + 1.1 : 1000;
   if (shanty.userData.roof) shanty.userData.roof.visible = !on;
   interior.visible = on;
+  for (const [l, i] of interior.userData.lights) l.intensity = on ? i : 0;
+  barsEl.hidden = on; shopEl.hidden = !on; if (on) { setBuildMode(false); closeMenu(); renderShop(); }
   player.pos.copy(on ? innerDoor() : doorPos().add(new THREE.Vector3(0, 0, 0.5)));
+}
+// Base level: swap the baked level groups and add the outhouse collider at level 2
+const OUTHOUSE_BOX = [5.25, 6.75, SHACK_Z - 1.65, SHACK_Z - 0.15];
+function applyBaseLevel() {
+  const b = shanty?.children[0]; if (!b) return; const lv = save.base;
+  const set = (n, v) => { const o = b.getObjectByName(n); if (o) o.visible = v; };
+  set("shack_l1", lv < 2); set("shack_l2", lv >= 2); set("yard_l2", lv >= 2);
+  const i = boxColliders.indexOf(OUTHOUSE_BOX); if (lv >= 2 && i < 0) boxColliders.push(OUTHOUSE_BOX); if (lv < 2 && i >= 0) boxColliders.splice(i, 1);
+  ffBuildBlocked(); renderBuildBar();
 }
 function toggleInside() {
   if (!shanty || player.dead) return;
@@ -1408,7 +1813,7 @@ function toggleInside() {
 }
 function updateDoor() {
   if (!shanty) return;
-  const ray = raycaster.ray, hover = !player.inside && shantyBox && ray.intersectsBox(shantyBox), near = player.inside ? player.pos.distanceTo(innerDoor()) < 1.2 : nearDoor();
+  const ray = raycaster.ray, hover = baseHover = !player.inside && shantyBox && ray.intersectsBox(shantyBox), near = player.inside ? player.pos.distanceTo(innerDoor()) < 1.2 : nearDoor();
   shanty.userData.outline.visible = !player.inside && (hover || near);
   shanty.userData.doorFrame.visible = !player.inside && (hover || near);
   doorPrompt.hidden = !near || player.dead > 0;
@@ -1435,8 +1840,8 @@ function update(dt) {
   const moving = mv.lengthSq() > 0;
   const sprint = keys.has("shift") && !mouseDown && !player.inside && moving && !player.tired && player.stamina > 0;
   if (sprint) { player.stamina = Math.max(0, player.stamina - 24 * dt); player.sinceSprint = 0; if (player.stamina <= 0) player.tired = true; }
-  else { player.sinceSprint += dt; if (player.sinceSprint > 0.8) player.stamina = Math.min(100, player.stamina + 11 * dt); if (player.stamina >= 30) player.tired = false; }
-  if (moving) mv.normalize().multiplyScalar(player.inside ? 2.6 : sprint ? 7.5 : 4.5);
+  else { player.sinceSprint += dt; if (player.sinceSprint > 0.8) player.stamina = Math.min(maxSt(), player.stamina + 11 * dt); if (player.stamina >= 30) player.tired = false; }
+  if (moving) mv.normalize().multiplyScalar((player.inside ? 2.6 : sprint ? 7.5 : 4.5) * spdMul());
   player.vel.lerp(mv, 1 - Math.exp(-dt * 14));
   player.pos.addScaledVector(player.vel, dt);
   const pushBoxes = (list, r) => { for (const [x0, x1, z0, z1] of list) {
@@ -1493,30 +1898,37 @@ function update(dt) {
     if (t.life <= 0) { scene.remove(t.line); t.line.children.forEach(c => c.material.dispose()); tracers.splice(i, 1); }
   }
   updateParticles(dt);
-  updateCycle(dt); updateEnemies(dt); updateSentries(dt); updateGems(dt); updatePlayerHealth(dt);
+  updateCycle(dt); updateEnemies(dt); updateSentries(dt); updateGems(dt); updatePlayerHealth(dt); updateMenu(dt);
 
   const wantView = player.inside ? 5.2 : VIEW;
-  if (Math.abs(curView - wantView) > 0.01) { curView += (wantView - curView) * (1 - Math.exp(-dt * 6)); resize(); }
+  if (Math.abs(curView - wantView) > 0.01) { curView += (wantView - curView) * (1 - Math.exp(-dt * 6)); camFrustum(); }
   const camTarget = player.inside ? new THREE.Vector3(0, 0, SHACK_Z).lerp(player.pos, 0.35) : player.pos.clone(); camTarget.y = 0.8;
   camera.position.lerp(camTarget.clone().add(CAM_OFFSET), 1 - Math.exp(-dt * 8));
   camera.lookAt(camera.position.clone().sub(CAM_OFFSET));
   if (shake > 0) { shake = Math.max(0, shake - dt); camera.position.add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.6)); }
   sun.position.copy(player.pos).add(new THREE.Vector3(-6, 14, 9)); sun.target.position.copy(player.pos);
   camera.updateMatrixWorld();
+  updateTutorial();
   ovh.hidden = player.dead > 0;
-  if (!ovh.hidden) { const [ox, oy] = toScreen(player.pos.clone().setY((player.inside ? SH.FLOOR : 0) + 2.15)); ovh.style.transform = `translate(${ox - 22}px, ${oy}px)`; ovhHp.style.width = `${player.hp}%`; ovhSt.style.width = `${player.stamina}%`; ovh.classList.toggle("tired", player.tired); }
+  if (!ovh.hidden) { const [ox, oy] = toScreen(player.pos.clone().setY((player.inside ? SH.FLOOR : 0) + 2.15)); ovh.style.transform = `translate(${ox - 22}px, ${oy}px)`; ovhHp.style.width = `${player.hp / maxHp() * 100}%`; ovhSt.style.width = `${player.stamina / maxSt() * 100}%`; ovh.classList.toggle("tired", player.tired); }
 
   toastT -= dt; if (toastT <= 0) toastEl.classList.remove("show");
   saveTimer += dt; if (saveTimer > 2) { saveTimer = 0; save.pos = [+player.pos.x.toFixed(2), +player.pos.z.toFixed(2)]; writeSave(); }
 }
 
+// ---- Pause menu (P)
+const pauseEl = document.getElementById("pause"); let paused = false;
+function setPaused(on) { paused = on; pauseEl.hidden = !on; keys.clear(); mouseDown = false; }
+document.getElementById("pResume").addEventListener("click", () => setPaused(false));
+document.getElementById("pDev").addEventListener("click", () => { setPaused(false); toggleDev(); });
 const perfHud = document.getElementById("perfHud"); let cpuMs = 0, perfLast = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const tSec = now / 1000;
   if (viewerEl.hidden) {
     const t0 = performance.now();
-    update(dt); scene.traverse(o => o.userData.tick?.(tSec)); renderer.render(scene, camera);
+    if (!paused) { update(dt); scene.traverse(o => o.userData.tick?.(tSec)); }
+    renderer.render(scene, camera);
     cpuMs += performance.now() - t0; frames++; perfTimer += (now - perfLast) / 1000; perfLast = now;
     if (perfTimer > 0.5) {
       const i = renderer.info.render, fps = Math.round(frames / perfTimer), ms = (cpuMs / frames).toFixed(1);
@@ -1532,7 +1944,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-await Promise.all([loadPlayer(), loadGun(), loadShanty().catch(e => { console.error(e); toast("Couldn't load the shanty model"); })]);
+await Promise.all([loadPlayer(), loadGun(), loadShanty().catch(e => { console.error(e); toast("Couldn't load the base model"); })]);
 if (shantyTemplate) { shanty = makeShanty(); shanty.position.set(0, 0, SHACK_Z); scene.add(shanty); shanty.updateMatrixWorld(true); shantyBox = new THREE.Box3().setFromObject(shanty.children[0].getObjectByName("shack") || shanty.children[0]); interior = buildInterior(); shanty.add(interior); }
 document.getElementById("loading").hidden = true;
 pl = makePlayer(); playerModel = pl.model; scene.add(playerModel);
@@ -1540,9 +1952,17 @@ gunMount = new THREE.Group(); playerModel.add(gunMount);
 heldGun = gunTemplate.clone(); heldGun.scale.setScalar(GUN_SCALE); gunMount.add(heldGun); makeBlockHands(heldGun); markPlayerStencil(playerModel);
 camera.position.copy(player.pos).add(CAM_OFFSET);
 renderAmmo(); renderSaveDump(); killEl.textContent = `${kills} KILLS`;
-ICONS.m1911 = renderIcon(gunTemplate.clone()); ICONS.sentry = renderIcon(makeSentryModel().g);
-for (const b of save.builds) if (b.t === "sentry") placeSentry(b.x, b.z, false);
+ICONS.m1911 = renderIcon(gunTemplate.clone()); ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.wall = renderIcon(makeWallModel(1));
+for (const [l] of interior?.userData.lights || []) shanty.add(l);
+applyBaseLevel();
+for (const b of save.builds) if (b.t === "sentry" || b.t === "wall") addStruct(b.t, b.x, b.z, b.lv || 1, b.spent ?? (b.t === "sentry" ? 5 : 20));
+makeGhosts(); startTutorial();
+{ // compile every shader up front so entering the base, building or hovering never hitches
+  const show = [interior, ...Object.values(ghosts)].filter(Boolean), was = show.map(o => o.visible); show.forEach(o => o.visible = true);
+  const hull = enemies[0]?.hulls || []; hull.forEach(h => h.visible = true);
+  renderer.compile(scene, camera); show.forEach((o, i) => o.visible = was[i]); hull.forEach(h => h.visible = false);
+}
 renderHotbar(); renderXp();
-window.__game = { player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, placeSentry, setInside };
+window.__game = { player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu };
 requestAnimationFrame(frame);
 </script>
