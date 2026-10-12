@@ -44,6 +44,33 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #cycleHud #killCount, #cycleHud #cycleTime { font-size: 12px; color: #9d978a; font-variant-numeric: tabular-nums; }
 #cycleHud .bar { height: 6px; background: #3a3c38; }
 #cycleBar { display: block; height: 100%; width: 0; background: #e0b04a; }
+#cycleHud .brow { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .12em; color: #9d978a; }
+#cycleHud .bbar { flex: 1; height: 7px; background: #3a3c38; } #baseBar { display: block; height: 100%; width: 100%; background: #6fe05a; transition: width .15s; }
+#cycleHud.hit .bbar { animation: bhit .3s; } @keyframes bhit { 30% { box-shadow: 0 0 0 2px #ff4a3a; } }
+#acctHud { left: 22px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 11px; letter-spacing: .08em; color: #9d978a; }
+#acctHud b, #rAcct b { color: #9fc4ff; font-weight: 400; font-size: 13px; } #acctHud .bar { width: 70px; height: 5px; background: #3a3c38; } #acctHud .bar i, #rAcct .bar i { display: block; height: 100%; background: #6aa8ff; }
+#runOver { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(20, 8, 4, .55), rgba(0, 0, 0, .85)); }
+#runOver .rbox { width: min(460px, calc(100vw - 32px)); padding: 20px 22px; display: grid; gap: 14px; justify-items: stretch; text-align: center; animation: alertIn .4s ease-out; }
+#runOver h1 { margin: 0; font-size: 34px; font-weight: 400; letter-spacing: .14em; color: #ff8a6a; } .rsub { font-size: 13px; color: #c9c3b4; letter-spacing: .06em; }
+#runOver button { font-family: inherit; border: 0; cursor: pointer; letter-spacing: .14em; }
+#runOver .big { font-size: 22px; padding: 14px 10px; color: #0f1a0d; background: #6fe05a; box-shadow: 0 0 0 3px #0f1a0d, 0 6px 0 #0f1a0d; } #runOver .big:hover { background: #8cf576; }
+#runOver .big small { display: block; font-size: 12px; letter-spacing: .12em; margin-top: 4px; }
+#runOver .sec { font-size: 12px; padding: 8px; color: #9d978a; background: #2b2e2b; }
+#rAcct { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; text-align: left; font-size: 11px; color: #9d978a; } #rAcct .bar { height: 9px; background: #3a3c38; } #rAcct span { grid-column: 1 / -1; }
+#runOver .unl h3 { margin: 0 0 6px; font-size: 11px; font-weight: 400; letter-spacing: .16em; color: #9d978a; text-align: left; }
+#rUnl { display: grid; gap: 4px; } #rUnl .u { display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, .05); padding: 4px 8px; font-size: 12px; text-align: left; }
+#rUnl img { width: 34px; height: 24px; object-fit: contain; } #rUnl .ic { width: 34px; text-align: center; color: #e0b04a; } #rUnl b { color: #9fc4ff; font-weight: 400; min-width: 40px; }
+#runOver .bp { display: grid; grid-template-columns: 1fr auto; gap: 4px; font-size: 11px; color: #9d978a; text-align: left; } #runOver .bp b { color: #e0b04a; font-weight: 400; }
+#runOver .bp .bar { grid-column: 1 / -1; height: 6px; background: #3a3c38; } #rBp { display: block; height: 100%; background: #e0b04a; }
+#cards { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: rgba(8, 10, 9, .72); }
+#cards .cbox { display: grid; gap: 10px; justify-items: center; } #cards h2 { margin: 0; font-size: 30px; font-weight: 400; letter-spacing: .2em; color: #e0b04a; } .cleft { font-size: 12px; letter-spacing: .14em; color: #c9c3b4; }
+.crow { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
+.card { width: 170px; min-height: 210px; display: grid; justify-items: center; align-content: start; gap: 8px; padding: 16px 12px; background: #1e211e; color: #e8e2d4; border: 0; cursor: pointer; box-shadow: 0 0 0 3px #2b2e2b, 0 0 0 5px #101211, 0 8px 0 #101211; font-family: inherit; animation: alertIn .3s ease-out backwards; }
+.card:nth-child(2) { animation-delay: .06s; } .card:nth-child(3) { animation-delay: .12s; }
+.card:hover { transform: translateY(-6px); box-shadow: 0 0 0 3px #e0b04a, 0 0 0 5px #101211, 0 14px 0 #101211; }
+.card .ic { width: 64px; height: 64px; display: grid; place-items: center; font-size: 34px; color: #7dffd6; background: radial-gradient(circle, #3a4a44, #1b1d1b 75%); }
+.card b { font-size: 15px; font-weight: 400; letter-spacing: .1em; color: #e0b04a; } .card small { font-size: 12px; line-height: 1.35; color: #c9c3b4; } .card em { font-style: normal; font-size: 10px; color: #7dffd6; }
+#smenu .btns .rep { background: #2b2e2b; } #smenu .btns .rep.buy { background: #3f8a2e; color: #f0ffe8; }
 #cycleHud.night #dayLabel { color: #9fb4ff; } #cycleHud.night #cycleBar { background: #6f86d6; }
 #hpHud { position: static; display: flex; align-items: center; gap: 8px; padding: 6px 10px; }
 #hpHud .lbl { font-size: 13px; letter-spacing: .14em; color: #c9873f; }
@@ -223,7 +250,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
   <div class="t"><b id="smTitle">SENTRY</b><span id="smLv">LV 1</span><button type="button" id="smClose" aria-label="Close">✕</button></div>
   <div class="hprow" id="smHpRow"><div class="bar"><i id="smHp"></i></div><span id="smHpT"></span></div>
   <div class="info" id="smInfo"></div>
-  <div class="btns"><button type="button" id="smUp" class="up">UPGRADE</button><button type="button" id="smMove">MOVE</button><button type="button" id="smSell">SELL</button></div>
+  <div class="btns"><button type="button" id="smUp" class="up">UPGRADE</button><button type="button" id="smRepair" class="rep">REPAIR</button><button type="button" id="smMove">MOVE</button><button type="button" id="smSell">SELL</button></div>
 </div>
 <div class="px" id="shopWrap" hidden>
   <div class="pxbox spanel" id="inv"><div class="shead"><b>INVENTORY</b></div>
@@ -231,7 +258,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
     <div class="sec">SUPPLIES</div><div class="tiles" id="invSupplies"></div>
     <div class="sec">STATS</div><div class="stats" id="invStats"></div>
   </div>
-  <div class="pxbox spanel" id="shop"><div class="shead"><b>SHOP</b><span><span class="gem"></span> <span id="shopXp">0</span> XP</span></div>
+  <div class="pxbox spanel" id="shop"><div class="shead"><b>SHOP</b><span><span class="gem"></span> <span id="shopXp">0</span> SCRAP</span></div>
     <div class="tabs"><button type="button" data-tab="weapons" class="on">WEAPONS</button><button type="button" data-tab="supplies">SUPPLIES</button><button type="button" data-tab="upgrades">UPGRADES</button></div>
     <div class="gtabs" id="gunTabs"></div>
     <div class="tiles big" id="shopBody"></div>
@@ -243,7 +270,17 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 <div class="px" id="pause" hidden><div class="pbox pxbox"><h1>PAUSED</h1>
   <div class="keys"><span><b>WASD</b> MOVE</span><span><b>MOUSE</b> AIM · CLICK TO SHOOT</span><span><b>SHIFT</b> SPRINT</span><span><b>R</b> RELOAD</span><span><b>B</b> BUILD MENU</span><span><b>1-6</b> PICK SLOT</span><span><b>E</b> ENTER / LEAVE BASE</span><span><b>CLICK</b> A BUILD FOR ITS MENU</span><span><b>P</b> PAUSE</span></div>
   <div class="pbtns"><button type="button" id="pResume">RESUME</button><button type="button" id="pDev">DEV KIT</button></div></div></div>
-<div class="hud px pxbox" id="xpHud"><span class="gem"></span><span id="xpNum">0</span><small>XP</small></div>
+<div class="hud px pxbox acct" id="acctHud"></div>
+<div class="px" id="runOver" hidden><div class="rbox pxbox">
+  <h1>BASE DESTROYED</h1><div class="rsub" id="rSub"></div>
+  <button type="button" id="rRespawn" class="big">RESPAWN</button>
+  <div class="acct" id="rAcct"></div>
+  <div class="unl"><h3>NEXT UNLOCKS</h3><div id="rUnl"></div></div>
+  <div class="bp"><b>BATTLE PASS · SEASON 1</b><span>coming soon</span><div class="bar"><i id="rBp"></i></div></div>
+  <button type="button" id="rNew" class="sec">NEW RUN FROM DAY 1</button>
+</div></div>
+<div class="px" id="cards" hidden><div class="cbox"><h2>UPGRADE</h2><div class="cleft" id="cardLeft"></div><div class="crow" id="cardRow"></div></div></div>
+<div class="hud px pxbox" id="xpHud"><span class="gem"></span><span id="xpNum">0</span><small>SCRAP</small></div>
 <div class="hud px" id="bars"><div id="buildBar" class="mini"><button type="button" class="bkey" id="buildKey">[B] BUILD</button><div class="slots" id="buildSlots"></div></div><div class="slots" id="weaponSlots"></div></div>
 <div class="hud" id="brHud">
 <div class="px pxbox" id="hpHud"><span class="lbl">HP</span><div class="bar"><i id="hpBar"></i></div><span id="hpNum">100</span></div>
@@ -256,7 +293,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 <div class="hud pxbox" id="toast"></div>
 <div class="hud" id="hurt"></div>
 <div class="hud" id="dmgLayer"></div>
-<div class="hud px pxbox" id="cycleHud"><div class="top"><span id="dayLabel">DAY 1</span><span id="killCount">0 KILLS</span><span id="cycleTime">0:45</span></div><div class="bar"><i id="cycleBar"></i></div></div>
+<div class="hud px pxbox" id="cycleHud"><div class="top"><span id="dayLabel">DAY 1</span><span id="killCount">0 KILLS</span><span id="cycleTime">0:45</span></div><div class="bar"><i id="cycleBar"></i></div><div class="brow"><span>BASE</span><div class="bbar"><i id="baseBar"></i></div><span id="baseHpNum">1000</span></div></div>
 <div class="hud" id="deathFx" hidden></div>
 <div class="hud" id="shieldFx" hidden></div>
 <div class="hud px" id="deathMsg" hidden>YOU DIED<small id="deathSub">4</small></div>
@@ -291,8 +328,10 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
   <section>
     <h2>Cheats</h2>
     <div class="row">
-      <button id="btnAmmo" type="button">+100 XP</button>
-      <button id="btnXpBig" type="button">+1,000,000 XP</button>
+      <button id="btnAmmo" type="button">+100 scrap</button>
+      <button id="btnXpBig" type="button">+1,000,000 scrap</button>
+      <button id="btnAcct" type="button">+200 account XP</button>
+      <button id="btnBoom" type="button">Destroy the base</button>
     </div>
   </section>
   <section>
@@ -788,6 +827,7 @@ addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   if (k === "p") { setPaused(!paused); return; }
   if (paused) { if (k === "escape") setPaused(false); return; }
+  if (runOver || picking) return;
   keys.add(k);
   if (k === "r") startReload();
   if (k === "e") { setBuildMode(false); toggleInside(); }
@@ -802,6 +842,7 @@ const reticle = document.getElementById("reticle"), reticleRing = document.getEl
 renderer.domElement.addEventListener("pointerleave", () => { reticle.hidden = true; });
 renderer.domElement.addEventListener("pointermove", (e) => { reticle.hidden = false; reticle.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 renderer.domElement.addEventListener("pointerdown", (e) => {
+  if (runOver || picking) return;
   if (buildMode) {   // build mode: place the held build, or with an empty cursor click a structure / the base for its menu
     mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
     if (e.button === 2) { setBuildMode(false); return; }
@@ -827,12 +868,13 @@ function renderAmmo() {
   const w = W(), mag = magOf(curGun);
   ammoName.textContent = w.name;
   if (ammoPips.children.length !== w.mag) { ammoPips.innerHTML = "<i></i>".repeat(w.mag); ammoPips.classList.toggle("dense", w.mag > 12); }
-  const shown = player.reloading > 0 ? Math.floor((1 - player.reloading / w.reload) * w.mag) : mag;
+  const shown = player.reloading > 0 ? Math.floor((1 - player.reloading / reloadTime()) * w.mag) : mag;
   [...ammoPips.children].forEach((pip, i) => pip.classList.toggle("spent", i >= shown));
   ammoReserve.textContent = "∞";
   ammoStatus.textContent = player.reloading > 0 ? "RELOADING" : mag === 0 ? "PRESS R" : "";
 }
-function startReload() { if (player.reloading > 0 || magOf(curGun) >= W().mag) return; player.reloading = W().reload; }
+const reloadTime = () => W().reload * Math.pow(0.75, card("reload"));
+function startReload() { if (player.reloading > 0 || magOf(curGun) >= W().mag) return; player.reloading = reloadTime(); }
 function finishReload() { save.mags[curGun] = W().mag; writeSave(); }   // infinite reserve
 const toastEl = document.getElementById("toast"); let toastT = 0;
 function toast(msg) { toastEl.textContent = msg; toastEl.classList.add("show"); toastT = 2; }
@@ -924,7 +966,7 @@ function fire() {
       const struck = hits.slice(0, w.pierce || 1), endD = struck.length >= (w.pierce || 1) && struck.length ? struck[struck.length - 1][0] : wallD;
       for (const [d, e] of struck) {
         const k = w.falloff ? THREE.MathUtils.clamp(1 - (d - w.falloff[0]) / (w.falloff[1] - w.falloff[0]), 0.25, 1) : 1;
-        const cur = dmgBy.get(e) || { dmg: 0, dir, d }; cur.dmg += w.dmg * k; cur.d = Math.min(cur.d, d); dmgBy.set(e, cur);
+        const cur = dmgBy.get(e) || { dmg: 0, dir, d }; cur.dmg += w.dmg * k * (1 + 0.2 * card("gdmg")); cur.d = Math.min(cur.d, d); dmgBy.set(e, cur);
       }
       const to = new THREE.Vector3(ox, from.y, oz).addScaledVector(dir, endD), muzzleAlong = (from.x - ox) * dir.x + (from.z - oz) * dir.z;
       const fade = endD >= w.range - 0.01, wallHit = !struck.length && wallD < w.range;
@@ -989,7 +1031,7 @@ function updateGrenades(dt) {
     if (!boom) for (const e of enemies) if (!e.dead && p.y < 2.3 && Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < ENEMY_HIT_R) { boom = true; break; }
     if (!boom) for (const bx of boxColliders) if (p.y < 2.5 && p.x > bx[0] && p.x < bx[1] && p.z > bx[2] && p.z < bx[3]) { boom = true; break; }
     if (!boom) for (const c of treeColliders) if (p.y < 3 && Math.hypot(p.x - c.x, p.z - c.z) < c.r) { boom = true; break; }
-    if (boom) { scene.remove(n.m); grenades.splice(i, 1); explode(p.setY(Math.max(0.3, p.y)), n.g.radius, n.g.dmg, { player: false, byPlayer: true }); }
+    if (boom) { scene.remove(n.m); grenades.splice(i, 1); explode(p.setY(Math.max(0.3, p.y)), n.g.radius, n.g.dmg * (1 + 0.2 * card("gdmg")), { player: false, byPlayer: true }); }
   }
 }
 
@@ -1065,6 +1107,7 @@ function explode(pos, radius, dmg, { player: hitsPlayer = false, structures = fa
   boomFx(pos, radius);
   if (hitsEnemies) for (const e of [...enemies]) { if (e.dead) continue; const d = Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z); if (d < radius) { const dir = new THREE.Vector3(e.pos.x - pos.x, 0, e.pos.z - pos.z).normalize(); hurtEnemy(e, Math.round(dmg * (1 - 0.6 * d / radius)), dir, 1.2 * (1 - d / radius), byPlayer); } }
   if (structures) for (const s of [...structs()]) { const d = Math.hypot(s.x - pos.x, s.z - pos.z); if (d < radius + 0.4) hurtStruct(s, dmg * 1.6 * (1 - 0.5 * d / (radius + 0.4))); }
+  if (structures && !runOver) { const d = baseDist(pos)[0]; if (d < radius) hurtBase(dmg * 2 * (1 - 0.5 * d / radius)); }
   if (hitsPlayer && !player.inside && !player.dead) { const d = player.pos.distanceTo(pos.clone().setY(0)); if (d < radius) hurtPlayer(Math.round(dmg * (1 - 0.6 * d / radius))); }
 }
 function rayBox(ox, oz, dx, dz, [x0, x1, z0, z1]) {
@@ -1174,7 +1217,7 @@ function killEnemy(e, dir, amt, silent = false, byPlayer = false) {
   if (silent) return;
   sparkFx(at, dir, 14);
   comboT = 2.5; combo++;
-  dropXpTotal(e.pos, T.xp + (byPlayer ? T.bonus : 0));   // your own kills are worth more
+  dropXpTotal(e.pos, T.xp + (byPlayer ? T.bonus + card("loot") : 0));   // your own kills are worth more
   if (combo >= 3) popNumber(at.clone().setY(2.7), `x${combo} COMBO`, true, "dmg combo");
   kills++; save.kills = kills; writeSave(); killEl.textContent = `${kills} KILLS`;
   popNumber(at.setY(2.1), amt, true); tutEvent("kill", e);
@@ -1319,14 +1362,16 @@ function updateEnemies(dt) {
     // target: the player by default; a structure you built pulls them off you once they're close to it,
     // and they only switch back if you come right up to them. With you in the base, they crowd the door.
     const pd = hidden ? Infinity : Math.hypot(player.pos.x - e.pos.x, player.pos.z - e.pos.z);
-    if (e.aggro && (!structs().includes(e.aggro) || e.aggro.y > 0 || pd < 3.5)) e.aggro = null;
-    if (!e.aggro && pd > 4) {
+    if (e.aggro && (e.aggro === BASE_T ? pd < 3.5 || runOver : !structs().includes(e.aggro) || e.aggro.y > 0 || pd < 3.5)) e.aggro = null;
+    if (!e.aggro && pd > 4 && !runOver) {
       let best = T.bomber ? 10 : 7;
       for (const s of structs()) { if (s.y > 0) continue; const dd = Math.hypot(s.x - e.pos.x, s.z - e.pos.z); if (dd < best) { best = dd; e.aggro = s; } }
+      if (baseDist(e.pos)[0] < best || hidden) e.aggro = BASE_T;   // the base itself is fair game, and the only target while you hide in it
     }
     const tgt = e.aggro;
     let gx, gz, reach, tx, tz;
-    if (tgt) { gx = tx = tgt.x; gz = tz = tgt.z; reach = tgt.kind === "wall" ? 1.05 : 1.25; }
+    if (tgt === BASE_T) { const [, cx, cz] = baseDist(e.pos); gx = tx = cx; gz = tz = cz; reach = 0.85; }
+    else if (tgt) { gx = tx = tgt.x; gz = tz = tgt.z; reach = tgt.kind === "wall" ? 1.05 : 1.25; }
     else if (!hidden) { gx = tx = player.pos.x; gz = tz = player.pos.z; reach = 1.15; }
     else { const a = e.seed * 2.4; gx = door.x + Math.cos(a) * 2.2; gz = door.z + 1.2 + Math.abs(Math.sin(a)) * 2; tx = door.x; tz = door.z; reach = 0; }
     if (T.bomber && reach) reach = 1.7;
@@ -1350,7 +1395,7 @@ function updateEnemies(dt) {
       if (e.fuse > 0.9) { e.quiet = true; explode(e.pos.clone().setY(0.9), 3.2, e.dmg, { player: true, structures: true }); killEnemy(e, new THREE.Vector3(0, 0, 1), 0, true); e.quiet = true; continue; }
     } else if (wallHit || (reach && tdist < reach)) {   // melee: wind up, then swipe if still in reach
       if (e.atk <= 0) e.atk = 0.45; e.atk -= dt;
-      if (e.atk <= 0) { e.lunge = 0.25; e.atk = 1.1; if (wallHit) hitStruct(e.wallT, 15 * dmgMul()); else if (tgt) hitStruct(tgt, 15 * dmgMul()); else if (tdist < reach + 0.3) hurtPlayer(Math.round(e.dmg)); }
+      if (e.atk <= 0) { e.lunge = 0.25; e.atk = 1.1; if (wallHit) hitStruct(e.wallT, 15 * dmgMul()); else if (tgt === BASE_T) hurtBase(15 * dmgMul()); else if (tgt) hitStruct(tgt, 15 * dmgMul()); else if (tdist < reach + 0.3) hurtPlayer(Math.round(e.dmg)); }
     } else e.atk = 0;
     e.lunge = Math.max(0, e.lunge - dt); e.flash = Math.max(0, e.flash - dt);
     const spd = e.vel.length(), wk = THREE.MathUtils.clamp(spd / 1.2, 0, 1);
@@ -1435,9 +1480,9 @@ function updateGems(dt) {
   for (let i = gems.length - 1; i >= 0; i--) {
     const g = gems[i]; g.t += dt; const p = g.m.position;
     const d = p.distanceTo(target);
-    if (!player.dead && !player.inside && g.t > 0.5 && d < 3.5 + statLv("pick")) {   // magnet
+    if (!player.dead && !player.inside && g.t > 0.5 && d < 3.5 + statLv("pick") + 2 * card("magnet")) {   // magnet
       g.vel.lerp(target.clone().sub(p).normalize().multiplyScalar(11), 1 - Math.exp(-dt * 8)); p.addScaledVector(g.vel, dt);
-      if (d < 0.5) { save.xp += g.value; xpBump = 0.25; renderXp(); writeSave(); scene.remove(g.m); gems.splice(i, 1); continue; }
+      if (d < 0.5) { save.xp += g.value; addAcctXp(g.value); xpBump = 0.25; renderXp(); writeSave(); scene.remove(g.m); gems.splice(i, 1); continue; }
     } else if (!g.landed) {
       g.vel.y -= 14 * dt; p.addScaledVector(g.vel, dt);
       if (p.y < 0.3) { p.y = 0.3; g.vel.y *= -0.4; g.vel.x *= 0.5; g.vel.z *= 0.5; if (Math.abs(g.vel.y) < 0.6) g.landed = true; }
@@ -1637,7 +1682,7 @@ const saveBuilds = () => { save.builds = structs().map(s => ({ t: s.kind, x: s.x
 // stacking: a wall can sit on a wall; a sentry can sit on a 2 x 2 block of walls (and shoots 3 m further)
 const sentryCovers = (t, x, z) => Math.abs(t.x - x) < 1 && Math.abs(t.z - z) < 1;
 const onTop = (s) => s.kind === "wall" && s.y === 0 && (walls.some(w => w !== s && w.y === 1 && w.x === s.x && w.z === s.z) || sentries.some(t => t.y === 1 && sentryCovers(t, s.x, s.z)));
-const sentryRange = (t) => SENTRY.range + (t.y ? 3 : 0);
+const sentryRange = (t) => SENTRY.range + (t.y ? 3 : 0) + 2 * card("srange");
 function buildModel(s) {
   if (s.g) { scene.remove(s.g); }
   if (s.kind === "sentry") { const m = makeSentryModel(s.level); Object.assign(s, m); m.g.scale.setScalar(1.35); m.head.rotation.y = s.yaw; }
@@ -1671,6 +1716,7 @@ function hitStruct(s, n) {
   if (up) { hurtStruct(up, n / 2); hurtStruct(s, n / 2); } else hurtStruct(s, n);
 }
 function hurtStruct(s, n) {
+  n /= 1 + 0.43 * card("fort");   // each Fortify: ~30% less damage taken
   s.hp -= n; if (!s.bar) s.bar = worldBar(true);
   sparkFx(new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 0.7 : 1.0), s.z), new THREE.Vector3(0, 1, 0), 3);
   if (s.hp <= 0) {
@@ -1714,7 +1760,7 @@ function updateSentries(dt) {
     for (const sp of t.spins) sp.rotation.z += t.spinV * 40 * dt;
     t.cool -= dt;
     if (t.target && aligned && t.spinV > 0.75 && t.cool <= 0) {
-      t.cool = SENTRY.rate / t.muzzles.length; t.shot++;
+      t.cool = SENTRY.rate / t.muzzles.length / (1 + 0.2 * card("srate")); t.shot++;
       t.g.updateMatrixWorld(true);
       const from = t.gun.localToWorld(t.muzzles[t.shot % t.muzzles.length].clone()), ang = t.yaw + (Math.random() - 0.5) * 0.06, dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
       let hitD = sentryRange(t) + 2, hit = null;
@@ -1725,9 +1771,10 @@ function updateSentries(dt) {
       spawnTracer(from, to, 0.8, !hit && hitD >= sentryRange(t) + 2 - 0.01);
       spawnSprite(from.clone().addScaledVector(dir, 0.06), dir.clone().multiplyScalar(2), { color: 0xffc46b, size: 0.45, grow: 0.3, life: 0.05, opacity: 1, additive: true, drag: 0 });
       if (t.shot % 3 === 0) spawnCasing(from.clone().addScaledVector(dir, -0.5).add(new THREE.Vector3(0, -0.05, 0)), dir);
-      if (hit) hurtEnemy(hit, SENTRY.dmg, dir);
+      if (hit) hurtEnemy(hit, Math.round(SENTRY.dmg * (1 + 0.25 * card("sdmg"))), dir);
     }
   }
+  const regen = 3 * card("regen"); if (regen) for (const s of structs()) s.hp = Math.min(STRUCT[s.kind].hp[s.level], s.hp + regen * dt);
   for (const s of structs()) if (s.bar) placeBar(s.bar, new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 1.45 : 1.9), s.z), s.hp / STRUCT[s.kind].hp[s.level]);
 }
 
@@ -1752,12 +1799,12 @@ function slotHtml(i, item, icon, meta, metaNo, lock) {
   return `<div class="slot${lock ? " locked" : ""}" data-i="${i}"><span class="k">${i + 1}</span>${lock ? `<span class="lock">LOCKED<br>${lock === true ? "" : lock}</span>` : icon ? `<img alt="" src="${icon}">` : ""}${meta ? `<span class="meta${metaNo ? " no" : ""}">${meta}</span>` : ""}<span class="nm">${item.name}</span></div>`;
 }
 function renderHotbar() {
-  weaponSlots.innerHTML = SLOT_IDS.map((id, i) => owns(id) ? slotHtml(i, { name: WEAPONS_DEF[id].short }, ICONS[id]) : slotHtml(i, { name: SLOT_NAMES[i] }, null, "", false, "SHOP")).join("");
+  weaponSlots.innerHTML = SLOT_IDS.map((id, i) => owns(id) ? slotHtml(i, { name: WEAPONS_DEF[id].short }, ICONS[id]) : slotHtml(i, { name: SLOT_NAMES[i] }, null, "", false, acctLevel().lv < gunReq(id) ? `LV ${gunReq(id)}` : "SHOP")).join("");
   weaponSlots.children[WEAPONS_DEF[curGun].slot].classList.add("sel");
   renderBuildBar();
 }
 function renderBuildBar() {
-  buildSlots.innerHTML = BUILDS.map((b, i) => { const lock = lockOf(b); if (lock) return slotHtml(i, b, null, "", false, lock); const c = b.cost(), n = countOf(b.id), cap = capOf(b.id); return slotHtml(i, { name: `${b.name} ${n}/${cap}` }, ICONS[b.id], `${c} XP`, save.xp < c || n >= cap); }).join("");
+  buildSlots.innerHTML = BUILDS.map((b, i) => { const lock = lockOf(b); if (lock) return slotHtml(i, b, null, "", false, lock); const c = b.cost(), n = countOf(b.id), cap = capOf(b.id); return slotHtml(i, { name: `${b.name} ${n}/${cap}` }, ICONS[b.id], `${c}`, save.xp < c || n >= cap); }).join("");
   if (buildMode && buildSel >= 0) buildSlots.children[buildSel]?.classList.add("sel");
   buildBar.classList.toggle("mini", !buildMode);
   buildKey.textContent = !buildMode ? "[B] BUILD" : carry ? "[B] PUT BACK · CLICK TO PLACE" : buildSel >= 0 ? `[B] CLOSE · CLICK TO PLACE · [${buildSel + 1}] AGAIN FOR CURSOR` : "[B] CLOSE · CLICK A BUILD TO MANAGE IT";
@@ -1907,6 +1954,10 @@ const BASE_UP = [0, 0, 300];   // XP to reach each base level (level 2 is the ma
 const smenu = document.getElementById("smenu"), smTitle = document.getElementById("smTitle"), smLv = document.getElementById("smLv"), smHpRow = document.getElementById("smHpRow"),
   smHp = document.getElementById("smHp"), smHpT = document.getElementById("smHpT"), smInfo = document.getElementById("smInfo"), smUp = document.getElementById("smUp"), smMove = document.getElementById("smMove"), smSell = document.getElementById("smSell");
 let menuTarget = null, menuT = 0;
+const smRepair = document.getElementById("smRepair");
+// repairing costs scrap in proportion to the missing HP
+const repairCost = (t) => t === "base" ? Math.ceil((baseMax() - save.baseHp) / 12) : Math.ceil((1 - t.hp / STRUCT[t.kind].hp[t.level]) * Math.max(10, t.spent) * 0.6);
+function renderRepair(t) { const c = repairCost(t); smRepair.hidden = c <= 0; smRepair.textContent = `REPAIR · ${c} SCRAP`; smRepair.disabled = save.xp < c; smRepair.classList.toggle("buy", save.xp >= c); }
 let menuFrom = new THREE.Vector3();
 function openMenu(t) { menuTarget = t; menuFrom.copy(player.pos); smenu.hidden = false; renderMenu(); placeMenu(); }
 function closeMenu() { menuTarget = null; smenu.hidden = true; }
@@ -1917,7 +1968,8 @@ function renderMenu() {
     smTitle.textContent = "BASE"; smLv.textContent = `LV ${lv}`; smHpRow.hidden = true; smMove.hidden = true; smSell.hidden = true;
     smInfo.innerHTML = `Enemies can't get inside.<br>Sentries ${sentries.length}/${capOf("sentry")} · Walls ${walls.length}/${capOf("wall")}` +
       (next ? `<br><b>LV ${lv + 1}:</b> patched walls, caged windows, bigger fence, outhouse · ${CAPS.sentry[lv + 1]} sentries · ${CAPS.wall[lv + 1]} walls · LV 2 walls` : "<br>Max level for now");
-    smUp.hidden = false; smUp.textContent = next ? `UPGRADE · ${next} XP` : "MAX LEVEL"; smUp.disabled = !next || save.xp < next;
+    smUp.hidden = false; smUp.textContent = next ? `UPGRADE · ${next} SCRAP` : "MAX LEVEL"; smUp.disabled = !next || save.xp < next;
+    smHpRow.hidden = false; smHp.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; smHpT.textContent = `${Math.ceil(save.baseHp)}/${baseMax()}`; renderRepair("base");
     return;
   }
   const D = STRUCT[t.kind], max = D.hp[t.level], nextCost = D.up[t.level], req = D.baseReq[t.level];
@@ -1927,8 +1979,8 @@ function renderMenu() {
   smUp.hidden = false;
   if (!nextCost) { smUp.textContent = "MAX LEVEL"; smUp.disabled = true; }
   else if (save.base < req) { smUp.textContent = `NEEDS BASE LV ${req}`; smUp.disabled = true; }
-  else { smUp.textContent = `UPGRADE · ${nextCost} XP`; smUp.disabled = save.xp < nextCost; }
-  smSell.textContent = `SELL +${Math.floor(t.spent / 2)} XP`;
+  else { smUp.textContent = `UPGRADE · ${nextCost} SCRAP`; smUp.disabled = save.xp < nextCost; }
+  smSell.textContent = `SELL +${Math.floor(t.spent / 2)} SCRAP`; renderRepair(t);
   const blocked = onTop(t); smSell.disabled = blocked; smMove.disabled = blocked;
   if (blocked) smInfo.innerHTML += "<br><b>Something is stacked on top</b>";
   if (t.kind === "sentry" && t.y) smInfo.innerHTML += "<br><b>On walls: +3 m range</b>";
@@ -1952,7 +2004,7 @@ function updateMenu(dt) { updateHoverTip(); if (!menuTarget) return; menuT -= dt
 document.getElementById("smClose").addEventListener("click", closeMenu);
 smUp.addEventListener("click", () => {
   const t = menuTarget; if (!t) return;
-  if (t === "base") { const c = BASE_UP[save.base + 1]; if (!c || save.xp < c) return; save.xp -= c; save.base++; applyBaseLevel(); renderXp(); writeSave(); renderMenu();
+  if (t === "base") { const c = BASE_UP[save.base + 1]; if (!c || save.xp < c) return; save.xp -= c; const m0 = baseMax(); save.base++; save.baseHp += baseMax() - m0; renderBaseHp(); applyBaseLevel(); renderXp(); writeSave(); renderMenu();
     upgradeFx([...BASE_FOOT].map(k => k.split(",").map(Number)).map(([x, z]) => [x + 0.5, z + 0.5]), new THREE.Vector3(0, 3.4, SHACK_Z), null, `BASE LV ${save.base}!`); return; }
   const D = STRUCT[t.kind], c = D.up[t.level]; if (!c || save.xp < c || save.base < D.baseReq[t.level]) return;
   const frac = t.hp / D.hp[t.level]; save.xp -= c; t.spent += c; t.level++; t.hp = D.hp[t.level] * Math.max(frac, 0.5);
@@ -1977,6 +2029,13 @@ function updateUpFx(dt) {
     if (k >= 1) { scene.remove(u.tiles); u.tiles.dispose(); upFx.splice(i, 1); }
   }
 }
+smRepair.addEventListener("click", () => {
+  const t = menuTarget; if (!t) return; const c = repairCost(t); if (c <= 0 || save.xp < c) return;
+  save.xp -= c; if (t === "base") { save.baseHp = baseMax(); renderBaseHp(); } else { t.hp = STRUCT[t.kind].hp[t.level]; saveBuilds(); }
+  renderXp(); renderMenu(); writeSave();
+  const at = t === "base" ? new THREE.Vector3(0, 2.5, SHACK_Z) : new THREE.Vector3(t.x, (t.y || 0) + 1, t.z);
+  for (let k = 0; k < 12; k++) spawnSprite(at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, (Math.random() - 0.5), (Math.random() - 0.5) * 1.2)), new THREE.Vector3(0, 1.5 + Math.random(), 0), { color: 0x9dffb0, size: 0.1, life: 0.7, opacity: 1, additive: true, drag: 1.5 });
+});
 smSell.addEventListener("click", () => { const t = menuTarget; if (!t || t === "base" || onTop(t)) return; save.xp += Math.floor(t.spent / 2); removeStruct(t); saveBuilds(); renderXp(); });
 smMove.addEventListener("click", () => { const t = menuTarget; if (!t || t === "base" || onTop(t)) return; closeMenu(); startCarry(t); });
 
@@ -1984,22 +2043,23 @@ smMove.addEventListener("click", () => { const t = menuTarget; if (!t || t === "
 const STATS = [
   { id: "hp", name: "MAX HEALTH", desc: "+20 max HP", base: 40, max: 5 },
   { id: "st", name: "STAMINA", desc: "+25 max stamina", base: 30, max: 5 },
-  { id: "pick", name: "PICKUP RANGE", desc: "+1 m XP magnet range", base: 35, max: 5 },
+  { id: "pick", name: "PICKUP RANGE", desc: "+1 m orb magnet range", base: 35, max: 5 },
   { id: "spd", name: "MOVE SPEED", desc: "+5% walk and sprint speed", base: 50, max: 4 },
 ];
 const statLv = (id) => save.stats?.[id] || 0, statCost = (s) => Math.round(s.base * Math.pow(1.6, statLv(s.id)));
-const maxHp = () => 100 + 20 * statLv("hp"), maxSt = () => 100 + 25 * statLv("st"), spdMul = () => 1 + 0.05 * statLv("spd");
+const maxHp = () => 100 + 20 * statLv("hp") + 30 * card("vit"), maxSt = () => (100 + 25 * statLv("st")) * (1 + 0.5 * card("lungs")), spdMul = () => (1 + 0.05 * statLv("spd")) * (1 + 0.1 * card("speed"));
 const hpBar = document.getElementById("hpBar"), hpNum = document.getElementById("hpNum"), hurtEl = document.getElementById("hurt"), killEl = document.getElementById("killCount");
 const deathMsg = document.getElementById("deathMsg"), deathSub = document.getElementById("deathSub"), deathFx = document.getElementById("deathFx"), shieldEl = document.getElementById("shieldFx");
 let hurtFlash = 0;
 function hurtPlayer(n) {
-  if (player.inside || player.dead || player.shield > 0) return;
+  if (player.inside || player.dead || player.shield > 0 || runOver) return;
   player.hp = Math.max(0, player.hp - n); player.sinceHurt = 0; hurtFlash = 0.7; shake = 0.25;
   if (player.hp <= 0) { player.dead = 4; player.reloading = 0; player.vel.set(0, 0, 0); setBuildMode(false); closeMenu(); sparkFx(player.pos.clone().setY(1), new THREE.Vector3(0, 1, 0), 18); deathMsg.hidden = false; deathFx.hidden = false; }
 }
 function updatePlayerHealth(dt) {
   const mh = maxHp();
-  if (player.dead > 0) {
+  if (runOver) { /* the run-over screen takes it from here */ }
+  else if (player.dead > 0) {
     player.dead -= dt; deathSub.textContent = Math.ceil(player.dead);
     deathFx.style.opacity = String(Math.min(1, (4 - player.dead) / 0.6));
     if (player.dead <= 0) {   // respawn inside the base; spawn protection starts when you walk out
@@ -2076,10 +2136,10 @@ function renderShop() {
   invStats.innerHTML = STATS.map(s => `<div>${s.name}<span>${"■".repeat(statLv(s.id))}${"□".repeat(s.max - statLv(s.id))}</span></div>`).join("");
   // shop: every gun of the chosen type (one per type for now)
   if (shopTab === "weapons") shopBody.innerHTML = SLOT_IDS.filter(id => WEAPONS_DEF[id].slot === gunTab).map(id => { const w = WEAPONS_DEF[id], own = owns(id);
-    return tile({ img: ICONS[id], name: w.name, sub: `${w.desc}<br>${gunStats(w)}`, btn: own ? (id === curGun ? "EQUIPPED" : "EQUIP") : `${w.price} XP`, buy: !own && save.xp >= w.price, disabled: own ? id === curGun : save.xp < w.price, data: `data-gun="${id}"`, cls: id === curGun ? "eq" : "" }); }).join("");
+    return tile({ img: ICONS[id], name: w.name, sub: `${w.desc}<br>${gunStats(w)}`, btn: own ? (id === curGun ? "EQUIPPED" : "EQUIP") : acctLevel().lv < gunReq(id) ? `UNLOCKS AT LV ${gunReq(id)}` : `${w.price} SCRAP`, buy: !own && save.xp >= w.price && acctLevel().lv >= gunReq(id), disabled: own ? id === curGun : save.xp < w.price || acctLevel().lv < gunReq(id), data: `data-gun="${id}"`, cls: id === curGun ? "eq" : "" }); }).join("");
   if (shopTab === "supplies") shopBody.innerHTML = SUPPLIES.map(([n, ic, d]) => tile({ img: ICONS[ic], name: n, sub: d, btn: "SOON", cls: "locked" })).join("");
   if (shopTab === "upgrades") shopBody.innerHTML = STATS.map(s => { const lv = statLv(s.id), max = lv >= s.max, c = statCost(s);
-    return tile({ img: pixIcon(STAT_ICON[s.id]), name: s.name, sub: `${s.desc}<br><span class="pips">${"■".repeat(lv)}${"□".repeat(s.max - lv)}</span>`, btn: max ? "MAX" : `${c} XP`, buy: !max && save.xp >= c, disabled: max || save.xp < c, data: `data-stat="${s.id}"` }); }).join("");
+    return tile({ img: pixIcon(STAT_ICON[s.id]), name: s.name, sub: `${s.desc}<br><span class="pips">${"■".repeat(lv)}${"□".repeat(s.max - lv)}</span>`, btn: max ? "MAX" : `${c} SCRAP`, buy: !max && save.xp >= c, disabled: max || save.xp < c, data: `data-stat="${s.id}"` }); }).join("");
 }
 document.querySelector("#shop .tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { shopTab = b.dataset.tab; renderShop(); } });
 gunTabs.addEventListener("click", (e) => { const b = e.target.closest("button[data-gt]"); if (b) { gunTab = +b.dataset.gt; renderShop(); } });
@@ -2087,7 +2147,7 @@ shopBody.addEventListener("click", (e) => {
   const g = e.target.closest("button[data-gun]");
   if (g && !g.disabled) {
     const id = g.dataset.gun, w = WEAPONS_DEF[id];
-    if (!owns(id)) { if (save.xp < w.price) return; save.xp -= w.price; save.guns = [...(save.guns || ["pistol"]), id]; showBanner(`NEW GUN: ${w.name}!`, 3); }
+    if (!owns(id)) { if (save.xp < w.price || acctLevel().lv < gunReq(id)) return; save.xp -= w.price; save.guns = [...(save.guns || ["pistol"]), id]; showBanner(`NEW GUN: ${w.name}!`, 3); }
     equip(id); writeSave(); renderXp(); renderShop(); return;
   }
   const b = e.target.closest("button[data-stat]"); if (!b || b.disabled) return;
@@ -2162,7 +2222,7 @@ function updateTutorial() {
   } else if (tut.step === "xp") {
     if (save.xp >= 5) tut.step = "build";
     else { let best = Infinity; for (const g of gems) { const d = g.m.position.distanceTo(player.pos); if (d < best) { best = d; target = g; } }
-      if (!target) { save.xp = 5; renderXp(); } else { label = "PICK UP XP"; spot = true; ban = "WALK OVER THE XP TO PICK IT UP"; } }
+      if (!target) { save.xp = 5; renderXp(); } else { label = "PICK UP SCRAP"; spot = true; ban = "WALK OVER THE ORBS TO COLLECT SCRAP"; } }
   }
   if (tut.step === "build" && buildMode) tut.step = "place";
   if (tut.step === "place" && !buildMode) tut.step = "build";
@@ -2194,7 +2254,7 @@ const NIGHTC = { sun: new THREE.Color(0x8096d8), sky: new THREE.Color(0x5d6fa8),
 function updateCycle(dt) {
   const prev = cycle.t;
   if (tut.step === "done") cycle.t += dt;
-  if (cycle.t >= DAY_LEN + NIGHT_LEN) { cycle.t -= DAY_LEN + NIGHT_LEN; cycle.day++; const bonus = 15 * (cycle.day - 1); save.xp += bonus; renderXp(); writeSave(); showBanner(`SURVIVED NIGHT ${cycle.day - 1} · +${bonus} XP · DAY ${cycle.day}`, 4); }
+  if (cycle.t >= DAY_LEN + NIGHT_LEN) { cycle.t -= DAY_LEN + NIGHT_LEN; cycle.day++; const bonus = 15 * (cycle.day - 1); save.xp += bonus; renderXp(); writeSave(); showBanner(`SURVIVED NIGHT ${cycle.day - 1} · +${bonus} SCRAP · DAY ${cycle.day}`, 4); takeCheckpoint(cycle.day); }
   if (prev < DAY_LEN - FADE && cycle.t >= DAY_LEN - FADE) showBanner("NIGHT IS COMING — GET TO SAFETY!", 4, true);
   if (prev < DAY_LEN && cycle.t >= DAY_LEN) showBanner("NIGHT HAS FALLEN · ENEMIES ARE STRONGER AND FASTER!", 4.5, true);
   const night = cycle.t >= DAY_LEN;
@@ -2212,6 +2272,140 @@ function updateCycle(dt) {
   bannerT -= dt; if (bannerT <= 0) bannerEl.hidden = true;
 }
 
+/* ---------- Runs: base HP, the base falling, checkpoints, upgrade cards, account XP ---------- */
+// A run lasts until the base falls. Then you lose your guns, carried scrap and cards, but respawn at dawn
+// of that day (the day before, if it fell in daylight) with the base as it was then, structures at 50% HP,
+// plus 1 free upgrade pick per day reached (max 5). Account XP, unlocks and records are permanent.
+const BASE_T = { kind: "base" };   // what enemies aim at when they go for the base
+const BASE_HP = [0, 1000, 1800];
+let runOver = false, picking = 0, baseHitBanner = 0;
+const BASE_BOX = () => boxColliders[0];
+const baseMax = () => Math.round(BASE_HP[Math.min(save.base, 2)] * (1 + 0.3 * card("basehp")));
+function baseDist(p) { const [x0, x1, z0, z1] = BASE_BOX(); const cx = THREE.MathUtils.clamp(p.x, x0, x1), cz = THREE.MathUtils.clamp(p.z, z0, z1); return [Math.hypot(p.x - cx, p.z - cz), cx, cz]; }
+const baseBarEl = document.getElementById("baseBar"), baseHpEl = document.getElementById("baseHpNum");
+function renderBaseHp() { if (save.baseHp === undefined) save.baseHp = baseMax(); baseBarEl.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; baseHpEl.textContent = Math.max(0, Math.ceil(save.baseHp)); }
+function hurtBase(n) {
+  if (runOver || tut.step !== "done") return;
+  if (save.baseHp === undefined) save.baseHp = baseMax();
+  save.baseHp -= n; renderBaseHp(); cycleHud.classList.remove("hit"); void cycleHud.offsetWidth; cycleHud.classList.add("hit");
+  if (performance.now() - baseHitBanner > 12000) { baseHitBanner = performance.now(); showBanner("YOUR BASE IS UNDER ATTACK!", 3, true); }
+  if (save.baseHp <= 0) baseFalls();
+}
+// ---- the base falls: a chain of explosions, then the run-over screen
+let fallInfo = null;
+function baseFalls() {
+  runOver = true; save.baseHp = 0;
+  const night = cycle.t >= DAY_LEN, reached = cycle.day;
+  fallInfo = { reached, night, respawnDay: night ? cycle.day : Math.max(1, cycle.day - 1), kills: kills - (save.runKills0 ?? 0), xp0: save.acctRun0 ?? acctXp() };
+  save.best = Math.max(save.best || 0, reached);
+  if (player.inside) setInside(false);
+  setBuildMode(false); closeMenu(); mouseDown = false;
+  player.dead = 99; player.hp = 0; playerModel.visible = false;
+  const c = new THREE.Vector3(0, 1.2, SHACK_Z);
+  explode(c.clone(), 7, 600, { enemies: true });
+  [[0.2, -1.8, 0.8], [0.45, 2.0, -0.6], [0.7, -0.4, 1.4], [0.95, 1.4, 1.2], [1.25, -2.2, -1.1]].forEach(([t, x, z]) => setTimeout(() => boomFx(c.clone().add(new THREE.Vector3(x, Math.random(), z)), 3 + Math.random() * 1.5), t * 1000));
+  setTimeout(() => { const b = shanty?.children[0]; if (b) for (const n of ["shack", "shack_roof", "shack_l1", "shack_l2"]) { const o = b.getObjectByName(n); if (o) o.visible = false; } shanty.userData.outline.visible = false; }, 350);
+  for (let i = 0; i < 26; i++) spawnSprite(c.clone(), new THREE.Vector3((Math.random() - 0.5) * 14, 4 + Math.random() * 8, (Math.random() - 0.5) * 14), { color: Math.random() < 0.5 ? 0x6a5a44 : 0x8a6a48, size: 0.2 + Math.random() * 0.2, life: 1.6, opacity: 1, drag: 0.4, gravity: 12 });
+  shake = 1.2; deathMsg.hidden = true;
+  writeSave(); setTimeout(showRunOver, 2300);
+}
+const runEl = document.getElementById("runOver");
+function showRunOver() {
+  const f = fallInfo, picks = Math.min(5, f.reached);
+  document.getElementById("rSub").textContent = `You held out until ${f.night ? "NIGHT" : "DAY"} ${f.reached} · ${f.kills} kills · best: day ${save.best}`;
+  document.getElementById("rRespawn").innerHTML = `RESPAWN ON DAY ${f.respawnDay}<small>+${picks} FREE UPGRADE PICK${picks > 1 ? "S" : ""}</small>`;
+  renderAccount(document.getElementById("rAcct"), acctXp() - f.xp0);
+  const lv = acctLevel().lv;
+  document.getElementById("rUnl").innerHTML = ACCOUNT_UNLOCKS.filter(u => u.lv > lv).slice(0, 3).map(u => `<div class="u">${u.img ? `<img alt="" src="${u.img()}">` : `<span class="ic">★</span>`}<b>LV ${u.lv}</b><span>${u.name}</span></div>`).join("") || "<div class='u'><span>Everything unlocked for now</span></div>";
+  document.getElementById("rBp").style.width = `${(acctXp() % 500) / 5}%`;
+  runEl.hidden = false;
+}
+document.getElementById("rRespawn").addEventListener("click", () => { const f = fallInfo; startRun(f.respawnDay, Math.min(5, f.reached)); });
+document.getElementById("rNew").addEventListener("click", () => startRun(1, 0, true));
+// checkpoints: the base as it stood at dawn, kept for the last few days
+function takeCheckpoint(day) {
+  save.ckpt = save.ckpt || {}; save.ckpt[day] = structs().map(s => ({ t: s.kind, x: s.x, z: s.z, y: s.y, lv: s.level, spent: s.spent }));
+  for (const k of Object.keys(save.ckpt)) if (+k < day - 3) delete save.ckpt[k];
+  save.day = day; writeSave();
+}
+function startRun(day, picks, fresh = false) {
+  runEl.hidden = true; runOver = false;
+  // world back to dawn
+  for (const s of [...structs()]) removeStruct(s);
+  const ck = fresh ? [] : (save.ckpt?.[day] || save.ckpt?.[Object.keys(save.ckpt || {}).map(Number).filter(d => d <= day).sort((a, b) => b - a)[0]] || []);
+  for (const b of ck) { const s = addStruct(b.t, b.x, b.z, b.lv || 1, b.spent || 0, undefined, b.y || 0); s.hp = STRUCT[s.kind].hp[s.level] * 0.5; }
+  if (fresh) save.ckpt = {};
+  for (const e of enemies) { scene.remove(e.model); removeBar(e.bar); e.mark?.remove(); e.mark = null; enemyPools[e.type].push(e); }
+  enemies.length = 0; hovered = null;
+  for (const g of gems) scene.remove(g.m); gems.length = 0;
+  pendingHits.length = 0;
+  cycle.day = day; cycle.t = 0; spawnT = 5; rushLeft = 0;
+  // the run's losses: guns, carried scrap, cards
+  save.xp = 0; save.guns = ["pistol"]; save.mags = {}; save.cards = []; equip("pistol");
+  applyBaseLevel(); const b = shanty?.children[0]; if (b) for (const n of ["shack", "shack_roof"]) { const o = b.getObjectByName(n); if (o) o.visible = true; }
+  save.baseHp = baseMax(); save.runKills0 = kills; save.acctRun0 = acctXp();
+  player.dead = 0; player.hp = maxHp(); player.stamina = maxSt(); player.pos.copy(doorPos()).add(new THREE.Vector3(0, 0, 0.6)); player.vel.set(0, 0, 0); player.shield = 5;
+  playerModel.visible = true; deathMsg.hidden = true; deathFx.hidden = true;
+  saveBuilds(); takeCheckpoint(day); renderXp(); renderHotbar(); renderAmmo(); renderBaseHp();
+  showBanner(fresh ? "NEW RUN · DAY 1" : `DAY ${day} · THE BASE IS BACK — REPAIR IT!`, 3.5);
+  if (picks > 0) startPicks(picks);
+}
+
+/* ---------- Upgrade cards (this run only) ---------- */
+const CARDS = [
+  { id: "srate", name: "HOT BARRELS", desc: "Sentries fire 20% faster", ic: "»" },
+  { id: "sdmg", name: "AP ROUNDS", desc: "Sentries deal 25% more damage", ic: "✸" },
+  { id: "srange", name: "LONG SIGHTS", desc: "+2 m sentry range", ic: "◎" },
+  { id: "fort", name: "FORTIFY", desc: "Your structures take 30% less damage", ic: "▣" },
+  { id: "regen", name: "WELDER", desc: "Structures repair 3 HP/s on their own", ic: "+" },
+  { id: "basehp", name: "REINFORCED BASE", desc: "+30% base HP", ic: "⌂" },
+  { id: "gdmg", name: "HOLLOW POINTS", desc: "Your guns deal 20% more damage", ic: "•" },
+  { id: "reload", name: "QUICK HANDS", desc: "Reload 25% faster", ic: "↻" },
+  { id: "speed", name: "LIGHT BOOTS", desc: "Move 10% faster", ic: "≫" },
+  { id: "vit", name: "TOUGH SKIN", desc: "+30 max HP", ic: "♥" },
+  { id: "magnet", name: "MAGNET", desc: "+2 m orb pickup range", ic: "∩" },
+  { id: "loot", name: "SCAVENGER", desc: "+1 scrap from every kill you make", ic: "$" },
+  { id: "stash", name: "STASH", desc: "+60 scrap right now", ic: "▤", instant: () => { save.xp += 60; renderXp(); } },
+  { id: "lungs", name: "IRON LUNGS", desc: "+50% stamina", ic: "≈" },
+];
+const card = (id) => (save.cards || []).filter(c => c === id).length;
+const cardsEl = document.getElementById("cards"), cardRow = document.getElementById("cardRow"), cardLeft = document.getElementById("cardLeft");
+function startPicks(n) { picking = n; dealCards(); }
+function dealCards() {
+  const pool = [...CARDS].sort(() => Math.random() - 0.5).slice(0, 3);
+  cardRow.innerHTML = pool.map(c => `<button type="button" class="card px" data-c="${c.id}"><span class="ic">${c.ic}</span><b>${c.name}</b><small>${c.desc}</small>${card(c.id) ? `<em>owned ×${card(c.id)}</em>` : ""}</button>`).join("");
+  cardLeft.textContent = picking > 1 ? `PICK 1 OF 3 · ${picking - 1} MORE AFTER THIS` : "PICK 1 OF 3";
+  cardsEl.hidden = false;
+}
+cardRow.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-c]"); if (!b) return;
+  const c = CARDS.find(x => x.id === b.dataset.c); save.cards = [...(save.cards || []), c.id]; c.instant?.();
+  if (c.id === "vit") player.hp += 30; if (c.id === "basehp") { save.baseHp = Math.min(baseMax(), save.baseHp * 1.3); renderBaseHp(); }
+  writeSave(); picking--;
+  if (picking > 0) dealCards(); else { cardsEl.hidden = true; mouseDown = false; }
+});
+
+/* ---------- Account level (permanent) ---------- */
+const ACCOUNT_UNLOCKS = [
+  { lv: 2, name: "PUMP SHOTGUN in the shop", gun: "shotgun", img: () => ICONS.shotgun },
+  { lv: 3, name: "MICRO SMG in the shop", gun: "smg", img: () => ICONS.smg },
+  { lv: 4, name: "BOLT-ACTION RIFLE in the shop", gun: "rifle", img: () => ICONS.rifle },
+  { lv: 5, name: "GRENADE LAUNCHER in the shop", gun: "gl", img: () => ICONS.gl },
+  { lv: 6, name: "Battle pass season 1 (coming soon)" },
+];
+const acctXp = () => save.acctXp || 0;
+function acctLevel(xp = acctXp()) { let lv = 1, need = 60, left = xp; while (left >= need) { left -= need; lv++; need = 60 + (lv - 1) * 40; } return { lv, into: left, need }; }
+const gunReq = (id) => ACCOUNT_UNLOCKS.find(u => u.gun === id)?.lv || 1;
+function addAcctXp(v) {
+  const before = acctLevel().lv; save.acctXp = acctXp() + v; const now = acctLevel();
+  if (now.lv > before) { const u = ACCOUNT_UNLOCKS.filter(x => x.lv > before && x.lv <= now.lv).map(x => x.name).join(" · "); showBanner(`LEVEL UP! LV ${now.lv}${u ? " · UNLOCKED: " + u : ""}`, 4); upgradeFx([[player.pos.x, player.pos.z]], player.pos.clone().setY(1.6), null, `LV ${now.lv}!`); renderHotbar(); }
+  renderAccount(document.getElementById("acctHud"));
+}
+function renderAccount(el, gained) {
+  const a = acctLevel();
+  el.innerHTML = `<b>LV ${a.lv}</b><div class="bar"><i style="width:${a.into / a.need * 100}%"></i></div><span>${a.into} / ${a.need} XP${gained !== undefined ? ` · +${gained} this run` : ""}</span>`;
+}
+
 /* ---------- Dev kit ---------- */
 const devBtn = document.getElementById("devBtn"), devPanel = document.getElementById("devPanel");
 function toggleDev() { devPanel.hidden = !devPanel.hidden; devBtn.setAttribute("aria-expanded", String(!devPanel.hidden)); renderSaveDump(); }
@@ -2224,6 +2418,8 @@ document.getElementById("btnResetYes").addEventListener("click", () => {
   saveLocked = true; wipeSave(); location.reload();   // fresh run: day 1, no builds, no XP, start position
 });
 document.getElementById("btnAmmo").addEventListener("click", () => { save.xp += 100; renderXp(); writeSave(); });
+document.getElementById("btnAcct").addEventListener("click", () => addAcctXp(200));
+document.getElementById("btnBoom").addEventListener("click", () => { if (!runOver) { tut.step = "done"; save.tut = 1; hurtBase(1e9); } });
 document.getElementById("btnXpBig").addEventListener("click", () => { save.xp += 1000000; renderXp(); writeSave(); });
 const perfEl = document.getElementById("perf");
 
@@ -2420,7 +2616,7 @@ function update(dt) {
   const facing = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
   updatePlayerAnim(pl, dt, spd, spd > 0.3 && player.vel.dot(facing) < -0.3 * spd);
   player.kick = Math.max(0, player.kick - dt * 10);
-  const rl = player.reloading > 0 ? Math.sin((1 - player.reloading / W().reload) * Math.PI) : 0;
+  const rl = player.reloading > 0 ? Math.sin((1 - player.reloading / reloadTime()) * Math.PI) : 0;
   // gun rides the animated chest (sway, bob, lean) in front of the body; sprint lowers it
   playerModel.updateMatrixWorld(true);
   const chestPos = playerModel.worldToLocal(pl.chest.getWorldPosition(new THREE.Vector3())).sub(pl.chestRestPos);
@@ -2452,12 +2648,12 @@ function update(dt) {
   updateParticles(dt);
   updateCycle(dt); updateEnemies(dt); updateSentries(dt); updateGrenades(dt); updateBooms(dt); updateShots(dt); updateGems(dt); updatePlayerHealth(dt); updateMenu(dt); updateTiles(); updateUpFx(dt);
 
-  const wantView = player.dead > 0 ? 5.5 : player.inside ? 5.2 : W().view || VIEW;
+  const wantView = runOver ? 9 : player.dead > 0 ? 5.5 : player.inside ? 5.2 : W().view || VIEW;
   if (Math.abs(curView - wantView) > 0.01) { curView += (wantView - curView) * (1 - Math.exp(-dt * 6)); camFrustum(); }
   // an open structure menu centres the camera on that structure; walking out of its radius closes it
   if (menuTarget && player.pos.distanceTo(menuFrom) > 7) closeMenu();
   const focus = menuTarget === "base" ? new THREE.Vector3(0, 0, SHACK_Z) : menuTarget ? new THREE.Vector3(menuTarget.x, 0, menuTarget.z) : null;
-  const camTarget = player.inside ? new THREE.Vector3(0, 0, SHACK_Z).lerp(player.pos, 0.35) : player.dead ? player.pos.clone() : focus || player.pos.clone(); camTarget.y = 0.8;
+  const camTarget = runOver ? new THREE.Vector3(0, 0, SHACK_Z) : player.inside ? new THREE.Vector3(0, 0, SHACK_Z).lerp(player.pos, 0.35) : player.dead ? player.pos.clone() : focus || player.pos.clone(); camTarget.y = 0.8;
   camera.position.lerp(camTarget.clone().add(CAM_OFFSET), 1 - Math.exp(-dt * 8));
   camera.lookAt(camera.position.clone().sub(CAM_OFFSET));
   if (shake > 0) { shake = Math.max(0, shake - dt); camera.position.add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.6)); }
@@ -2482,7 +2678,7 @@ function frame(now) {
   const tSec = now / 1000;
   if (viewerEl.hidden) {
     const t0 = performance.now();
-    if (!paused) { update(dt); scene.traverse(o => o.userData.tick?.(tSec)); }
+    if (!paused && !picking) { update(dt); scene.traverse(o => o.userData.tick?.(tSec)); }
     renderer.render(scene, camera);
     cpuMs += performance.now() - t0; frames++; perfTimer += (now - perfLast) / 1000; perfLast = now;
     if (perfTimer > 0.5) {
@@ -2516,12 +2712,15 @@ for (const [l] of interior?.userData.lights || []) shanty.add(l);
 applyBaseLevel(); buildBaseFootprint();
 for (const b of save.builds) if (b.t === "sentry" || b.t === "wall") addStruct(b.t, b.x, b.z, b.lv || 1, b.spent ?? (b.t === "sentry" ? 5 : 20), undefined, b.y || 0);
 makeGhosts(); startTutorial();
+cycle.day = save.day || 1; if (!save.ckpt?.[cycle.day]) takeCheckpoint(cycle.day);
+if (save.runKills0 === undefined) save.runKills0 = kills; if (save.acctRun0 === undefined) save.acctRun0 = acctXp();
+renderBaseHp(); renderAccount(document.getElementById("acctHud"));
 { // compile every shader up front so entering the base, building or hovering never hitches
   const show = [interior, ...Object.values(ghosts)].filter(Boolean), was = show.map(o => o.visible); show.forEach(o => o.visible = true);
   const hull = enemies[0]?.hulls || []; hull.forEach(h => h.visible = true);
   renderer.compile(scene, camera); show.forEach((o, i) => o.visible = was[i]); hull.forEach(h => h.visible = false);
 }
 renderHotbar(); renderXp();
-window.__game = { player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE };
+window.__game = { player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks, addAcctXp };
 requestAnimationFrame(frame);
 </script>
