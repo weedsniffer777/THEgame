@@ -192,6 +192,10 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #ovh.tired .wbar.st i { background: #9a7a2a; }
 /* ---- touch controls */
 #game canvas { touch-action: none; }
+/* phones: no text selection, callout menu, magnifier or grey tap flash from long presses anywhere */
+* { -webkit-tap-highlight-color: transparent; }
+body.mobile, body.mobile * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+body.mobile button, body.mobile .slot { touch-action: manipulation; }
 .stick { position: fixed; left: 0; top: 0; z-index: 3; width: 0; height: 0; pointer-events: none; }
 .stick::before { content: ""; position: absolute; left: -56px; top: -56px; width: 112px; height: 112px; border-radius: 50%; background: rgba(18, 20, 19, .35); box-shadow: inset 0 0 0 3px rgba(232, 226, 212, .35); }
 .stick i { position: absolute; left: -26px; top: -26px; width: 52px; height: 52px; border-radius: 50%; background: rgba(232, 226, 212, .55); box-shadow: 0 0 0 3px rgba(16, 18, 17, .5); }
@@ -2592,6 +2596,22 @@ function endTouch(e) {
   }
 }
 addEventListener("pointerup", endTouch); addEventListener("pointercancel", endTouch);
+// Buttons fire on their own touch's lift, so they work while another finger holds the stick (iOS drops the
+// synthetic click during multi-touch). Cancelling the touchend stops the browser's own click from doubling it.
+const taps = new Map();
+document.addEventListener("touchstart", (e) => {
+  for (const t of e.changedTouches) { const el = t.target; if (el === renderer.domElement || el.closest?.("input, select, textarea")) continue; taps.set(t.identifier, { el, x: t.clientX, y: t.clientY }); }
+}, { capture: true, passive: true });
+document.addEventListener("touchend", (e) => {
+  for (const t of e.changedTouches) {
+    const r = taps.get(t.identifier); if (!r) continue; taps.delete(t.identifier);
+    if (e.cancelable) e.preventDefault();
+    if (Math.hypot(t.clientX - r.x, t.clientY - r.y) < 24 && r.el.isConnected) r.el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, clientX: t.clientX, clientY: t.clientY }));   // a drag (scrolling a list) isn't a tap
+  }
+}, { capture: true, passive: false });
+document.addEventListener("touchcancel", (e) => { for (const t of e.changedTouches) taps.delete(t.identifier); }, { capture: true });
+document.addEventListener("contextmenu", (e) => { if (touch.on) e.preventDefault(); });
+document.addEventListener("selectstart", (e) => { if (touch.on) e.preventDefault(); });
 function clearPending() { touch.pending = null; mConfirm.hidden = true; }
 document.getElementById("mOk").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); if (touch.pending && holdingBuild()) tryPlace(); clearPending(); });
 document.getElementById("mNo").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); clearPending(); });
