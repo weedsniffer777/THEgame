@@ -1745,7 +1745,7 @@ const countOf = (id) => id === "sentry" ? sentries.length : id === "wall" ? wall
 const capOf = (id) => CAPS[id]?.[Math.min(save.base, 2)] ?? 0;
 const ICONS = {};
 const weaponSlots = document.getElementById("weaponSlots"), buildSlots = document.getElementById("buildSlots"), buildBar = document.getElementById("buildBar"), buildKey = document.getElementById("buildKey");
-let buildMode = false, buildSel = 0, ghost = null, ghostOk = false, carry = null;
+let buildMode = false, buildSel = 0, lastBuildSel = 0, ghost = null, ghostOk = false, carry = null;
 const ghostMat = new THREE.MeshBasicMaterial({ color: 0x7dff6e, transparent: true, opacity: 0.45, depthWrite: false });
 function slotHtml(i, item, icon, meta, metaNo, lock) {
   return `<div class="slot${lock ? " locked" : ""}" data-i="${i}"><span class="k">${i + 1}</span>${lock ? `<span class="lock">LOCKED<br>${lock === true ? "" : lock}</span>` : icon ? `<img alt="" src="${icon}">` : ""}${meta ? `<span class="meta${metaNo ? " no" : ""}">${meta}</span>` : ""}<span class="nm">${item.name}</span></div>`;
@@ -1766,7 +1766,7 @@ function selectSlot(i) {
   if (buildMode) {
     if (i >= BUILDS.length) return; if (lockOf(BUILDS[i])) { deny(buildSlots.children[i]); return; }
     if (carry) cancelCarry();
-    buildSel = buildSel === i ? -1 : i; showGhost(); renderBuildBar();   // pressing the active key again empties your hand
+    buildSel = buildSel === i ? -1 : i; if (buildSel >= 0) lastBuildSel = buildSel; showGhost(); renderBuildBar();   // pressing the active key again empties your hand
   } else { if (i >= SLOT_IDS.length) return; if (!owns(SLOT_IDS[i])) { deny(weaponSlots.children[i]); return; } equip(SLOT_IDS[i]); }
 }
 const ghosts = {};
@@ -1786,7 +1786,7 @@ function setBuildMode(on) {
   if (on && (player.inside || player.dead)) return;
   if (!on && carry) cancelCarry();
   if (!on && buildMode) closeMenu();
-  if (on && !buildMode && !carry) buildSel = tut.step === "done" ? -1 : 0;   // after the tutorial, build mode opens with an empty cursor
+  if (on && !buildMode && !carry) buildSel = lastBuildSel;   // build mode opens on the last build you picked
   buildMode = on; mouseDown = false;
   if (on && buildSel >= 0 && lockOf(BUILDS[buildSel])) buildSel = -1;
   showGhost(); renderBuildBar();
