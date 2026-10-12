@@ -812,6 +812,11 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
     return;
   }
   mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  if (e.button === 0 && !player.dead) {   // click a structure or the base for its menu; otherwise shoot
+    const pick = hovered?.kind ? hovered : baseHover && !player.inside ? "base" : null;
+    if (pick) { openMenu(pick); return; }
+    if (menuTarget) { closeMenu(); return; }
+  }
   if (e.button === 0) { mouseDown = true; firedThisPress = false; } mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 addEventListener("pointerup", () => { mouseDown = false; });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -1767,7 +1772,7 @@ function showGhost() { const id = carry ? carry.s.kind : buildSel >= 0 ? BUILDS[
 function setBuildMode(on) {
   if (on && (player.inside || player.dead)) return;
   if (!on && carry) cancelCarry();
-  if (!on) closeMenu();
+  if (!on && buildMode) closeMenu();
   if (on && !buildMode && !carry) buildSel = tut.step === "done" ? -1 : 0;   // after the tutorial, build mode opens with an empty cursor
   buildMode = on; mouseDown = false;
   if (on && buildSel >= 0 && lockOf(BUILDS[buildSel])) buildSel = -1;
@@ -1922,9 +1927,9 @@ function placeMenu() {
 }
 const hoverTip = document.getElementById("hoverTip");
 function updateHoverTip() {
-  const t = !buildMode && !player.inside && !player.dead ? (hovered?.kind ? hovered : baseHover ? "base" : null) : null;
+  const t = !buildMode && !menuTarget && !player.inside && !player.dead ? (hovered?.kind ? hovered : baseHover ? "base" : null) : null;
   hoverTip.hidden = !t; if (!t) return;
-  if (t === "base") hoverTip.innerHTML = `<b>BASE</b> <span>LV ${save.base}</span><small>Press B, then click it to manage</small>`;
+  if (t === "base") hoverTip.innerHTML = `<b>BASE</b> <span>LV ${save.base}</span><small>Click to manage</small>`;
   else { const max = STRUCT[t.kind].hp[t.level]; hoverTip.innerHTML = `<b>${STRUCT[t.kind].name}</b> <span>LV ${t.level}</span><div class="bar"><i style="width:${Math.max(0, t.hp / max) * 100}%"></i></div><small>${Math.ceil(t.hp)}/${max} HP</small>`; }
   const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, (t.y || 0) + (t.kind === "wall" ? 1.2 : 1.8), t.z);
   const [x, y] = toScreen(at); hoverTip.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
