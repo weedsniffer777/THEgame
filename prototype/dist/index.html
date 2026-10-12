@@ -253,7 +253,7 @@ body.mobile #leaveBtn { font-size: 12px; padding: 7px 10px; bottom: 8px; left: 8
 body.mobile .card { width: 120px; min-height: 150px; padding: 8px 6px; gap: 5px; } body.mobile .card .ic { width: 40px; height: 40px; font-size: 22px; } body.mobile .card b { font-size: 11px; } body.mobile .card small { font-size: 10px; } body.mobile #cards h2 { font-size: 18px; }
 body.mobile #mConfirm button { width: 42px; height: 42px; font-size: 20px; }
 body.mobile .stick::before { left: -46px; top: -46px; width: 92px; height: 92px; } body.mobile .stick i { left: -21px; top: -21px; width: 42px; height: 42px; }
-body.mobile #reticle, body.mobile #perfHud, body.mobile #devBtn, body.mobile #pause .keys { display: none !important; }
+body.mobile #reticle, body.mobile #devBtn, body.mobile #pause .keys { display: none !important; }
 body.mobile .slot { cursor: default; } body.mobile #doorPrompt b { display: none; }
 /* ---- compact HUD for phones and small windows */
 @media (max-width: 860px), (max-height: 540px) {
@@ -280,6 +280,7 @@ body.mobile .slot { cursor: default; } body.mobile #doorPrompt b { display: none
 @media (prefers-reduced-motion: reduce) { #doorMarker .bob { animation: none; } }
 #perfHud { left: 18px; top: calc(14px + env(safe-area-inset-top, 0px)); padding: 4px 8px; font-size: 12px; letter-spacing: .08em; color: #9d978a; font-variant-numeric: tabular-nums; white-space: nowrap; }
 #perfHud b { color: #e8e2d4; font-weight: 400; }
+body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)); padding: 2px 5px; font-size: 9px; letter-spacing: .04em; }
 #doorPrompt { left: 0; top: 0; padding: 4px 8px; font-size: 13px; letter-spacing: .12em; white-space: nowrap; }
 #doorPrompt b { color: #c9873f; font-weight: 600; margin-right: 4px; }
 #ammoHud .status { font-size: 12px; letter-spacing: .12em; color: #c9873f; height: 14px; }
