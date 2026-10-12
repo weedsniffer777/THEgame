@@ -194,7 +194,7 @@ body.def #game { cursor: default; }
 #xpWrap.bump .xbar { box-shadow: 0 0 0 2px #8cc8ff; }
 #xpLv { font-size: 15px; letter-spacing: .1em; color: #8cc8ff; text-shadow: 0 2px 0 #000; min-width: 48px; }
 #defTop { left: 50%; top: calc(30px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: grid; justify-items: center; gap: 4px; }
-#defTimer { font-size: 34px; letter-spacing: .08em; color: #f2ede0; text-shadow: 0 3px 0 #000, 0 0 12px rgba(0,0,0,.5); font-variant-numeric: tabular-nums; }
+#defTimer { font-size: 30px; letter-spacing: .08em; color: #f2ede0; text-shadow: 0 3px 0 #000, 0 0 12px rgba(0,0,0,.5); font-variant-numeric: tabular-nums; }
 #defTimer.final { color: #9fb4ff; }
 #defPhase { font-size: 12px; letter-spacing: .16em; color: #e0b04a; text-shadow: 0 2px 0 #000; } #defPhase.night { color: #9fb4ff; }
 #defTop .brow { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .14em; color: #c9c3b4; text-shadow: 0 2px 0 #000; }
@@ -216,6 +216,7 @@ body.def #game { cursor: default; }
 .orb { position: absolute; left: 0; top: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #9fd2ff; transform: rotate(45deg); box-shadow: 0 0 8px 3px rgba(60, 150, 255, .8); will-change: transform; }
 .orb.gold { background: #ffd23a; box-shadow: 0 0 8px 3px rgba(255, 200, 60, .8); }
 .orb.big { width: 14px; height: 14px; margin: -7px 0 0 -7px; }
+#marq { left: 0; top: 0; z-index: 4; border: 2px dashed #e0b04a; background: rgba(224, 176, 74, .12); }
 .ptr.front .lbl { background: #ff4a3a; color: #fff; } .ptr.front .arr { border-top-color: #ff4a3a; }
 body.def #banner { top: calc(104px + env(safe-area-inset-top, 0px)); } body.def.mobile #banner { top: calc(84px + env(safe-area-inset-top, 0px)); }
 .card.rar { --rc: #c9c3b4; box-shadow: 0 0 0 3px var(--rc), 0 0 0 5px #101211, 0 8px 0 #101211; }
@@ -329,7 +330,7 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
 
 <div class="hud" id="barLayer"></div>
 <div class="hud px" id="xpWrap"><span id="xpLv">LV 1</span><div class="xbar"><i id="xpFill"></i></div></div>
-<div class="hud px" id="defTop"><div id="defPhase">DAY 1 · NIGHT IN</div><div id="defTimer">0:30</div><div class="brow"><span>BASE</span><div class="bbar"><i id="defBase"></i></div><span id="defBaseNum">1000</span></div></div>
+<div class="hud px" id="defTop"><div id="defTimer">DAY 1 / 5</div><div id="defPhase">NIGHT IN 0:30</div><div class="brow"><span>BASE</span><div class="bbar"><i id="defBase"></i></div><span id="defBaseNum">1000</span></div></div>
 <div class="hud px" id="tray"><div class="pxbox" id="bank"><span class="coin"></span><span id="bankNum">0</span></div><div id="trayCards" style="display:flex;gap:10px"></div></div>
 <div class="hud" id="orbLayer"></div>
 <div class="hud" id="ovh"><div class="wbar own"><i id="ovhHp"></i></div><div class="wbar st"><i id="ovhSt"></i></div></div>
@@ -784,7 +785,7 @@ groundMat.onBeforeCompile = (sh) => {
   sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\n" + GROUND_GLSL)
     .replace("#include <map_fragment>", "diffuseColor.rgb = groundColor(vGroundPos.xz) * (0.82 + 0.36 * texture2D(grainMap, vGroundPos.xz * 0.5).r);");
 };
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200).rotateX(-Math.PI / 2), groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800).rotateX(-Math.PI / 2), groundMat);
 ground.receiveShadow = true; ground.name = "ground"; ground.renderOrder = -10; scene.add(ground); // drawn first so outline rims survive
 // 2 x 2 m build grid over the arena, faint
 const grid = new THREE.GridHelper(ARENA, ARENA / 2, 0x2a2618, 0x2a2618); grid.material.transparent = true; grid.material.opacity = 0.16; grid.material.depthWrite = false; grid.position.y = 0.01; grid.renderOrder = -9; scene.add(grid);
@@ -2284,7 +2285,7 @@ function renderMenu() {
     const hp = L.reduce((a, o) => a + o.hp, 0), max = L.reduce((a, o) => a + D.hp[o.level], 0);
     smTitle.textContent = `${L.length} × ${D.name}`; smLv.textContent = `LV ${Math.min(...L.map(o => o.level))}–${Math.max(...L.map(o => o.level))}`.replace(/LV (\d+)–\1$/, "LV $1");
     smHpRow.hidden = false; smHp.style.width = `${hp / max * 100}%`; smHpT.textContent = `${Math.ceil(hp)}/${max}`;
-    smInfo.innerHTML = "Selected together · right-drag to pick a different batch";
+    smInfo.innerHTML = "Selected together · right-drag a box to pick another batch";
     smUp.hidden = false; smUp.textContent = up.length ? `UPGRADE ${up.length} · ${upCost} SCRAP` : "ALL MAX LEVEL"; smUp.disabled = !up.length || save.xp < Math.min(...up.map(o => D.up[o.level]));
     smMove.hidden = false; smMove.textContent = `PICK UP ${free.length}`; smMove.disabled = !free.length;
     smSell.hidden = false; smSell.textContent = `SELL ${free.length} +${free.reduce((a, o) => a + Math.floor(o.spent / 2), 0)} SCRAP`; smSell.disabled = !free.length;
@@ -3112,13 +3113,21 @@ const xpNeed = (l) => 5 + 3 * l + Math.floor(l * l * 0.5);
 let ptrDown = null, trayDrag = null, paint = null, brush = null;
 function paintStep() {   // keep placing under the cursor while the right button is held
   updateGhost(); if (!ghost?.visible || !ghostOk) return;
-  const key = `${ghost.position.x},${ghost.position.y},${ghost.position.z}`; if (key === paint.last) return;
-  if (defPlace(true)) paint.last = key;
+  const key = `${ghost.position.x},${ghost.position.z}`; if (paint.done.has(key)) return;   // one build per spot per press: no endless stacking
+  if (defPlace(true)) paint.done.add(key);
 }
-function brushStep() {   // sweep over towers: every one of the first one's kind joins the selection
-  updateHover(); const s = hovered?.kind ? hovered : null; if (!s) return;
-  if (!brush.kind) brush.kind = s.kind;
-  if (s.kind === brush.kind && !brush.list.includes(s)) { brush.list.push(s); showHulls(s, true); }
+// right-drag a box (like a marquee select): every tower inside it of one kind is picked, the kind being the one
+// you started the box on, else whichever kind is most common inside
+const marq = Object.assign(document.createElement("div"), { className: "hud", id: "marq", hidden: true }); document.body.appendChild(marq);
+function brushStep() {
+  const x0 = Math.min(brush.x0, brush.x1), x1 = Math.max(brush.x0, brush.x1), y0 = Math.min(brush.y0, brush.y1), y1 = Math.max(brush.y0, brush.y1);
+  marq.hidden = x1 - x0 < 6 && y1 - y0 < 6; Object.assign(marq.style, { left: `${x0}px`, top: `${y0}px`, width: `${x1 - x0}px`, height: `${y1 - y0}px` });
+  const inside = structs().filter(s => { const [sx, sy] = toScreen(new THREE.Vector3(s.x, (s.y || 0) + 0.8, s.z)); return sx >= x0 && sx <= x1 && sy >= y0 && sy <= y1; });
+  let kind = brush.kind; if (!kind && inside.length) { const n = {}; for (const s of inside) n[s.kind] = (n[s.kind] || 0) + 1; kind = Object.keys(n).sort((a, b) => n[b] - n[a])[0]; }
+  const list = inside.filter(s => s.kind === kind);
+  for (const s of brush.list) if (!list.includes(s)) showHulls(s, false);
+  for (const s of list) showHulls(s, true);
+  brush.list = list;
 }
 const camPan = new THREE.Vector3(), PAN_MAX = 16;   // drag empty ground to look around
 let camZoom = 1; const touchPts = new Map(); let pinch = null;   // wheel / pinch zoom (0.6x to 1.5x of the default view)
@@ -3168,7 +3177,7 @@ const cv = renderer.domElement;
 addEventListener("pointermove", (e) => {
   if (!DEF) return;
   if (paint?.id === e.pointerId) { setMouse(e); ptrOn = true; refreshAim(); paintStep(); return; }
-  if (brush?.id === e.pointerId) { setMouse(e); ptrOn = true; refreshAim(); brushStep(); return; }
+  if (brush?.id === e.pointerId) { brush.x1 = e.clientX; brush.y1 = e.clientY; brushStep(); return; }
   if (touchPts.has(e.pointerId)) { touchPts.set(e.pointerId, [e.clientX, e.clientY]); if (pinch && touchPts.size >= 2) { const [a, b] = [...touchPts.values()]; setZoom(pinch.z * pinch.d / (Math.hypot(a[0] - b[0], a[1] - b[1]) || 1)); return; } }
   if (e.pointerType !== "touch") { setMouse(e); ptrOn = e.target === cv || !!trayDrag; }
   else if (ptrDown?.id === e.pointerId || trayDrag?.id === e.pointerId) { setMouse(e); ptrOn = document.elementFromPoint(e.clientX, e.clientY) === cv; }
@@ -3189,9 +3198,9 @@ cv.addEventListener("pointerdown", (e) => {
   if (e.button === 2) {
     setMouse(e); ptrOn = true; refreshAim();
     if (carry) { cancelCarryDef(); return; }
-    if (buildMode && buildSel >= 0) { paint = { id: e.pointerId, last: "" }; paintStep(); return; }
+    if (buildMode && buildSel >= 0) { paint = { id: e.pointerId, done: new Set() }; paintStep(); return; }
     closeMenu(); raycaster.setFromCamera(mouse, camera); updateHover();
-    brush = { id: e.pointerId, kind: hovered?.kind || null, list: [] }; brushStep(); return;
+    brush = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY, kind: hovered?.kind || null, list: [] }; brushStep(); return;
   }
   setMouse(e); ptrOn = true; raycaster.setFromCamera(mouse, camera); raycaster.ray.intersectPlane(floorPlane, aimPoint); updateHover();
   ptrDown = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), s: !buildMode && hovered?.kind ? hovered : null, moved: false };
@@ -3200,7 +3209,7 @@ cv.addEventListener("pointerdown", (e) => {
 addEventListener("pointerup", (e) => {
   if (!DEF) return;
   if (paint?.id === e.pointerId) { paint = null; setBuild(-1); return; }
-  if (brush?.id === e.pointerId) { const b = brush; brush = null; if (b.list.length === 1) openMenu(b.list[0]); else if (b.list.length > 1) openMenu({ group: true, kind: b.kind, list: b.list }); return; }
+  if (brush?.id === e.pointerId) { const b = brush; brush = null; marq.hidden = true; if (b.list.length === 1) openMenu(b.list[0]); else if (b.list.length > 1) openMenu({ group: true, kind: b.kind, list: b.list }); return; }
   touchPts.delete(e.pointerId); if (touchPts.size < 2) pinch = null;
   if (trayDrag?.id === e.pointerId) {
     const d = trayDrag; trayDrag = null;
@@ -3376,7 +3385,7 @@ function updateFronts() {
 
 // ---- run flow
 function defReset() {
-  paint = brush = null; ptrDown = trayDrag = null; carry = null; closeMenu();
+  paint = brush = null; marq.hidden = true; ptrDown = trayDrag = null; carry = null; closeMenu();
   for (const b of booms) { scene.remove(b.grp); scene.remove(b.scorch); b.puffs.forEach(p => p.m.material.dispose()); } booms.length = 0;
   for (const q of particles) { scene.remove(q.obj); if (q.sprite) q.obj.material.dispose(); } particles.length = 0;
   for (const t of tracers) scene.remove(t.line); tracers.length = 0;
@@ -3476,8 +3485,8 @@ function defUpdate(rdt) {
   camera.updateMatrixWorld();
   defLight(nightKAt(run.t) * 0.9);
   // HUD
-  const ph = phaseOf(Math.min(run.t, RUN_LEN - 0.01)); defTimer.textContent = fmtT(Math.ceil(ph.left)); defTimer.classList.toggle("final", ph.night && run.started);
-  defPhase.textContent = ph.night ? `NIGHT ${ph.n} OF ${NIGHTS} · DAWN IN` : `DAY ${ph.n} · NIGHT IN`; defPhase.classList.toggle("night", ph.night);
+  const ph = phaseOf(Math.min(run.t, RUN_LEN - 0.01)); defTimer.textContent = `${ph.night ? "NIGHT" : "DAY"} ${ph.n} / ${NIGHTS}`; defTimer.classList.toggle("final", ph.night && run.started);
+  defPhase.textContent = `${ph.night ? (ph.n === NIGHTS ? "VICTORY" : "DAY") : "NIGHT"} IN ${fmtT(Math.ceil(ph.left))}`; defPhase.classList.toggle("night", ph.night);
   xpFill.style.width = `${run.xp / xpNeed(run.lvl) * 100}%`; xpLv.textContent = `LV ${run.lvl}`;
   xpBumpT -= rdt; xpWrap.classList.toggle("bump", xpBumpT > 0); bankBumpT -= rdt; bankEl.classList.toggle("bump", bankBumpT > 0);
   trayT -= rdt; if (trayT <= 0) { trayT = 0.25; renderTrayState(); }
