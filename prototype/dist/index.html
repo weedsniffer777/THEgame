@@ -1297,7 +1297,7 @@ function spawnEnemy(type, px, pz, slow) {
   const T = ENEMY_TYPES[type], e = enemyPools[type].pop() || makeEnemy(type);
   const night = cycle.t >= DAY_LEN, d = cycle.day - 1, hp = Math.round(T.hp * (type === "walker" ? 1 + (hpMul() - 1) * 0.5 : hpMul()) * (night ? (DEF ? 1.2 : 1.4) : 1));   // night enemies are tougher and faster
   Object.assign(e, { pos: new THREE.Vector3(x, 0, z), vel: new THREE.Vector3(), yaw: Math.atan2(-x, -z), hp, maxHp: hp, dmg: T.dmg * dmgMul() * (night ? 1.15 : 1), dead: false, deadT: 0, flash: 0, atk: 0, lunge: 0, bar: null,
-    speed: slow ? 1.3 : (T.speed[0] + Math.random() * (T.speed[1] - T.speed[0]) + d * 0.06) * (night ? 1.2 : 1), seed: Math.random() * 10, hit: false, wallT: null, aggro: null, fuse: 0, coil: 0, seenT: -1, mark: null, quiet: false });
+    speed: slow ? 1.3 : (T.speed[0] + Math.random() * (T.speed[1] - T.speed[0]) + d * 0.06) * (night ? 1.2 : 1), seed: Math.random() * 10, hit: false, wallT: null, aggro: null, fuse: 0, coil: 0, seenT: -1, mark: null, quiet: false, raider: type !== "bomber" && Math.random() < 0.35, hitAt: -99, inMelee: false });
   if (T.bomber) { e.mark = document.createElement("div"); e.mark.className = "bang"; e.mark.textContent = "!"; barLayer.appendChild(e.mark); }
   e.model.rotation.set(0, e.yaw, 0, "YXZ"); e.model.position.copy(e.pos); e.model.scale.setScalar(T.scale || 1); e.model.visible = true;
   e.walk.time = Math.random() * e.walk.getClip().duration; showHulls(e, false); for (const s of e.sils) s.visible = true;
@@ -1482,7 +1482,7 @@ function updateEnemies(dt) {
     const pd = hidden ? Infinity : Math.hypot(player.pos.x - e.pos.x, player.pos.z - e.pos.z);
     if (e.aggro && (e.aggro === BASE_T ? pd < 3.5 || runOver : !structs().includes(e.aggro) || e.aggro.y > 0 || pd < 3.5)) e.aggro = null;
     if (!e.aggro && pd > 4 && !runOver) {
-      let best = T.bomber ? 10 : 7;
+      let best = e.raider ? 22 : T.bomber ? 10 : 7;   // raiders go for your structures, not the base
       for (const s of structs()) { if (s.y > 0) continue; const dd = Math.hypot(s.x - e.pos.x, s.z - e.pos.z); if (dd < best) { best = dd; e.aggro = s; } }
       if (baseDist(e.pos)[0] < best || (hidden && !e.aggro)) e.aggro = BASE_T;   // the base itself is fair game, and the only target while you hide in it
     }
@@ -1512,14 +1512,17 @@ function updateEnemies(dt) {
       if (e.fuse > 0 || wallHit || (reach && tdist < reach)) e.fuse += dt;
       if (e.fuse > 0.9) { e.quiet = true; explode(e.pos.clone().setY(0.9), 3.2, e.dmg, { player: true, structures: true }); killEnemy(e, new THREE.Vector3(0, 0, 1), 0, true); e.quiet = true; continue; }
     } else if (wallHit || (reach && tdist < reach)) {   // melee: wind up, then swipe if still in reach
+      e.inMelee = true;
       if (e.atk <= 0) e.atk = 0.45; e.atk -= dt;
-      if (e.atk <= 0) { e.lunge = 0.25; e.atk = 1.1; const sd = (T.sdmg || 15) * dmgMul(); if (wallHit) hitStruct(e.wallT, sd); else if (tgt === BASE_T) hurtBase(DEF ? sd * 0.3 : sd); else if (tgt) hitStruct(tgt, sd); else if (tdist < reach + 0.3) hurtPlayer(Math.round(e.dmg)); }
-    } else e.atk = 0;
+      if (e.atk <= 0) { e.lunge = 0.25; e.atk = 1.1; e.hitAt = run.t; const sd = (T.sdmg || 15) * dmgMul(); if (wallHit) hitStruct(e.wallT, sd); else if (tgt === BASE_T) hurtBase(DEF ? sd * 0.3 : sd); else if (tgt) hitStruct(tgt, sd); else if (tdist < reach + 0.3) hurtPlayer(Math.round(e.dmg)); }
+    } else { e.atk = 0; e.inMelee = false; }
     e.lunge = Math.max(0, e.lunge - dt); e.flash = Math.max(0, e.flash - dt);
+    // attack animation: arms come up and the body leans back on the wind-up, then a forward lunge and downward swipe
+    const wind = !T.bomber && e.inMelee && e.atk > 0 && e.atk < 0.4 ? 1 - e.atk / 0.4 : 0, sw = e.lunge > 0 ? Math.sin(e.lunge / 0.25 * Math.PI) : 0;
     const spd = e.vel.length(), wk = THREE.MathUtils.clamp(spd / 1.2, 0, 1);
     e.walk.setEffectiveWeight(wk); e.idle.setEffectiveWeight(1 - wk); e.walk.timeScale = THREE.MathUtils.clamp(spd / T.clipSpeed, 0.6, 1.8);
     e.mixer.update(dt);
-    e.model.position.copy(e.pos); e.model.rotation.set(0, e.yaw, 0, "YXZ");
+    e.model.position.copy(e.pos).add(new THREE.Vector3(Math.sin(e.yaw), 0, Math.cos(e.yaw)).multiplyScalar(sw * 0.18)); e.model.rotation.set(sw * 0.32 - wind * 0.14, e.yaw, 0, "YXZ");
     if (e.flash > 0) e.mat.emissive.copy(HIT_GLOW).multiplyScalar(1.6 * e.flash / 0.12 + 0.4);
     else if (T.bomber) {   // slow yellow pulse that speeds up as it closes in
       const near = 1 - THREE.MathUtils.clamp((tdist - reach) / 10, 0, 1), hz = e.fuse > 0 ? 12 : 0.9 + near * 5;
@@ -1534,12 +1537,12 @@ function updateEnemies(dt) {
       e.mark.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -100%) scale(${big ? 1.6 + Math.sin(now * 10) * 0.15 : 0.9})`; e.mark.hidden = !vis;
     }
     // walkers reach out for their target
-    if (T.arms && onCam) {
+    if (onCam && !T.bomber && (T.arms || wind || sw)) {   // walkers always reach; everyone swings when attacking
       e.model.updateMatrixWorld(true);
       const c = e.chest.getWorldPosition(new THREE.Vector3()), f = new THREE.Vector3(Math.sin(e.yaw), 0, Math.cos(e.yaw)), l = new THREE.Vector3(Math.cos(e.yaw), 0, -Math.sin(e.yaw));
-      const reachA = 0.48 + Math.sin(e.lunge / 0.25 * Math.PI) * 0.2, bob = Math.sin(now * 3.3 + e.seed) * 0.04;
+      const reachA = (T.arms ? 0.48 : 0.3) - wind * 0.3 + sw * 0.32, bob = Math.sin(now * 3.3 + e.seed) * 0.04, up = -0.04 + wind * 0.6 - sw * 0.3;
       for (const [s, sg] of [["r", -1], ["l", 1]]) {
-        const tg = c.clone().addScaledVector(f, reachA).addScaledVector(l, sg * 0.17).add(new THREE.Vector3(0, -0.04 + bob * sg, 0));
+        const tg = c.clone().addScaledVector(f, reachA).addScaledVector(l, sg * (0.17 + wind * 0.08)).add(new THREE.Vector3(0, up + bob * sg * (1 - wind), 0));
         armIK(e.arms[s], tg, c.clone().addScaledVector(l, sg * 0.5).add(new THREE.Vector3(0, -0.5, 0)), f);
       }
     }
@@ -2001,8 +2004,8 @@ function spawnTracer(from, to, scale = 1, fade = false) {
   }
   scene.add(line); tracers.push({ line, life: 0.1 });
 }
-// Turret targeting (within range and sight): anything inside CLOSE_R that's a bomber or runner, then anything
-// else inside CLOSE_R, then bombers, then runners further out, then the nearest
+// Turret targeting (within range and sight): anything inside CLOSE_R first, then enemies that are hitting
+// something right now, then bombers, then runners, then the nearest
 const TARGET_PRIO = { bomber: 2, runner: 1 }, CLOSE_R = 4;
 // distance along a turret's line of fire to the first wall or other turret in the way (Infinity if none).
 // A turret up on a wall fires over ground-level walls and turrets; a structure with shootThrough never blocks.
@@ -2017,7 +2020,7 @@ function pickTarget(t, range, minR = 0) {
   for (const e of enemies) {
     if (e.dead) continue; const dx = e.pos.x - t.x, dz = e.pos.z - t.z, d = Math.hypot(dx, dz);
     if (d >= range || d <= minR) continue;
-    const sc = d - (TARGET_PRIO[e.type] || 0) * 1000 - (d < CLOSE_R ? 3000 : 0); if (sc < bs && losClear(t.x, t.z, dx / d, dz / d, d) && structHitD(t.x, t.z, dx / d, dz / d, d, t) === Infinity) { bs = sc; best = e; }
+    const sc = d - (TARGET_PRIO[e.type] || 0) * 1000 - (d < CLOSE_R ? 3000 : 0) - (run.t - e.hitAt < 2 ? 2500 : 0); if (sc < bs && losClear(t.x, t.z, dx / d, dz / d, d) && structHitD(t.x, t.z, dx / d, dz / d, d, t) === Infinity) { bs = sc; best = e; }
   }
   return best;
 }
@@ -2113,13 +2116,13 @@ function makeGhosts() {
   const s = tint(makeSentryModel().g); s.scale.setScalar(1.35);
   const ring = new THREE.Mesh(new THREE.RingGeometry(SENTRY.range - 0.06, SENTRY.range + 0.06, 128).rotateX(-Math.PI / 2), cellM()); ring.material.opacity = 0.3; ring.position.y = 0.03; ring.scale.setScalar(1 / 1.35); s.add(ring);
   const c1 = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9).rotateX(-Math.PI / 2), cellM()); c1.position.y = 0.025; c1.scale.setScalar(1 / 1.35); s.add(c1);
-  s.userData.marks = [ring, c1];
+  s.userData.marks = [ring, c1]; ring.visible = false;
   const w = tint(new THREE.Group()); const wb = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2).translate(0, 1, 0), ghostMat); w.add(wb);
   const c2 = new THREE.Mesh(new THREE.PlaneGeometry(1.96, 1.96).rotateX(-Math.PI / 2), cellM()); c2.position.y = 0.025; w.add(c2); w.userData.marks = [c2];
   const rk = tint(makeRocketModel().g); rk.scale.setScalar(1.35);
   const ring2 = new THREE.Mesh(new THREE.RingGeometry(ROCKET.range - 0.06, ROCKET.range + 0.06, 128).rotateX(-Math.PI / 2), cellM()); ring2.material.opacity = 0.3; ring2.position.y = 0.03; ring2.scale.setScalar(1 / 1.35); rk.add(ring2);
   const c3 = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9).rotateX(-Math.PI / 2), cellM()); c3.position.y = 0.025; c3.scale.setScalar(1 / 1.35); rk.add(c3);
-  rk.userData.marks = [ring2, c3];
+  rk.userData.marks = [ring2, c3]; ring2.visible = false;
   for (const [k, g] of [["sentry", s], ["wall", w], ["rocket", rk]]) { g.visible = false; scene.add(g); ghosts[k] = g; }
 }
 function showGhost() { const id = carry ? carry.s.kind : buildSel >= 0 ? BUILDS[buildSel].id : null; for (const k in ghosts) ghosts[k].visible = buildMode && k === id; ghost = buildMode && id ? ghosts[id] : null; }
@@ -2182,9 +2185,33 @@ const cellsOf = (s) => [[s.x - 0.5, s.z - 0.5], [s.x + 0.5, s.z - 0.5], [s.x - 0
 const rangeRing = new THREE.Mesh(new THREE.RingGeometry(0.985, 1, 128).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7dff6e, transparent: true, opacity: 0.5, depthWrite: false }));
 const rangeFill = new THREE.Mesh(new THREE.CircleGeometry(1, 96).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7dff6e, transparent: true, opacity: 0.06, depthWrite: false }));
 rangeRing.add(rangeFill); rangeRing.renderOrder = -8; rangeFill.renderOrder = -8; rangeRing.visible = false; scene.add(rangeRing);
+// Firing area: rays out to the turret's range, each cut short by whatever blocks its fire (the base, trees, our
+// walls and other turrets), drawn as a filled fan with an outline, so blind spots show as notches.
+const FIRE_N = 120, fireFill = new THREE.Mesh(new THREE.BufferGeometry(), rangeFill.material), fireLine = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x7dff6e, transparent: true, opacity: 0.85, depthWrite: false }));
+{ const idx = []; for (let i = 0; i < FIRE_N; i++) idx.push(0, i + 1, ((i + 1) % FIRE_N) + 1); fireFill.geometry.setIndex(idx);
+  fireFill.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array((FIRE_N + 1) * 3), 3)); fireLine.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(FIRE_N * 3), 3)); }
+const fireArea = new THREE.Group(); fireArea.add(fireFill, fireLine); fireArea.visible = false; fireArea.renderOrder = fireFill.renderOrder = fireLine.renderOrder = -8; fireFill.frustumCulled = fireLine.frustumCulled = false; scene.add(fireArea);
+let fireKey = "", fireT = 0;
+function showFireArea(x, z, y, range, self) {
+  fireArea.visible = true; fireArea.position.set(x, 0.035, z);
+  const key = `${x},${z},${y},${range},${structs().length}`; if (key === fireKey && (fireT -= 1 / 60) > 0) return; fireKey = key; fireT = 0.4;
+  const fp = fireFill.geometry.attributes.position, lp = fireLine.geometry.attributes.position, me = { x, z, y, kind: self?.kind };
+  for (let i = 0; i < FIRE_N; i++) {
+    const a = i / FIRE_N * Math.PI * 2, dx = Math.sin(a), dz = Math.cos(a); let d = range;
+    for (const bx of boxColliders) { const t = rayBox(x, z, dx, dz, bx); if (t !== null && t < d) d = t; }
+    for (const c of treeColliders) { const t = rayCircle(x, z, dx, dz, c.x, c.z, c.r); if (t !== null && t < d) d = t; }
+    d = Math.min(d, structHitD(x, z, dx, dz, d, self || me));
+    fp.setXYZ(i + 1, dx * d, 0, dz * d); lp.setXYZ(i, dx * d, 0, dz * d);
+  }
+  fp.setXYZ(0, 0, 0, 0); fp.needsUpdate = lp.needsUpdate = true; fireFill.geometry.computeBoundingSphere();
+}
 function updateTiles() {
   const isT = (o) => o?.kind && !o.group && o.kind !== "wall", rt = isT(menuTarget) ? menuTarget : isT(hovered) ? hovered : null;
-  rangeRing.visible = !!rt && !buildMode; if (rt) { rangeRing.position.set(rt.x, 0.03, rt.z); rangeRing.scale.setScalar(sentryRange(rt)); }
+  rangeRing.visible = false;
+  const gk = buildMode && ghost?.visible ? (carry ? carry.s.kind : BUILDS[buildSel]?.id) : null;
+  if (gk && gk !== "wall") { const gy = ghost.userData.y || 0; showFireArea(ghost.position.x, ghost.position.z, gy, (gk === "rocket" ? ROCKET.range : SENTRY.range) + (gy ? 3 : 0) + 2 * card("srange") + MOD("range"), carry?.s ? Object.assign(Object.create(carry.s), { y: gy }) : null); }
+  else if (rt && !buildMode) showFireArea(rt.x, rt.z, rt.y || 0, sentryRange(rt), rt);
+  else fireArea.visible = false;
   let n = 0; const put = (x, z, c) => { if (n >= 1500) return; _tm.makeTranslation(x, 0.022, z); tileMesh.setMatrixAt(n, _tm); tileMesh.setColorAt(n, c); n++; };
   if (buildMode) {
     const fc = DEF ? BC.clone().add(camPan) : player.pos;   // around what you're looking at
