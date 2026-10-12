@@ -30,7 +30,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #game canvas { display: block; }
 .hud { position: fixed; pointer-events: none; z-index: 2; }
 /* Pixel HUD: hard edges, stepped borders, bone-white text on charcoal, rust accent. */
-.px { font-family: "Pixelify Sans", "Courier New", monospace; -webkit-font-smoothing: none; font-smooth: never; image-rendering: pixelated; }
+.px { font-family: "Chakra Petch", "Trebuchet MS", sans-serif; font-weight: 600; }
 .pxbox { background: rgba(18, 20, 19, .82); color: #e8e2d4; box-shadow: 0 -3px 0 0 #2b2e2b, 0 3px 0 0 #2b2e2b, -3px 0 0 0 #2b2e2b, 3px 0 0 0 #2b2e2b, 0 0 0 3px #101211, 0 6px 0 0 rgba(0,0,0,.25); }
 #brHud { right: 22px; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; justify-items: stretch; }
 #ammoHud { position: static; padding: 8px 12px 10px; display: grid; gap: 6px; min-width: 150px; }
@@ -75,7 +75,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #hpNum { font-size: 13px; min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
 #hurt { inset: 0; z-index: 1; opacity: 0; background: radial-gradient(ellipse at center, transparent 50%, rgba(170, 0, 0, .6) 100%); }
 #dmgLayer { inset: 0; z-index: 3; overflow: hidden; }
-.dmg { position: absolute; left: 0; top: 0; font-family: "Pixelify Sans", monospace; font-size: 17px; color: #fff; text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000; white-space: nowrap; will-change: transform, opacity; }
+.dmg { position: absolute; left: 0; top: 0; font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 17px; color: #fff; text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000; white-space: nowrap; will-change: transform, opacity; }
 .dmg.kill { color: #ffcf5a; font-size: 21px; }
 #deathMsg { left: 50%; top: 38%; transform: translate(-50%, -50%); text-align: center; font-size: 46px; letter-spacing: .14em; color: #e8584a; text-shadow: 0 4px 0 #000; z-index: 4; }
 #deathMsg small { display: block; font-size: 64px; color: #e8e2d4; margin-top: 6px; }
@@ -141,13 +141,13 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #shopWrap .sec { font-size: 11px; letter-spacing: .16em; color: #9d978a; margin-top: 4px; }
 #shop .gtabs { display: flex; gap: 3px; } #shop .gtabs button { flex: 1; font-size: 10px !important; padding: 5px 2px !important; color: #9d978a; } #shop .gtabs button.on { background: #6a5a2a; color: #f2e6c0; }
 #shop .tile button.buy { background: #3f8a2e; color: #f0ffe8; } #shop .tile button.buy:hover { background: #4fa83a; } #shop .tile button:disabled { background: #2b2e2b; color: #77736a; opacity: 1; }
-#leaveBtn { position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%); z-index: 4; font-family: "Pixelify Sans", monospace; font-size: 22px; letter-spacing: .16em; color: #0f1a0d; background: #6fe05a; border: 0; padding: 12px 26px; cursor: pointer; box-shadow: 0 0 0 3px #0f1a0d, 0 6px 0 #0f1a0d; }
+#leaveBtn { position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%); z-index: 4; font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 22px; letter-spacing: .16em; color: #0f1a0d; background: #6fe05a; border: 0; padding: 12px 26px; cursor: pointer; box-shadow: 0 0 0 3px #0f1a0d, 0 6px 0 #0f1a0d; }
 #leaveBtn:hover { background: #8cf576; } #leaveBtn:active { transform: translate(-50%, calc(-50% + 3px)); box-shadow: 0 0 0 3px #0f1a0d, 0 3px 0 #0f1a0d; }
 #alert { left: 18px; top: calc(58px + env(safe-area-inset-top, 0px)); display: flex; align-items: center; gap: 10px; padding: 8px 12px; z-index: 5; max-width: 300px; font-size: 13px; letter-spacing: .06em; }
 #alert img { width: 44px; height: 44px; object-fit: contain; background: radial-gradient(circle, #6a6f66, #33362f 75%); }
 #alert small { display: block; font-size: 10px; letter-spacing: .16em; color: #7dffd6; }
 #alert.in { animation: alertIn .35s ease-out; } @keyframes alertIn { from { transform: translateX(-30px); opacity: 0; } }
-.bang { position: absolute; left: 0; top: 0; font-family: "Pixelify Sans", monospace; font-size: 26px; font-weight: 700; color: #ffd23a; text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000, 0 0 10px #ff2a1a; }
+.bang { position: absolute; left: 0; top: 0; font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 26px; font-weight: 700; color: #ffd23a; text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000, 0 0 10px #ff2a1a; }
 .dmg.combo { color: #7dffd6; font-size: 15px; }
 .dmg.lvup { color: #7dff6e; font-size: 24px; }
 #ammoHud .pips.dense { gap: 1px; } #ammoHud .pips.dense i { width: 3px; }
@@ -287,12 +287,12 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
 #doorPrompt { left: 0; top: 0; padding: 4px 8px; font-size: 13px; letter-spacing: .12em; white-space: nowrap; }
 #doorPrompt b { color: #c9873f; font-weight: 600; margin-right: 4px; }
 #ammoHud .status { font-size: 12px; letter-spacing: .12em; color: #c9873f; height: 14px; }
-#toast { top: calc(132px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-family: "Pixelify Sans", monospace; font-size: 14px; letter-spacing: .08em; padding: 6px 12px; opacity: 0; transition: opacity .2s; }
+#toast { top: calc(132px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .08em; padding: 6px 12px; opacity: 0; transition: opacity .2s; }
 #toast.show { opacity: 1; }
 #loading { inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: 13px; color: #5d6a70; }
 
 /* Dev kit */
-#devBtn { position: fixed; z-index: 5; top: calc(14px + env(safe-area-inset-top, 0px)); right: 18px; font-family: "Pixelify Sans", monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; background: rgba(18,20,19,.82); color: #9d978a; border: 0; box-shadow: 0 0 0 2px #2b2e2b; padding: 5px 9px; cursor: pointer; }
+#devBtn { position: fixed; z-index: 5; top: calc(14px + env(safe-area-inset-top, 0px)); right: 18px; font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; background: rgba(18,20,19,.82); color: #9d978a; border: 0; box-shadow: 0 0 0 2px #2b2e2b; padding: 5px 9px; cursor: pointer; }
 #devBtn:focus-visible, .dev button:focus-visible, #viewer button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .dev { position: fixed; z-index: 4; top: 0; right: 0; bottom: 0; width: min(340px, 100vw); background: var(--panel); border-left: 1px solid var(--line); padding: calc(56px + env(safe-area-inset-top, 0px)) 16px 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; user-select: text; }
 .dev h2 { font-family: var(--display); font-size: 14px; letter-spacing: .14em; text-transform: uppercase; margin: 0; color: var(--muted); }
@@ -474,7 +474,7 @@ function writeSave() { if (saveLocked) return; try { localStorage.setItem(SAVE_K
 function wipeSave() { try { localStorage.removeItem(SAVE_KEY); for (const k of ["treeline.save.v1", "treeline.save.v2", "gametest.save.v3"]) localStorage.removeItem(k); } catch (e) {} }
 let save = loadSave();
 // Defense mode: no player. Hold the base until the timer runs out; kills buy towers and upgrades.
-const DEF = true, NIGHTS = 5, CYC = 60, RUN_LEN = NIGHTS * CYC;   // level 1: survive 5 nights (30 s day + 30 s night each)
+const DEF = true, NIGHTS = 3, CYC = 60, RUN_LEN = NIGHTS * CYC;   // a level: survive 3 nights (30 s day + 30 s night each)
 const run = { t: 0, slow: 1, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: {}, mods: {}, fronts: [], picks: 0, events: {} };
 const MOD = (id) => run.mods[id] || 0;
 let ptrOn = false;   // a pointer is over the map (mouse hovering, or a finger down)
@@ -1267,7 +1267,7 @@ function invested() {
   return x;
 }
 let investCache = 0, investT = 0;
-const hpMul = () => DEF ? 1 + run.t / 170 : 1 + (cycle.day - 1) * 0.07 + investCache / 1500, dmgMul = () => DEF ? 1 + run.t / 400 : 1 + (cycle.day - 1) * 0.05 + investCache / 3000;
+const hpMul = () => DEF ? 1 + run.t / 110 : 1 + (cycle.day - 1) * 0.07 + investCache / 1500, dmgMul = () => DEF ? 1 + run.t / 400 : 1 + (cycle.day - 1) * 0.05 + investCache / 3000;
 function makeEnemy(type) {
   const T = ENEMY_TYPES[type], model = skeletonClone(playerGltf.scene); model.name = type;
   const m = new THREE.MeshStandardMaterial({ color: T.color, roughness: 0.8, flatShading: true });
@@ -1331,7 +1331,7 @@ function killEnemy(e, dir, amt, silent = false, byPlayer = false) {
   if (silent) return;
   sparkFx(at, dir, 14);
   comboT = 2.5; combo++;
-  if (DEF) defOrbs(e, T.xp); else dropXpTotal(e.pos, T.xp + (byPlayer ? T.bonus + card("loot") : 0));   // your own kills are worth more
+  if (DEF) defOrbs(e, T.xp * 2); else dropXpTotal(e.pos, T.xp + (byPlayer ? T.bonus + card("loot") : 0));   // your own kills are worth more
   if (combo >= 3) popNumber(at.clone().setY(2.7), `x${combo} COMBO`, true, "dmg combo");
   kills++; save.kills = kills; writeSave(); killEl.textContent = `${kills} KILLS`;
   popNumber(at.setY(2.1), amt, true); tutEvent("kill", e);
@@ -1649,6 +1649,7 @@ function sentryMats() {
     olive, label: new THREE.MeshStandardMaterial({ map: ammoLabelTexture(), roughness: 0.75 }),
     brass: new THREE.MeshStandardMaterial({ color: 0xc8a046, roughness: 0.35, metalness: 0.85 }),
     led: new THREE.MeshBasicMaterial({ color: 0x7dff6e, toneMapped: false }),
+    laser: new THREE.MeshBasicMaterial({ color: 0xff3a2a, toneMapped: false }),
   };
   return SENTRY_MATS;
 }
@@ -1711,13 +1712,13 @@ function makeSentryModel(level = 1) {
     spins.push(spin); muzzles.push(new THREE.Vector3(x, y, 0.92));
   };
   const can = (s) => {   // ammo can on side s (+1 left, -1 right) with a belt into the receiver
-    const cx = s * (level >= 2 && s < 0 ? 0.42 : 0.2);
+    const cx = s * ((level >= 2 && s < 0) || (level >= 4 && s > 0) ? 0.42 : 0.2);
     add(gun, new THREE.BoxGeometry(0.2, 0.22, 0.32), M.olive, cx, -0.03, -0.03);
     add(gun, new THREE.PlaneGeometry(0.3, 0.2), M.label, cx + s * 0.101, -0.03, -0.03, 0, s * Math.PI / 2, 0);
     add(gun, new THREE.BoxGeometry(0.21, 0.03, 0.33), M.olive, cx, 0.09, -0.03);             // lid lip
     add(gun, new THREE.BoxGeometry(0.012, 0.03, 0.12), M.dark, cx, 0.12, -0.03);             // handle
     add(gun, new THREE.BoxGeometry(0.02, 0.07, 0.04), M.dark, cx + s * 0.105, 0.0, -0.13);   // latch
-    const tx = s < 0 && level >= 2 ? -0.21 : 0;
+    const tx = s < 0 && level >= 2 ? -0.21 : s > 0 && level >= 4 ? 0.21 : 0;
     for (let i = 0; i < 6; i++) { const t = i / 5; add(gun, new THREE.BoxGeometry(0.014, 0.012, 0.055), M.brass, cx + (tx - cx) * t * 0.6, 0.11 + Math.sin(t * Math.PI) * 0.04, 0.05, 0, 0, 0.3 * s); }
   };
   pod(0, 0); can(1);
@@ -1728,8 +1729,22 @@ function makeSentryModel(level = 1) {
     for (let i = 0; i < 6; i++) add(gun, new THREE.BoxGeometry(0.045, 0.014, 0.02), M.dark, -0.21, 0.102, -0.15 + i * 0.045);
     pod(-0.21, -0.02); can(-1);
   }
+  if (level >= 4) {   // LV4: a third pod on the left
+    add(gun, new THREE.BoxGeometry(0.1, 0.07, 0.3), M.metal, 0.12, -0.02, 0.05);
+    add(gun, new THREE.BoxGeometry(0.15, 0.17, 0.38), M.metal, 0.21, -0.02, -0.02);
+    add(gun, new THREE.BoxGeometry(0.16, 0.03, 0.32), M.dark, 0.21, 0.08, -0.03);
+    pod(0.21, -0.02);
+  }
+  let laserAt = null;
+  if (level >= 3) {   // LV3+: heavier guns and a laser targeter on top
+    gun.scale.setScalar(1.18);
+    add(gun, new THREE.BoxGeometry(0.13, 0.11, 0.24), M.dark, 0, 0.3, -0.04);
+    add(gun, new THREE.CylinderGeometry(0.035, 0.035, 0.04, 10), M.laser, 0, 0.3, 0.09, Math.PI / 2);
+    add(gun, new THREE.BoxGeometry(0.02, 0.06, 0.02), M.metal, 0.05, 0.38, -0.1);
+    laserAt = new THREE.Vector3(0, 0.3, 0.12);
+  }
   for (const grp of [g, head, gun, ...spins]) mergeByMaterial(grp);   // ~15 draw calls instead of ~75
-  return { g, head, spins, muzzles, gun };
+  return { g, head, spins, muzzles, gun, laserAt };
 }
 
 /* ---------- Rocket turret ---------- */
@@ -1741,7 +1756,7 @@ function rocketMats() {
   const S = sentryMats();
   ROCKET_MATS = {
     hull: new THREE.MeshStandardMaterial({ color: 0xb9c0c4, roughness: 0.45, metalness: 0.25 }), dark: S.dark, metal: S.metal, led: S.led,
-    face: new THREE.MeshStandardMaterial({ color: 0x8a9196, roughness: 0.5, metalness: 0.25 }), cover: new THREE.MeshStandardMaterial({ color: 0xe8e6de, roughness: 0.55 }),
+    face: new THREE.MeshStandardMaterial({ color: 0x8a9196, roughness: 0.5, metalness: 0.25 }), hullHeavy: new THREE.MeshStandardMaterial({ color: 0x5d6450, roughness: 0.5, metalness: 0.3 }), cover: new THREE.MeshStandardMaterial({ color: 0xe8e6de, roughness: 0.55 }),
     hole: new THREE.MeshBasicMaterial({ color: 0x0b0c0d }), nose: new THREE.MeshStandardMaterial({ color: 0xc8402c, roughness: 0.5 }),
     dome: new THREE.MeshStandardMaterial({ color: 0xeceae2, roughness: 0.45 }), lens: new THREE.MeshStandardMaterial({ color: 0x14202c, roughness: 0.15, metalness: 0.6 }),
     stripe: new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.6 }),
@@ -1749,13 +1764,16 @@ function rocketMats() {
   return ROCKET_MATS;
 }
 function makeRocketModel(level = 1) {
-  const M = rocketMats(), S = sentryMats(), g = new THREE.Group(); g.name = "rocket";
+  let M = rocketMats(); const S = sentryMats(), g = new THREE.Group(); g.name = "rocket";
   const add = (parent, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
   const beam = (parent, a, b, w, d, mat) => {   // box from a to b
     const dir = b.clone().sub(a), len = dir.length(), m = new THREE.Mesh(new THREE.BoxGeometry(w, len, d), mat);
     m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); m.castShadow = true; parent.add(m); return m;
   };
-  const big = level >= 2, W = big ? 0.72 : 0.5, H = big ? 0.38 : 0.32, D = big ? 0.78 : 0.66, cols = big ? 5 : 3, rows = 2;
+  const big = level >= 2, W = level >= 4 ? 0.74 : big ? 0.72 : 0.5, H = level >= 4 ? 0.52 : big ? 0.38 : 0.32, D = big ? 0.78 : 0.66;
+  // the boxes: [x, width, height, columns, rows]; LV4 swaps the one big box for two tall LV1-style launchers
+  const pods = level >= 4 ? [[-0.2, 0.34, 0.52, 2, 3], [0.2, 0.34, 0.52, 2, 3]] : [[0, W, H, big ? 5 : 3, 2]];
+  if (level >= 3) M = { ...M, hull: M.hullHeavy };
   // tripod, like the sentry's but stockier: legs from the hub out to spiked feet, a collar at each knee
   const HUB = 0.52, th = big ? 1.25 : 1;
   add(g, new THREE.CylinderGeometry(0.1, 0.12, 0.16, 8), S.metal, 0, HUB, 0);
@@ -1783,14 +1801,18 @@ function makeRocketModel(level = 1) {
   // the launcher: one smooth rounded box, a darker front plate, every cell sealed by a cover that pops off
   // just before its rocket goes (they all reseal once the box has reloaded)
   const box = new THREE.Group(); box.position.y = 0.4; head.add(box);
-  add(box, new RoundedBoxGeometry(W, H, D, 3, 0.05), M.hull, 0, 0, 0);
-  add(box, new RoundedBoxGeometry(W - 0.04, H - 0.04, 0.03, 2, 0.012), M.face, 0, 0, D / 2 - 0.005);
-  const muzzles = [], cells = [], cw = (W - 0.08) / cols, ch = (H - 0.07) / rows, r = Math.min(cw, ch) * 0.38;
-  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
-    const x = -W / 2 + 0.04 + cw * (i + 0.5), y = -H / 2 + 0.035 + ch * (j + 0.5);
-    add(box, new THREE.CircleGeometry(r, 14), M.hole, x, y, D / 2 + 0.012);
-    cells.push([x, y]); muzzles.push(new THREE.Vector3(x, y, D / 2 + 0.12));
+  const muzzles = [], cells = []; let r = 1;
+  for (const [px, pw, ph, cols, rows] of pods) {
+    add(box, new RoundedBoxGeometry(pw, ph, D, 3, 0.05), M.hull, px, 0, 0);
+    add(box, new RoundedBoxGeometry(pw - 0.04, ph - 0.04, 0.03, 2, 0.012), M.face, px, 0, D / 2 - 0.005);
+    const cw = (pw - 0.08) / cols, ch = (ph - 0.07) / rows; r = Math.min(r, Math.min(cw, ch) * 0.38);
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const x = px - pw / 2 + 0.04 + cw * (i + 0.5), y = -ph / 2 + 0.035 + ch * (j + 0.5);
+      add(box, new THREE.CircleGeometry(Math.min(cw, ch) * 0.38, 14), M.hole, x, y, D / 2 + 0.012);
+      cells.push([x, y]); muzzles.push(new THREE.Vector3(x, y, D / 2 + 0.12));
+    }
   }
+  if (level >= 4) add(box, new THREE.BoxGeometry(0.08, 0.1, D * 0.6), S.dark, 0, 0, 0);   // the bridge between the two launchers
   if (big) {   // targeting: a sensor mast bolted to the right arm with a dome and an optics pod
     const mx = W / 2 + 0.17;
     add(head, new THREE.BoxGeometry(0.16, 0.06, 0.1), S.dark, W / 2 + 0.13, 0.3, 0);   // bracket from the arm to the mast
@@ -1818,7 +1840,7 @@ function setCover(t, i, open) {
   }
 }
 // Rockets: launched up out of the box, then they curve onto their target and blow up on it
-const ROCKET = { range: 15, minRange: 2.5, dmg: 45, radius: 2.0, rate: [0, 3.0, 2.6], burst: [0, 3, 5] };
+const ROCKET = { range: 15, minRange: 2.5, dmg: 45, radius: 2.0, rate: [0, 3.0, 2.6, 2.5, 2.3], burst: [0, 3, 5, 5, 6] };   // LV3+: heavy rockets
 const rockets = [], rocketGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.3, 6).rotateX(Math.PI / 2), rocketNoseGeo = new THREE.ConeGeometry(0.035, 0.09, 6).rotateX(Math.PI / 2).translate(0, 0, 0.195);
 const rocketBodyMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d8, roughness: 0.5 }), rocketTipMat = new THREE.MeshStandardMaterial({ color: 0xc8402c, roughness: 0.5 });
 function fireRocket(t) {
@@ -1827,6 +1849,7 @@ function fireRocket(t) {
   const dir = new THREE.Vector3(0, 0, 1).transformDirection(t.box.matrixWorld);
   const m = new THREE.Group(); m.add(new THREE.Mesh(rocketGeo, rocketBodyMat), new THREE.Mesh(rocketNoseGeo, rocketTipMat)); m.position.copy(from); scene.add(m);
   const aim = t.target.pos.clone().setY(0.9).add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 0, (Math.random() - 0.5) * 1.2));
+  if (t.level >= 3) m.scale.setScalar(1.5);
   rockets.push({ m, pos: from.clone(), vel: dir.multiplyScalar(9), target: t.target, aim, age: 0, smoke: 0, lvl: t.level });
   spawnSprite(from.clone(), dir.clone().multiplyScalar(2), { color: 0xffc46b, size: 0.6, grow: 0.5, life: 0.08, opacity: 1, additive: true, drag: 0 });
   for (let i = 0; i < 3; i++) spawnSprite(from.clone().addScaledVector(dir, -0.9), dir.clone().multiplyScalar(-2).add(new THREE.Vector3((Math.random() - 0.5) * 1.5, 0.5, (Math.random() - 0.5) * 1.5)), { color: 0xd8d4cc, size: 0.35, grow: 2.5, life: 1.0, opacity: 0.45, drag: 2 });
@@ -1845,7 +1868,7 @@ function updateRockets(dt) {
     let boom = d < 0.6 || r.pos.y < 0.12 || r.age > 3;
     if (!boom) for (const e of enemies) if (!e.dead && r.pos.y < 2 && Math.hypot(e.pos.x - r.pos.x, e.pos.z - r.pos.z) < 0.55) { boom = true; break; }
     if (!boom && r.pos.y < 3.2 && r.age > 0.25) for (const [x0, x1, z0, z1] of boxColliders) if (r.pos.x > x0 && r.pos.x < x1 && r.pos.z > z0 && r.pos.z < z1) { boom = true; break; }
-    if (boom) { scene.remove(r.m); rockets.splice(i, 1); explode(r.pos.clone().setY(Math.max(0.35, r.pos.y)), ROCKET.radius * (1 + MOD("rrad")), ROCKET.dmg * (1 + 0.25 * card("sdmg") + MOD("rdmg")), { small: true }); }
+    if (boom) { scene.remove(r.m); rockets.splice(i, 1); const hv = r.lvl >= 3 ? 1 : 0; explode(r.pos.clone().setY(Math.max(0.35, r.pos.y)), ROCKET.radius * (1 + MOD("rrad")) * (1 + hv * 0.3), ROCKET.dmg * (1 + hv * 0.6) * (1 + 0.25 * card("sdmg") + MOD("rdmg")), { small: !hv }); }
   }
 }
 function updateRocketTurret(t, dt) {
@@ -1876,8 +1899,10 @@ let WALL_GEO = null;
 function wallMats() {
   const find = (n) => { let m = null; shantyTemplate?.traverse(o => { if (!m && o.isMesh && o.material.name === n) m = o.material; }); return m || new THREE.MeshStandardMaterial({ color: 0x8a8278, roughness: 0.9 }); };
   const galv = find("galv"), paint = find("paint"), wood = find("wood");
-  const clean = galv.clone(); clean.color.setHex(0xe8eef2); clean.metalness = 0.55;
-  return { galv, paint, wood, clean, steel: new THREE.MeshStandardMaterial({ color: 0x55595d, roughness: 0.5, metalness: 0.5 }) };
+  // LV3+: new corrugated steel, no rust (the sheet texture's ribs only), seams welded in the same colour
+  const clean = new THREE.MeshStandardMaterial({ color: 0xb7bfc4, normalMap: galv.normalMap, roughness: 0.42, metalness: 0.55 });
+  return { galv, paint, wood, clean, steel: new THREE.MeshStandardMaterial({ color: 0xb2babf, roughness: 0.45, metalness: 0.55 }),
+    plate: new THREE.MeshStandardMaterial({ color: 0x8e979c, roughness: 0.5, metalness: 0.6 }), bolt: new THREE.MeshStandardMaterial({ color: 0x6d7479, roughness: 0.4, metalness: 0.7 }) };
 }
 function wallGeometries() {
   if (WALL_GEO) return WALL_GEO;
@@ -1920,8 +1945,16 @@ function wallGeometries() {
     for (const y of [0.03, 1.0]) steel.push(new THREE.BoxGeometry(1.04, 0.04, 0.04).translate(0, y, -0.51), new THREE.BoxGeometry(1.04, 0.04, 0.04).translate(0, y, 0.51), new THREE.BoxGeometry(0.04, 0.04, 1.04).translate(-0.51, y, 0), new THREE.BoxGeometry(0.04, 0.04, 1.04).translate(0.51, y, 0));
     for (const g of steel) g.deleteAttribute("uv");
     for (const g of clean) g.deleteAttribute("color");
-    const cm = M.clean.clone(); cm.vertexColors = false;
-    out[3] = [[cm, mergeGeometries(clean)], [M.steel, mergeGeometries(steel)]]; }
+    out[3] = [[M.clean, mergeGeometries(clean)], [M.steel, mergeGeometries(steel)]];
+    // LV4: the same, with flat steel plates bolted over the lower half of each face
+    const plates = [], bolts = [];
+    for (let i = 0; i < 4; i++) {
+      const m = new THREE.Matrix4().makeRotationY(i * Math.PI / 2);
+      plates.push(new THREE.BoxGeometry(0.9, 0.5, 0.025).translate(0, 0.3, 0.515).applyMatrix4(m));
+      for (const bx of [-0.4, -0.13, 0.13, 0.4]) for (const by of [0.1, 0.5]) bolts.push(new THREE.CylinderGeometry(0.018, 0.018, 0.02, 6).rotateX(Math.PI / 2).translate(bx, by, 0.53).applyMatrix4(m));
+    }
+    plates.push(new THREE.BoxGeometry(0.9, 0.025, 0.9).translate(0, 1.012, 0));
+    out[4] = [...out[3], [M.plate, mergeGeometries(plates)], [M.bolt, mergeGeometries(bolts)]]; }
   return (WALL_GEO = out);
 }
 const WALL2 = {}, WALL_H = 2;   // 2 x 2 x 2 m: the 1 m block model scaled up
@@ -1936,9 +1969,9 @@ function makeWallModel(level = 1) {
 const sentries = [], walls = [];
 const SENTRY = { range: 10, rate: 0.11, dmg: 10 };
 const STRUCT = {
-  rocket: { name: "ROCKET LAUNCHER", hp: [0, 300, 500], up: [0, 150], baseReq: [0, 0], info: ["", "Bursts of 3 homing rockets, 15 m range", "Bigger box and a targeting dome: bursts of 5"] },
-  sentry: { name: "SENTRY", hp: [0, 250, 400], up: [0, 60], baseReq: [0, 0], info: ["", "Six-barrel gun, shoots enemies within 10 m", "Twin barrels: double fire rate"] },
-  wall: { name: "WALL", hp: [0, 600, 1000, 1600], up: [0, 30, 60], baseReq: [0, 0, 2], info: ["", "Six rusty sheets cobbled together", "Timber frame, patched sheeting", "Clean galvanised steel"] },
+  rocket: { name: "ROCKET LAUNCHER", hp: [0, 300, 500, 700, 950], up: [0, 150, 220, 300], baseReq: [0, 0, 0, 0], info: ["", "Bursts of 3 homing rockets, 15 m range", "Bigger box and a targeting dome: bursts of 5", "Repainted, fires heavy rockets: bigger blasts", "Twin launchers: bursts of 6 heavy rockets"] },
+  sentry: { name: "SENTRY", hp: [0, 250, 400, 600, 850], up: [0, 60, 90, 130], baseReq: [0, 0], info: ["", "Six-barrel gun, shoots enemies within 10 m", "Twin barrels: double fire rate", "Heavier guns and a laser targeter: harder hits, faster turning", "A third barrel pod"] },
+  wall: { name: "WALL", hp: [0, 600, 1000, 1600, 2400], up: [0, 30, 60, 100], baseReq: [0, 0, 2], info: ["", "Rusty sheets cobbled together", "The same sheets in a timber frame", "New corrugated steel, welded seams", "Steel plated and bolted"] },
 };
 const CAPS = { sentry: [0, 5, 8, 10], rocket: [0, 0, 2, 4], wall: [0, 30, 60, 80] };
 const structs = () => [...sentries, ...walls];
@@ -1961,6 +1994,7 @@ function addStruct(kind, x, z, level = 1, spent = 0, hp, y = 0) {
   return s;
 }
 function removeStruct(s) {
+  if (s.beam) { scene.remove(s.beam); s.beam = null; }
   const list = s.kind === "wall" ? walls : sentries, i = list.indexOf(s); if (i >= 0) list.splice(i, 1);
   scene.remove(s.g); removeBar(s.bar); s.bar = null;
   if (hovered === s) { showHulls(s, false); hovered = null; }
@@ -2027,6 +2061,17 @@ function pickTarget(t, range, minR = 0) {
   }
   return best;
 }
+const laserTex = (() => { const c = document.createElement("canvas"); c.width = 4; c.height = 64; const x = c.getContext("2d"), g = x.createLinearGradient(0, 64, 0, 0); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 4, 64); return new THREE.CanvasTexture(c); })();
+const laserGeo = (() => { const w = 0.025, P = [-w, 0, 0, w, 0, 0, w, 0, 1, -w, 0, 1, 0, -w, 0, 0, w, 0, 0, w, 1, 0, -w, 1], U = [0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(U, 2)); g.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]); return g; })();
+const laserMat = new THREE.MeshBasicMaterial({ map: laserTex, color: 0xff3a2a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+function updateLaser(t) {
+  if (!t.laserAt || !t.target || t.pack > 0) { if (t.beam) t.beam.visible = false; return; }
+  if (!t.beam) { t.beam = new THREE.Mesh(laserGeo, laserMat); t.beam.frustumCulled = false; scene.add(t.beam); }
+  t.g.updateMatrixWorld(true); const from = t.gun.localToWorld(t.laserAt.clone()), to = t.target.pos.clone().setY(1.2 * (ENEMY_TYPES[t.target.type].scale || 1));
+  t.beam.visible = true; t.beam.position.copy(from); t.beam.lookAt(to); t.beam.scale.set(1, 1, Math.min(6, from.distanceTo(to)));
+}
+const LV_DMG = [0, 1, 1, 1.45, 1.6], LV_RATE = [0, 1, 1, 0.8, 0.75], LV_TURN = [0, 6, 7, 9, 11];   // sentry stats by level
 function updateSentries(dt) {
   updateRockets(dt);
   for (const t of [...sentries]) {
@@ -2040,14 +2085,14 @@ function updateSentries(dt) {
     if (t.target) {
       const want = Math.atan2(t.target.pos.x - t.x, t.target.pos.z - t.z);
       let dy = Math.atan2(Math.sin(want - t.yaw), Math.cos(want - t.yaw));
-      t.yaw += THREE.MathUtils.clamp(dy, -6 * dt, 6 * dt); aligned = Math.abs(dy) < 0.1;
+      t.yaw += THREE.MathUtils.clamp(dy, -LV_TURN[t.level] * dt, LV_TURN[t.level] * dt); aligned = Math.abs(dy) < 0.1;
     }
-    t.head.rotation.y = t.yaw;
+    t.head.rotation.y = t.yaw; updateLaser(t);
     t.spinV += ((t.target ? 1 : 0) - t.spinV) * Math.min(1, dt * (t.target ? 3 : 1.2));
     for (const sp of t.spins) sp.rotation.z += t.spinV * 40 * dt;
     t.cool -= dt;
     if (t.target && aligned && t.spinV > 0.75 && t.cool <= 0) {
-      t.cool = SENTRY.rate / t.muzzles.length / (1 + 0.2 * card("srate") + MOD("srate")); t.shot++;
+      t.cool = SENTRY.rate * LV_RATE[t.level] / t.muzzles.length / (1 + 0.2 * card("srate") + MOD("srate")); t.shot++;
       t.g.updateMatrixWorld(true);
       const from = t.gun.localToWorld(t.muzzles[t.shot % t.muzzles.length].clone()), ang = t.yaw + (Math.random() - 0.5) * 0.06, dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
       let hitD = sentryRange(t) + 2, hit = null;
@@ -2056,10 +2101,10 @@ function updateSentries(dt) {
       for (const c of treeColliders) { const d = rayCircle(t.x, t.z, dir.x, dir.z, c.x, c.z, c.r); if (d !== null && d < hitD) { hitD = d; hit = null; } }
       { const d = structHitD(t.x, t.z, dir.x, dir.z, hitD, t); if (d < hitD) { hitD = d; hit = null; } }   // stray rounds stop on our own walls
       const to = new THREE.Vector3(t.x, from.y, t.z).addScaledVector(dir, hitD);
-      spawnTracer(from, to, 0.8, !hit && hitD >= sentryRange(t) + 2 - 0.01);
+      spawnTracer(from, to, t.level >= 3 ? 1.5 : 0.8, !hit && hitD >= sentryRange(t) + 2 - 0.01);
       spawnSprite(from.clone().addScaledVector(dir, 0.06), dir.clone().multiplyScalar(2), { color: 0xffc46b, size: 0.45, grow: 0.3, life: 0.05, opacity: 1, additive: true, drag: 0 });
       if (t.shot % 3 === 0) spawnCasing(from.clone().addScaledVector(dir, -0.5).add(new THREE.Vector3(0, -0.05, 0)), dir);
-      if (hit) hurtEnemy(hit, Math.round(SENTRY.dmg * (1 + 0.25 * card("sdmg") + MOD("sdmg"))), dir);
+      if (hit) hurtEnemy(hit, Math.round(SENTRY.dmg * LV_DMG[t.level] * (1 + 0.25 * card("sdmg") + MOD("sdmg"))), dir);
     }
   }
   const regen = 3 * card("regen"); if (regen) for (const s of structs()) s.hp = Math.min(STRUCT[s.kind].hp[s.level], s.hp + regen * dt);
@@ -2083,7 +2128,7 @@ const BUILDS = DEF ? [
 ];
 const lockOf = (b) => DEF ? "" : save.base < b.req ? `BASE LV${b.req}` : b.soon ? "SOON" : "";
 const countOf = (id) => id === "wall" ? walls.length : sentries.filter(t => t.kind === id).length;
-const DEF_CAPS = { sentry: 16, wall: 60, rocket: 6 }, MAXLV = { sentry: 2, rocket: 2, wall: 3 };
+const DEF_CAPS = { sentry: 16, wall: 60, rocket: 6 }, MAXLV = { sentry: 4, rocket: 4, wall: 4 };
 const capOf = (id) => DEF ? DEF_CAPS[id] : CAPS[id]?.[Math.min(save.base, 3)] ?? 0;
 const ICONS = {};
 const weaponSlots = document.getElementById("weaponSlots"), buildSlots = document.getElementById("buildSlots"), buildBar = document.getElementById("buildBar"), buildKey = document.getElementById("buildKey");
@@ -3397,9 +3442,8 @@ const phaseOf = (t) => { const c = t % CYC; return { n: Math.floor(t / CYC) + 1,
 const nightKAt = (t) => { const c = t % CYC; return c >= DAY_LEN ? 1 - THREE.MathUtils.smoothstep(c, CYC - FADE, CYC) : THREE.MathUtils.smoothstep(c, DAY_LEN - FADE, DAY_LEN); };
 const nightStart = (n) => (n - 1) * CYC + DAY_LEN;
 const EVENTS = [
-  [nightStart(3), () => { gang("brute", 1); showBanner("A BRUTE IS COMING!", 3.5, true); }],
-  [nightStart(4), () => { gang("brute", 1); gang("brute", 1); showBanner("TWO BRUTES!", 3.5, true); }],
-  [nightStart(5), () => { for (let i = 0; i < 3; i++) gang("brute", 1); showBanner("THE LAST NIGHT · HOLD ON!", 4, true); }],
+  [nightStart(2), () => { gang("brute", 1); showBanner("A BRUTE IS COMING!", 3.5, true); }],
+  [nightStart(3), () => { for (let i = 0; i < 3; i++) gang("brute", 1); showBanner("THE LAST NIGHT · THREE BRUTES · HOLD ON!", 4, true); }],
 ];
 let spT = { walker: 1, runner: 0, bomber: 0 };
 function defSpawns(dt) {
@@ -3416,7 +3460,7 @@ function defSpawns(dt) {
 }
 function gang(type, n) { const f = anyDir(); for (let i = 0; i < n; i++) spawnAt(type, f); if (phaseOf(run.t).night) run.nightSpawned += n * (type === "brute" ? 10 : 1); }   // one direction, a tight bunch
 // each night sends a set number of enemies (a brute counts as 10); once it's all out, the night just has to be held
-const nightBudget = (n) => 45 + n * 30;
+const nightBudget = (n) => 50 + n * 50;   // 100 / 150 / 200
 function updateFronts() {
   for (let i = 0; i < frontEls.length; i++) {
     const f = run.fronts[i], el = frontEls[i]; if (!f) { el.hidden = true; continue; }
