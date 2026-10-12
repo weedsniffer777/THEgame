@@ -218,6 +218,7 @@ body.def #game { cursor: default; }
 .orb.big { width: 14px; height: 14px; margin: -7px 0 0 -7px; }
 #marq { left: 0; top: 0; z-index: 4; border: 2px dashed #e0b04a; background: rgba(224, 176, 74, .12); }
 .ptr.front .lbl { background: #ff4a3a; color: #fff; } .ptr.front .arr { border-top-color: #ff4a3a; }
+body.def #spot { z-index: 5; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .38), inset 0 0 30px 10px rgba(0, 0, 0, .38); }
 body.def #banner { top: calc(104px + env(safe-area-inset-top, 0px)); } body.def.mobile #banner { top: calc(84px + env(safe-area-inset-top, 0px)); }
 .card.rar { --rc: #c9c3b4; box-shadow: 0 0 0 3px var(--rc), 0 0 0 5px #101211, 0 8px 0 #101211; }
 .card.rar:hover { box-shadow: 0 0 0 3px var(--rc), 0 0 0 5px #101211, 0 0 26px 4px var(--rc), 0 14px 0 #101211; }
@@ -3446,6 +3447,7 @@ function defLight(k) {
   scene.background.lerpColors(DAYC.bg, NIGHTC.bg, k); lantern.intensity = 0;
 }
 function placeCam() { camera.position.copy(BC).add(camPan).setY(0.8).add(CAM_OFFSET); camera.lookAt(camera.position.clone().sub(CAM_OFFSET)); camera.updateMatrixWorld(); }
+const SPOT_D = 190;   // tutorial spotlight: one fixed-size clear circle
 function defView() { const a = innerWidth / innerHeight; return Math.max(15, 25 / a); }
 function defUpdate(rdt) {
   run.slow += ((run.started ? 1 : 0.08) - run.slow) * Math.min(1, rdt * (run.started ? 2.5 : 10));
@@ -3494,12 +3496,15 @@ function defUpdate(rdt) {
   // opening guide
   if (!run.started && !runOver) {
     const c = trayCards.children[0];
-    if (!buildMode && c && !save.def.tut2) { const r = c.getBoundingClientRect(); spotlight(r.left + r.width / 2, r.top + r.height / 2, r.width + 26, r.height + 26, false); }
-    else spotEl.hidden = true;
     c?.classList.toggle("flash", !buildMode);
+    // the lesson's subject: the sentry card until it's picked, then where it goes (or the sentry to merge onto)
+    const f = run.fronts[0], spot = run.tut === "merge" && run.lastPlaced ? new THREE.Vector3(run.lastPlaced.x, 0.8, run.lastPlaced.z) : new THREE.Vector3(BC.x + Math.sin(f.a) * 10, 0.3, BC.z + Math.cos(f.a) * 10);
     if (run.tut === "merge" && run.lastPlaced) { tutPtr.hidden = false; placePtr(tutPtr, new THREE.Vector3(run.lastPlaced.x, 2.3, run.lastPlaced.z), buildMode ? (touch.on ? "DROP IT HERE" : "CLICK HERE TO MERGE") : "MERGE ONTO THIS"); }
-    else if (buildMode) { const f = run.fronts[0]; tutPtr.hidden = false; placePtr(tutPtr, new THREE.Vector3(BC.x + Math.sin(f.a) * 10, 0.5, BC.z + Math.cos(f.a) * 10), touch.on ? "TAP HERE" : "PLACE IT HERE"); }
+    else if (buildMode) { tutPtr.hidden = false; placePtr(tutPtr, spot.clone().setY(0.5), touch.on ? "TAP HERE" : "PLACE IT HERE"); }
     else tutPtr.hidden = true;
+    if (save.def.tut2) spotEl.hidden = true;
+    else if (!buildMode && c) { const r = c.getBoundingClientRect(); spotlight(r.left + r.width / 2, r.top + r.height / 2, SPOT_D); }
+    else { const [sx, sy] = toScreen(spot); spotlight(sx, sy, SPOT_D); }
   }
   bannerT -= rdt; if (bannerT <= 0) bannerEl.hidden = true;
   toastT -= rdt; if (toastT <= 0) toastEl.classList.remove("show");
