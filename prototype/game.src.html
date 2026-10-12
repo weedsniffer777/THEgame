@@ -515,7 +515,7 @@ function addShantyLights(g) {
   const bBase = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.08, 12), iron); bBase.position.set(bx, by, bz); g.add(bBase);
   const domeMat = new THREE.MeshStandardMaterial({ color: 0xff3a2a, emissive: 0xff1a0a, emissiveIntensity: 2, transparent: true, opacity: 0.9, roughness: 0.3 });
   const dome = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), domeMat); dome.position.set(bx, by + 0.04, bz); g.add(dome);
-  const beacon = new THREE.PointLight(0xff2a1a, 0, 9, 1.4); beacon.position.set(bx, by + 0.25, bz); g.add(beacon);
+  const beacon = new THREE.PointLight(0xff2a1a, 0, 9, 1.4); beacon.position.set(bx, by + 0.25, bz); if (!MOBILE) g.add(beacon);
   dome.userData.tick = (t) => {
     const ph = (t * 1.1) % 1, k = ph < 0.18 ? Math.sin((ph / 0.18) * Math.PI) : 0;
     beacon.intensity = 14 * k; domeMat.emissiveIntensity = 0.4 + 4 * k;
@@ -689,11 +689,16 @@ function updatePlayerAnim(p, dt, speed, backwards) {
 
 /* ---------- Renderer & scene ---------- */
 const host = document.getElementById("game");
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+// Phones are fill-rate bound: no MSAA, a capped pixel ratio that drops further if the frame rate sags,
+// a smaller shadow map with plain PCF, redrawn every other frame.
+const MOBILE = matchMedia("(pointer: coarse)").matches;
+const renderer = new THREE.WebGLRenderer({ antialias: !MOBILE, powerPreference: "high-performance" });
+const PR_MAX = MOBILE ? Math.min(devicePixelRatio, 1.5) : Math.min(devicePixelRatio, 2); let prNow = PR_MAX;
+renderer.setPixelRatio(prNow);
 renderer.shadowMap.enabled = true;
 renderer.localClippingEnabled = true;   // shack cutaway when inside
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = MOBILE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+if (MOBILE) renderer.shadowMap.autoUpdate = false;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
 host.appendChild(renderer.domElement);
@@ -703,7 +708,7 @@ scene.background = new THREE.Color(0xbfc6c4);
 const hemi = new THREE.HemisphereLight(0xffffff, 0xc9ccd0, 1.5); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff4e6, 2.4);
 sun.position.set(-6, 14, 9); sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
 Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 1, far: 60 }); // covers the whole view; 2048 map ≈ 39 px/m
 scene.add(sun); scene.add(sun.target);
 
@@ -2502,7 +2507,7 @@ function updateTutorial() {
 const DAY_LEN = 30, NIGHT_LEN = 30, FADE = 8;
 const cycle = { day: 1, t: 0, nightK: 0 };
 const cycleHud = document.getElementById("cycleHud"), dayLabel = document.getElementById("dayLabel"), cycleBar = document.getElementById("cycleBar"), cycleTime = document.getElementById("cycleTime");
-const lantern = new THREE.PointLight(0xffcf96, 0, 14, 1.2); scene.add(lantern);
+const lantern = new THREE.PointLight(0xffcf96, 0, 14, 1.2); if (!DEF) scene.add(lantern);   // every light costs shading, even at 0
 const DAYC = { sun: new THREE.Color(0xfff4e6), sky: new THREE.Color(0xffffff), gnd: new THREE.Color(0xc9ccd0), bg: new THREE.Color(0xbfc6c4) };
 const NIGHTC = { sun: new THREE.Color(0x8096d8), sky: new THREE.Color(0x5d6fa8), gnd: new THREE.Color(0x3a4152), bg: new THREE.Color(0x232c3e) };
 function updateCycle(dt) {
@@ -3024,6 +3029,9 @@ const orbLayer = document.getElementById("orbLayer");
 const xpNeed = (l) => 5 + 3 * l + Math.floor(l * l * 0.5);
 let ptrDown = null, trayDrag = null;
 const camPan = new THREE.Vector3(), PAN_MAX = 12;   // drag empty ground to look around
+let camZoom = 1; const touchPts = new Map(); let pinch = null;   // wheel / pinch zoom (0.6x to 1.5x of the default view)
+const setZoom = (z) => { camZoom = clamp(z, 0.6, 1.5); };
+renderer.domElement.addEventListener("wheel", (e) => { if (!DEF) return; e.preventDefault(); setZoom(camZoom * Math.exp(e.deltaY * 0.0012)); }, { passive: false });
 
 // ---- tray
 function renderTray() {
@@ -3056,6 +3064,7 @@ function defKey(k) {
 const cv = renderer.domElement;
 addEventListener("pointermove", (e) => {
   if (!DEF) return;
+  if (touchPts.has(e.pointerId)) { touchPts.set(e.pointerId, [e.clientX, e.clientY]); if (pinch && touchPts.size >= 2) { const [a, b] = [...touchPts.values()]; setZoom(pinch.z * pinch.d / (Math.hypot(a[0] - b[0], a[1] - b[1]) || 1)); return; } }
   if (e.pointerType !== "touch") { setMouse(e); ptrOn = e.target === cv || !!trayDrag; }
   else if (ptrDown?.id === e.pointerId || trayDrag?.id === e.pointerId) { setMouse(e); ptrOn = document.elementFromPoint(e.clientX, e.clientY) === cv; }
   if (ptrDown?.id === e.pointerId && Math.hypot(e.clientX - ptrDown.x, e.clientY - ptrDown.y) > 12) ptrDown.moved = true;
@@ -3067,7 +3076,11 @@ addEventListener("pointermove", (e) => {
 });
 cv.addEventListener("pointerdown", (e) => {
   if (!DEF || runOver || picking || paused) return;
-  if (e.pointerType === "touch") enableTouch();
+  if (e.pointerType === "touch") {
+    enableTouch(); touchPts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (touchPts.size === 2) { const [a, b] = [...touchPts.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z: camZoom }; ptrDown = null; ptrOn = false; return; }
+    if (touchPts.size > 2) return;
+  }
   if (e.button === 2) { if (carry) cancelCarryDef(); setBuild(-1); return; }
   setMouse(e); ptrOn = true; raycaster.setFromCamera(mouse, camera); raycaster.ray.intersectPlane(floorPlane, aimPoint); updateHover();
   ptrDown = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), s: !buildMode && hovered?.kind ? hovered : null, moved: false };
@@ -3075,6 +3088,7 @@ cv.addEventListener("pointerdown", (e) => {
 });
 addEventListener("pointerup", (e) => {
   if (!DEF) return;
+  touchPts.delete(e.pointerId); if (touchPts.size < 2) pinch = null;
   if (trayDrag?.id === e.pointerId) {
     const d = trayDrag; trayDrag = null;
     if (d.moved && document.elementFromPoint(e.clientX, e.clientY) === cv) { setMouse(e); refreshAim(); ptrOn = true; updateGhost(); defPlace(); }
@@ -3091,7 +3105,7 @@ addEventListener("pointerup", (e) => {
   if (e.pointerType === "touch") ptrOn = false;
 });
 cv.addEventListener("pointerleave", (e) => { if (DEF && e.pointerType !== "touch" && !trayDrag) ptrOn = false; });
-addEventListener("pointercancel", (e) => { if (ptrDown?.id === e.pointerId) ptrDown = null; if (trayDrag?.id === e.pointerId) trayDrag = null; });
+addEventListener("pointercancel", (e) => { touchPts.delete(e.pointerId); if (touchPts.size < 2) pinch = null; if (ptrDown?.id === e.pointerId) ptrDown = null; if (trayDrag?.id === e.pointerId) trayDrag = null; });
 function refreshAim() { raycaster.setFromCamera(mouse, camera); raycaster.ray.intersectPlane(floorPlane, aimPoint); }
 function defPickUp(s) {
   if (onTop(s)) { popNumber(new THREE.Vector3(s.x, 1.6, s.z), "SOMETHING'S ON TOP", true, "dmg"); return; }
@@ -3115,13 +3129,13 @@ function defPlace() {
   }
   const b = BUILDS[buildSel], c = b.cost(); save.xp -= c; if (run.free[b.id] > 0) run.free[b.id]--;
   if (mt) mergeInto(mt, c); else addStruct(b.id, x, z, 1, c, undefined, y);
-  renderXp();
+  setBuild(-1); renderXp();   // hand empty again, so a drag looks around
   if (!run.started) defGo();
   return true;
 }
 
 // ---- kill orbs: a blue (XP) and a yellow (scrap) orb per point burst out of the body, then fly to their counter
-const orbs = [], orbPool = [];
+const orbs = [], orbPool = []; let orbRectT = 0, orbTo = [0, 0, 0, 0];
 function defOrbs(e, n) {
   run.kills++;
   const [sx, sy] = toScreen(e.pos.clone().setY(1.2)), big = n >= 10, count = big ? Math.ceil(n / 3) : n, val = big ? 3 : 1;
@@ -3139,8 +3153,8 @@ function addOrb(v, gold) {
 }
 let xpBumpT = 0, bankBumpT = 0, trayT = 0;
 function updateOrbs(dt) {
-  const r = xpFill.getBoundingClientRect(), xtx = r.left + Math.max(6, r.width), xty = r.top + r.height / 2;
-  const br = bankEl.getBoundingClientRect(), btx = br.left + 22, bty = br.top + br.height / 2;
+  orbRectT -= dt; if (orbRectT <= 0) { orbRectT = 0.25; const r = xpFill.getBoundingClientRect(), br = bankEl.getBoundingClientRect(); orbTo = [r.left + Math.max(6, r.width), r.top + r.height / 2, br.left + 22, br.top + br.height / 2]; }
+  const [xtx, xty, btx, bty] = orbTo;
   for (let i = orbs.length - 1; i >= 0; i--) {
     const o = orbs[i]; o.t += dt; const tx = o.gold ? btx : xtx, ty = o.gold ? bty : xty;
     if (o.t < 0.28) { o.vx *= Math.exp(-dt * 5); o.vy *= Math.exp(-dt * 5); }
@@ -3235,7 +3249,7 @@ function defReset() {
   enemies.length = 0; hovered = null; pendingHits.length = 0;
   for (const r of rockets) scene.remove(r.m); rockets.length = 0;
   for (const o of orbs) { o.el.remove(); orbPool.push(o.el); } orbs.length = 0;
-  for (const el of frontEls) el.remove(); frontEls.length = 0; camPan.set(0, 0, 0);
+  for (const el of frontEls) el.remove(); frontEls.length = 0; camPan.set(0, 0, 0); camZoom = 1;
   carry = null; buildSel = -1; buildMode = false; showGhost(); closeMenu();
   Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { sentry: 1 }, mods: {}, fronts: [], picks: 0, events: {} });
   spT = { walker: 1.5, runner: 0, bomber: 0 };
@@ -3305,7 +3319,7 @@ function defUpdate(rdt) {
   updateParticles(dt); updateEnemies(dt); updateSentries(dt); updateBooms(dt); updateShots(dt);
   updateMenu(rdt); updateTiles(); updateUpFx(rdt); updatePops(rdt); updateOrbs(rdt); updateFronts();
   // fixed camera on the base
-  const wantView = defView(); if (Math.abs(curView - wantView) > 0.01) { curView = wantView; camFrustum(); }
+  const wantView = defView() * camZoom; if (Math.abs(curView - wantView) > 0.01) { curView += (wantView - curView) * Math.min(1, rdt * 14); camFrustum(); }
   placeCam();
   if (shake > 0) { shake = Math.max(0, shake - rdt); camera.position.add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.6)); }
   const cc = BC.clone().add(camPan); sun.position.copy(cc).add(new THREE.Vector3(-6, 14, 9)); sun.target.position.copy(cc);
@@ -3340,17 +3354,22 @@ function setPaused(on) { paused = on; pauseEl.hidden = !on; keys.clear(); mouseD
 document.getElementById("pResume").addEventListener("click", () => setPaused(false));
 document.getElementById("pDev").addEventListener("click", () => { setPaused(false); toggleDev(); });
 const perfHud = document.getElementById("perfHud"); let cpuMs = 0, perfLast = performance.now();
+let tickers = null, frameNo = 0, slowChecks = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const tSec = now / 1000;
   if (viewerEl.hidden) {
     const t0 = performance.now();
-    if (!paused && !picking) { (DEF ? defUpdate : update)(dt); scene.traverse(o => o.userData.tick?.(tSec)); }
+    if (!paused && !picking) { (DEF ? defUpdate : update)(dt); if (!tickers) { tickers = []; scene.traverse(o => { if (o.userData.tick) tickers.push(o); }); } for (const o of tickers) o.userData.tick(tSec); }
+    if (MOBILE) renderer.shadowMap.needsUpdate = (frameNo++ & 1) === 0;
     renderer.render(scene, camera);
     cpuMs += performance.now() - t0; frames++; perfTimer += (now - perfLast) / 1000; perfLast = now;
     if (perfTimer > 0.5) {
       const i = renderer.info.render, fps = Math.round(frames / perfTimer), ms = (cpuMs / frames).toFixed(1);
-      perfHud.innerHTML = `<b>${fps}</b> FPS · <b>${ms}</b> MS · <b>${i.calls}</b> CALLS · <b>${(i.triangles / 1000).toFixed(0)}K</b> TRIS`;
+      // phones: too slow two checks in a row -> render fewer pixels (down to 1x)
+      slowChecks = MOBILE && fps < 50 ? slowChecks + 1 : 0;
+      if (slowChecks >= 2 && prNow > 1.01) { prNow = Math.max(1, prNow - 0.15); renderer.setPixelRatio(prNow); slowChecks = 0; }
+      perfHud.innerHTML = `<b>${fps}</b> FPS · <b>${ms}</b> MS · <b>${i.calls}</b> CALLS · <b>${(i.triangles / 1000).toFixed(0)}K</b> TRIS · <b>${prNow.toFixed(2)}</b>X`;
       if (!devPanel.hidden) perfEl.textContent = `${fps} fps · ${i.calls} draw calls · ${i.triangles.toLocaleString()} tris`;
       frames = 0; perfTimer = 0; cpuMs = 0;
     }
@@ -3375,7 +3394,7 @@ renderAmmo(); renderSaveDump(); killEl.textContent = `${kills} KILLS`;
 for (const id of SLOT_IDS) ICONS[id] = "data:image/png;base64," + GUN_ICON[id]; ICONS.m1911 = ICONS.pistol;
 for (const [k, mk] of Object.entries(SUPPLY_MODELS)) ICONS[k] = renderIcon(mk());
 ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.rocket = renderIcon(makeRocketModel().g); ICONS.wall = renderIcon(makeWallModel(1));
-for (const [l] of interior?.userData.lights || []) shanty.add(l);
+if (!DEF) for (const [l] of interior?.userData.lights || []) shanty.add(l);   // no going inside in defense mode
 applyBaseLevel(); buildBaseFootprint();
 if (!DEF) for (const b of save.builds) if (STRUCT[b.t]) addStruct(b.t, b.x, b.z, b.lv || 1, b.spent ?? (b.t === "sentry" ? 5 : 20), undefined, b.y || 0);
 makeGhosts(); if (!DEF) startTutorial();
