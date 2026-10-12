@@ -208,6 +208,7 @@ body.mobile #xpHud { left: 8px; bottom: auto; top: calc(8px + env(safe-area-inse
 body.mobile #acctHud { left: 8px; bottom: auto; top: calc(34px + env(safe-area-inset-top, 0px)); transform: scale(.8); transform-origin: top left; }
 body.mobile #bars { bottom: 4px; transform: translateX(-50%) scale(.56); transform-origin: bottom center; }
 body.mobile #buildBar .bkey { font-size: 15px; padding: 10px 14px; background: #6a5a2a; color: #f2e6c0; }
+body.mobile #buildBar .bkey.exit { background: #b8361e; color: #fff; }
 body.mobile #banner { font-size: 11px; top: calc(48px + env(safe-area-inset-top, 0px)); padding: 4px 8px; }
 body.mobile #smenu { width: 180px; padding: 7px 9px; gap: 5px; } body.mobile #smenu .t { font-size: 12px; } body.mobile #smenu .info { font-size: 10px; } body.mobile #smenu button { font-size: 10px; padding: 5px 7px; }
 body.mobile #ovh { transform-origin: top left; }
@@ -1860,7 +1861,7 @@ function renderBuildBar() {
   buildSlots.innerHTML = BUILDS.map((b, i) => { const lock = lockOf(b); if (lock) return slotHtml(i, b, null, "", false, lock); const c = b.cost(), n = countOf(b.id), cap = capOf(b.id); return slotHtml(i, { name: `${b.name} ${n}/${cap}` }, ICONS[b.id], `${c}`, save.xp < c || n >= cap); }).join("");
   if (buildMode && buildSel >= 0) buildSlots.children[buildSel]?.classList.add("sel");
   buildBar.classList.toggle("mini", !buildMode);
-  if (touch.on) buildKey.textContent = !buildMode ? "BUILD" : carry ? "TAP A SPOT, THEN ✓ · BUILD TO PUT BACK" : buildSel >= 0 ? "TAP A SPOT, THEN ✓ · TAP THE SLOT AGAIN FOR CURSOR" : "TAP A BUILD TO MANAGE IT";
+  if (touch.on) { buildKey.textContent = buildMode ? "EXIT BUILD" : "BUILD"; buildKey.classList.toggle("exit", buildMode); }
   else buildKey.textContent = !buildMode ? "[B] BUILD" : carry ? "[B] PUT BACK · CLICK TO PLACE" : buildSel >= 0 ? `[B] CLOSE · CLICK TO PLACE · [${buildSel + 1}] AGAIN FOR CURSOR` : "[B] CLOSE · CLICK A BUILD TO MANAGE IT";
 }
 function deny(el) { if (!el) return; el.classList.remove("deny"); void el.offsetWidth; el.classList.add("deny"); }
@@ -2275,7 +2276,7 @@ function updateTutorial() {
   let target = null, label = "", spot = false, ban = "";
   if (tut.step === "shoot") {
     let best = Infinity; for (const f of tut.foes) if (!f.dead) { const d = f.pos.distanceTo(player.pos); if (d < best) { best = d; target = f; } }
-    if (target) { label = "CLICK TO SHOOT!"; spot = !target.hit; ban = "AIM WITH THE MOUSE, CLICK TO SHOOT"; }
+    if (target) { label = touch.on ? "ENEMY!" : "CLICK TO SHOOT!"; spot = !target.hit; ban = touch.on ? "MOVE WITH THE STICK · YOUR GUN FIRES BY ITSELF WHEN THEY'RE IN RANGE" : "AIM WITH THE MOUSE, CLICK TO SHOOT"; }
   } else if (tut.step === "xp") {
     if (save.xp >= 5) tut.step = "build";
     else { let best = Infinity; for (const g of gems) { const d = g.m.position.distanceTo(player.pos); if (d < best) { best = d; target = g; } }
@@ -2283,8 +2284,8 @@ function updateTutorial() {
   }
   if (tut.step === "build" && buildMode) tut.step = "place";
   if (tut.step === "place" && !buildMode) tut.step = "build";
-  if (tut.step === "build") ban = "PRESS [B] TO PLACE A SENTRY TURRET!";
-  if (tut.step === "place") ban = touch.on ? "TAP A SPOT, THEN ✓ · SENTRIES SHOOT ENEMIES IN RANGE" : "CLICK TO PLACE IT · SENTRIES SHOOT ENEMIES IN RANGE";
+  if (tut.step === "build") ban = touch.on ? "TAP BUILD TO PLACE A SENTRY TURRET!" : "PRESS [B] TO PLACE A SENTRY TURRET!";
+  if (tut.step === "place") ban = touch.on ? "TAP THE GROUND WHERE IT GOES, THEN ✓" : "CLICK TO PLACE IT · SENTRIES SHOOT ENEMIES IN RANGE";
   buildBar.classList.toggle("flash", tut.step === "build" || tut.step === "place");
   if (tut.step !== "done" && ban) { bannerEl.textContent = ban; bannerEl.hidden = false; bannerEl.classList.remove("warn"); bannerT = 0.2; }
   spotEl.hidden = true;
@@ -2533,13 +2534,16 @@ addEventListener("resize", vResize);
 
 /* ---------- Touch controls (mobile) ---------- */
 // Switches on with a coarse pointer or the first touch. Left side: floating move stick (push to the rim to
-// sprint). Anywhere else: touch and hold to aim at that spot and fire. In build mode a tap (or drag) moves
+// sprint). Guns aim and fire at the nearest enemy in range by themselves. In build mode a tap (or drag) moves
 // the ghost and shows confirm / cancel next to it; with an empty hand a tap opens a structure's menu.
 const touch = { on: false, move: null, fire: null, tap: null, pending: null, mv: new THREE.Vector2() };
 const stickL = document.getElementById("stickL"), mBtns = document.getElementById("mBtns"), mConfirm = document.getElementById("mConfirm");
+const stickAnchor = () => [96 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sal")) || 0), innerHeight - 100];
 function enableTouch() {
   if (touch.on) return; touch.on = true; document.body.classList.add("mobile"); reticle.hidden = true; mBtns.hidden = false; renderBuildBar();
+  const [ax, ay] = stickAnchor(); stickAt(stickL, ax, ay);   // the stick lives in one spot
 }
+addEventListener("resize", () => { if (touch.on && !touch.move) { const [ax, ay] = stickAnchor(); stickAt(stickL, ax, ay); } });
 if (matchMedia("(pointer: coarse)").matches) enableTouch();
 addEventListener("touchstart", enableTouch, { once: true, passive: true });
 const STICK_R = 46;
@@ -2552,7 +2556,7 @@ function touchGround(e) { setMouse(e); raycaster.setFromCamera(mouse, camera); c
 renderer.domElement.addEventListener("pointerdown", (e) => {
   if (e.pointerType !== "touch") return; enableTouch(); e.preventDefault();
   if (runOver || picking || player.dead) return;
-  if (e.clientX < innerWidth * 0.42 && !touch.move) { touch.move = { id: e.pointerId, x: e.clientX, y: e.clientY }; stickAt(stickL, e.clientX, e.clientY); return; }
+  if (e.clientX < innerWidth * 0.42 && !touch.move) { const [ax, ay] = stickAnchor(); touch.move = { id: e.pointerId, x: ax, y: ay }; readStick(touch.move, e, touch.mv); stickKnob(stickL, touch.mv); return; }
   if (!buildMode && !player.inside) {   // a tap on a structure or the base (not an enemy) is a tap, not a shot
     setMouse(e); raycaster.setFromCamera(mouse, camera); updateHover();
     const onBase = shantyBox && raycaster.ray.intersectsBox(shantyBox), pick = hovered ? (hovered.kind ? hovered : null) : onBase ? "base" : null;
@@ -2563,18 +2567,15 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
     if (holdingBuild()) { touch.pending = touchGround(e); mConfirm.hidden = true; }   // the ghost jumps to your finger
     return;
   }
-  if (!touch.fire) { touch.fire = { id: e.pointerId }; setMouse(e); mouseDown = true; firedThisPress = false; }
 }, { passive: false });
 addEventListener("pointermove", (e) => {
   if (e.pointerType !== "touch") return;
   if (touch.move?.id === e.pointerId) { readStick(touch.move, e, touch.mv); stickKnob(stickL, touch.mv); }
-  else if (touch.fire?.id === e.pointerId) setMouse(e);
   else if (touch.tap?.id === e.pointerId && holdingBuild()) { const p = touchGround(e); if (p) touch.pending = p; }   // drag the ghost
 });
 function endTouch(e) {
   if (e.pointerType !== "touch") return;
-  if (touch.move?.id === e.pointerId) { touch.move = null; touch.mv.set(0, 0); stickL.hidden = true; }
-  if (touch.fire?.id === e.pointerId) { touch.fire = null; mouseDown = false; }
+  if (touch.move?.id === e.pointerId) { touch.move = null; touch.mv.set(0, 0); stickKnob(stickL, touch.mv); }
   if (touch.tap?.id === e.pointerId) {
     const t = touch.tap; touch.tap = null;
     const short = Math.hypot(e.clientX - t.x, e.clientY - t.y) < 40 && performance.now() - t.t < 600;
@@ -2594,14 +2595,19 @@ addEventListener("pointerup", endTouch); addEventListener("pointercancel", endTo
 function clearPending() { touch.pending = null; mConfirm.hidden = true; }
 document.getElementById("mOk").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); if (touch.pending && holdingBuild()) tryPlace(); clearPending(); });
 document.getElementById("mNo").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); clearPending(); });
-// called from update(): movement from the stick, aim + fire from a held touch, confirm box follows the ghost
+let autoTarget = null;
+function nearestTarget() {
+  let best = null, bd = W().range;
+  for (const e of enemies) { if (e.dead) continue; const dx = e.pos.x - player.pos.x, dz = e.pos.z - player.pos.z, d = Math.hypot(dx, dz); if (d < bd && d > 0.01 && losClear(player.pos.x, player.pos.z, dx / d, dz / d, d)) { bd = d; best = e; } }
+  return best;
+}
+// called from update(): movement from the stick, auto-aim + fire at the nearest enemy in range, confirm box follows the ghost
 function applyTouch(mv) {
   if (!touch.on) return false;
+  mouseDown = false;
   if (touch.mv.lengthSq() > 0.02) mv.addScaledVector(RIGHT, touch.mv.x).addScaledVector(FWD, touch.mv.y);
-  if (touch.fire && !buildMode && !player.inside) {
-    raycaster.setFromCamera(mouse, camera);
-    if (raycaster.ray.intersectPlane(groundPlane, aimPoint)) player.yaw = Math.atan2(aimPoint.x - player.pos.x, aimPoint.z - player.pos.z);
-    firedThisPress = false;   // holding keeps firing at the gun's own rate
+  if (!buildMode && !player.inside && !player.dead && (autoTarget = nearestTarget())) {   // auto-fire
+    aimPoint.copy(autoTarget.pos); player.yaw = Math.atan2(aimPoint.x - player.pos.x, aimPoint.z - player.pos.z); mouseDown = true; firedThisPress = false;
   } else if (touch.mv.lengthSq() > 0.05 && !buildMode) { const d = new THREE.Vector3().addScaledVector(RIGHT, touch.mv.x).addScaledVector(FWD, touch.mv.y); player.yaw = Math.atan2(d.x, d.z); }
   if (!buildMode && touch.pending) clearPending();
   if (!mConfirm.hidden && ghost) { const [x, y] = toScreen(ghost.position.clone().setY(ghost.position.y + 0.6)); mConfirm.style.transform = `translate(${x + 46}px, ${y}px) translate(0, -50%)`; }
