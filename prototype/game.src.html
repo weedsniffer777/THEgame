@@ -116,7 +116,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #leaveBtn { position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%); z-index: 4; font-family: "Pixelify Sans", monospace; font-size: 22px; letter-spacing: .16em; color: #0f1a0d; background: #6fe05a; border: 0; padding: 12px 26px; cursor: pointer; box-shadow: 0 0 0 3px #0f1a0d, 0 6px 0 #0f1a0d; }
 #leaveBtn:hover { background: #8cf576; } #leaveBtn:active { transform: translate(-50%, calc(-50% + 3px)); box-shadow: 0 0 0 3px #0f1a0d, 0 3px 0 #0f1a0d; }
 #alert { left: 18px; top: calc(58px + env(safe-area-inset-top, 0px)); display: flex; align-items: center; gap: 10px; padding: 8px 12px; z-index: 5; max-width: 300px; font-size: 13px; letter-spacing: .06em; }
-#alert img { width: 44px; height: 44px; image-rendering: pixelated; background: #1b1d1b; }
+#alert img { width: 44px; height: 44px; object-fit: contain; background: radial-gradient(circle, #6a6f66, #33362f 75%); }
 #alert small { display: block; font-size: 10px; letter-spacing: .16em; color: #7dffd6; }
 #alert.in { animation: alertIn .35s ease-out; } @keyframes alertIn { from { transform: translateX(-30px); opacity: 0; } }
 .bang { position: absolute; left: 0; top: 0; font-family: "Pixelify Sans", monospace; font-size: 26px; font-weight: 700; color: #ffd23a; text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000, 0 0 10px #ff2a1a; }
@@ -126,8 +126,8 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 .tiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
 .tiles.big { grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .tile { position: relative; display: grid; justify-items: center; gap: 3px; padding: 5px 4px 6px; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); text-align: center; }
-.tile .ico { width: 100%; aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #3a3d36, #1b1d1b); box-shadow: inset 0 0 0 2px #101211; }
-.tile .ico img { width: 86%; height: 86%; object-fit: contain; image-rendering: pixelated; }
+.tile .ico { width: 100%; aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(circle at 50% 42%, #6a6f66, #33362f 75%); box-shadow: inset 0 0 0 2px #101211; }
+.tile .ico img { width: 90%; height: 90%; object-fit: contain; }
 .tile .k { position: absolute; left: 6px; top: 4px; font-size: 10px; color: #9d978a; }
 .tile .cnt { position: absolute; right: 6px; top: 4px; font-size: 10px; color: #e8e2d4; }
 .tile b { font-weight: 400; font-size: 11px; letter-spacing: .06em; line-height: 1.1; }
@@ -419,7 +419,8 @@ function makeShanty() {
 // come from its named parts; every gun is shifted so its grip sits where the pistol's does.
 const GUN_SCALE = 1.3;
 const GUN_SRC = { pistol: M1911_B64, shotgun: GUN_SHOTGUN_B64, smg: GUN_SMG_B64, rifle: GUN_RIFLE_B64, gl: GUN_GL_B64 };
-const GUN_T = {};   // id -> { g, grip, support, muzzle, eject, shift }
+const GUN_T = {};
+const GUN_ICON = { pistol: "__GUNICON_Pistol_E__", shotgun: "__GUNICON_ShotGun_B__", smg: "__GUNICON_Pistol_P__", rifle: "__GUNICON_WWII_Recon_A__", gl: "__GUNICON_GrenadeLauncher_C__" };   // id -> { g, grip, support, muzzle, eject, shift }
 async function loadGuns() {
   for (const [id, b64] of Object.entries(GUN_SRC)) {
     const g = (await loader.parseAsync(b64ToBuf(b64), "")).scene; g.name = id;
@@ -1156,8 +1157,9 @@ function placeBar(b, pos, k) { const [x, y] = toScreen(pos); b.el.style.transfor
 const FENCE_RUNS = { 1: [[[-5.2, -3.2], [-5.4, -1.0], [-5.3, 1.3], [-5.0, 3.6], [-3.4, 4.9], [-1.6, 5.4]]],
   2: [[[5.4, 4.7], [7.0, 3.1], [8.1, 0.8], [8.2, -1.6], [7.2, -3.7], [5.2, -4.6]], [[-5.2, -3.2], [-4.6, -4.8], [-2.6, -5.3]]] };
 const COILS = { 1: [[-4.6, -3.6, 3.8, -3.4, 0.38], [2.4, 5.2, 4.6, 3.9, 0.3]], 2: [[-6.1, 2.6, -6.3, -2.4, 0.34], [4.2, -4.9, 7.6, -3.0, 0.32], [8.8, 1.6, 8.9, -1.8, 0.3]] };
-const fenceSegs = (lv) => { const out = []; for (let l = 1; l <= lv; l++) for (const run of FENCE_RUNS[l] || []) for (let i = 1; i < run.length; i++) out.push([run[i - 1][0], run[i - 1][1] + SHACK_Z, run[i][0], run[i][1] + SHACK_Z]); return out; };
-const coilSegs = (lv) => { const out = []; for (let l = 1; l <= lv; l++) for (const [ax, az, bx, bz, r] of COILS[l] || []) out.push([ax, az + SHACK_Z, bx, bz + SHACK_Z, r]); return out; };
+const FENCE_L1_ONLY = [[[7.0, 3.3], [7.9, 2.0]]], COILS_L1_ONLY = [[7.6, 0.8, 8.0, -1.6, 0.3]];   // loose wire on the LV1 yard's right edge
+const fenceSegs = (lv) => { const out = []; if (lv === 1) for (const run of FENCE_L1_ONLY) out.push([run[0][0], run[0][1] + SHACK_Z, run[1][0], run[1][1] + SHACK_Z]); for (let l = 1; l <= lv; l++) for (const run of FENCE_RUNS[l] || []) for (let i = 1; i < run.length; i++) out.push([run[i - 1][0], run[i - 1][1] + SHACK_Z, run[i][0], run[i][1] + SHACK_Z]); return out; };
+const coilSegs = (lv) => { const out = []; if (lv === 1) for (const [ax, az, bx, bz, r] of COILS_L1_ONLY) out.push([ax, az + SHACK_Z, bx, bz + SHACK_Z, r]); for (let l = 1; l <= lv; l++) for (const [ax, az, bx, bz, r] of COILS[l] || []) out.push([ax, az + SHACK_Z, bx, bz + SHACK_Z, r]); return out; };
 function segDist(px, pz, ax, az, bx, bz) { const dx = bx - ax, dz = bz - az, t = THREE.MathUtils.clamp(((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz), 0, 1); const cx = ax + dx * t, cz = az + dz * t; return [Math.hypot(px - cx, pz - cz), cx, cz]; }
 let FENCES = [], WIRE_COILS = [];
 function refreshPerimeter() { FENCES = fenceSegs(save.base); WIRE_COILS = coilSegs(save.base); }
@@ -1816,11 +1818,16 @@ function startCarry(s) {   // "Move": lift it off the map into the build hand
 function cancelCarry() {   // swapped out or closed: it goes back where it was, unharmed
   const { s, from } = carry; carry = null; s.x = from.x; s.z = from.z; s.y = from.y; buildModel(s); (s.kind === "sentry" ? sentries : walls).push(s); renderBuildBar();
 }
-function renderIcon(obj, dist = 1, lookY = 0) {
-  const r = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true }); r.setSize(108, 108); r.toneMapping = THREE.ACESFilmicToneMapping;
-  const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x666666, 3.4)); const dl = new THREE.DirectionalLight(0xffffff, 3.2); dl.position.set(2, 3, 2); sc.add(dl); sc.add(obj);
-  const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
-  const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 100); cam.position.copy(c).add(new THREE.Vector3(1, 0.55, 1.1).normalize().multiplyScalar(size * 1.75 * dist)); cam.lookAt(c.x, c.y + lookY, c.z);
+// Orthographic 3/4 render, framed to the object's projected bounds so nothing is ever cropped.
+function renderIcon(obj) {
+  const r = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true }); r.setSize(160, 160); r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.3;
+  const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x666666, 3.0)); const dl = new THREE.DirectionalLight(0xffffff, 2.8); dl.position.set(2, 3, 2); sc.add(dl); sc.add(obj); obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 100);
+  cam.position.copy(c).add(new THREE.Vector3(1, 0.7, 1.15).normalize()); cam.lookAt(c); cam.updateMatrixWorld(true);
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (let i = 0; i < 8; i++) { const v = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).applyMatrix4(cam.matrixWorldInverse); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+  const half = Math.max(x1 - x0, y1 - y0) / 2 * 1.06, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  Object.assign(cam, { left: cx - half, right: cx + half, top: cy + half, bottom: cy - half }); cam.updateProjectionMatrix();
   r.render(sc, cam); const url = r.domElement.toDataURL(); r.dispose(); r.forceContextLoss(); return url;
 }
 
@@ -2233,8 +2240,8 @@ const OUTHOUSE_BOX = [5.25, 6.75, SHACK_Z - 1.65, SHACK_Z - 0.15];
 function applyBaseLevel() {
   const b = shanty?.children[0]; if (!b) return; const lv = save.base;
   const set = (n, v) => { const o = b.getObjectByName(n); if (o) o.visible = v; };
-  set("shack_l1", lv < 2); set("shack_l2", lv >= 2); set("yard_l2", lv >= 2);
-  const i = boxColliders.indexOf(OUTHOUSE_BOX); if (lv >= 2 && i < 0) boxColliders.push(OUTHOUSE_BOX); if (lv < 2 && i >= 0) boxColliders.splice(i, 1);
+  set("shack_l1", lv < 2); set("shack_l2", lv >= 2); set("yard_l1", lv < 2); set("yard_l2", lv >= 2);
+  if (!boxColliders.includes(OUTHOUSE_BOX)) boxColliders.push(OUTHOUSE_BOX);   // scrap pile at LV1, outhouse from LV2
   ffBuildBlocked(); if (typeof BASE_FOOT !== "undefined") renderBuildBar();
 }
 function toggleInside() {
@@ -2387,8 +2394,8 @@ for (const [id, t] of Object.entries(GUN_T)) { const g = t.g.clone(); g.scale.se
 curGun = owns(save.equip) ? save.equip : "pistol"; heldGun = heldGuns[curGun]; heldGun.visible = true; markPlayerStencil(playerModel);
 camera.position.copy(player.pos).add(CAM_OFFSET);
 renderAmmo(); renderSaveDump(); killEl.textContent = `${kills} KILLS`;
-for (const id of SLOT_IDS) ICONS[id] = renderIcon(GUN_T[id].g.clone(), 0.62); ICONS.m1911 = ICONS.pistol;
-for (const [k, mk] of Object.entries(SUPPLY_MODELS)) ICONS[k] = renderIcon(mk(), 0.9);
+for (const id of SLOT_IDS) ICONS[id] = "data:image/png;base64," + GUN_ICON[id]; ICONS.m1911 = ICONS.pistol;
+for (const [k, mk] of Object.entries(SUPPLY_MODELS)) ICONS[k] = renderIcon(mk());
 ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.wall = renderIcon(makeWallModel(1));
 for (const [l] of interior?.userData.lights || []) shanty.add(l);
 applyBaseLevel(); buildBaseFootprint();

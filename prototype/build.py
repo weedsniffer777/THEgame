@@ -17,5 +17,7 @@ src = (src.replace("__PLAYER_B64__", b64("models/player.glb"))
           .replace("__BARK_B64__", b64("models/pine_bark.jpg")))
 for f in sorted((root / "models/guns").glob("*.glb")):
     src = src.replace(f"__GUN_{f.stem}_B64__", b64(f"models/guns/{f.name}"))
+for f in sorted((root / "models/guns/icons").glob("*.png")):   # shop icons rendered from the full-quality models
+    src = src.replace(f"__GUNICON_{f.stem}__", b64(f"models/guns/icons/{f.name}"))
 (out / "index.html").write_text(src)
 print("wrote", out / "index.html", f"{(out / 'index.html').stat().st_size / 1e6:.1f} MB")

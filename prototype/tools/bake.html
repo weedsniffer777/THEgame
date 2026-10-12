@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
-import { buildShack, buildShackYard, buildYardL2 } from "./shanty.js";
+import { buildShack, buildShackYard, buildYardL1, buildYardL2 } from "./shanty.js";
 
 // Build, flatten into world space, merge meshes that share a material into one draw call.
 // The shack and its yard are baked as two groups ("shack", "yard") so the game can treat them separately.
@@ -40,7 +40,7 @@ const shackSrc = buildShack();
 // level-specific parts: shack_l1 only shows at base level 1 (boarded windows), shack_l2 / yard_l2 from level 2
 out.add(mergeGroup(shackSrc, "shack", o => !isRoof(o) && !lvlOf(o)), mergeGroup(shackSrc, "shack_l1", o => !isRoof(o) && lvlOf(o) === 1),
   mergeGroup(shackSrc, "shack_l2", o => !isRoof(o) && lvlOf(o) === 2), mergeGroup(shackSrc, "shack_roof", isRoof),
-  mergeGroup(buildShackYard(), "yard"), mergeGroup(buildYardL2(), "yard_l2"));
+  mergeGroup(buildShackYard(), "yard"), mergeGroup(buildYardL1(), "yard_l1"), mergeGroup(buildYardL2(), "yard_l2"));
 const byMat = { size: calls };
 const glb = await new GLTFExporter().parseAsync(out, { binary: true, maxTextureSize: 1024 });
 const bytes = new Uint8Array(glb); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));

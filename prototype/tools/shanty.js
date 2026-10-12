@@ -490,4 +490,27 @@ function buildYardL2() {
   return shadowed(g);
 }
 
-export { buildShack, buildShackYard, buildYardL2, surfaces, vnoise };
+/* ---------- Level 1 only: scrap pile where the outhouse will stand, loose wire on the right edge ---------- */
+function buildYardL1() {
+  const S = surfaces(), rnd = seeded(5151);
+  const g = new THREE.Group(); g.name = "yard_l1"; WIRE = [];
+  const pile = new THREE.Group(); pile.position.set(6.0, 0, -0.9); g.add(pile);
+  for (let i = 0; i < 5; i++) {   // sheets dumped in a heap
+    const p = i % 2 === 0, s = new THREE.Mesh(sheetGeo(0.9 + rnd() * 0.4, 1.3 + rnd() * 0.5, rnd, p ? S.paint : S.galv, { dent: 0.06 }), p ? S.paintMat : S.galvMat);
+    s.rotation.set(-Math.PI / 2 + (rnd() - 0.5) * 0.5, (rnd() - 0.5) * 0.4, rnd() * 3); s.position.set((rnd() - 0.5) * 0.6, 0.05 + i * 0.07, (rnd() - 0.5) * 0.6); pile.add(s);
+  }
+  const lean = new THREE.Mesh(sheetGeo(0.8, 1.5, rnd, S.galv, { dent: 0.05 }), S.galvMat); lean.position.set(-0.45, 0.6, 0.2); lean.rotation.set(0, 0.9, 0); lean.rotateX(-0.45); pile.add(lean);
+  for (let i = 0; i < 5; i++) { const p = new THREE.Mesh(surfBox(1.2 + rnd() * 0.8, 0.05, 0.16, S.wood, rnd), S.woodMat); p.position.set((rnd() - 0.5) * 0.8, 0.25 + rnd() * 0.25, (rnd() - 0.5) * 0.8); p.rotation.set((rnd() - 0.5) * 0.4, rnd() * 3, (rnd() - 0.5) * 0.5); pile.add(p); }
+  const d = drum(S, rnd); d.rotation.set(Math.PI / 2, 0, 1.2); d.position.set(0.55, 0.29, 0.55); pile.add(d);
+  const t = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.12, 8, 18), S.rubberMat); t.rotation.set(Math.PI / 2 - 0.3, 0, 0); t.scale.z = 0.85; t.position.set(-0.5, 0.16, -0.5); pile.add(t);
+  for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(surfBox(0.4, 0.2, 0.2, S.concrete, rnd), S.concreteMat); b.position.set(-0.7 + i * 0.5, 0.1, 0.75 + (rnd() - 0.5) * 0.2); b.rotation.y = rnd() * 3; pile.add(b); }
+  // a short loose coil and two leaning posts with a sagging strand along the right edge
+  const barbs = concertina(g, new THREE.Vector3(7.6, 0, 0.8), new THREE.Vector3(8.0, 0, -1.6), S, rnd, 0.3);
+  barbs.push(...barbedRun(g, [[7.0, 3.3, 0.18], [7.9, 2.0, -0.22]], S, rnd));
+  addBarbs(g, barbs, S, rnd);
+  const wire = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(WIRE), new THREE.LineBasicMaterial({ color: 0x4a443e })); wire.name = "wire"; g.add(wire);
+  for (let i = 0; i < 18; i++) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.05 + rnd() * 0.08, 0), S.rockMat); r.position.set(5 + rnd() * 3.5, 0.03, -3 + rnd() * 6); r.rotation.set(rnd() * 3, rnd() * 3, 0); r.scale.y = 0.6; g.add(r); }
+  return shadowed(g);
+}
+
+export { buildShack, buildShackYard, buildYardL1, buildYardL2, surfaces, vnoise };

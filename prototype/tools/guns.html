@@ -10,9 +10,25 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { SimplifyModifier } from "three/addons/modifiers/SimplifyModifier.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-const JOBS = [["ShotGun_B", 0.3], ["Pistol_P", 0.22], ["WWII_Recon_A", 0.25, "Optic"], ["GrenadeLauncher_C", 0.2]];
+const JOBS = [["ShotGun_B", 0.45], ["Pistol_P", 0.4], ["WWII_Recon_A", 0.4, "Optic"], ["GrenadeLauncher_C", 0.4], ["Pistol_E", 1, null, true]];   // Pistol_E: icon only
+// Shop icons are rendered from the full-quality model: side-on 3/4 view, orthographic camera fitted to the
+// gun's projected bounds so it always sits fully inside the frame.
+const ir = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true }); ir.setSize(320, 320); ir.toneMapping = THREE.ACESFilmicToneMapping; ir.toneMappingExposure = 1.45;
+function icon(obj) {
+  const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x50565c, 2.6));
+  const k = new THREE.DirectionalLight(0xffffff, 2.6); k.position.set(-2, 3, 2); sc.add(k); const f = new THREE.DirectionalLight(0xbfd4ff, 1.2); f.position.set(-2, -1, -3); sc.add(f);
+  sc.add(obj); obj.updateMatrixWorld(true);
+  const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 100), box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3());
+  cam.position.copy(c).add(new THREE.Vector3(-1, 0.28, 0.22).normalize()); cam.lookAt(c); cam.updateMatrixWorld(true);
+  // fit: project the eight box corners into camera space
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; const inv = cam.matrixWorldInverse;
+  for (let i = 0; i < 8; i++) { const v = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).applyMatrix4(inv); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+  const half = Math.max(x1 - x0, y1 - y0) / 2 * 1.08, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  Object.assign(cam, { left: cx - half, right: cx + half, top: cy + half, bottom: cy - half }); cam.updateProjectionMatrix();
+  ir.render(sc, cam); return ir.domElement.toDataURL("image/png").split(",")[1];
+}
 const loader = new GLTFLoader(), simp = new SimplifyModifier(), out = {};
-for (const [name, keep, attach] of JOBS) {
+for (const [name, keep, attach, iconOnly] of JOBS) {
   const g = (await loader.loadAsync(`src/guns/${name}.glb`)).scene;
   if (attach) {   // scope sits on the receiver, centred
     const o = (await loader.loadAsync(`src/guns/${attach}.glb`)).scene; g.updateMatrixWorld(true);
@@ -21,6 +37,18 @@ for (const [name, keep, attach] of JOBS) {
     o.position.set((rb.min.x + rb.max.x) / 2 - (ob.min.x + ob.max.x) / 2, rb.max.y - ob.min.y - 0.012, (rb.min.z + rb.max.z) / 2 - (ob.min.z + ob.max.z) / 2 + 0.035);
     o.name = name + "_Optic"; g.add(o);
   }
+  if (name === "GrenadeLauncher_C") {   // drop the flip-up ladder sight and trim its mount off the body (partMods.cut above 0.0732)
+    const sights = []; g.traverse(o => { if (/_Sight(_Back|_Front)?$/.test(o.name)) sights.push(o); }); sights.forEach(o => o.removeFromParent());
+    g.updateMatrixWorld(true);
+    g.traverse(o => { if (!o.isMesh || o.name !== "GrenadeLauncher_C") return;
+      let geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); const P = geo.attributes.position, keep = [], v = new THREE.Vector3();
+      for (let t = 0; t < P.count; t += 3) { let cy = 0; for (let k = 0; k < 3; k++) cy += v.fromBufferAttribute(P, t + k).applyMatrix4(o.matrixWorld).y / 3; if (cy <= 0.0732) keep.push(t); }
+      const out = new THREE.BufferGeometry();
+      for (const [n, a] of Object.entries(geo.attributes)) { const arr = new a.array.constructor(keep.length * 3 * a.itemSize); keep.forEach((t, i) => { for (let k = 0; k < 3 * a.itemSize; k++) arr[i * 3 * a.itemSize + k] = a.array[t * a.itemSize + k]; }); out.setAttribute(n, new THREE.BufferAttribute(arr, a.itemSize, a.normalized)); }
+      o.geometry = out; });
+  }
+  const png = icon(g.clone());
+  if (iconOnly) { out[name] = { png }; continue; }
   let before = 0, after = 0;
   g.traverse(o => {
     if (!o.isMesh) return;
@@ -31,7 +59,7 @@ for (const [name, keep, attach] of JOBS) {
   });
   const glb = await new GLTFExporter().parseAsync(g, { binary: true });
   const bytes = new Uint8Array(glb); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  out[name] = { b64: btoa(bin), before, after };
+  out[name] = { b64: btoa(bin), before, after, png };
 }
 window.__guns = out;
 </script>
