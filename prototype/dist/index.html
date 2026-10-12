@@ -2609,7 +2609,7 @@ function applyTouch(mv) {
 }
 const mBtn = (id, fn) => document.getElementById(id).addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); fn(); });
 mBtn("mReload", () => startReload());
-doorPrompt.addEventListener("pointerdown", (e) => { if (!touch.on) return; e.preventDefault(); setBuildMode(false); toggleInside(); });
+document.getElementById("doorPrompt").addEventListener("pointerdown", (e) => { if (!touch.on) return; e.preventDefault(); setBuildMode(false); toggleInside(); });
 mBtn("mPause", () => setPaused(!paused));
 
 /* ---------- Loop ---------- */
