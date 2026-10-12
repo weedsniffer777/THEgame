@@ -2260,7 +2260,9 @@ const tut = { step: save.tut ? "done" : "shoot", foes: [] };
 function startTutorial() {
   if (tut.step === "done") return;
   const clampA = (v) => THREE.MathUtils.clamp(v, -27, 27);
-  for (const [r, f] of [[14, 1.2], [15.5, -1.2]]) { const p = player.pos.clone().addScaledVector(RIGHT, r).addScaledVector(FWD, f); tut.foes.push(spawnWalker(clampA(p.x), clampA(p.z), true)); }
+  // bottom-left of the screen, close, so they walk at you in plain view instead of from behind the base
+  const dir = RIGHT.clone().add(FWD).negate().normalize(), side = new THREE.Vector3(-dir.z, 0, dir.x);
+  for (const [r, o] of [[11, 1.4], [12.5, -1.4]]) { const p = player.pos.clone().addScaledVector(dir, r).addScaledVector(side, o); tut.foes.push(spawnWalker(clampA(p.x), clampA(p.z), true)); }
 }
 function tutEvent(kind, arg) {
   if (kind === "kill" && tut.step === "shoot" && tut.foes.every(f => f.dead)) tut.step = "xp";
