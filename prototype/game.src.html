@@ -190,9 +190,9 @@ body.def #basePtr, body.def #stickL, body.def #mReload, body.def #deathMsg, body
 body.def #game { cursor: default; }
 #xpWrap { left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); width: min(720px, calc(100vw - 24px)); display: flex; align-items: center; gap: 8px; }
 #xpWrap .xbar { flex: 1; height: 14px; background: rgba(18, 20, 19, .85); box-shadow: 0 0 0 2px #101211; position: relative; }
-#xpFill { display: block; height: 100%; width: 0; background: linear-gradient(#8affd8, #2fd9a0); box-shadow: 0 0 10px rgba(61, 255, 184, .6); transition: width .12s; }
-#xpWrap.bump .xbar { box-shadow: 0 0 0 2px #7dffd6; }
-#xpLv { font-size: 15px; letter-spacing: .1em; color: #7dffd6; text-shadow: 0 2px 0 #000; min-width: 48px; }
+#xpFill { display: block; height: 100%; width: 0; background: linear-gradient(#9fd2ff, #3a8cff); box-shadow: 0 0 10px rgba(60, 150, 255, .7); transition: width .12s; }
+#xpWrap.bump .xbar { box-shadow: 0 0 0 2px #8cc8ff; }
+#xpLv { font-size: 15px; letter-spacing: .1em; color: #8cc8ff; text-shadow: 0 2px 0 #000; min-width: 48px; }
 #defTop { left: 50%; top: calc(30px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: grid; justify-items: center; gap: 4px; }
 #defTimer { font-size: 34px; letter-spacing: .08em; color: #f2ede0; text-shadow: 0 3px 0 #000, 0 0 12px rgba(0,0,0,.5); font-variant-numeric: tabular-nums; }
 #defTimer.final { color: #ff8a6a; }
@@ -212,8 +212,9 @@ body.def #game { cursor: default; }
 .tcard.free .cost { color: #7dffd6; }
 .tcard.flash { animation: tflash .8s ease-in-out infinite; } @keyframes tflash { 50% { box-shadow: 0 0 0 3px #7dffd6, 0 0 0 5px #101211, 0 0 24px 6px rgba(125, 255, 214, .6); } }
 #orbLayer { inset: 0; z-index: 3; overflow: hidden; }
-.orb { position: absolute; left: 0; top: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #8affd8; transform: rotate(45deg); box-shadow: 0 0 8px 3px rgba(61, 255, 184, .75); will-change: transform; }
-.orb.big { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: #ffd23a; box-shadow: 0 0 10px 4px rgba(255, 200, 60, .75); }
+.orb { position: absolute; left: 0; top: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #9fd2ff; transform: rotate(45deg); box-shadow: 0 0 8px 3px rgba(60, 150, 255, .8); will-change: transform; }
+.orb.gold { background: #ffd23a; box-shadow: 0 0 8px 3px rgba(255, 200, 60, .8); }
+.orb.big { width: 14px; height: 14px; margin: -7px 0 0 -7px; }
 .ptr.front .lbl { background: #ff4a3a; color: #fff; } .ptr.front .arr { border-top-color: #ff4a3a; }
 body.def #banner { top: calc(104px + env(safe-area-inset-top, 0px)); } body.def.mobile #banner { top: calc(84px + env(safe-area-inset-top, 0px)); }
 .card.rar { --rc: #c9c3b4; box-shadow: 0 0 0 3px var(--rc), 0 0 0 5px #101211, 0 8px 0 #101211; }
@@ -3012,7 +3013,7 @@ function update(dt) {
 
 /* ---------- Defense mode ---------- */
 // No player. The horde comes from a few telegraphed fronts; hold the base until the timer hits 0:00.
-// Every kill flings orbs into the XP bar: each orb is 1 XP and 1 scrap for the bank. A full bar = pick 1 of 3
+// Every kill flings matching pairs of orbs: blue ones fly into the XP bar, yellow ones into the scrap bank. A full bar = pick 1 of 3
 // upgrades (rarity rolled per card). Scrap buys towers from the tray; drag a placed tower to move it (it then
 // sets up for 2 s), drop a tower on one of the same kind and level to merge them a level up.
 const BC = new THREE.Vector3(0, 0, SHACK_Z), floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -3119,30 +3120,31 @@ function defPlace() {
   return true;
 }
 
-// ---- kill orbs: burst out of the body, then fly into the XP bar
+// ---- kill orbs: a blue (XP) and a yellow (scrap) orb per point burst out of the body, then fly to their counter
 const orbs = [], orbPool = [];
 function defOrbs(e, n) {
   run.kills++;
   const [sx, sy] = toScreen(e.pos.clone().setY(1.2)), big = n >= 10, count = big ? Math.ceil(n / 3) : n, val = big ? 3 : 1;
-  for (let i = 0; i < count; i++) {
-    if (orbs.length > 220) { addOrb(val); continue; }
-    const el = orbPool.pop() || Object.assign(document.createElement("i"), { className: "orb" }); el.classList.toggle("big", big); orbLayer.appendChild(el);
+  for (let i = 0; i < count; i++) for (const gold of [false, true]) {
+    if (orbs.length > 260) { addOrb(val, gold); continue; }
+    const el = orbPool.pop() || Object.assign(document.createElement("i"), { className: "orb" }); el.classList.toggle("big", big); el.classList.toggle("gold", gold); orbLayer.appendChild(el);
     const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 160;
-    orbs.push({ el, x: sx, y: sy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120, t: 0, val });
+    orbs.push({ el, x: sx, y: sy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120, t: 0, val, gold });
   }
 }
-function addOrb(v) {
-  run.xp += v; run.scrapFrac += v * (1 + MOD("loot")); const add = Math.floor(run.scrapFrac); run.scrapFrac -= add; save.xp += add;
-  xpBumpT = 0.15; bankBumpT = 0.15;
+function addOrb(v, gold) {
+  if (gold) { run.scrapFrac += v * (1 + MOD("loot")); const add = Math.floor(run.scrapFrac); run.scrapFrac -= add; save.xp += add; bankBumpT = 0.15; return; }
+  run.xp += v; xpBumpT = 0.15;
   while (run.xp >= xpNeed(run.lvl)) { run.xp -= xpNeed(run.lvl); run.lvl++; run.picks++; }
 }
 let xpBumpT = 0, bankBumpT = 0, trayT = 0;
 function updateOrbs(dt) {
-  const r = xpFill.getBoundingClientRect(), tx = r.left + Math.max(6, r.width), ty = r.top + r.height / 2;
+  const r = xpFill.getBoundingClientRect(), xtx = r.left + Math.max(6, r.width), xty = r.top + r.height / 2;
+  const br = bankEl.getBoundingClientRect(), btx = br.left + 22, bty = br.top + br.height / 2;
   for (let i = orbs.length - 1; i >= 0; i--) {
-    const o = orbs[i]; o.t += dt;
+    const o = orbs[i]; o.t += dt; const tx = o.gold ? btx : xtx, ty = o.gold ? bty : xty;
     if (o.t < 0.28) { o.vx *= Math.exp(-dt * 5); o.vy *= Math.exp(-dt * 5); }
-    else { const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy) || 1, sp = 500 + (o.t - 0.28) * 2600; o.vx += (dx / d * sp - o.vx) * Math.min(1, dt * 9); o.vy += (dy / d * sp - o.vy) * Math.min(1, dt * 9); if (d < 18) { addOrb(o.val); o.el.remove(); orbPool.push(o.el); orbs.splice(i, 1); continue; } }
+    else { const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy) || 1, sp = 500 + (o.t - 0.28) * 2600; o.vx += (dx / d * sp - o.vx) * Math.min(1, dt * 9); o.vy += (dy / d * sp - o.vy) * Math.min(1, dt * 9); if (d < 18) { addOrb(o.val, o.gold); o.el.remove(); orbPool.push(o.el); orbs.splice(i, 1); continue; } }
     o.x += o.vx * dt; o.y += o.vy * dt; o.el.style.transform = `translate(${o.x}px, ${o.y}px) rotate(45deg)`;
   }
 }
