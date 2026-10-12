@@ -985,7 +985,7 @@ const flash = new THREE.PointLight(0xffb45a, 0, 6); scene.add(flash);
 let kills = save.kills;
 function fire() {
   const w = W();
-  if (player.reloading > 0 || player.cooldown > 0 || (firedThisPress && !w.auto) || player.inside || player.dead || buildMode) return;
+  if (player.reloading > 0 || player.cooldown > 0 || (firedThisPress && !w.auto) || player.inside || player.dead || (buildMode && !touch.on)) return;   // on phones the gun keeps firing while you build
   if (magOf(curGun) <= 0) { startReload(); return; }
   save.mags[curGun]--; player.cooldown = w.interval; firedThisPress = true; player.kick = w.kick || 1; shake = Math.max(shake, 0.04 * (w.kick || 1));
   heldGun.updateMatrixWorld(true);
@@ -2712,9 +2712,9 @@ function applyTouch(mv) {
   if (!touch.on) return false;
   mouseDown = false;
   if (touch.mv.lengthSq() > 0.02) mv.addScaledVector(RIGHT, touch.mv.x).addScaledVector(FWD, touch.mv.y);
-  if (!buildMode && !player.inside && !player.dead && (autoTarget = nearestTarget())) {   // auto-fire
+  if (!player.inside && !player.dead && (autoTarget = nearestTarget())) {   // auto-fire, build mode too
     aimPoint.copy(autoTarget.pos); player.yaw = Math.atan2(aimPoint.x - player.pos.x, aimPoint.z - player.pos.z); mouseDown = true; firedThisPress = false;
-  } else if (touch.mv.lengthSq() > 0.05 && !buildMode) { const d = new THREE.Vector3().addScaledVector(RIGHT, touch.mv.x).addScaledVector(FWD, touch.mv.y); player.yaw = Math.atan2(d.x, d.z); }
+  } else if (touch.mv.lengthSq() > 0.05) { const d = new THREE.Vector3().addScaledVector(RIGHT, touch.mv.x).addScaledVector(FWD, touch.mv.y); player.yaw = Math.atan2(d.x, d.z); }
   if (!buildMode && touch.pending) clearPending();
   if (!mConfirm.hidden && ghost) { const [x, y] = toScreen(ghost.position.clone().setY(ghost.position.y + 0.6)); mConfirm.style.transform = `translate(${x + 46}px, ${y}px) translate(0, -50%)`; }
   return touch.mv.length() > 0.92;   // pushed to the rim: sprint
@@ -2862,7 +2862,7 @@ function update(dt) {
 
   raycaster.setFromCamera(mouse, camera);
   if (!touch.on) { if (raycaster.ray.intersectPlane(groundPlane, aimPoint)) player.yaw = Math.atan2(aimPoint.x - player.pos.x, aimPoint.z - player.pos.z); }
-  else if (buildMode || player.inside) raycaster.ray.intersectPlane(groundPlane, aimPoint);
+  else if (player.inside) raycaster.ray.intersectPlane(groundPlane, aimPoint);
   updateHover(); updateGhost();
 
 
