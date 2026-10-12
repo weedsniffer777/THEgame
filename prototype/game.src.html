@@ -807,13 +807,13 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
     if (e.button === 2) { setBuildMode(false); return; }
     if (e.button !== 0) return;
     if (carry || buildSel >= 0) { tryPlace(); return; }
-    const pick = hovered?.kind ? hovered : baseHover ? "base" : null;
+    const pick = hovered ? (hovered.kind ? hovered : null) : baseHover ? "base" : null;
     if (pick && pick !== menuTarget) openMenu(pick); else closeMenu();
     return;
   }
   mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   if (e.button === 0 && !player.dead) {   // click a structure or the base for its menu; otherwise shoot
-    const pick = hovered?.kind ? hovered : baseHover && !player.inside ? "base" : null;
+    const pick = hovered ? (hovered.kind ? hovered : null) : baseHover && !player.inside ? "base" : null;   // an enemy under the reticle always means shoot
     if (pick) { if (pick === menuTarget) closeMenu(); else openMenu(pick); return; }   // clicking the selected one again unselects it
     if (menuTarget) { closeMenu(); return; }
   }
@@ -1097,6 +1097,8 @@ const ENEMY_TYPES = {
 };
 const NIGHT_GLOW = new THREE.Color(0x4a0804), HIT_GLOW = new THREE.Color(0xfff0b8), BOMB_YELLOW = new THREE.Color(0xffd23a);
 const BOMB_RED = outlineMat(0xff2a1a, 0.05);
+const ENEMY_SIL = new THREE.MeshBasicMaterial({ color: 0xff3a28, transparent: true, opacity: 0.9, depthFunc: THREE.GreaterDepth, depthWrite: false, toneMapped: false,
+  stencilWrite: true, stencilRef: 0, stencilFunc: THREE.EqualStencilFunc, stencilZPass: THREE.IncrementStencilOp, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp });
 // difficulty: slow climb per day, plus whatever the player has sunk into their base
 function invested() {
   let x = structs().reduce((a, s) => a + (s.spent || 0), 0);
@@ -1111,6 +1113,10 @@ function makeEnemy(type) {
   const T = ENEMY_TYPES[type], model = skeletonClone(playerGltf.scene); model.name = type;
   const m = new THREE.MeshStandardMaterial({ color: T.color, roughness: 0.8, flatShading: true });
   model.traverse(o => { if (o.isMesh) { o.material = m; o.castShadow = true; } });
+  // red silhouette where cover hides them: the body stamps the stencil where it's visible (drawn after the
+  // world), the silhouette fills only hidden pixels, once
+  markPlayerStencil(model);
+  model.traverse(o => { if (o.isSkinnedMesh && !o.userData.sil) { const sil = new THREE.SkinnedMesh(o.geometry, ENEMY_SIL); sil.bind(o.skeleton, o.bindMatrix); sil.renderOrder = 20; sil.frustumCulled = false; sil.userData.sil = true; o.parent.add(sil); } });
   const mixer = new THREE.AnimationMixer(model), act = (n) => { const a = mixer.clipAction(THREE.AnimationClip.findByName(playerGltf.animations, n)); a.play(); return a; };
   const walk = act(T.clip), idle = act("Idle_Loop"); idle.setEffectiveWeight(0);
   const bone = (n) => model.getObjectByName(n);
@@ -1395,7 +1401,7 @@ function updateHover() {
   let best = null, bestD = Infinity; const ray = raycaster.ray, hit = new THREE.Vector3();
   if (!player.inside) {
     for (const e of enemies) { if (e.dead) continue; _hb.min.set(e.pos.x - 0.38, 0, e.pos.z - 0.38); _hb.max.set(e.pos.x + 0.38, 1.9, e.pos.z + 0.38); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = e; } } }
-    for (const t of structs()) { const r = t.kind === "wall" ? 0.5 : 0.6, y0 = t.y || 0; _hb.min.set(t.x - r, y0, t.z - r); _hb.max.set(t.x + r, y0 + (t.kind === "wall" ? 1.0 : 1.55), t.z + r); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = t; } } }
+    if (!best) for (const t of structs()) { const r = t.kind === "wall" ? 0.5 : 0.6, y0 = t.y || 0; _hb.min.set(t.x - r, y0, t.z - r); _hb.max.set(t.x + r, y0 + (t.kind === "wall" ? 1.0 : 1.55), t.z + r); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = t; } } }
   }
   if (best !== hovered) { showHulls(hovered, false); showHulls(best, true); hovered = best; }
 }
@@ -1927,7 +1933,7 @@ function placeMenu() {
 }
 const hoverTip = document.getElementById("hoverTip");
 function updateHoverTip() {
-  const t = !buildMode && !menuTarget && !player.inside && !player.dead ? (hovered?.kind ? hovered : baseHover ? "base" : null) : null;
+  const t = !buildMode && !menuTarget && !player.inside && !player.dead ? (hovered ? (hovered.kind ? hovered : null) : baseHover ? "base" : null) : null;
   hoverTip.hidden = !t; if (!t) return;
   if (t === "base") hoverTip.innerHTML = `<b>BASE</b> <span>LV ${save.base}</span><small>Click to manage</small>`;
   else { const max = STRUCT[t.kind].hp[t.level]; hoverTip.innerHTML = `<b>${STRUCT[t.kind].name}</b> <span>LV ${t.level}</span><div class="bar"><i style="width:${Math.max(0, t.hp / max) * 100}%"></i></div><small>${Math.ceil(t.hp)}/${max} HP</small>`; }
@@ -2345,7 +2351,7 @@ function toggleInside() {
 }
 function updateDoor() {
   if (!shanty) return;
-  const ray = raycaster.ray, hover = baseHover = !player.inside && shantyBox && ray.intersectsBox(shantyBox), near = player.inside ? player.pos.distanceTo(innerDoor()) < 1.2 : nearDoor();
+  const ray = raycaster.ray, hover = baseHover = !player.inside && !(hovered && !hovered.kind) && shantyBox && ray.intersectsBox(shantyBox), near = player.inside ? player.pos.distanceTo(innerDoor()) < 1.2 : nearDoor();
   shanty.userData.outline.visible = !player.inside && (hover || near);
   shanty.userData.doorFrame.visible = !player.inside && (hover || near);
   doorPrompt.hidden = !near || player.dead > 0;
