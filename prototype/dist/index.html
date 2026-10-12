@@ -198,9 +198,25 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #mConfirm { position: fixed; left: 0; top: 0; z-index: 6; display: flex; gap: 8px; }
 #mConfirm button { width: 50px; height: 50px; font-size: 24px; border: 0; color: #fff; box-shadow: 0 0 0 3px #101211, 0 5px 0 #101211; touch-action: none; }
 #mOk { background: #3f8a2e; } #mNo { background: #b8361e; }
-#mBtns { position: fixed; z-index: 5; right: calc(14px + env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%); display: grid; gap: 10px; justify-items: end; }
-#mBtns button { font-family: inherit; font-size: 13px; letter-spacing: .12em; color: #e8e2d4; background: rgba(18, 20, 19, .82); border: 0; box-shadow: 0 0 0 2px #2b2e2b, 0 0 0 4px #101211; padding: 12px 14px; min-width: 64px; touch-action: none; }
-#mBtns #mBuild { background: #6a5a2a; color: #f2e6c0; } #mBtns #mUse { background: #3f8a2e; color: #f0ffe8; } #mBtns #mPause { min-width: 44px; padding: 10px; }
+#mBtns button { position: fixed; z-index: 5; font-family: inherit; color: #e8e2d4; background: rgba(18, 20, 19, .7); border: 0; box-shadow: 0 0 0 2px rgba(232, 226, 212, .35); touch-action: none; }
+#mReload { right: calc(150px + env(safe-area-inset-right, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; border-radius: 50%; font-size: 26px; }
+#mPause { right: calc(10px + env(safe-area-inset-right, 0px)); top: calc(8px + env(safe-area-inset-top, 0px)); width: 34px; height: 30px; font-size: 13px; }
+body.mobile #doorPrompt { pointer-events: auto; padding: 8px 14px; background: #3f8a2e; color: #f0ffe8; font-size: 13px; }
+body.mobile #cycleHud { width: 220px; min-width: 0; padding: 3px 7px 4px; gap: 2px; } body.mobile #cycleHud .top { font-size: 10px; gap: 6px; } body.mobile #cycleHud #killCount { display: none; } body.mobile #cycleHud .brow { font-size: 9px; } body.mobile #cycleHud .bar { height: 4px; } body.mobile #cycleHud .bbar { height: 5px; }
+body.mobile #brHud { right: 8px; bottom: 8px; transform: scale(.58); transform-origin: bottom right; }
+body.mobile #xpHud { left: 8px; bottom: auto; top: calc(8px + env(safe-area-inset-top, 0px)); font-size: 11px; padding: 3px 7px; gap: 6px; } body.mobile #xpHud .gem { width: 8px; height: 8px; } body.mobile #xpHud small { font-size: 9px; }
+body.mobile #acctHud { left: 8px; bottom: auto; top: calc(34px + env(safe-area-inset-top, 0px)); transform: scale(.8); transform-origin: top left; }
+body.mobile #bars { bottom: 4px; transform: translateX(-50%) scale(.56); transform-origin: bottom center; }
+body.mobile #buildBar .bkey { font-size: 15px; padding: 10px 14px; background: #6a5a2a; color: #f2e6c0; }
+body.mobile #banner { font-size: 11px; top: calc(48px + env(safe-area-inset-top, 0px)); padding: 4px 8px; }
+body.mobile #smenu { width: 180px; padding: 7px 9px; gap: 5px; } body.mobile #smenu .t { font-size: 12px; } body.mobile #smenu .info { font-size: 10px; } body.mobile #smenu button { font-size: 10px; padding: 5px 7px; }
+body.mobile #ovh { transform-origin: top left; }
+body.mobile .tile b { font-size: 9px; } body.mobile #shopWrap #shop { width: min(360px, calc(100vw - 140px)); }
+body.mobile #leaveBtn { font-size: 12px; padding: 7px 10px; bottom: 8px; left: 8px; top: auto; transform: none; }
+body.mobile #runOver .rbox { width: min(380px, calc(100vw - 24px)); padding: 10px 12px; gap: 7px; } body.mobile #runOver h1 { font-size: 20px; } body.mobile #runOver .big { font-size: 14px; padding: 9px; } body.mobile #rUnl .u { font-size: 10px; padding: 2px 6px; }
+body.mobile .card { width: 120px; min-height: 150px; padding: 8px 6px; gap: 5px; } body.mobile .card .ic { width: 40px; height: 40px; font-size: 22px; } body.mobile .card b { font-size: 11px; } body.mobile .card small { font-size: 10px; } body.mobile #cards h2 { font-size: 18px; }
+body.mobile #mConfirm button { width: 42px; height: 42px; font-size: 20px; }
+body.mobile .stick::before { left: -46px; top: -46px; width: 92px; height: 92px; } body.mobile .stick i { left: -21px; top: -21px; width: 42px; height: 42px; }
 body.mobile #reticle, body.mobile #perfHud, body.mobile #devBtn, body.mobile #pause .keys { display: none !important; }
 body.mobile .slot { cursor: default; } body.mobile #doorPrompt b { display: none; }
 /* ---- compact HUD for phones and small windows */
@@ -312,14 +328,11 @@ body.mobile .slot { cursor: default; } body.mobile #doorPrompt b { display: none
   <div class="acct" id="rAcct"></div>
   <div class="unl"><h3>NEXT UNLOCKS</h3><div id="rUnl"></div></div>
   <div class="bp"><b>BATTLE PASS · SEASON 1</b><span>coming soon</span><div class="bar"><i id="rBp"></i></div></div>
-  <button type="button" id="rNew" class="sec">NEW RUN FROM DAY 1</button>
-  <div class="rconfirm" id="rConfirm" hidden><b>ARE YOU SURE?</b><span>Your current run will be lost. Unlocked upgrades and currency will be kept.</span>
-    <div class="rrow"><button type="button" id="rNo" class="sec">CANCEL</button><button type="button" id="rYes" class="danger">YES, START OVER</button></div></div>
 </div></div>
 <div class="px" id="cards" hidden><div class="cbox"><h2>UPGRADE</h2><div class="cleft" id="cardLeft"></div><div class="crow" id="cardRow"></div></div></div>
 <div class="stick" id="stickL" hidden><i></i></div>
 <div class="px" id="mConfirm" hidden><button type="button" id="mOk" aria-label="Place">✓</button><button type="button" id="mNo" aria-label="Cancel">✕</button></div>
-<div class="px" id="mBtns" hidden><button type="button" id="mPause" aria-label="Pause">II</button><button type="button" id="mUse" hidden>ENTER</button><button type="button" id="mReload">RELOAD</button><button type="button" id="mBuild">BUILD</button></div>
+<div class="px" id="mBtns" hidden><button type="button" id="mPause" aria-label="Pause">II</button><button type="button" id="mReload" aria-label="Reload">↻</button></div>
 <div class="hud px pxbox" id="xpHud"><span class="gem"></span><span id="xpNum">0</span><small>SCRAP</small></div>
 <div class="hud px" id="bars"><div id="buildBar" class="mini"><button type="button" class="bkey" id="buildKey">[B] BUILD</button><div class="slots" id="buildSlots"></div></div><div class="slots" id="weaponSlots"></div></div>
 <div class="hud" id="brHud">
@@ -2355,18 +2368,15 @@ const runEl = document.getElementById("runOver");
 function showRunOver() {
   const f = fallInfo, picks = Math.min(5, f.reached);
   document.getElementById("rSub").textContent = `You held out until ${f.night ? "NIGHT" : "DAY"} ${f.reached} · ${f.kills} kills · best: day ${save.best}`;
-  document.getElementById("rRespawn").innerHTML = `RESPAWN ON DAY ${f.respawnDay}<small>+${picks} FREE UPGRADE PICK${picks > 1 ? "S" : ""}</small>`;
+  document.getElementById("rRespawn").innerHTML = `RETRY WITH +${picks} UPGRADE${picks > 1 ? "S" : ""}!<small>NEW RUN FROM DAY 1 · PICK ${picks} FREE CARD${picks > 1 ? "S" : ""} AT THE START</small>`;
   renderAccount(document.getElementById("rAcct"), acctXp() - f.xp0);
   const lv = acctLevel().lv;
   document.getElementById("rUnl").innerHTML = ACCOUNT_UNLOCKS.filter(u => u.lv > lv).slice(0, 3).map(u => `<div class="u">${u.img ? `<img alt="" src="${u.img()}">` : `<span class="ic">★</span>`}<b>LV ${u.lv}</b><span>${u.name}</span></div>`).join("") || "<div class='u'><span>Everything unlocked for now</span></div>";
   document.getElementById("rBp").style.width = `${(acctXp() % 500) / 5}%`;
   runEl.hidden = false;
 }
-document.getElementById("rRespawn").addEventListener("click", () => { const f = fallInfo; startRun(f.respawnDay, Math.min(5, f.reached)); });
-const rConfirm = document.getElementById("rConfirm");
-document.getElementById("rNew").addEventListener("click", () => { rConfirm.hidden = false; });
-document.getElementById("rNo").addEventListener("click", () => { rConfirm.hidden = true; });
-document.getElementById("rYes").addEventListener("click", () => { rConfirm.hidden = true; startRun(1, 0, true); });
+document.getElementById("rRespawn").addEventListener("click", () => startRun(1, Math.min(5, fallInfo.reached), true));
+
 // checkpoints: the base as it stood at dawn, kept for the last few days
 function takeCheckpoint(day) {
   save.ckpt = save.ckpt || {}; save.ckpt[day] = structs().map(s => ({ t: s.kind, x: s.x, z: s.z, y: s.y, lv: s.level, spent: s.spent }));
@@ -2392,7 +2402,7 @@ function startRun(day, picks, fresh = false) {
   player.dead = 0; player.hp = maxHp(); player.stamina = maxSt(); player.pos.copy(doorPos()).add(new THREE.Vector3(0, 0, 0.6)); player.vel.set(0, 0, 0); player.shield = 5;
   playerModel.visible = true; deathMsg.hidden = true; deathFx.hidden = true;
   saveBuilds(); takeCheckpoint(day); renderXp(); renderHotbar(); renderAmmo(); renderBaseHp();
-  showBanner(fresh ? "NEW RUN · DAY 1" : `DAY ${day} · THE BASE IS BACK — REPAIR IT!`, 3.5);
+  showBanner(fresh ? "NEW RUN · DAY 1" : `DAY ${day}`, 3.5);
   if (picks > 0) startPicks(picks);
 }
 
@@ -2524,13 +2534,13 @@ addEventListener("resize", vResize);
 // sprint). Anywhere else: touch and hold to aim at that spot and fire. In build mode a tap (or drag) moves
 // the ghost and shows confirm / cancel next to it; with an empty hand a tap opens a structure's menu.
 const touch = { on: false, move: null, fire: null, tap: null, pending: null, mv: new THREE.Vector2() };
-const stickL = document.getElementById("stickL"), mBtns = document.getElementById("mBtns"), mUse = document.getElementById("mUse"), mConfirm = document.getElementById("mConfirm");
+const stickL = document.getElementById("stickL"), mBtns = document.getElementById("mBtns"), mConfirm = document.getElementById("mConfirm");
 function enableTouch() {
   if (touch.on) return; touch.on = true; document.body.classList.add("mobile"); reticle.hidden = true; mBtns.hidden = false; renderBuildBar();
 }
 if (matchMedia("(pointer: coarse)").matches) enableTouch();
 addEventListener("touchstart", enableTouch, { once: true, passive: true });
-const STICK_R = 56;
+const STICK_R = 46;
 function stickAt(el, x, y) { el.hidden = false; el.style.transform = `translate(${x}px, ${y}px)`; el.firstElementChild.style.transform = ""; }
 function stickKnob(el, v) { el.firstElementChild.style.transform = `translate(${v.x * STICK_R}px, ${-v.y * STICK_R}px)`; }
 function readStick(s, e, out) { const dx = e.clientX - s.x, dy = e.clientY - s.y, l = Math.hypot(dx, dy), k = Math.min(1, l / STICK_R); out.set(l ? dx / l * k : 0, l ? -dy / l * k : 0); }
@@ -2541,6 +2551,11 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
   if (e.pointerType !== "touch") return; enableTouch(); e.preventDefault();
   if (runOver || picking || player.dead) return;
   if (e.clientX < innerWidth * 0.42 && !touch.move) { touch.move = { id: e.pointerId, x: e.clientX, y: e.clientY }; stickAt(stickL, e.clientX, e.clientY); return; }
+  if (!buildMode && !player.inside) {   // a tap on a structure or the base (not an enemy) is a tap, not a shot
+    setMouse(e); raycaster.setFromCamera(mouse, camera); updateHover();
+    const onBase = shantyBox && raycaster.ray.intersectsBox(shantyBox), pick = hovered ? (hovered.kind ? hovered : null) : onBase ? "base" : null;
+    if (pick) { touch.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), pick }; return; }
+  }
   if (buildMode || player.inside) {
     touch.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
     if (holdingBuild()) { touch.pending = touchGround(e); mConfirm.hidden = true; }   // the ghost jumps to your finger
@@ -2560,6 +2575,12 @@ function endTouch(e) {
   if (touch.fire?.id === e.pointerId) { touch.fire = null; mouseDown = false; }
   if (touch.tap?.id === e.pointerId) {
     const t = touch.tap; touch.tap = null;
+    const short = Math.hypot(e.clientX - t.x, e.clientY - t.y) < 40 && performance.now() - t.t < 600;
+    if (t.pick && short) {   // base: in through the door if you're close, else its menu; structures: their menu
+      if (t.pick === "base" && nearDoor()) toggleInside(); else if (t.pick === menuTarget) closeMenu(); else openMenu(t.pick);
+      return;
+    }
+    if (player.inside && short) { const [dx, dy] = toScreen(innerDoor().setY(SH.FLOOR + 1)); if (Math.hypot(e.clientX - dx, e.clientY - dy) < 90) setInside(false); return; }   // tap the door to leave
     if (holdingBuild()) { if (touch.pending) mConfirm.hidden = false; return; }   // wait for ✓ / ✕
     if (buildMode && Math.hypot(e.clientX - t.x, e.clientY - t.y) < 40 && performance.now() - t.t < 600) {
       setMouse(e); raycaster.setFromCamera(mouse, camera); updateHover();
@@ -2585,9 +2606,8 @@ function applyTouch(mv) {
   return touch.mv.length() > 0.92;   // pushed to the rim: sprint
 }
 const mBtn = (id, fn) => document.getElementById(id).addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); fn(); });
-mBtn("mBuild", () => { if (!runOver && !picking) setBuildMode(!buildMode); });
 mBtn("mReload", () => startReload());
-mBtn("mUse", () => { setBuildMode(false); toggleInside(); });
+doorPrompt.addEventListener("pointerdown", (e) => { if (!touch.on) return; e.preventDefault(); setBuildMode(false); toggleInside(); });
 mBtn("mPause", () => setPaused(!paused));
 
 /* ---------- Loop ---------- */
@@ -2723,7 +2743,7 @@ function update(dt) {
   if (!touch.on) { if (raycaster.ray.intersectPlane(groundPlane, aimPoint)) player.yaw = Math.atan2(aimPoint.x - player.pos.x, aimPoint.z - player.pos.z); }
   else if (buildMode || player.inside) raycaster.ray.intersectPlane(groundPlane, aimPoint);
   updateHover(); updateGhost();
-  if (touch.on) { mUse.hidden = doorPrompt.hidden; mUse.textContent = player.inside ? "EXIT" : "ENTER"; }
+
 
   const spd = player.vel.length();
   player.stride += ((spd > 0.3 ? 1 : 0) - player.stride) * Math.min(1, dt * 10);
