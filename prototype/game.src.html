@@ -1873,13 +1873,13 @@ function tryPlace() {
   const x = ghost.position.x, z = ghost.position.z, y = ghost.userData.y || 0;
   for (let k = 0; k < 4; k++) spawnSprite(ghost.position.clone().setY(0.2), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0xc9a45c, size: 0.4, grow: 2, life: 0.7, opacity: 0.45, drag: 2.5 });
   if (carry) {   // drop the carried structure here, same level and HP
-    const s = carry.s; carry = null; s.x = x; s.z = z; s.y = y; buildModel(s); (s.kind === "sentry" ? sentries : walls).push(s); saveBuilds(); setBuildMode(false); return;
+    const s = carry.s; carry = null; s.x = x; s.z = z; s.y = y; buildModel(s); (s.kind === "sentry" ? sentries : walls).push(s); saveBuilds(); showGhost(); renderBuildBar(); return;
   }
   const b = BUILDS[buildSel], c = b.cost();
   save.xp -= c; if (b.id === "sentry") save.firstSentry = true;
   addStruct(b.id, x, z, 1, c, undefined, y); saveBuilds(); renderXp();
   tutEvent("placed", b.id);
-  if (save.xp < b.cost() || countOf(b.id) >= capOf(b.id)) setBuildMode(false);
+  renderBuildBar();   // stay in build mode (it used to drop out once you couldn't afford another)
 }
 function startCarry(s) {   // "Move": lift it off the map into the build hand
   removeStruct(s); carry = { s, from: { x: s.x, z: s.z, y: s.y } };
