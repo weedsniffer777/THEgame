@@ -452,6 +452,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 const PLAYER_B64 = "__PLAYER_B64__";
 const M1911_B64 = "__M1911_B64__", GUN_SHOTGUN_B64 = "__GUN_ShotGun_B_B64__", GUN_SMG_B64 = "__GUN_Pistol_P_B64__", GUN_RIFLE_B64 = "__GUN_WWII_Recon_A_B64__", GUN_GL_B64 = "__GUN_GrenadeLauncher_C_B64__";
@@ -1540,7 +1541,7 @@ function updateEnemies(dt) {
 // Same white-inside-black rim as the shack, around whatever enemy or structure is under the cursor.
 const HOVER_BLACK = outlineMat(0x000000, 0.055), HOVER_WHITE = outlineMat(0xffffff, 0.022);
 function addHulls(root) {
-  const meshes = []; root.traverse(o => { if (o.isMesh) meshes.push(o); });
+  const meshes = []; root.traverse(o => { if (o.isMesh && !o.isInstancedMesh) meshes.push(o); });
   const hulls = [];
   for (const o of meshes) for (const [m, order] of [[HOVER_BLACK, -2], [HOVER_WHITE, -1]]) {
     let h;
@@ -1557,7 +1558,7 @@ function updateHover() {
   let best = null, bestD = Infinity; const ray = raycaster.ray, hit = new THREE.Vector3();
   if (!player.inside) {
     for (const e of enemies) { if (e.dead) continue; _hb.min.set(e.pos.x - ENEMY_HIT_R, 0, e.pos.z - ENEMY_HIT_R); _hb.max.set(e.pos.x + ENEMY_HIT_R, 2.25, e.pos.z + ENEMY_HIT_R); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = e; } } }
-    if (!best) for (const t of structs()) { const r = t.kind === "wall" ? 1 : 0.6, y0 = t.y || 0; _hb.min.set(t.x - r, y0, t.z - r); _hb.max.set(t.x + r, y0 + (t.kind === "wall" ? 1.0 : 1.55), t.z + r); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = t; } } }
+    if (!best) for (const t of structs()) { const r = t.kind === "wall" ? 1 : 0.6, y0 = t.y || 0; _hb.min.set(t.x - r, y0, t.z - r); _hb.max.set(t.x + r, y0 + (t.kind === "wall" ? WALL_H : 1.55), t.z + r); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = t; } } }
   }
   if (best !== hovered) { showHulls(hovered, false); showHulls(best, true); hovered = best; }
 }
@@ -1723,7 +1724,8 @@ function rocketMats() {
   if (ROCKET_MATS) return ROCKET_MATS;
   const S = sentryMats();
   ROCKET_MATS = {
-    hull: new THREE.MeshStandardMaterial({ color: 0xc4cbd0, map: S.metal.map, roughness: 0.6, metalness: 0.2 }), dark: S.dark, metal: S.metal, led: S.led,
+    hull: new THREE.MeshStandardMaterial({ color: 0xb9c0c4, roughness: 0.45, metalness: 0.25 }), dark: S.dark, metal: S.metal, led: S.led,
+    face: new THREE.MeshStandardMaterial({ color: 0x8a9196, roughness: 0.5, metalness: 0.25 }), cover: new THREE.MeshStandardMaterial({ color: 0xe8e6de, roughness: 0.55 }),
     hole: new THREE.MeshBasicMaterial({ color: 0x0b0c0d }), nose: new THREE.MeshStandardMaterial({ color: 0xc8402c, roughness: 0.5 }),
     dome: new THREE.MeshStandardMaterial({ color: 0xeceae2, roughness: 0.45 }), lens: new THREE.MeshStandardMaterial({ color: 0x14202c, roughness: 0.15, metalness: 0.6 }),
     stripe: new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.6 }),
@@ -1762,20 +1764,16 @@ function makeRocketModel(level = 1) {
     add(head, new THREE.CylinderGeometry(0.055, 0.055, 0.1, 10), S.dark, s * (W / 2 + 0.05), 0.4, 0, 0, 0, Math.PI / 2);   // pin, through the arm into the box
   }
   add(head, new THREE.BoxGeometry(0.22, 0.1, 0.12), S.dark, 0, 0.1, -0.12);   // drive box on the yoke base
+  // the launcher: one smooth rounded box, a darker front plate, every cell sealed by a cover that pops off
+  // just before its rocket goes (they all reseal once the box has reloaded)
   const box = new THREE.Group(); box.position.y = 0.4; head.add(box);
-  add(box, new THREE.BoxGeometry(W, H, D), M.hull, 0, 0, 0);
-  add(box, new THREE.BoxGeometry(W + 0.03, H + 0.03, 0.04), M.dark, 0, 0, D / 2 - 0.01);
-  add(box, new THREE.BoxGeometry(W + 0.02, H + 0.02, 0.04), M.dark, 0, 0, -D / 2 + 0.015);
-  add(box, new THREE.BoxGeometry(W + 0.016, H + 0.016, 0.03), M.hull, 0, 0, -D / 6);
-  add(box, new THREE.BoxGeometry(W + 0.02, 0.045, 0.05), M.stripe, 0, H / 2 - 0.05, D / 2 - 0.08);
-  add(box, new THREE.BoxGeometry(W * 0.5, 0.02, D * 0.4), M.dark, 0, H / 2 + 0.01, -0.06);
-  const muzzles = [], cw = (W - 0.06) / cols, ch = (H - 0.05) / rows, r = Math.min(cw, ch) * 0.36;
+  add(box, new RoundedBoxGeometry(W, H, D, 3, 0.05), M.hull, 0, 0, 0);
+  add(box, new RoundedBoxGeometry(W - 0.04, H - 0.04, 0.03, 2, 0.012), M.face, 0, 0, D / 2 - 0.005);
+  const muzzles = [], cells = [], cw = (W - 0.08) / cols, ch = (H - 0.07) / rows, r = Math.min(cw, ch) * 0.38;
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
-    const x = -W / 2 + 0.03 + cw * (i + 0.5), y = -H / 2 + 0.025 + ch * (j + 0.5);
-    add(box, new THREE.CylinderGeometry(r * 1.25, r * 1.25, 0.04, 10), M.metal, x, y, D / 2 + 0.02, Math.PI / 2);
-    add(box, new THREE.CircleGeometry(r, 10), M.hole, x, y, D / 2 + 0.041);
-    add(box, new THREE.ConeGeometry(r * 0.55, r * 1.1, 8), M.nose, x, y, D / 2 + 0.035, Math.PI / 2);
-    muzzles.push(new THREE.Vector3(x, y, D / 2 + 0.12));
+    const x = -W / 2 + 0.04 + cw * (i + 0.5), y = -H / 2 + 0.035 + ch * (j + 0.5);
+    add(box, new THREE.CircleGeometry(r, 14), M.hole, x, y, D / 2 + 0.012);
+    cells.push([x, y]); muzzles.push(new THREE.Vector3(x, y, D / 2 + 0.12));
   }
   if (big) {   // targeting: a sensor mast bolted to the right arm with a dome and an optics pod
     const mx = W / 2 + 0.17;
@@ -1789,7 +1787,19 @@ function makeRocketModel(level = 1) {
     add(box, new THREE.BoxGeometry(0.03, 0.02, 0.03), M.led, -W / 2 + 0.06, H / 2 + 0.02, -D / 2 + 0.08);
   }
   for (const grp of [g, head, box]) mergeByMaterial(grp);
-  return { g, head, box, muzzles };
+  const covers = new THREE.InstancedMesh(new THREE.CylinderGeometry(r * 1.12, r * 1.12, 0.022, 16).rotateX(Math.PI / 2), M.cover, cells.length);
+  covers.castShadow = true; box.add(covers);
+  const coverZ = D / 2 + 0.024, m = { g, head, box, muzzles, covers, cells, coverZ };
+  for (let i = 0; i < cells.length; i++) setCover(m, i, false);
+  return m;
+}
+const _cm = new THREE.Matrix4(), _zero = new THREE.Matrix4().makeScale(0, 0, 0);
+function setCover(t, i, open) {
+  const [x, y] = t.cells[i]; t.covers.setMatrixAt(i, open ? _zero : _cm.makeTranslation(x, y, t.coverZ)); t.covers.instanceMatrix.needsUpdate = true;
+  if (open && t.x !== undefined) {   // a few flakes of the cover
+    t.g.updateMatrixWorld(true); const at = t.box.localToWorld(new THREE.Vector3(x, y, t.coverZ + 0.05)), dir = new THREE.Vector3(0, 0, 1).transformDirection(t.box.matrixWorld);
+    for (let k = 0; k < 3; k++) spawnSprite(at.clone(), dir.clone().multiplyScalar(1.5 + Math.random() * 2).add(new THREE.Vector3((Math.random() - 0.5) * 1.5, 1 + Math.random(), (Math.random() - 0.5) * 1.5)), { color: 0xe8e6de, size: 0.07, life: 0.6, opacity: 1, drag: 1, gravity: 9 });
+  }
 }
 // Rockets: launched up out of the box, then they curve onto their target and blow up on it
 const ROCKET = { range: 15, minRange: 2.5, dmg: 45, radius: 2.0, rate: [0, 3.0, 2.6], burst: [0, 3, 5] };
@@ -1836,7 +1846,11 @@ function updateRocketTurret(t, dt) {
   t.pitch = THREE.MathUtils.lerp(t.pitch || 0, t.target || t.burst ? 0.38 : 0.1, Math.min(1, dt * 4)); t.box.rotation.x = -t.pitch;
   t.cool -= dt;
   if (t.burst > 0) { t.burstT -= dt; if (t.burstT <= 0 && t.target) { fireRocket(t); t.burst--; t.burstT = 0.13; } else if (!t.target) t.burst = 0; }
-  else if (t.target && aligned && t.cool <= 0) { t.burst = ROCKET.burst[t.level] + MOD("rburst"); t.burstT = 0; t.cool = ROCKET.rate[t.level] / (1 + 0.2 * card("srate") + MOD("srate")); }
+  else if (t.target && aligned && t.cool <= 0) {   // covers pop on the cells about to fire, then the rockets follow
+    t.burst = ROCKET.burst[t.level] + MOD("rburst"); t.burstT = 0.18; t.cool = ROCKET.rate[t.level] / (1 + 0.2 * card("srate") + MOD("srate"));
+    for (let k = 0; k < Math.min(t.burst, t.cells.length); k++) setCover(t, (t.shot + k) % t.cells.length, true); t.coversOpen = true;
+  }
+  if (t.coversOpen && !t.burst && t.cool < ROCKET.rate[t.level] * 0.45) { for (let i = 0; i < t.cells.length; i++) setCover(t, i, false); t.coversOpen = false; }   // reloaded
 }
 
 /* ---------- Walls ---------- */
@@ -1896,8 +1910,8 @@ function wallGeometries() {
   return (WALL_GEO = out);
 }
 // a 2 x 2 wall is four 1 m blocks, each turned a different way so the sheets don't repeat; still one mesh per material
-const WALL2 = {};
-const wall2Geometries = (level) => WALL2[level] ||= wallGeometries()[level].map(([m, g]) => [m, mergeGeometries([[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]].map(([x, z], i) => g.clone().rotateY(i * Math.PI / 2).translate(x, 0, z)))]);
+const WALL2 = {}, WALL_H = 2;   // 2 x 2 x 2 m: eight 1 m blocks
+const wall2Geometries = (level) => WALL2[level] ||= wallGeometries()[level].map(([m, g]) => [m, mergeGeometries([0, 1].flatMap(y => [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]].map(([x, z], i) => g.clone().rotateY((i + y * 2) * Math.PI / 2).translate(x, y, z))))]);
 function makeWallModel(level = 1) {
   const g = new THREE.Group(); g.name = "wall";
   for (const [m, geo] of wall2Geometries(level)) { const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh); }
@@ -1917,7 +1931,7 @@ const structs = () => [...sentries, ...walls];
 const saveBuilds = () => { save.builds = structs().map(s => ({ t: s.kind, x: s.x, z: s.z, y: s.y, lv: s.level, spent: s.spent })); writeSave(); };
 // stacking: a wall can sit on a wall; a sentry can sit on a 2 x 2 block of walls (and shoots 3 m further)
 const sentryCovers = (t, x, z) => t.x === x && t.z === z;
-const onTop = (s) => s.kind === "wall" && s.y === 0 && (walls.some(w => w !== s && w.y === 1 && w.x === s.x && w.z === s.z) || sentries.some(t => t.y === 1 && sentryCovers(t, s.x, s.z)));
+const onTop = (s) => s.kind === "wall" && !s.y && (walls.some(w => w !== s && w.y > 0 && w.x === s.x && w.z === s.z) || sentries.some(t => t.y > 0 && sentryCovers(t, s.x, s.z)));
 const turretRange = (t) => (t.kind === "rocket" ? ROCKET.range : SENTRY.range) + (t.y ? 3 : 0) + 2 * card("srange") + MOD("range");
 const sentryRange = turretRange;
 function buildModel(s) {
@@ -1941,21 +1955,21 @@ function removeStruct(s) {
 // a ground wall broke: the wall stacked on it drops down; a sentry it was holding up collapses
 function supportGone(s) {
   if (s.kind !== "wall" || s.y !== 0) return;
-  const up = walls.find(w => w.y === 1 && w.x === s.x && w.z === s.z); if (up) { up.y = 0; up.g.position.y = 0; }
-  for (const t of [...sentries]) if (t.y === 1 && sentryCovers(t, s.x, s.z)) {
+  const up = walls.find(w => w.y > 0 && w.x === s.x && w.z === s.z); if (up) { up.y = 0; up.g.position.y = 0; }
+  for (const t of [...sentries]) if (t.y > 0 && sentryCovers(t, s.x, s.z)) {
     removeStruct(t); sparkFx(new THREE.Vector3(t.x, 1.4, t.z), new THREE.Vector3(0, 1, 0), 20);
     for (let k = 0; k < 3; k++) spawnSprite(new THREE.Vector3(t.x, 1.2, t.z), new THREE.Vector3((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2), { color: 0x6b6862, size: 0.6, grow: 2.5, life: 1.4, opacity: 0.6, drag: 1.5 });
   }
 }
 // enemy hits on a ground wall with another stacked on it are shared: each half takes half
 function hitStruct(s, n) {
-  const up = s.kind === "wall" && s.y === 0 ? walls.find(w => w.y === 1 && w.x === s.x && w.z === s.z) : null;
+  const up = s.kind === "wall" && !s.y ? walls.find(w => w.y > 0 && w.x === s.x && w.z === s.z) : null;
   if (up) { hurtStruct(up, n / 2); hurtStruct(s, n / 2); } else hurtStruct(s, n);
 }
 function hurtStruct(s, n) {
   n *= (1 - Math.min(0.7, MOD("armor"))) / (1 + 0.43 * card("fort"));   // Fortify: less damage taken
   s.hp -= n; if (!s.bar) s.bar = worldBar(true);
-  sparkFx(new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 0.7 : 1.0), s.z), new THREE.Vector3(0, 1, 0), 3);
+  sparkFx(new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 1.4 : 1.0), s.z), new THREE.Vector3(0, 1, 0), 3);
   if (s.hp <= 0) {
     removeStruct(s); supportGone(s); saveBuilds(); renderBuildBar();
     for (let k = 0; k < 3; k++) spawnSprite(new THREE.Vector3(s.x, 0.7, s.z), new THREE.Vector3((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2), { color: 0x6b6862, size: 0.6, grow: 2.5, life: 1.4, opacity: 0.6, drag: 1.5 });
@@ -2026,7 +2040,7 @@ function updateSentries(dt) {
     }
   }
   const regen = 3 * card("regen"); if (regen) for (const s of structs()) s.hp = Math.min(STRUCT[s.kind].hp[s.level], s.hp + regen * dt);
-  for (const s of structs()) if (s.bar) placeBar(s.bar, new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 1.45 : 1.9), s.z), s.hp / STRUCT[s.kind].hp[s.level]);
+  for (const s of structs()) if (s.bar) placeBar(s.bar, new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 2.45 : 1.9), s.z), s.hp / STRUCT[s.kind].hp[s.level]);
 }
 
 /* ---------- Hotbar & build mode ---------- */
@@ -2083,7 +2097,7 @@ function makeGhosts() {
   const ring = new THREE.Mesh(new THREE.RingGeometry(SENTRY.range - 0.06, SENTRY.range + 0.06, 128).rotateX(-Math.PI / 2), cellM()); ring.material.opacity = 0.3; ring.position.y = 0.03; ring.scale.setScalar(1 / 1.35); s.add(ring);
   const c1 = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9).rotateX(-Math.PI / 2), cellM()); c1.position.y = 0.025; c1.scale.setScalar(1 / 1.35); s.add(c1);
   s.userData.marks = [ring, c1];
-  const w = tint(new THREE.Group()); const wb = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 2).translate(0, 0.5, 0), ghostMat); w.add(wb);
+  const w = tint(new THREE.Group()); const wb = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2).translate(0, 1, 0), ghostMat); w.add(wb);
   const c2 = new THREE.Mesh(new THREE.PlaneGeometry(1.96, 1.96).rotateX(-Math.PI / 2), cellM()); c2.position.y = 0.025; w.add(c2); w.userData.marks = [c2];
   const rk = tint(makeRocketModel().g); rk.scale.setScalar(1.35);
   const ring2 = new THREE.Mesh(new THREE.RingGeometry(ROCKET.range - 0.06, ROCKET.range + 0.06, 128).rotateX(-Math.PI / 2), cellM()); ring2.material.opacity = 0.3; ring2.position.y = 0.03; ring2.scale.setScalar(1 / 1.35); rk.add(ring2);
@@ -2137,8 +2151,8 @@ function placeHeight(kind, x, z, ignore) {
   const wo = ws.filter(over);
   if (!wo.length) return playerOn() ? -1 : 0;
   if (!wo.every(same)) return -1;   // only straight on top of one wall stack
-  if (kind === "wall") return wo.length === 1 ? 1 : -1;
-  return wo.length === 1 && wo[0].y === 0 ? 1 : -1;
+  if (kind === "wall") return wo.length === 1 ? WALL_H : -1;
+  return wo.length === 1 && !wo[0].y ? WALL_H : -1;
 }
 // floor tiles: in build mode every occupied 1 m cell is shown (base footprint red, your builds white);
 // with a structure selected its own cells light up green
@@ -2251,7 +2265,7 @@ function renderMenu() {
 }
 function placeMenu() {
   const t = menuTarget; if (!t) return;
-  const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, (t.y || 0) + (t.kind === "wall" ? 1.3 : 1.9), t.z);
+  const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, (t.y || 0) + (t.kind === "wall" ? 2.3 : 1.9), t.z);
   const [x, y] = toScreen(at.setY(at.y * 0.5)), w = smenu.offsetWidth, h = smenu.offsetHeight;
   smenu.style.transform = `translate(${THREE.MathUtils.clamp(x + 70, 8, innerWidth - w - 8)}px, ${THREE.MathUtils.clamp(y - h / 2, 8, innerHeight - h - 8)}px)`;
 }
@@ -2261,7 +2275,7 @@ function updateHoverTip() {
   hoverTip.hidden = !t; if (!t) return;
   if (t === "base") hoverTip.innerHTML = `<b>BASE</b> <span>LV ${save.base}</span><small>Click to manage</small>`;
   else { const max = STRUCT[t.kind].hp[t.level]; hoverTip.innerHTML = `<b>${STRUCT[t.kind].name}</b> <span>LV ${t.level}</span><div class="bar"><i style="width:${Math.max(0, t.hp / max) * 100}%"></i></div><small>${Math.ceil(t.hp)}/${max} HP</small>`; }
-  const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, (t.y || 0) + (t.kind === "wall" ? 1.2 : 1.8), t.z);
+  const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, (t.y || 0) + (t.kind === "wall" ? 2.2 : 1.8), t.z);
   const [x, y] = toScreen(at); hoverTip.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
 }
 function updateMenu(dt) { updateHoverTip(); if (!menuTarget) return; menuT -= dt; if (menuT <= 0) { menuT = 0.2; renderMenu(); } placeMenu(); }
@@ -3337,7 +3351,7 @@ function defUpdate(rdt) {
   const wantView = defView() * camZoom; if (Math.abs(curView - wantView) > 0.01) { curView += (wantView - curView) * Math.min(1, rdt * 14); camFrustum(); }
   placeCam();
   if (shake > 0) { shake = Math.max(0, shake - rdt); camera.position.add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.6)); }
-  const cc = BC.clone().add(camPan); sun.position.copy(cc).add(new THREE.Vector3(-6, 14, 9)); sun.target.position.copy(cc);
+  const cc = BC.clone().add(camPan); if (!sun.target.position.equals(cc)) { sunMoved = true; sun.position.copy(cc).add(new THREE.Vector3(-6, 14, 9)); sun.target.position.copy(cc); }   // shadows follow the view
   camera.updateMatrixWorld();
   defLight(clamp(run.t / (RUN_LEN * 0.8), 0, 0.8));
   // HUD
@@ -3369,21 +3383,23 @@ function setPaused(on) { paused = on; pauseEl.hidden = !on; keys.clear(); mouseD
 document.getElementById("pResume").addEventListener("click", () => setPaused(false));
 document.getElementById("pDev").addEventListener("click", () => { setPaused(false); toggleDev(); });
 const perfHud = document.getElementById("perfHud"); let cpuMs = 0, perfLast = performance.now();
-let tickers = null, frameNo = 0, slowChecks = 0;
+let tickers = null, frameNo = 0, slowChecks = 0, prWant = prNow, sunMoved = false;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const tSec = now / 1000;
   if (viewerEl.hidden) {
     const t0 = performance.now();
     if (!paused && !picking) { (DEF ? defUpdate : update)(dt); if (!tickers) { tickers = []; scene.traverse(o => { if (o.userData.tick) tickers.push(o); }); } for (const o of tickers) o.userData.tick(tSec); }
-    if (MOBILE) renderer.shadowMap.needsUpdate = (frameNo++ & 1) === 0;
+    if (prWant !== prNow) { prNow = prWant; renderer.setPixelRatio(prNow); }
+    if (MOBILE) renderer.shadowMap.needsUpdate = (frameNo++ & 1) === 0 || sunMoved;
+    sunMoved = false;
     renderer.render(scene, camera);
     cpuMs += performance.now() - t0; frames++; perfTimer += (now - perfLast) / 1000; perfLast = now;
     if (perfTimer > 0.5) {
       const i = renderer.info.render, fps = Math.round(frames / perfTimer), ms = (cpuMs / frames).toFixed(1);
       // phones: too slow two checks in a row -> render fewer pixels (down to 1x)
       slowChecks = MOBILE && fps < 50 ? slowChecks + 1 : 0;
-      if (slowChecks >= 2 && prNow > 1.01) { prNow = Math.max(1, prNow - 0.15); renderer.setPixelRatio(prNow); slowChecks = 0; }
+      if (slowChecks >= 2 && prWant > 1.01) { prWant = Math.max(1, prWant - 0.15); slowChecks = 0; }
       perfHud.innerHTML = `<b>${fps}</b> FPS · <b>${ms}</b> MS · <b>${i.calls}</b> CALLS · <b>${(i.triangles / 1000).toFixed(0)}K</b> TRIS · <b>${prNow.toFixed(2)}</b>X`;
       if (!devPanel.hidden) perfEl.textContent = `${fps} fps · ${i.calls} draw calls · ${i.triangles.toLocaleString()} tris`;
       frames = 0; perfTimer = 0; cpuMs = 0;
