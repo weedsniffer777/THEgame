@@ -208,7 +208,7 @@ body.def #game { cursor: default; }
 .tcard .cost { font-size: 15px; color: #ffd23a; } .tcard .k { position: absolute; left: 6px; top: 3px; font-size: 11px; color: #9d978a; }
 .tcard .cnt { position: absolute; right: 6px; top: 3px; font-size: 10px; color: #9d978a; }
 .tcard.sel { transform: translateY(-8px); box-shadow: 0 0 0 3px #e0b04a, 0 0 0 5px #101211, 0 10px 0 #101211; }
-.tcard.poor { opacity: .55; } .tcard.poor .cost { color: #e8584a; }
+.tcard.poor { opacity: .55; } .tcard.deny { animation: deny .25s; } .tcard.poor .cost { color: #e8584a; }
 .tcard.free .cost { color: #7dffd6; }
 .tcard.flash { animation: tflash .8s ease-in-out infinite; } @keyframes tflash { 50% { box-shadow: 0 0 0 3px #7dffd6, 0 0 0 5px #101211, 0 0 24px 6px rgba(125, 255, 214, .6); } }
 #orbLayer { inset: 0; z-index: 3; overflow: hidden; }
@@ -2169,7 +2169,8 @@ function updateTiles() {
   rangeRing.visible = !!rt && !buildMode; if (rt) { rangeRing.position.set(rt.x, 0.03, rt.z); rangeRing.scale.setScalar(sentryRange(rt)); }
   let n = 0; const put = (x, z, c) => { if (n >= 1500) return; _tm.makeTranslation(x, 0.022, z); tileMesh.setMatrixAt(n, _tm); tileMesh.setColorAt(n, c); n++; };
   if (buildMode) {
-    for (const k of BASE_FOOT) { const [x, z] = k.split(",").map(Number); if (Math.abs(x - player.pos.x) < 26 && Math.abs(z - player.pos.z) < 26) put(x + 0.5, z + 0.5, TILE_RED); }
+    const fc = DEF ? BC.clone().add(camPan) : player.pos;   // around what you're looking at
+    for (const k of BASE_FOOT) { const [x, z] = k.split(",").map(Number); if (Math.abs(x - fc.x) < 30 && Math.abs(z - fc.z) < 30) put(x + 0.5, z + 0.5, TILE_RED); }
     for (const s of structs()) if (!s.y) for (const [x, z] of cellsOf(s)) put(x, z, TILE_WHITE);
   } else {
     const sel = menuTarget || (hovered?.kind ? hovered : baseHover && !player.inside ? "base" : null);
@@ -3061,7 +3062,9 @@ function renderTray() {
     return `<button type="button" class="tcard${buildSel === i && buildMode ? " sel" : ""}${save.xp < c || n >= cap ? " poor" : ""}${free ? " free" : ""}" data-i="${i}"><span class="k">${i + 1}</span><span class="cnt">${n}/${cap}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">${free ? "FREE" : c}</span></button>`; }).join("");
   if (!run.started && !run.events.firstPick) trayCards.children[0]?.classList.add("flash");
 }
+const affordable = (i) => { const b = BUILDS[i]; return save.xp >= b.cost() && countOf(b.id) < capOf(b.id); };
 function setBuild(i) {
+  if (i >= 0 && !affordable(i)) { deny(trayCards.children[i]); return; }   // can't pay for it (or at the cap): no picking it up
   if (carry) cancelCarryDef();
   buildSel = i; buildMode = i >= 0; if (i >= 0) closeMenu(); showGhost(); renderTray();
   if (i >= 0) run.events.firstPick = true;
@@ -3069,7 +3072,7 @@ function setBuild(i) {
 trayCards.addEventListener("pointerdown", (e) => {
   const c = e.target.closest(".tcard"); if (!c || runOver || picking || paused) return; e.preventDefault();
   const i = +c.dataset.i, again = buildMode && buildSel === i;
-  if (!again) setBuild(i);
+  if (!again) { setBuild(i); if (buildSel !== i) return; }
   trayDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, again };
 });
 function defKey(k) {
@@ -3267,7 +3270,7 @@ function defSpawns(dt) {
 function updateFronts() {
   for (let i = 0; i < frontEls.length; i++) {
     const f = run.fronts[i], el = frontEls[i]; if (!f) { el.hidden = true; continue; }
-    el.hidden = runOver; placePtr(el, new THREE.Vector3(BC.x + Math.sin(f.a) * 12, 1, BC.z + Math.cos(f.a) * 12));
+    el.hidden = runOver; placePtr(el, new THREE.Vector3(BC.x + Math.sin(f.a) * 15, 1, BC.z + Math.cos(f.a) * 15));
   }
 }
 
