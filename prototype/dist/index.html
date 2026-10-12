@@ -1118,11 +1118,12 @@ function makeEnemy(type) {
   // red silhouette where cover hides them: the body stamps the stencil where it's visible (drawn after the
   // world), the silhouette fills only hidden pixels, once
   markPlayerStencil(model);
-  model.traverse(o => { if (o.isSkinnedMesh && !o.userData.sil) { const sil = new THREE.SkinnedMesh(o.geometry, ENEMY_SIL); sil.bind(o.skeleton, o.bindMatrix); sil.renderOrder = 20; sil.frustumCulled = false; sil.userData.sil = true; o.parent.add(sil); } });
+  const sils = []; model.traverse(o => { if (o.isSkinnedMesh && !o.userData.sil) sils.push(o); });
+  for (const o of sils) { const sil = new THREE.SkinnedMesh(o.geometry, ENEMY_SIL); sil.bind(o.skeleton, o.bindMatrix); sil.renderOrder = 20; sil.frustumCulled = false; sil.userData.sil = true; o.parent.add(sil); o.userData.silMesh = sil; }
   const mixer = new THREE.AnimationMixer(model), act = (n) => { const a = mixer.clipAction(THREE.AnimationClip.findByName(playerGltf.animations, n)); a.play(); return a; };
   const walk = act(T.clip), idle = act("Idle_Loop"); idle.setEffectiveWeight(0);
   const bone = (n) => model.getObjectByName(n);
-  const e = { type, model, mat: m, mixer, walk, idle, hulls: addHulls(model), chest: bone("spine_03"), arms: { r: ["upperarm_r", "lowerarm_r", "hand_r", "middle_01_r"].map(bone), l: ["upperarm_l", "lowerarm_l", "hand_l", "middle_01_l"].map(bone) } };
+  const e = { type, model, mat: m, mixer, walk, idle, sils: sils.map(o => o.userData.silMesh), hulls: addHulls(model), chest: bone("spine_03"), arms: { r: ["upperarm_r", "lowerarm_r", "hand_r", "middle_01_r"].map(bone), l: ["upperarm_l", "lowerarm_l", "hand_l", "middle_01_l"].map(bone) } };
   if (T.bomber) {   // permanent red rim
     const body = []; model.traverse(o => { if (o.isSkinnedMesh) body.push(o); });
     for (const o of body) { const h = new THREE.SkinnedMesh(o.geometry, BOMB_RED); h.bind(o.skeleton, o.bindMatrix); h.frustumCulled = false; h.renderOrder = -3; o.parent.add(h); }
@@ -1142,7 +1143,7 @@ function spawnEnemy(type, px, pz, slow) {
     speed: slow ? 1.3 : (T.speed[0] + Math.random() * (T.speed[1] - T.speed[0]) + d * 0.06) * (night ? 1.2 : 1), seed: Math.random() * 10, hit: false, wallT: null, aggro: null, fuse: 0, coil: 0, seenT: -1, mark: null, quiet: false });
   if (T.bomber) { e.mark = document.createElement("div"); e.mark.className = "bang"; e.mark.textContent = "!"; barLayer.appendChild(e.mark); }
   e.model.rotation.set(0, e.yaw, 0, "YXZ"); e.model.position.copy(e.pos); e.model.scale.setScalar(T.scale || 1); e.model.visible = true;
-  e.walk.time = Math.random() * e.walk.getClip().duration; showHulls(e, false);
+  e.walk.time = Math.random() * e.walk.getClip().duration; showHulls(e, false); for (const s of e.sils) s.visible = true;
   scene.add(e.model); enemies.push(e);
   return e;
 }
@@ -1167,6 +1168,7 @@ function hurtEnemy(e, amt, dir, knock = 0.18, byPlayer = false) {
 function killEnemy(e, dir, amt, silent = false, byPlayer = false) {
   if (hovered === e) { showHulls(e, false); hovered = null; }
   const at = e.pos.clone().setY(1.25), T = ENEMY_TYPES[e.type];
+  for (const s of e.sils) s.visible = false;   // no see-through outline on corpses
   e.dead = true; e.deadT = 0; e.yaw = Math.atan2(-dir.x, -dir.z); removeBar(e.bar); e.bar = null; e.mark?.remove(); e.mark = null;   // face the shot, fall away from it
   if (T.bomber && !silent) { e.quiet = true; explode(e.pos.clone().setY(0.9), 3.0, e.dmg * 0.8, { player: true, structures: true }); }   // shot bombers still go off
   if (silent) return;
@@ -1550,6 +1552,9 @@ function makeSentryModel(level = 1) {
   pod(0, 0); can(1);
   if (level >= 2) {
     add(gun, new THREE.BoxGeometry(0.1, 0.07, 0.3), M.metal, -0.12, -0.02, 0.05);           // bracket to the second pod
+    add(gun, new THREE.BoxGeometry(0.15, 0.17, 0.38), M.metal, -0.21, -0.02, -0.02);        // second receiver
+    add(gun, new THREE.BoxGeometry(0.16, 0.03, 0.32), M.dark, -0.21, 0.08, -0.03);          // its top cover
+    for (let i = 0; i < 6; i++) add(gun, new THREE.BoxGeometry(0.045, 0.014, 0.02), M.dark, -0.21, 0.102, -0.15 + i * 0.045);
     pod(-0.21, -0.02); can(-1);
   }
   for (const grp of [g, head, gun, ...spins]) mergeByMaterial(grp);   // ~15 draw calls instead of ~75
@@ -1625,7 +1630,7 @@ const STRUCT = {
   sentry: { name: "SENTRY", hp: [0, 250, 400], up: [0, 150], baseReq: [0, 0], info: ["", "Six-barrel gun, shoots enemies within 10 m", "Twin barrels: double fire rate"] },
   wall: { name: "WALL", hp: [0, 250, 450, 800], up: [0, 30, 60], baseReq: [0, 0, 2], info: ["", "Six rusty sheets cobbled together", "Timber frame, patched sheeting", "Clean galvanised steel"] },
 };
-const CAPS = { sentry: [0, 3, 5], wall: [0, 30, 60] };
+const CAPS = { sentry: [0, 5, 8], wall: [0, 30, 60] };
 const structs = () => [...sentries, ...walls];
 const saveBuilds = () => { save.builds = structs().map(s => ({ t: s.kind, x: s.x, z: s.z, y: s.y, lv: s.level, spent: s.spent })); writeSave(); };
 // stacking: a wall can sit on a wall; a sentry can sit on a 2 x 2 block of walls (and shoots 3 m further)
