@@ -123,9 +123,18 @@ function surfaces() {
     const v = (120 + n * 70) * pit;
     return [v, v * 0.98, v * 0.95, 0.95, n * 0.2 + (pit < 1 ? 0 : 0.08)];
   });
+  // level 3 armour: flat painted steel, a little grime and streaking, almost no rust
+  const plate = genSurface(512, 3, (x, y) => {
+    const mott = fbm(x * 1.6, y * 1.6, 91, 4), fine = vnoise(x * 80, y * 80, 92);
+    const streak = Math.pow(vnoise(x * 11, y * 0.5, 93), 4) * 0.5;
+    const k = 0.9 + mott * 0.16 - streak * 0.25 + fine * 0.04;
+    const [r, g, b, st, t] = weather(112 * k, 118 * k, 106 * k, x, y, 94, -0.3);
+    return [r, g, b, mix(0.6, 0.88, Math.max(st * 0.5, t)), mott * 0.15 + fine * 0.05 + t * 0.1];
+  }, 2);
   const m = (s, o = {}) => new THREE.MeshStandardMaterial({ map: s.map, roughnessMap: s.roughnessMap, normalMap: s.normalMap, roughness: 1, metalness: 0.0, vertexColors: true, side: THREE.DoubleSide, ...o });
   SURF = {
-    galv, paint, wood, concrete,
+    galv, paint, wood, concrete, plate,
+    plateMat: m(plate, { metalness: 0.3, side: THREE.FrontSide }),
     galvMat: m(galv, { metalness: 0.45 }), paintMat: m(paint, { metalness: 0.2 }), woodMat: m(wood),
     concreteMat: m(concrete, { side: THREE.FrontSide }),
     rockMat: m(concrete, { side: THREE.FrontSide, color: 0x9a958d }),
@@ -133,7 +142,7 @@ function surfaces() {
     rubberMat: new THREE.MeshStandardMaterial({ color: 0x1b1b1c, roughness: 0.92 }),
     wireMat: new THREE.MeshStandardMaterial({ color: 0x5d544c, roughness: 0.55, metalness: 0.6 }),
   };
-  SURF.galvMat.name = "galv"; SURF.paintMat.name = "paint"; SURF.woodMat.name = "wood"; SURF.concreteMat.name = "concrete";
+  SURF.galvMat.name = "galv"; SURF.paintMat.name = "paint"; SURF.woodMat.name = "wood"; SURF.concreteMat.name = "concrete"; SURF.plateMat.name = "plate";
   return SURF;
 }
 
@@ -248,7 +257,7 @@ function buildShack() {
   hole(1.05, 0.9, L / 2 + 0.02, FLOOR + 1.4, W / 2 - 1.72, Math.PI / 2);
 
   // Door: plank door with a rusted sheet patch, strap hinges, hasp and padlock
-  const door = new THREE.Group(); door.position.set(doorX - 0.42, 0, W / 2 + 0.12); door.rotation.y = -0.18; g.add(door);
+  const door = new THREE.Group(); door.position.set(doorX - 0.42, 0, W / 2 + 0.12); door.rotation.y = -0.18; door.userData.lvl = 12; g.add(door);
   for (let i = 0; i < 5; i++) { const p = new THREE.Mesh(surfBox(0.17, 1.95 - (i % 2) * 0.04, 0.035, S.wood, rnd), S.woodMat); p.position.set(0.09 + i * 0.17, FLOOR + 1.0, 0); door.add(p); }
   for (const y of [0.4, 1.5]) { const p = new THREE.Mesh(surfBox(0.85, 0.12, 0.035, S.wood, rnd), S.woodMat); p.position.set(0.43, FLOOR + y, 0.035); door.add(p); }
   const patch = new THREE.Mesh(sheetGeo(0.7, 0.75, rnd, S.galv, { amp: 0.008, dent: 0.01 }), S.galvMat); patch.position.set(0.45, FLOOR + 0.55, 0.06); patch.rotation.z = 0.06; door.add(patch);
@@ -316,12 +325,12 @@ function buildShack() {
     s.rotation.set(-Math.PI / 2, 0, (rnd() - 0.5) * 0.05);
     s.position.set(x + w / 2, 0.02 + (flip ^= 1) * 0.025 + (rnd() < 0.15 ? 0.05 : 0), shift + 0.08);
     if (rnd() < 0.2) s.rotation.x += (rnd() - 0.5) * 0.06;     // a lifted sheet here and there
-    roof.add(s); x += w - 0.07;
+    s.userData.lvl = 12; roof.add(s); x += w - 0.07;
   }
   // Roof clutter: tyres and a block weighing sheets down
-  const tyre = (x, z, parent = roof, y = 0.1) => { const t = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.11, 8, 18), S.rubberMat); t.rotation.x = Math.PI / 2; t.scale.z = 0.85; t.position.set(x, y, z); parent.add(t); return t; };
+  const tyre = (x, z, parent = roof, y = 0.1) => { const t = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.11, 8, 18), S.rubberMat); t.rotation.x = Math.PI / 2; t.scale.z = 0.85; t.position.set(x, y, z); t.userData.lvl = 12; parent.add(t); return t; };
   tyre(-1.6, 0.6); tyre(1.1, -0.9); tyre(-0.2, 1.4);
-  const rb = new THREE.Mesh(surfBox(0.4, 0.2, 0.2, S.concrete, rnd), S.concreteMat); rb.position.set(2.2, 0.13, 0.9); rb.rotation.y = 0.4; roof.add(rb);
+  const rb = new THREE.Mesh(surfBox(0.4, 0.2, 0.2, S.concrete, rnd), S.concreteMat); rb.position.set(2.2, 0.13, 0.9); rb.rotation.y = 0.4; rb.userData.lvl = 12; roof.add(rb);
 
   // Stovepipe with rain cap
   const pipeMat = new THREE.MeshStandardMaterial({ map: S.galv.map, roughnessMap: S.galv.roughnessMap, color: 0xb08868, roughness: 1, metalness: 0.4 });
@@ -351,6 +360,69 @@ function buildShack() {
   const blackCable = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 });
   cable(new THREE.Vector3(L / 2 - 0.35, wallTop(1.2) + 0.2, 1.2), new THREE.Vector3(L / 2 + 0.12, FLOOR + 1.9, W / 2 - 0.4), 0.25, 0.01, blackCable);
   cable(new THREE.Vector3(mx, my + 0.3, mz), new THREE.Vector3(-L / 2 - 0.1, FLOOR + 1.2, -W / 2 + 1.6), 0.4, 0.01, blackCable);
+
+  // ---- Level 3 (base upgrade): an armoured box. Flat painted steel plates bolted over every wall down to
+  // the ground, a steel frame with belts and corner posts, slit windows, a steel door and a plate roof.
+  const l3 = new THREE.Group(); l3.userData.lvl = 3; g.add(l3);
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x3a3d3b, roughness: 0.55, metalness: 0.55 }); frameMat.name = "frame";
+  const P = 0.2, T = 0.045;   // plate offset outside the wall line, plate thickness
+  const plateBox = (w, h, d, x, y, z, tone = 1, parent = l3) => {
+    const geo = surfBox(w, h, d, S.plate, rnd), c = geo.attributes.color;
+    for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * tone, c.getY(i) * tone, c.getZ(i) * tone);
+    const m = new THREE.Mesh(geo, S.plateMat); m.position.set(x, y, z); parent.add(m); return m;
+  };
+  const frame = (w, h, d, x, y, z, rx = 0, parent = l3) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frameMat); m.position.set(x, y, z); m.rotation.x = rx; parent.add(m); return m; };
+  const bolt = (x, y, z, axis) => { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.03, 6), frameMat); b.position.set(x, y, z); if (axis === "z") b.rotation.x = Math.PI / 2; else b.rotation.z = Math.PI / 2; l3.add(b); };
+  // plates along one wall, u from u0 to u1, split around openings {a, b, y0, y1} (in u)
+  const plateWall = (u0, u1, topAt, openings, place) => {
+    const n = Math.round((u1 - u0) / 0.95), pw = (u1 - u0) / n;
+    for (let i = 0; i < n; i++) {
+      const a = u0 + i * pw, b = a + pw - 0.02, top = Math.min(topAt(a), topAt(b)), tone = 0.93 + rnd() * 0.12;
+      const cuts = [a, b]; for (const o of openings) for (const e of [o.a, o.b]) if (e > a && e < b) cuts.push(e);
+      cuts.sort((p, q) => p - q);
+      for (let k = 0; k < cuts.length - 1; k++) {
+        const s0 = cuts[k], s1 = cuts[k + 1], mid = (s0 + s1) / 2, o = openings.find(q => mid > q.a && mid < q.b);
+        const seg = (y0, y1) => { if (y1 - y0 > 0.04) place((s0 + s1) / 2, (y0 + y1) / 2, s1 - s0, y1 - y0, tone); };
+        if (o) { seg(0.02, o.y0); seg(o.y1, top); } else seg(0.02, top);
+      }
+    }
+  };
+  const fTop = wallTop(W / 2) + 0.06, bTop = wallTop(-W / 2) + 0.06, sTop = (z) => wallTop(THREE.MathUtils.clamp(z, -W / 2, W / 2)) + 0.06;
+  const DOOR3 = { a: doorX - 0.48, b: doorX + 0.48, y0: 0, y1: FLOOR + 2.05 };
+  const SLIT_F = { a: winX - 0.5, b: winX + 0.5, y0: FLOOR + 1.32, y1: FLOOR + 1.56 }, SLIT_B = { a: 0.0, b: 0.8, y0: FLOOR + 1.3, y1: FLOOR + 1.52 }, SLIT_S = { a: sz - 0.45, b: sz + 0.45, y0: FLOOR + 1.3, y1: FLOOR + 1.54 };
+  plateWall(-L / 2 - P, L / 2 + P, () => fTop, [DOOR3, SLIT_F], (u, y, w, h, t) => plateBox(w, h, T, u, y, W / 2 + P, t));
+  plateWall(-L / 2 - P, L / 2 + P, () => bTop, [SLIT_B], (u, y, w, h, t) => plateBox(w, h, T, u, y, -W / 2 - P, t));
+  plateWall(-W / 2 - P, W / 2 + P, sTop, [SLIT_S], (u, y, w, h, t) => plateBox(T, h, w, L / 2 + P, y, u, t));
+  plateWall(-W / 2 - P, W / 2 + P, sTop, [], (u, y, w, h, t) => plateBox(T, h, w, -L / 2 - P, y, u, t));
+  // dark behind the slits, with a little steel hood over each
+  const slitBack = (w, h, x, y, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), S.darkMat); m.position.set(x, y, z); m.rotation.y = ry; l3.add(m); };
+  slitBack(1.0, 0.24, winX, FLOOR + 1.44, W / 2 + P - 0.03, 0); frame(1.1, 0.04, 0.12, winX, FLOOR + 1.6, W / 2 + P + 0.05);
+  slitBack(0.8, 0.22, 0.4, FLOOR + 1.41, -W / 2 - P + 0.03, Math.PI); frame(0.9, 0.04, 0.12, 0.4, FLOOR + 1.56, -W / 2 - P - 0.05);
+  slitBack(0.9, 0.24, L / 2 + P - 0.03, FLOOR + 1.42, sz, Math.PI / 2); frame(0.12, 0.04, 1.0, L / 2 + P + 0.05, FLOOR + 1.58, sz);
+  // corner posts, belts, cap rails
+  for (const cx of [-1, 1]) for (const cz of [-1, 1]) { const h = (cz > 0 ? fTop : bTop) + 0.06; frame(0.18, h, 0.18, cx * (L / 2 + P), h / 2, cz * (W / 2 + P)); }
+  const zf = W / 2 + P + T / 2 + 0.025, xs = L / 2 + P + T / 2 + 0.025;
+  for (const y of [0.12, FLOOR + 0.92]) {
+    frame(DOOR3.a + L / 2 + P, 0.09, 0.05, (DOOR3.a - L / 2 - P) / 2, y, zf); frame(L / 2 + P - DOOR3.b, 0.09, 0.05, (DOOR3.b + L / 2 + P) / 2, y, zf);
+    frame(L + 2 * P, 0.09, 0.05, 0, y, -zf); for (const sx of [-1, 1]) frame(0.05, 0.09, W + 2 * P, sx * xs, y, 0);
+    for (let x = -L / 2; x <= L / 2 + 0.01; x += 0.4) { if (x < DOOR3.a - 0.05 || x > DOOR3.b + 0.05) bolt(x, y, zf + 0.03, "z"); bolt(x, y, -zf - 0.03, "z"); }
+    for (let z = -W / 2 + 0.2; z <= W / 2 - 0.1; z += 0.4) for (const sx of [-1, 1]) bolt(sx * (xs + 0.03), y, z, "x");
+  }
+  frame(L + 2 * P + 0.1, 0.1, 0.08, 0, fTop, zf); frame(L + 2 * P + 0.1, 0.1, 0.08, 0, bTop, -zf);
+  const sideLen = Math.hypot(W + 2 * P, fTop - bTop);
+  for (const sx of [-1, 1]) frame(0.08, 0.1, sideLen, sx * xs, (fTop + bTop) / 2, 0, -Math.atan2(fTop - bTop, W + 2 * P));
+  // steel door: plate slab, frame, handle, vision slit
+  plateBox(0.94, FLOOR + 2.03, 0.05, doorX, (FLOOR + 2.03) / 2 + 0.01, W / 2 + P - 0.01, 0.78);
+  frame(0.08, FLOOR + 2.1, 0.1, doorX - 0.52, (FLOOR + 2.1) / 2, W / 2 + P); frame(0.08, FLOOR + 2.1, 0.1, doorX + 0.52, (FLOOR + 2.1) / 2, W / 2 + P);
+  frame(1.12, 0.1, 0.1, doorX, FLOOR + 2.1, W / 2 + P);
+  frame(0.04, 0.22, 0.05, doorX + 0.3, FLOOR + 1.0, W / 2 + P + 0.05);
+  for (const y of [0.35, 1.0, 1.65]) frame(0.08, 0.14, 0.06, doorX - 0.44, FLOOR + y, W / 2 + P + 0.03);
+  const vs = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.07), S.darkMat); vs.position.set(doorX, FLOOR + 1.62, W / 2 + P + 0.02); l3.add(vs);
+  // plate roof over the old purlins, standing seams between the plates
+  const roof3 = new THREE.Group(); roof3.position.copy(roof.position); roof3.rotation.x = -slope; roof3.userData.roof = true; roof3.userData.lvl = 3; g.add(roof3);
+  { const x0 = -L / 2 - P - 0.12, x1 = L / 2 + P + 0.12, n = 6, pw = (x1 - x0) / n, len = roofLen + 2 * P + 0.55;
+    for (let i = 0; i < n; i++) { plateBox(pw - 0.015, 0.05, len, x0 + pw * (i + 0.5), 0.06, 0.2, 0.92 + rnd() * 0.12, roof3); if (i) frame(0.04, 0.06, len, x0 + pw * i, 0.1, 0.2, 0, roof3); }
+    frame(x1 - x0 + 0.06, 0.1, 0.06, (x0 + x1) / 2, 0.05, 0.2 + len / 2, 0, roof3); frame(x1 - x0 + 0.06, 0.1, 0.06, (x0 + x1) / 2, 0.05, 0.2 - len / 2, 0, roof3); }
 
   // Porch: two crooked posts holding the front overhang
   for (const px of [-L / 2 + 0.3, L / 2 - 0.5]) plank(0.11, HF + 0.1, 0.11, px, FLOOR + (HF + 0.1) / 2 - 0.05, W / 2 + 0.55, 0.03, 0, (rnd() - 0.5) * 0.06);
