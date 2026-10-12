@@ -1,3 +1,4 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Game Test</title>
 <style>
 /* Layout: full-bleed game canvas, HUD pinned to corners, dev kit as a right-side drawer. */
@@ -189,6 +190,35 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #ovh .wbar { position: static; }
 .wbar.st { height: 4px; } .wbar.st i { background: #f2c84b; }
 #ovh.tired .wbar.st i { background: #9a7a2a; }
+/* ---- touch controls */
+#game canvas { touch-action: none; }
+.stick { position: fixed; left: 0; top: 0; z-index: 3; width: 0; height: 0; pointer-events: none; }
+.stick::before { content: ""; position: absolute; left: -56px; top: -56px; width: 112px; height: 112px; border-radius: 50%; background: rgba(18, 20, 19, .35); box-shadow: inset 0 0 0 3px rgba(232, 226, 212, .35); }
+.stick i { position: absolute; left: -26px; top: -26px; width: 52px; height: 52px; border-radius: 50%; background: rgba(232, 226, 212, .55); box-shadow: 0 0 0 3px rgba(16, 18, 17, .5); }
+#stickR i { background: rgba(255, 120, 90, .6); }
+#mBtns { position: fixed; z-index: 5; right: calc(14px + env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%); display: grid; gap: 10px; justify-items: end; }
+#mBtns button { font-family: inherit; font-size: 13px; letter-spacing: .12em; color: #e8e2d4; background: rgba(18, 20, 19, .82); border: 0; box-shadow: 0 0 0 2px #2b2e2b, 0 0 0 4px #101211; padding: 12px 14px; min-width: 64px; touch-action: none; }
+#mBtns #mBuild { background: #6a5a2a; color: #f2e6c0; } #mBtns #mUse { background: #3f8a2e; color: #f0ffe8; } #mBtns #mPause { min-width: 44px; padding: 10px; }
+body.mobile #reticle, body.mobile #perfHud, body.mobile #devBtn, body.mobile #pause .keys { display: none !important; }
+body.mobile .slot { cursor: default; } body.mobile #doorPrompt b { display: none; }
+/* ---- compact HUD for phones and small windows */
+@media (max-width: 860px), (max-height: 540px) {
+  #cycleHud { min-width: 0; width: min(300px, 46vw); padding: 4px 8px 5px; gap: 3px; } #cycleHud .top { font-size: 12px; gap: 8px; } #cycleHud #killCount { display: none; }
+  #brHud { right: 10px; bottom: 10px; gap: 6px; transform: scale(.78); transform-origin: bottom right; }
+  #xpHud { left: 10px; bottom: auto; top: calc(10px + env(safe-area-inset-top, 0px)); font-size: 14px; padding: 4px 8px; }
+  #acctHud { left: 10px; bottom: auto; top: calc(44px + env(safe-area-inset-top, 0px)); }
+  #bars { bottom: 6px; transform: translateX(-50%) scale(.72); transform-origin: bottom center; }
+  #banner { font-size: 14px; top: calc(64px + env(safe-area-inset-top, 0px)); padding: 6px 10px; }
+  #toast { top: calc(100px + env(safe-area-inset-top, 0px)); }
+  #shopWrap #inv { display: none; }
+  #shopWrap #shop { left: 50%; right: auto; transform: translateX(-50%); top: calc(72px + env(safe-area-inset-top, 0px)); width: min(420px, calc(100vw - 170px)); max-height: calc(100vh - 84px); padding: 8px; gap: 6px; }
+  #shop .shead { font-size: 14px; } .tiles.big { grid-template-columns: repeat(4, 1fr); gap: 6px; } .tile b { font-size: 10px; } .tile small { font-size: 8px; }
+  #leaveBtn { top: auto; bottom: 12px; left: 12px; transform: none; font-size: 15px; padding: 9px 14px; }
+  #smenu { width: 220px; } #alert { display: none; }
+  #runOver .rbox { max-height: calc(100vh - 20px); overflow: auto; gap: 9px; padding: 12px 14px; } #runOver h1 { font-size: 24px; } #runOver .big { font-size: 17px; padding: 10px; }
+  .card { width: 140px; min-height: 170px; padding: 10px 8px; } .card .ic { width: 48px; height: 48px; font-size: 26px; } #cards h2 { font-size: 22px; }
+  #deathMsg { font-size: 30px; } #deathMsg small { font-size: 40px; }
+}
 #doorMarker { left: 0; top: 0; }
 #doorMarker .bob { display: flex; flex-direction: column; align-items: center; gap: 2px; animation: bob .7s ease-in-out infinite alternate; }
 #doorMarker .tag { background: #7dff6e; color: #0f1a0d; font-size: 12px; font-weight: 600; letter-spacing: .14em; padding: 2px 6px; box-shadow: 0 0 0 2px #0f1a0d; }
@@ -285,6 +315,8 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
     <div class="rrow"><button type="button" id="rNo" class="sec">CANCEL</button><button type="button" id="rYes" class="danger">YES, START OVER</button></div></div>
 </div></div>
 <div class="px" id="cards" hidden><div class="cbox"><h2>UPGRADE</h2><div class="cleft" id="cardLeft"></div><div class="crow" id="cardRow"></div></div></div>
+<div class="stick" id="stickL" hidden><i></i></div><div class="stick" id="stickR" hidden><i></i></div>
+<div class="px" id="mBtns" hidden><button type="button" id="mPause" aria-label="Pause">II</button><button type="button" id="mUse" hidden>ENTER</button><button type="button" id="mReload">RELOAD</button><button type="button" id="mBuild">BUILD</button></div>
 <div class="hud px pxbox" id="xpHud"><span class="gem"></span><span id="xpNum">0</span><small>SCRAP</small></div>
 <div class="hud px" id="bars"><div id="buildBar" class="mini"><button type="button" class="bkey" id="buildKey">[B] BUILD</button><div class="slots" id="buildSlots"></div></div><div class="slots" id="weaponSlots"></div></div>
 <div class="hud" id="brHud">
@@ -845,9 +877,9 @@ addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 addEventListener("blur", () => { keys.clear(); mouseDown = false; });
 const reticle = document.getElementById("reticle"), reticleRing = document.getElementById("reticleRing");
 renderer.domElement.addEventListener("pointerleave", () => { reticle.hidden = true; });
-renderer.domElement.addEventListener("pointermove", (e) => { reticle.hidden = false; reticle.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
+renderer.domElement.addEventListener("pointermove", (e) => { if (e.pointerType === "touch") return; reticle.hidden = false; reticle.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 renderer.domElement.addEventListener("pointerdown", (e) => {
-  if (runOver || picking) return;
+  if (runOver || picking || e.pointerType === "touch") return;
   if (buildMode) {   // build mode: place the held build, or with an empty cursor click a structure / the base for its menu
     mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
     if (e.button === 2) { setBuildMode(false); return; }
@@ -864,7 +896,7 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
     if (menuTarget) { closeMenu(); return; }
   }
   if (e.button === 0) { mouseDown = true; firedThisPress = false; } mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
-addEventListener("pointerup", () => { mouseDown = false; });
+addEventListener("pointerup", (e) => { if (e.pointerType !== "touch") mouseDown = false; });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 
 /* ---------- Weapon HUD & reload ---------- */
@@ -1812,7 +1844,8 @@ function renderBuildBar() {
   buildSlots.innerHTML = BUILDS.map((b, i) => { const lock = lockOf(b); if (lock) return slotHtml(i, b, null, "", false, lock); const c = b.cost(), n = countOf(b.id), cap = capOf(b.id); return slotHtml(i, { name: `${b.name} ${n}/${cap}` }, ICONS[b.id], `${c}`, save.xp < c || n >= cap); }).join("");
   if (buildMode && buildSel >= 0) buildSlots.children[buildSel]?.classList.add("sel");
   buildBar.classList.toggle("mini", !buildMode);
-  buildKey.textContent = !buildMode ? "[B] BUILD" : carry ? "[B] PUT BACK · CLICK TO PLACE" : buildSel >= 0 ? `[B] CLOSE · CLICK TO PLACE · [${buildSel + 1}] AGAIN FOR CURSOR` : "[B] CLOSE · CLICK A BUILD TO MANAGE IT";
+  if (touch.on) buildKey.textContent = !buildMode ? "BUILD" : carry ? "TAP TO PLACE · BUILD TO PUT BACK" : buildSel >= 0 ? "TAP TO PLACE · TAP THE SLOT AGAIN FOR CURSOR" : "TAP A BUILD TO MANAGE IT";
+  else buildKey.textContent = !buildMode ? "[B] BUILD" : carry ? "[B] PUT BACK · CLICK TO PLACE" : buildSel >= 0 ? `[B] CLOSE · CLICK TO PLACE · [${buildSel + 1}] AGAIN FOR CURSOR` : "[B] CLOSE · CLICK A BUILD TO MANAGE IT";
 }
 function deny(el) { if (!el) return; el.classList.remove("deny"); void el.offsetWidth; el.classList.add("deny"); }
 function selectSlot(i) {
@@ -2482,6 +2515,64 @@ document.getElementById("vAnim").addEventListener("click", (e) => { vAnim = !vAn
 document.getElementById("vWire").addEventListener("click", (e) => { vWire = !vWire; e.target.textContent = `Wireframe: ${vWire ? "on" : "off"}`; applyWire(); });
 addEventListener("resize", vResize);
 
+/* ---------- Touch controls (mobile) ---------- */
+// Switches on with a coarse pointer or the first touch. Left side: floating move stick (push to the rim to
+// sprint). Right side: floating aim stick that fires while held. In build mode (or inside the base) the right
+// side becomes taps: place the held build, or tap a structure / the base for its menu. Buttons replace keys.
+const touch = { on: false, move: null, aim: null, tap: null, mv: new THREE.Vector2(), av: new THREE.Vector2() };
+const stickL = document.getElementById("stickL"), stickR = document.getElementById("stickR"), mBtns = document.getElementById("mBtns"), mUse = document.getElementById("mUse");
+function enableTouch() {
+  if (touch.on) return; touch.on = true; document.body.classList.add("mobile"); reticle.hidden = true; mBtns.hidden = false; renderBuildBar();
+}
+if (matchMedia("(pointer: coarse)").matches) enableTouch();
+addEventListener("touchstart", enableTouch, { once: true, passive: true });
+const STICK_R = 56;
+function stickAt(el, x, y) { el.hidden = false; el.style.transform = `translate(${x}px, ${y}px)`; el.firstElementChild.style.transform = ""; }
+function stickKnob(el, v) { el.firstElementChild.style.transform = `translate(${v.x * STICK_R}px, ${-v.y * STICK_R}px)`; }
+function readStick(s, e, out) { const dx = e.clientX - s.x, dy = e.clientY - s.y, l = Math.hypot(dx, dy), k = Math.min(1, l / STICK_R); out.set(l ? dx / l * k : 0, l ? -dy / l * k : 0); }
+renderer.domElement.addEventListener("pointerdown", (e) => {
+  if (e.pointerType !== "touch") return; enableTouch(); e.preventDefault();
+  if (runOver || picking || player.dead) return;
+  const left = e.clientX < innerWidth * 0.42, taps = buildMode || player.inside;
+  if (left && !touch.move) { touch.move = { id: e.pointerId, x: e.clientX, y: e.clientY }; stickAt(stickL, e.clientX, e.clientY); return; }
+  if (taps) { touch.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() }; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); return; }
+  if (!touch.aim) { touch.aim = { id: e.pointerId, x: e.clientX, y: e.clientY }; stickAt(stickR, e.clientX, e.clientY); }
+}, { passive: false });
+addEventListener("pointermove", (e) => {
+  if (e.pointerType !== "touch") return;
+  if (touch.move?.id === e.pointerId) { readStick(touch.move, e, touch.mv); stickKnob(stickL, touch.mv); }
+  else if (touch.aim?.id === e.pointerId) { readStick(touch.aim, e, touch.av); stickKnob(stickR, touch.av); }
+  else if (touch.tap?.id === e.pointerId) mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);   // drag the ghost around
+});
+function endTouch(e) {
+  if (e.pointerType !== "touch") return;
+  if (touch.move?.id === e.pointerId) { touch.move = null; touch.mv.set(0, 0); stickL.hidden = true; }
+  if (touch.aim?.id === e.pointerId) { touch.aim = null; touch.av.set(0, 0); stickR.hidden = true; mouseDown = false; }
+  if (touch.tap?.id === e.pointerId) {
+    const t = touch.tap; touch.tap = null;
+    if (buildMode && Math.hypot(e.clientX - t.x, e.clientY - t.y) < 40 && performance.now() - t.t < 600) {
+      raycaster.setFromCamera(mouse, camera); raycaster.ray.intersectPlane(groundPlane, aimPoint); updateHover(); updateGhost();
+      if (carry || buildSel >= 0) tryPlace();
+      else { const pick = hovered ? (hovered.kind ? hovered : null) : baseHover ? "base" : null; if (pick && pick !== menuTarget) openMenu(pick); else closeMenu(); }
+    }
+  }
+}
+addEventListener("pointerup", endTouch); addEventListener("pointercancel", endTouch);
+// called from update(): turns the sticks into movement, aim and fire
+function applyTouch(mv) {
+  if (!touch.on) return false;
+  if (touch.mv.lengthSq() > 0.02) mv.addScaledVector(RIGHT, touch.mv.x).addScaledVector(FWD, touch.mv.y);
+  const aiming = touch.av.length() > 0.3 && !buildMode && !player.inside;
+  if (aiming) { const d = new THREE.Vector3().addScaledVector(RIGHT, touch.av.x).addScaledVector(FWD, touch.av.y).normalize(); player.yaw = Math.atan2(d.x, d.z); aimPoint.copy(player.pos).addScaledVector(d, 8); mouseDown = true; firedThisPress = false; }
+  else if (touch.mv.lengthSq() > 0.05 && !buildMode) { const d = new THREE.Vector3().addScaledVector(RIGHT, touch.mv.x).addScaledVector(FWD, touch.mv.y); player.yaw = Math.atan2(d.x, d.z); }
+  return touch.mv.length() > 0.92;   // pushed to the rim: sprint
+}
+const mBtn = (id, fn) => document.getElementById(id).addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); fn(); });
+mBtn("mBuild", () => { if (!runOver && !picking) setBuildMode(!buildMode); });
+mBtn("mReload", () => startReload());
+mBtn("mUse", () => { setBuildMode(false); toggleInside(); });
+mBtn("mPause", () => setPaused(!paused));
+
 /* ---------- Loop ---------- */
 const raycaster = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.1), aimPoint = new THREE.Vector3();
 let saveTimer = 0, perfTimer = 0, frames = 0, last = performance.now();
@@ -2585,11 +2676,12 @@ function update(dt) {
   const mv = new THREE.Vector3();
   if (keys.has("w")) mv.add(FWD); if (keys.has("s")) mv.sub(FWD);
   if (keys.has("d")) mv.add(RIGHT); if (keys.has("a")) mv.sub(RIGHT);
+  const touchSprint = applyTouch(mv);
   if (player.dead) mv.set(0, 0, 0);
   if (player.dead) { player.vel.set(0, 0, 0); }
   // stamina: sprinting drains it, it refills slowly after a short pause; empty means walk until 30
   const moving = mv.lengthSq() > 0;
-  const sprint = keys.has("shift") && !mouseDown && !player.inside && moving && !player.tired && player.stamina > 0;
+  const sprint = (keys.has("shift") || touchSprint) && !mouseDown && !player.inside && moving && !player.tired && player.stamina > 0;
   if (sprint) { player.stamina = Math.max(0, player.stamina - 24 * dt); player.sinceSprint = 0; if (player.stamina <= 0) player.tired = true; }
   else { player.sinceSprint += dt; if (player.sinceSprint > 0.8) player.stamina = Math.min(maxSt(), player.stamina + 11 * dt); if (player.stamina >= 30) player.tired = false; }
   if (moving) mv.normalize().multiplyScalar((player.inside ? 2.6 : sprint ? 7.5 : 4.5) * spdMul());
@@ -2611,8 +2703,10 @@ function update(dt) {
   }
 
   raycaster.setFromCamera(mouse, camera);
-  if (raycaster.ray.intersectPlane(groundPlane, aimPoint)) player.yaw = Math.atan2(aimPoint.x - player.pos.x, aimPoint.z - player.pos.z);
+  if (!touch.on) { if (raycaster.ray.intersectPlane(groundPlane, aimPoint)) player.yaw = Math.atan2(aimPoint.x - player.pos.x, aimPoint.z - player.pos.z); }
+  else if (buildMode || player.inside) raycaster.ray.intersectPlane(groundPlane, aimPoint);
   updateHover(); updateGhost();
+  if (touch.on) { mUse.hidden = doorPrompt.hidden; mUse.textContent = player.inside ? "EXIT" : "ENTER"; }
 
   const spd = player.vel.length();
   player.stride += ((spd > 0.3 ? 1 : 0) - player.stride) * Math.min(1, dt * 10);
