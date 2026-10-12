@@ -1246,7 +1246,7 @@ function rayCircle(ox, oz, dx, dz, cx, cz, r) {
 const ENEMY_HIT_R = 0.62;
 const enemies = [], enemyPools = { walker: [], runner: [], bomber: [], brute: [] };
 const ENEMY_TYPES = {
-  brute: { hp: 700, dmg: 60, sdmg: 60, speed: [1.0, 1.2], color: 0x4a140e, xp: 30, bonus: 0, clip: "Walk_Loop", clipSpeed: 0.9, arms: true, scale: 1.9, weight: 0, cap: () => 0 },
+  brute: { hp: 700, dmg: 60, sdmg: 60, speed: [1.0, 1.2], color: 0x6e1c13, xp: 30, bonus: 0, clip: "Walk_Loop", clipSpeed: 0.9, arms: true, scale: 2.4, weight: 0, cap: () => 0 },
   walker: { hp: 50, dmg: 12, speed: [1.5, 2.1], color: 0xa3241b, xp: 1, bonus: 2, clip: "Walk_Loop", clipSpeed: 1.3, arms: true, weight: 5,
     cap: (day, night) => night ? Math.min(80, 24 + (day - 1) * 12) : Math.min(45, 12 + (day - 1) * 6) },   // fodder: their own fast stream, huge waves
   runner: { hp: 35, dmg: 9, speed: [5.0, 5.6], color: 0xd9452c, xp: 2, bonus: 2, clip: "Jog_Fwd_Loop", clipSpeed: 3.8, scale: 0.95, weight: 3,
@@ -2141,7 +2141,7 @@ document.getElementById("buildKey").addEventListener("click", () => setBuildMode
 // path), so nothing can be placed where a base upgrade would later need the space.
 const BASE_FOOT = new Set(); const cellKey = (x, z) => `${Math.floor(x)},${Math.floor(z)}`;
 function buildBaseFootprint() {
-  BASE_FOOT.clear(); const boxes = [...boxColliders.filter(b => b !== OUTHOUSE_BOX), OUTHOUSE_BOX], fs = fenceSegs(DEF ? save.base : 2), cs = coilSegs(DEF ? save.base : 2), door = doorPos();
+  BASE_FOOT.clear(); const boxes = [...boxColliders.filter(b => b !== OUTHOUSE_BOX), OUTHOUSE_BOX], fs = fenceSegs(2), cs = coilSegs(2), door = doorPos();   // room for the biggest yard
   for (let x = -12; x < 14; x++) for (let z = Math.floor(SHACK_Z) - 10; z < SHACK_Z + 11; z++) {
     const cx = x + 0.5, cz = z + 0.5; let hit = false;
     for (const [x0, x1, z0, z1] of boxes) if (cx > x0 - 0.5 && cx < x1 + 0.5 && cz > z0 - 0.5 && cz < z1 + 0.5) hit = true;
@@ -2293,7 +2293,7 @@ function renderIcon(obj) {
 }
 
 /* ---------- Info menus: structures and the base ---------- */
-const BASE_UP = [0, 0, 300, 700];   // scrap to reach each base level (level 3 is the max for now)
+const BASE_UP = DEF ? [0, 0, 150, 350] : [0, 0, 300, 700];   // scrap to reach each base level (level 3 is the max for now)
 const smenu = document.getElementById("smenu"), smTitle = document.getElementById("smTitle"), smLv = document.getElementById("smLv"), smHpRow = document.getElementById("smHpRow"),
   smHp = document.getElementById("smHp"), smHpT = document.getElementById("smHpT"), smInfo = document.getElementById("smInfo"), smUp = document.getElementById("smUp"), smMove = document.getElementById("smMove"), smSell = document.getElementById("smSell");
 let menuTarget = null, menuT = 0;
@@ -2321,11 +2321,11 @@ function renderMenu() {
   if (t === "base") {
     const lv = save.base, next = BASE_UP[lv + 1];
     smTitle.textContent = "BASE"; smLv.textContent = `LV ${lv}`; smHpRow.hidden = true; smMove.hidden = true; smSell.hidden = true;
-    const LV_TXT = { 2: "patched walls, caged windows, bigger fence, outhouse · rocket turrets · LV 3 walls", 3: "armoured steel shell, slit windows, steel door" };
+    const LV_TXT = DEF ? { 2: "patched walls, caged windows, a bigger fence and an outhouse", 3: "an armoured steel shell" } : { 2: "patched walls, caged windows, bigger fence, outhouse · rocket turrets · LV 3 walls", 3: "armoured steel shell, slit windows, steel door" };
     smInfo.innerHTML = `Enemies can't get inside.<br>Sentries ${countOf("sentry")}/${capOf("sentry")}${capOf("rocket") ? ` · Rocket launchers ${countOf("rocket")}/${capOf("rocket")}` : ""} · Walls ${walls.length}/${capOf("wall")}` +
       (next ? `<br><b>LV ${lv + 1}:</b> ${LV_TXT[lv + 1]} · ${BASE_HP[lv + 1]} HP · ${CAPS.sentry[lv + 1]} sentries · ${CAPS.rocket[lv + 1]} rocket turrets · ${CAPS.wall[lv + 1]} walls` : "<br>Max level for now");
-    smUp.hidden = DEF; smUp.textContent = next ? `UPGRADE · ${next} SCRAP` : "MAX LEVEL"; smUp.disabled = !next || save.xp < next;
-    if (DEF) smInfo.innerHTML = `Hold it through ${NIGHTS} nights.<br>Enemies that reach it tear at it.<br>It patches itself up slowly when left alone.`;
+    smUp.hidden = false; smUp.textContent = next ? `UPGRADE · ${next} SCRAP` : "MAX LEVEL"; smUp.disabled = !next || save.xp < next;
+    if (DEF) smInfo.innerHTML = `Hold it through ${NIGHTS} nights. It patches itself up slowly when left alone.` + (next ? `<br><b>LV ${lv + 1}:</b> ${BASE_HP[lv + 1]} HP · ${LV_TXT[lv + 1]}` : "<br>Max level");
     smHpRow.hidden = false; smHp.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; smHpT.textContent = `${Math.ceil(save.baseHp)}/${baseMax()}`; renderRepair("base");
     return;
   }
@@ -3236,7 +3236,7 @@ cv.addEventListener("pointerdown", (e) => {
 addEventListener("pointerup", (e) => {
   if (!DEF) return;
   if (paint?.id === e.pointerId) { paint = null; setBuild(-1); return; }
-  if (brush?.id === e.pointerId) { const b = brush; brush = null; marq.hidden = true; if (b.list.length === 1) openMenu(b.list[0]); else if (b.list.length > 1) openMenu({ group: true, kind: b.kind, list: b.list }); return; }
+  if (brush?.id === e.pointerId) { const b = brush; brush = null; marq.hidden = true; if (b.list.length === 1) openMenu(b.list[0]); else if (b.list.length > 1) openMenu({ group: true, kind: b.list[0].kind, list: b.list }); return; }
   touchPts.delete(e.pointerId); if (touchPts.size < 2) pinch = null;
   if (trayDrag?.id === e.pointerId) {
     const d = trayDrag; trayDrag = null;
@@ -3394,7 +3394,7 @@ const EVENTS = [
 ];
 let spT = { walker: 1, runner: 0, bomber: 0 };
 function defSpawns(dt) {
-  const t = run.t, k = clamp(t / RUN_LEN, 0, 1), ph = phaseOf(t), surge = ph.night ? (ph.n === NIGHTS ? 0.65 : 0.9) : 2.6;   // days are a trickle
+  const t = run.t, k = clamp(t / RUN_LEN, 0, 1), ph = phaseOf(t), surge = ph.night ? (ph.n === NIGHTS ? 0.65 : 0.9) : ph.n === 1 ? 1.1 : 1.6;   // days are lighter (day 1 keeps you busy)
   for (const [at, fn] of EVENTS) if (!run.events[at] && t >= at) { run.events[at] = 1; fn(); }
   const alive = enemies.reduce((a, e) => a + !e.dead, 0); if (alive > 160) return;
   // gangs from random directions: mostly small, sometimes a big mob (the size range grows over the run and at night)
@@ -3430,13 +3430,13 @@ function defReset() {
   carry = null; buildSel = -1; buildMode = false; showGhost(); closeMenu();
   Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { sentry: 3 }, freeTotal: { sentry: 3 }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0 });
   spT = { walker: 1.5, runner: 0, bomber: 0 };
-  runOver = false; shantyGone = false; player.dead = 0; save.xp = 25; save.cards = []; save.builds = [];
+  runOver = false; shantyGone = false; player.dead = 0; save.xp = 25; save.base = 1;   // the base starts every run at level 1 save.cards = []; save.builds = [];
   applyBaseLevel(); save.baseHp = baseMax(); renderBaseHp(); runEl.hidden = true; cardsEl.hidden = true; picking = 0;
   shanty && (shanty.userData.outline.visible = false);
   // the opening: a first front, a few walkers already on their way in slow motion, a free sentry to place
   addFront(Math.random() < 0.5 ? Math.PI * 0.75 : Math.PI * 1.75);   // screen right or left, never from the top
   const f = run.fronts[0];
-  for (let i = 0; i < 4; i++) { const [x, z] = frontPoint(f, 15 + i * 1.5, 0.5); const e = spawnEnemy("walker", x, z); showHulls(e, true); }
+  for (let i = 0; i < 9; i++) { const [x, z] = frontPoint(f, 14 + i * 0.9, 0.5); const e = spawnEnemy("walker", x, z); showHulls(e, true); }
   renderTray(); writeSave();
   showBanner(save.def.tut2 ? "YOU HAVE 3 FREE SENTRIES · PLACE ONE TO START" : (touch.on ? "TAP THE SENTRY, THEN TAP THE GROUND" : "PRESS 1 OR CLICK THE SENTRY, THEN CLICK THE GROUND"), 999);
 }
