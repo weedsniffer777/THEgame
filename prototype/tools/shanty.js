@@ -585,4 +585,8 @@ function buildYardL1() {
   return shadowed(g);
 }
 
-export { buildShack, buildShackYard, buildYardL1, buildYardL2, surfaces, vnoise };
+// The yard's camera-side edge (large x + z) is pulled in toward the shack by up to YARD_PULL m.
+// The game applies the same warp to the fence / coil colliders, so keep the two in step.
+const YARD_PULL = 1.0;
+function yardWarp(x, z) { const t = Math.min(1, Math.max(0, (x + z - 3) / 3)), f = t * t * (3 - 2 * t) * YARD_PULL / Math.SQRT2; return [x - f, z - f]; }
+export { buildShack, buildShackYard, buildYardL1, buildYardL2, surfaces, vnoise, yardWarp };

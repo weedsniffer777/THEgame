@@ -6,14 +6,15 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
-import { buildShack, buildShackYard, buildYardL1, buildYardL2 } from "./shanty.js";
+import { buildShack, buildShackYard, buildYardL1, buildYardL2, yardWarp } from "./shanty.js";
 
 // Build, flatten into world space, merge meshes that share a material into one draw call.
 // The shack and its yard are baked as two groups ("shack", "yard") so the game can treat them separately.
 let tris = 0, calls = 0;
 const isRoof = (o) => { for (let p = o; p; p = p.parent) if (p.userData.roof) return true; return false; };
 const lvlOf = (o) => { for (let p = o; p; p = p.parent) if (p.userData.lvl) return p.userData.lvl; return 0; };
-function mergeGroup(src, name, keep = () => true) {
+function warpGeo(g, warp) { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const [x, z] = warp(p.getX(i), p.getZ(i)); p.setXYZ(i, x, p.getY(i), z); } p.needsUpdate = true; }
+function mergeGroup(src, name, keep = () => true, warp = null) {
   src.updateMatrixWorld(true);
   const byMat = new Map(), lines = [];
   src.traverse(o => {
@@ -21,7 +22,7 @@ function mergeGroup(src, name, keep = () => true) {
     if (o.isLineSegments) { lines.push(o); return; }
     if (!o.isMesh) return;
     let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
-    g.applyMatrix4(o.matrixWorld);
+    g.applyMatrix4(o.matrixWorld); if (warp) warpGeo(g, warp);
     const n = g.attributes.position.count;
     if (!g.attributes.uv) g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(n * 2), 2));
     if (!g.attributes.color) g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3));
@@ -32,7 +33,7 @@ function mergeGroup(src, name, keep = () => true) {
   });
   const grp = new THREE.Group(); grp.name = name;
   for (const [m, geos] of byMat) { const merged = mergeGeometries(geos, false); grp.add(new THREE.Mesh(merged, m)); tris += merged.attributes.position.count / 3; calls++; }
-  for (const l of lines) { const g = l.geometry.clone().applyMatrix4(l.matrixWorld); const w = new THREE.LineSegments(g, l.material); w.name = "wire"; grp.add(w); calls++; }
+  for (const l of lines) { const g = l.geometry.clone().applyMatrix4(l.matrixWorld); if (warp) warpGeo(g, warp); const w = new THREE.LineSegments(g, l.material); w.name = "wire"; grp.add(w); calls++; }
   return grp;
 }
 const out = new THREE.Group(); out.name = "shanty_baked";
@@ -43,7 +44,7 @@ const part = (roof, lvl) => o => isRoof(o) === roof && lvlOf(o) === lvl;
 out.add(mergeGroup(shackSrc, "shack", part(false, 0)), mergeGroup(shackSrc, "shack_l1", part(false, 1)),
   mergeGroup(shackSrc, "shack_l2", part(false, 2)), mergeGroup(shackSrc, "shack_l12", part(false, 12)), mergeGroup(shackSrc, "shack_l3", part(false, 3)),
   mergeGroup(shackSrc, "shack_roof", part(true, 0)), mergeGroup(shackSrc, "shack_roof_l12", part(true, 12)), mergeGroup(shackSrc, "shack_roof_l3", part(true, 3)),
-  mergeGroup(buildShackYard(), "yard"), mergeGroup(buildYardL1(), "yard_l1"), mergeGroup(buildYardL2(), "yard_l2"));
+  mergeGroup(buildShackYard(), "yard", undefined, yardWarp), mergeGroup(buildYardL1(), "yard_l1", undefined, yardWarp), mergeGroup(buildYardL2(), "yard_l2", undefined, yardWarp));
 const byMat = { size: calls };
 const glb = await new GLTFExporter().parseAsync(out, { binary: true, maxTextureSize: 1024 });
 const bytes = new Uint8Array(glb); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
