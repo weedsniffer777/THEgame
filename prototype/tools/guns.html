@@ -1,0 +1,37 @@
+<!doctype html><meta charset="utf-8"><title>guns</title>
+<script type="importmap">{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+// Simplifies the Shoot Them Off gun models for the top-down camera: welds vertices, decimates each
+// named part, keeps part names (the game finds Trigger/Mag/Barrel/... for hand and muzzle points).
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+import { SimplifyModifier } from "three/addons/modifiers/SimplifyModifier.js";
+import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
+const JOBS = [["ShotGun_B", 0.3], ["Pistol_P", 0.22], ["WWII_Recon_A", 0.25, "Optic"], ["GrenadeLauncher_C", 0.2]];
+const loader = new GLTFLoader(), simp = new SimplifyModifier(), out = {};
+for (const [name, keep, attach] of JOBS) {
+  const g = (await loader.loadAsync(`src/guns/${name}.glb`)).scene;
+  if (attach) {   // scope sits on the receiver, centred
+    const o = (await loader.loadAsync(`src/guns/${attach}.glb`)).scene; g.updateMatrixWorld(true);
+    let rec = null; g.traverse(n => { if (!rec && /Receiver$/.test(n.name)) rec = n; });
+    const rb = new THREE.Box3().setFromObject(rec), ob = new THREE.Box3().setFromObject(o);
+    o.position.set((rb.min.x + rb.max.x) / 2 - (ob.min.x + ob.max.x) / 2, rb.max.y - ob.min.y - 0.012, (rb.min.z + rb.max.z) / 2 - (ob.min.z + ob.max.z) / 2 + 0.035);
+    o.name = name + "_Optic"; g.add(o);
+  }
+  let before = 0, after = 0;
+  g.traverse(o => {
+    if (!o.isMesh) return;
+    let geo = o.geometry.clone(); for (const k of Object.keys(geo.attributes)) if (!["position", "normal", "uv"].includes(k)) geo.deleteAttribute(k);
+    geo = mergeVertices(geo, 1e-4); const n = geo.attributes.position.count; before += n;
+    if (n > 60) { try { const s = simp.modify(geo, Math.floor(n * (1 - keep))); if (s.attributes.position.count > 8) geo = s; } catch (e) { console.warn(name, e.message); } }
+    geo.computeVertexNormals(); after += geo.attributes.position.count; o.geometry = geo;
+  });
+  const glb = await new GLTFExporter().parseAsync(g, { binary: true });
+  const bytes = new Uint8Array(glb); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  out[name] = { b64: btoa(bin), before, after };
+}
+window.__guns = out;
+</script>

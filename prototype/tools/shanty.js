@@ -408,7 +408,9 @@ function drum(S, rnd, painted = true) {
   }
   for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 5, uv.getY(i) / 5);
   grime(geo, 0.88, 0.3); geo.computeVertexNormals();
-  return new THREE.Mesh(geo, painted ? S.paintMat : S.galvMat);
+  // drums are smooth steel: same colour maps, but no corrugation normal map
+  if (!S.drumPaint) { S.drumPaint = S.paintMat.clone(); S.drumPaint.normalMap = null; S.drumPaint.name = "drumPaint"; S.drumGalv = S.galvMat.clone(); S.drumGalv.normalMap = null; S.drumGalv.name = "drumGalv"; }
+  return new THREE.Mesh(geo, painted ? S.drumPaint : S.drumGalv);
 }
 function buildShackYard() {
   const S = surfaces(), rnd = seeded(4242);

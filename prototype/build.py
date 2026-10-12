@@ -3,6 +3,7 @@
 Regenerate inputs when their sources change:
   node tools/bake.mjs     -> models/shanty.glb
   node tools/player.mjs   -> models/player.glb
+  node tools/guns.mjs     -> models/guns/*.glb (simplified Shoot Them Off guns)
 """
 import base64, pathlib
 root = pathlib.Path(__file__).parent
@@ -14,5 +15,7 @@ src = (src.replace("__PLAYER_B64__", b64("models/player.glb"))
           .replace("__SHANTY_B64__", b64("models/shanty.glb"))
           .replace("__TWIG_B64__", b64("models/pine_twig.png"))
           .replace("__BARK_B64__", b64("models/pine_bark.jpg")))
+for f in sorted((root / "models/guns").glob("*.glb")):
+    src = src.replace(f"__GUN_{f.stem}_B64__", b64(f"models/guns/{f.name}"))
 (out / "index.html").write_text(src)
 print("wrote", out / "index.html", f"{(out / 'index.html').stat().st_size / 1e6:.1f} MB")
