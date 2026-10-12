@@ -222,6 +222,7 @@ body.def #banner { top: calc(104px + env(safe-area-inset-top, 0px)); } body.def.
 .card.rar.legendary { background: linear-gradient(#2a2412, #1e211e 60%); } .card.rar.epic { background: linear-gradient(#251a2e, #1e211e 60%); }
 #runOver .earn { font-size: 15px; color: #ffd23a; letter-spacing: .08em; } #runOver .earn small { display: block; font-size: 11px; color: #9d978a; margin-top: 4px; }
 body.mobile .tcard { width: 72px; height: 90px; } body.mobile .tcard img { width: 48px; height: 48px; } body.mobile #bank { font-size: 17px; padding: 6px 9px; }
+body.mobile #xpWrap { top: calc(2px + env(safe-area-inset-top, 0px)); } body.mobile #xpWrap .xbar { height: 10px; }
 body.mobile #defTimer { font-size: 26px; } body.mobile #defTop .bbar { width: 130px; } body.mobile #defTop { top: calc(26px + env(safe-area-inset-top, 0px)); }
 /* phones: no text selection, callout menu, magnifier or grey tap flash from long presses anywhere */
 * { -webkit-tap-highlight-color: transparent; }
@@ -2097,7 +2098,7 @@ function buildBaseFootprint() {
 }
 // height to place `kind` at (x, z), or -1 when it can't go there
 function placeHeight(kind, x, z, ignore) {
-  if (Math.abs(x) > 28 || Math.abs(z) > 28) return -1;
+  const lim = DEF ? 30 : 28; if (Math.abs(x) > lim || Math.abs(z) > lim) return -1;
   const cells = kind === "wall" ? [[x, z]] : [[x - 0.5, z - 0.5], [x + 0.5, z - 0.5], [x - 0.5, z + 0.5], [x + 0.5, z + 0.5]];
   if (cells.some(([cx, cz]) => BASE_FOOT.has(cellKey(cx, cz)))) return -1;
   for (const c of treeColliders) for (const [cx, cz] of cells) if (Math.hypot(cx - c.x, cz - c.z) < c.r + 0.55) return -1;
@@ -3021,6 +3022,7 @@ const defTimer = document.getElementById("defTimer"), defTop = document.getEleme
 const orbLayer = document.getElementById("orbLayer");
 const xpNeed = (l) => 5 + 3 * l + Math.floor(l * l * 0.5);
 let ptrDown = null, trayDrag = null;
+const camPan = new THREE.Vector3(), PAN_MAX = 12;   // drag empty ground to look around
 
 // ---- tray
 function renderTray() {
@@ -3056,6 +3058,10 @@ addEventListener("pointermove", (e) => {
   if (e.pointerType !== "touch") { setMouse(e); ptrOn = e.target === cv || !!trayDrag; }
   else if (ptrDown?.id === e.pointerId || trayDrag?.id === e.pointerId) { setMouse(e); ptrOn = document.elementFromPoint(e.clientX, e.clientY) === cv; }
   if (ptrDown?.id === e.pointerId && Math.hypot(e.clientX - ptrDown.x, e.clientY - ptrDown.y) > 12) ptrDown.moved = true;
+  if (ptrDown?.id === e.pointerId && ptrDown.pan && ptrDown.moved) {   // keep the grabbed ground point under the pointer
+    setMouse(e); refreshAim(); camPan.add(ptrDown.pan.clone().sub(aimPoint).setY(0));
+    camPan.x = clamp(camPan.x, -PAN_MAX, PAN_MAX); camPan.z = clamp(camPan.z, -PAN_MAX, PAN_MAX); placeCam();
+  }
   if (trayDrag?.id === e.pointerId && Math.hypot(e.clientX - trayDrag.x, e.clientY - trayDrag.y) > 12) trayDrag.moved = true;
 });
 cv.addEventListener("pointerdown", (e) => {
@@ -3064,6 +3070,7 @@ cv.addEventListener("pointerdown", (e) => {
   if (e.button === 2) { if (carry) cancelCarryDef(); setBuild(-1); return; }
   setMouse(e); ptrOn = true; raycaster.setFromCamera(mouse, camera); raycaster.ray.intersectPlane(floorPlane, aimPoint); updateHover();
   ptrDown = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), s: !buildMode && hovered?.kind ? hovered : null, moved: false };
+  if (!buildMode && !ptrDown.s) ptrDown.pan = aimPoint.clone();   // grab the ground under the pointer
 });
 addEventListener("pointerup", (e) => {
   if (!DEF) return;
@@ -3191,7 +3198,7 @@ function addFront(a) {
   const el = document.createElement("div"); el.className = "hud px ptr front"; el.innerHTML = '<span class="lbl">INCOMING</span><span class="arr"></span>'; document.body.appendChild(el); frontEls.push(el);
 }
 function shiftFront() { const f = run.fronts[Math.floor(Math.random() * run.fronts.length)]; const others = run.fronts.filter(o => o !== f); for (let tries = 0; tries < 30; tries++) { const a = Math.random() * Math.PI * 2; if (others.every(o => Math.abs(Math.atan2(Math.sin(a - o.a), Math.cos(a - o.a))) > 1.0) && Math.abs(Math.atan2(Math.sin(a - f.a), Math.cos(a - f.a))) > 1.2) { f.a = a; break; } } }
-function frontPoint(f, r = 23, spread = 0.7) { const a = f.a + (Math.random() - 0.5) * spread, d = r + Math.random() * 3; return [clamp(BC.x + Math.sin(a) * d, -28, 28), clamp(BC.z + Math.cos(a) * d, -28, 28)]; }
+function frontPoint(f, r = 25, spread = 0.7) { const a = f.a + (Math.random() - 0.5) * spread, d = r + Math.random() * 3; return [clamp(BC.x + Math.sin(a) * d, -30, 30), clamp(BC.z + Math.cos(a) * d, -30, 30)]; }
 const spawnAt = (type, f) => { const [x, z] = frontPoint(f || run.fronts[Math.floor(Math.random() * run.fronts.length)]); return spawnEnemy(type, x, z); };
 const EVENTS = [
   [75, () => { addFront(); showBanner("A NEW FRONT OPENS!", 3, true); }],
@@ -3226,7 +3233,7 @@ function defReset() {
   enemies.length = 0; hovered = null; pendingHits.length = 0;
   for (const r of rockets) scene.remove(r.m); rockets.length = 0;
   for (const o of orbs) { o.el.remove(); orbPool.push(o.el); } orbs.length = 0;
-  for (const el of frontEls) el.remove(); frontEls.length = 0;
+  for (const el of frontEls) el.remove(); frontEls.length = 0; camPan.set(0, 0, 0);
   carry = null; buildSel = -1; buildMode = false; showGhost(); closeMenu();
   Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { sentry: 1 }, mods: {}, fronts: [], picks: 0, events: {} });
   spT = { walker: 1.5, runner: 0, bomber: 0 };
@@ -3234,7 +3241,7 @@ function defReset() {
   applyBaseLevel(); save.baseHp = baseMax(); renderBaseHp(); runEl.hidden = true; cardsEl.hidden = true; picking = 0;
   shanty && (shanty.userData.outline.visible = false);
   // the opening: a first front, a few walkers already on their way in slow motion, a free sentry to place
-  addFront(Math.PI * 0.25 + (Math.floor(Math.random() * 4)) * Math.PI / 2);
+  addFront(Math.random() < 0.5 ? Math.PI * 0.75 : Math.PI * 1.75);   // screen right or left, never from the top
   const f = run.fronts[0];
   for (let i = 0; i < 4; i++) { const [x, z] = frontPoint(f, 15 + i * 1.5, 0.5); const e = spawnEnemy("walker", x, z); showHulls(e, true); }
   renderTray(); writeSave();
@@ -3273,7 +3280,8 @@ function defLight(k) {
   hemi.intensity = lerp(1.5, 1.1, k); hemi.color.lerpColors(DAYC.sky, NIGHTC.sky, k); hemi.groundColor.lerpColors(DAYC.gnd, NIGHTC.gnd, k);
   scene.background.lerpColors(DAYC.bg, NIGHTC.bg, k); lantern.intensity = 0;
 }
-function defView() { const a = innerWidth / innerHeight; return Math.max(12.5, 21 / a); }
+function placeCam() { camera.position.copy(BC).add(camPan).setY(0.8).add(CAM_OFFSET); camera.lookAt(camera.position.clone().sub(CAM_OFFSET)); camera.updateMatrixWorld(); }
+function defView() { const a = innerWidth / innerHeight; return Math.max(15, 25 / a); }
 function defUpdate(rdt) {
   run.slow += ((run.started ? 1 : 0.08) - run.slow) * Math.min(1, rdt * (run.started ? 2.5 : 10));
   const dt = rdt * run.slow;
@@ -3296,9 +3304,9 @@ function defUpdate(rdt) {
   updateMenu(rdt); updateTiles(); updateUpFx(rdt); updatePops(rdt); updateOrbs(rdt); updateFronts();
   // fixed camera on the base
   const wantView = defView(); if (Math.abs(curView - wantView) > 0.01) { curView = wantView; camFrustum(); }
-  camera.position.copy(BC).setY(0.8).add(CAM_OFFSET); camera.lookAt(camera.position.clone().sub(CAM_OFFSET));
+  placeCam();
   if (shake > 0) { shake = Math.max(0, shake - rdt); camera.position.add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.6)); }
-  sun.position.copy(BC).add(new THREE.Vector3(-6, 14, 9)); sun.target.position.copy(BC);
+  const cc = BC.clone().add(camPan); sun.position.copy(cc).add(new THREE.Vector3(-6, 14, 9)); sun.target.position.copy(cc);
   camera.updateMatrixWorld();
   defLight(clamp(run.t / (RUN_LEN * 0.8), 0, 0.8));
   // HUD
