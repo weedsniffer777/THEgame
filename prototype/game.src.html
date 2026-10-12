@@ -1314,13 +1314,13 @@ function sparkFx(pos, dir, n = 5) {
   spawnSprite(pos, new THREE.Vector3(), { color: 0xfff0b0, size: 0.5, grow: 0.6, life: 0.12, opacity: 0.8, additive: true, drag: 0 });
 }
 let combo = 0, comboT = 0;
-function hurtEnemy(e, amt, dir, knock = 0.18, byPlayer = false) {
+function hurtEnemy(e, amt, dir, knock = 0.18, byPlayer = false, quiet = false) {   // quiet: damage over time, no sparks or numbers
   if (e.dead) return;
-  e.hp -= amt; e.flash = 0.12; e.hit = true; e.pos.addScaledVector(dir, knock);
-  const at = e.pos.clone().setY(1.25); sparkFx(at, dir.clone().negate(), 4);
+  e.hp -= amt; e.flash = quiet ? Math.max(e.flash, 0.04) : 0.12; e.hit = true; e.pos.addScaledVector(dir, knock);
+  const at = e.pos.clone().setY(1.25); if (!quiet) sparkFx(at, dir.clone().negate(), 4);
   if (!e.bar) e.bar = worldBar(false);
-  if (e.hp <= 0) killEnemy(e, dir, amt, false, byPlayer);
-  else popNumber(at.setY(2.1), amt, false);
+  if (e.hp <= 0) killEnemy(e, dir.lengthSq() ? dir : new THREE.Vector3(0, 0, 1), amt, false, byPlayer);
+  else if (!quiet) popNumber(at.setY(2.1), amt, false);
 }
 function killEnemy(e, dir, amt, silent = false, byPlayer = false) {
   if (hovered === e) { showHulls(e, false); hovered = null; }
@@ -1487,7 +1487,7 @@ function updateEnemies(dt) {
     if (e.aggro && (e.aggro === BASE_T ? pd < 3.5 || runOver : !structs().includes(e.aggro) || e.aggro.y > 0 || pd < 3.5)) e.aggro = null;
     if (!e.aggro && pd > 4 && !runOver) {
       let best = e.raider ? 22 : T.bomber ? 10 : 7;   // raiders go for your structures, not the base
-      for (const s of structs()) { if (s.y > 0) continue; const dd = Math.hypot(s.x - e.pos.x, s.z - e.pos.z); if (dd < best) { best = dd; e.aggro = s; } }
+      for (const s of structs()) { if (s.y > 0 || TRAP_KINDS.has(s.kind)) continue; const dd = Math.hypot(s.x - e.pos.x, s.z - e.pos.z); if (dd < best) { best = dd; e.aggro = s; } }
       if (baseDist(e.pos)[0] < best || (hidden && !e.aggro)) e.aggro = BASE_T;   // the base itself is fair game, and the only target while you hide in it
     }
     const tgt = e.aggro;
@@ -1501,7 +1501,7 @@ function updateEnemies(dt) {
     // barbed wire coils: slow and hurt
     let inCoil = false; for (const [ax, az, bx, bz, cr] of WIRE_COILS) if (segDist(e.pos.x, e.pos.z, ax, az, bx, bz)[0] < cr + 0.2) { inCoil = true; break; }
     if (inCoil) { e.coil += dt; if (e.coil > 0.5) { e.coil = 0; hurtEnemy(e, Math.round(6 * hpMul()), new THREE.Vector3(), 0); if (e.dead) continue; } }
-    tmp.set(0, 0, 0); if (!stop) ffDir(e.pos.x, e.pos.z, gx, gz, tmp).multiplyScalar(e.speed * (inCoil ? 0.4 : 1));
+    tmp.set(0, 0, 0); if (!stop) ffDir(e.pos.x, e.pos.z, gx, gz, tmp).multiplyScalar(e.speed * (inCoil || e.slowT > 0 ? 0.4 : 1));
     for (const o of enemies) { if (o === e || o.dead) continue; const sx = e.pos.x - o.pos.x, sz = e.pos.z - o.pos.z, s2 = sx * sx + sz * sz; if (s2 < 0.64 && s2 > 1e-6) { const s = Math.sqrt(s2); tmp.x += sx / s * (0.8 - s) * 4; tmp.z += sz / s * (0.8 - s) * 4; } }
     e.vel.lerp(tmp, 1 - Math.exp(-dt * (T.bomber || e.type === "runner" ? 8 : 6))); e.pos.addScaledVector(e.vel, dt);
     const bumped = collideCircle(e.pos, 0.35, true);
@@ -1520,7 +1520,7 @@ function updateEnemies(dt) {
       if (e.atk <= 0) e.atk = 0.45; e.atk -= dt;
       if (e.atk <= 0) { e.lunge = 0.25; e.atk = 1.1; e.hitAt = run.t; const sd = (T.sdmg || 15) * dmgMul(); if (wallHit) hitStruct(e.wallT, sd); else if (tgt === BASE_T) hurtBase(DEF ? sd * 0.3 : sd); else if (tgt) hitStruct(tgt, sd); else if (tdist < reach + 0.3) hurtPlayer(Math.round(e.dmg)); }
     } else { e.atk = 0; e.inMelee = false; }
-    e.lunge = Math.max(0, e.lunge - dt); e.flash = Math.max(0, e.flash - dt);
+    e.lunge = Math.max(0, e.lunge - dt); e.flash = Math.max(0, e.flash - dt); e.slowT = Math.max(0, (e.slowT || 0) - dt);
     // attack animation: arms come up and the body leans back on the wind-up, then a forward lunge and downward swipe
     const wind = !T.bomber && e.inMelee && e.atk > 0 && e.atk < 0.4 ? 1 - e.atk / 0.4 : 0, sw = e.lunge > 0 ? Math.sin(e.lunge / 0.25 * Math.PI) : 0;
     const spd = e.vel.length(), wk = THREE.MathUtils.clamp(spd / 1.2, 0, 1);
@@ -1892,6 +1892,174 @@ function updateRocketTurret(t, dt) {
   if (t.coversOpen && !t.burst && t.cool < ROCKET.rate[t.level] * 0.45) { for (let i = 0; i < t.cells.length; i++) setCover(t, i, false); t.coversOpen = false; }   // reloaded
 }
 
+
+/* ---------- Flamethrower, cannon, spike trap, barbed wire ---------- */
+const TRAP_KINDS = new Set(["spikes", "wire"]), MERGEABLE = new Set(["sentry", "rocket", "flamer", "cannon"]);
+let XMATS = null;
+function xMats() {
+  if (XMATS) return XMATS; const S = sentryMats();
+  XMATS = { ...S, tank: new THREE.MeshStandardMaterial({ color: 0xa3321f, roughness: 0.55, metalness: 0.3 }), hose: new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.8 }),
+    pilot: new THREE.MeshBasicMaterial({ color: 0x6ab8ff, toneMapped: false }), gun: new THREE.MeshStandardMaterial({ color: 0x55603f, roughness: 0.6, metalness: 0.3 }),
+    plate: new THREE.MeshStandardMaterial({ color: 0x4d5054, roughness: 0.6, metalness: 0.5 }), spike: new THREE.MeshStandardMaterial({ color: 0xc9ccd0, roughness: 0.3, metalness: 0.85 }),
+    wire: new THREE.MeshStandardMaterial({ color: 0x8a8e92, roughness: 0.4, metalness: 0.8 }), zap: new THREE.MeshStandardMaterial({ color: 0x8fb8ff, emissive: 0x2a5cff, emissiveIntensity: 0.8, roughness: 0.3, metalness: 0.8 }),
+    insul: new THREE.MeshStandardMaterial({ color: 0xe8e2c8, roughness: 0.5 }) };
+  return XMATS;
+}
+const xAdd = (parent, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
+// Flamethrower: fuel tanks on a skid, a turning head with the nozzle(s) and a blue pilot light.
+// LV2 a third tank and a longer nozzle, LV3 twin nozzles, LV4 a wide nozzle with a heat shield.
+function makeFlamerModel(level = 1) {
+  const M = xMats(), g = new THREE.Group(); g.name = "flamer";
+  xAdd(g, new THREE.BoxGeometry(1.0, 0.08, 0.8), M.dark, 0, 0.04, 0);
+  const nt = level >= 2 ? 3 : 2;
+  for (let i = 0; i < nt; i++) { const x = (i - (nt - 1) / 2) * 0.28;
+    xAdd(g, new THREE.CylinderGeometry(0.12, 0.12, 0.5, 12), M.tank, x, 0.33, -0.24); xAdd(g, new THREE.SphereGeometry(0.12, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), M.tank, x, 0.58, -0.24);
+    xAdd(g, new THREE.BoxGeometry(0.26, 0.04, 0.05), M.dark, x, 0.42, -0.1); }
+  xAdd(g, new THREE.CylinderGeometry(0.11, 0.14, 0.3, 10), M.metal, 0, 0.23, 0.14);
+  const hose = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.6, -0.24), new THREE.Vector3(0, 0.72, -0.05), new THREE.Vector3(0, 0.5, 0.1)]), 12, 0.025, 6); xAdd(g, hose, M.hose, 0, 0, 0);
+  const head = new THREE.Group(); head.position.set(0, 0.42, 0.14); g.add(head);
+  xAdd(head, new THREE.BoxGeometry(0.24, 0.17, 0.34), M.metal, 0, 0.04, 0);
+  const muzzles = [], len = 0.45 + level * 0.06, xs = level === 3 ? [-0.07, 0.07] : [0], r = level >= 4 ? 0.065 : 0.045;
+  for (const x of xs) {
+    xAdd(head, new THREE.CylinderGeometry(r, r * 0.85, len, 10), M.dark, x, 0.05, 0.17 + len / 2, Math.PI / 2);
+    xAdd(head, new THREE.CylinderGeometry(r * 1.6, r, 0.08, 10), M.metal, x, 0.05, 0.17 + len + 0.03, Math.PI / 2);
+    xAdd(head, new THREE.SphereGeometry(0.02, 6, 4), M.pilot, x, 0.05 - r - 0.02, 0.17 + len);
+    muzzles.push(new THREE.Vector3(x, 0.05, 0.22 + len));
+  }
+  if (level >= 4) xAdd(head, new THREE.CylinderGeometry(0.2, 0.2, 0.025, 14), M.plate, 0, 0.05, 0.3, Math.PI / 2);
+  mergeByMaterial(g); mergeByMaterial(head);
+  return { g, head, muzzles };
+}
+// Cannon: a Bofors-style 40 mm on a cruciform base; the barrels (one per level) sit in a cradle that pitches.
+function makeCannonModel(level = 1) {
+  const M = xMats(), g = new THREE.Group(); g.name = "cannon";
+  for (const a of [Math.PI / 4, -Math.PI / 4]) { xAdd(g, new THREE.BoxGeometry(1.35, 0.07, 0.12), M.dark, 0, 0.05, 0, 0, a); }
+  for (const [x, z] of [[0.48, 0.48], [-0.48, 0.48], [0.48, -0.48], [-0.48, -0.48]]) xAdd(g, new THREE.CylinderGeometry(0.08, 0.09, 0.05, 8), M.dark, x, 0.03, z);
+  xAdd(g, new THREE.CylinderGeometry(0.2, 0.26, 0.24, 10), M.gun, 0, 0.18, 0);
+  const head = new THREE.Group(); head.position.y = 0.3; g.add(head);
+  xAdd(head, new THREE.CylinderGeometry(0.32, 0.32, 0.05, 14), M.gun, 0, 0.025, 0);
+  const n = level, spread = 0.13, cw = 0.16 + (n - 1) * spread;
+  for (const s of [-1, 1]) xAdd(head, new THREE.BoxGeometry(0.04, 0.38, 0.46), M.gun, s * (cw / 2 + 0.06), 0.24, -0.02);
+  if (level >= 2) xAdd(head, new THREE.BoxGeometry(cw + 0.3, 0.3, 0.03), M.gun, 0, 0.32, 0.28);   // gun shield
+  xAdd(head, new THREE.BoxGeometry(0.12, 0.08, 0.14), M.dark, -(cw / 2 + 0.16), 0.3, 0.05);    // sight box
+  const box = new THREE.Group(); box.position.y = 0.34; head.add(box);
+  const muzzles = [];
+  for (let i = 0; i < n; i++) {
+    const x = (i - (n - 1) / 2) * spread;
+    xAdd(box, new THREE.BoxGeometry(0.13, 0.17, 0.46), M.dark, x, 0, -0.04);               // breech
+    xAdd(box, new THREE.BoxGeometry(0.1, 0.15, 0.09), M.brass, x, 0.15, -0.08);            // ammo clip on top
+    xAdd(box, new THREE.CylinderGeometry(0.05, 0.05, 0.34, 10), M.metal, x, 0, 0.36, Math.PI / 2);   // recoil spring
+    xAdd(box, new THREE.CylinderGeometry(0.028, 0.033, 1.1, 10), M.dark, x, 0, 0.8, Math.PI / 2);
+    xAdd(box, new THREE.CylinderGeometry(0.055, 0.034, 0.15, 10), M.dark, x, 0, 1.42, Math.PI / 2);  // flash hider
+    muzzles.push(new THREE.Vector3(x, 0, 1.52));
+  }
+  mergeByMaterial(g); mergeByMaterial(head); mergeByMaterial(box);
+  return { g, head, box, muzzles };
+}
+// Spike trap: a steel plate; the spikes wait below it and stab up when something steps on. LV2: bladed spearheads.
+function makeSpikesModel(level = 1) {
+  const M = xMats(), g = new THREE.Group(); g.name = "spikes";
+  xAdd(g, new THREE.BoxGeometry(1.84, 0.06, 1.84), M.plate, 0, 0.03, 0);
+  for (const [w, d, x, z] of [[1.9, 0.06, 0, 0.92], [1.9, 0.06, 0, -0.92], [0.06, 1.9, 0.92, 0], [0.06, 1.9, -0.92, 0]]) xAdd(g, new THREE.BoxGeometry(w, 0.08, d), M.dark, x, 0.04, z);
+  const n = level >= 2 ? 4 : 3, step = 1.5 / n, holes = [], spikes = new THREE.Group(); spikes.position.y = -0.62; g.add(spikes);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const x = -0.75 + step * (i + 0.5), z = -0.75 + step * (j + 0.5);
+    holes.push(new THREE.CircleGeometry(0.07, 8).rotateX(-Math.PI / 2).translate(x, 0.062, z));
+    if (level >= 2) { const b = xAdd(spikes, new THREE.ConeGeometry(0.1, 0.42, 4), M.spike, x, 0.42, z, 0, Math.PI / 4, 0); b.scale.z = 0.35; xAdd(spikes, new THREE.CylinderGeometry(0.022, 0.022, 0.3, 6), M.dark, x, 0.08, z); xAdd(spikes, new THREE.BoxGeometry(0.16, 0.025, 0.04), M.dark, x, 0.22, z); }
+    else xAdd(spikes, new THREE.ConeGeometry(0.035, 0.6, 6), M.spike, x, 0.3, z);
+  }
+  xAdd(g, mergeGeometries(holes), new THREE.MeshBasicMaterial({ color: 0x0b0c0d }), 0, 0, 0);
+  mergeByMaterial(g); mergeByMaterial(spikes);
+  return { g, spikes };
+}
+// Barbed wire: two concertina coils across the square on stakes. LV2: electrified (blue, insulators, sparks).
+function makeWireModel(level = 1) {
+  const M = xMats(), g = new THREE.Group(); g.name = "wire";
+  for (const z of [-0.45, 0.45]) {
+    const pts = []; for (let i = 0; i <= 120; i++) { const t = i / 120, a = t * Math.PI * 2 * 8; pts.push(new THREE.Vector3(-0.92 + t * 1.84, 0.36 + Math.sin(a) * 0.32, z + Math.cos(a) * 0.32)); }
+    xAdd(g, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 240, 0.012, 4), level >= 2 ? M.zap : M.wire, 0, 0, 0);
+    for (const x of [-0.9, 0.9]) { xAdd(g, new THREE.CylinderGeometry(0.025, 0.03, 0.78, 6), M.dark, x, 0.39, z); if (level >= 2) xAdd(g, new THREE.CylinderGeometry(0.045, 0.045, 0.08, 8), M.insul, x, 0.7, z); }
+  }
+  mergeByMaterial(g);
+  return { g };
+}
+const MODEL_OF = { sentry: (l) => makeSentryModel(l), rocket: (l) => makeRocketModel(l), flamer: makeFlamerModel, cannon: makeCannonModel, spikes: makeSpikesModel, wire: makeWireModel };
+const RANGE_OF = { sentry: 10, rocket: 15, flamer: 6.5, cannon: 20 };
+// ---- their behaviour
+const FLAME = { dps: [0, 55, 75, 100, 130], cone: [0, 0.35, 0.4, 0.45, 0.62] }, CANNON = { dmg: [0, 60, 60, 70, 80], rate: 1.15 };
+const FIRE_COLS = [0xffb24a, 0xff6a1a, 0xffe08a, 0xff8a2a];
+function turnTo(t, dt, speed) {
+  if (!t.target) { t.head.rotation.y = t.yaw; return false; }
+  const want = Math.atan2(t.target.pos.x - t.x, t.target.pos.z - t.z), dy = Math.atan2(Math.sin(want - t.yaw), Math.cos(want - t.yaw));
+  t.yaw += THREE.MathUtils.clamp(dy, -speed * dt, speed * dt); t.head.rotation.y = t.yaw; return Math.abs(dy) < 0.25;
+}
+function updateFlamer(t, dt) {
+  t.retarget -= dt; if (t.retarget <= 0 || (t.target && (t.target.dead || !enemies.includes(t.target)))) { t.retarget = 0.2; t.target = pickTarget(t, turretRange(t)); }
+  const aligned = turnTo(t, dt, 5 + t.level);
+  if (!t.target || !aligned) return;
+  t.g.updateMatrixWorld(true);
+  const dir = new THREE.Vector3(Math.sin(t.yaw), 0, Math.cos(t.yaw)), range = turretRange(t), cone = FLAME.cone[t.level];
+  for (const m of t.muzzles) {   // flames: hot, fast, spreading puffs
+    const from = t.head.localToWorld(m.clone());
+    for (let k = 0; k < (t.level >= 4 ? 2 : 1); k++) {
+      const a = t.yaw + (Math.random() - 0.5) * cone * 1.4, v = new THREE.Vector3(Math.sin(a), 0.05 + Math.random() * 0.15, Math.cos(a)).multiplyScalar(range * 1.5 + Math.random() * 3);
+      spawnSprite(from.clone(), v, { color: FIRE_COLS[Math.floor(Math.random() * 4)], size: 0.3, grow: 4, life: 0.42 + Math.random() * 0.1, opacity: 0.95, additive: true, drag: 1.2 });
+    }
+    if (Math.random() < 0.15) spawnSprite(from.clone().addScaledVector(dir, range * 0.6), new THREE.Vector3(0, 1.2, 0), { color: 0x3a3330, size: 0.6, grow: 3, life: 1.0, opacity: 0.35, drag: 1 });
+  }
+  t.tick = (t.tick || 0) - dt; if (t.tick > 0) return; t.tick = 0.15;
+  const dmg = FLAME.dps[t.level] * 0.15 * (1 + 0.25 * card("sdmg") + MOD("sdmg"));
+  for (const e of enemies) {   // everything in the cone burns
+    if (e.dead) continue; const dx = e.pos.x - t.x, dz = e.pos.z - t.z, d = Math.hypot(dx, dz); if (d > range + 0.5) continue;
+    const da = Math.atan2(Math.sin(Math.atan2(dx, dz) - t.yaw), Math.cos(Math.atan2(dx, dz) - t.yaw)); if (Math.abs(da) > cone + 0.3 / Math.max(1, d)) continue;
+    hurtEnemy(e, Math.round(dmg), dir, 0.02, false, true); e.burnT = 2.5;
+  }
+}
+function updateCannon(t, dt) {
+  t.retarget -= dt; if (t.retarget <= 0 || (t.target && (t.target.dead || !enemies.includes(t.target)))) { t.retarget = 0.3; t.target = pickTarget(t, turretRange(t)); }
+  const aligned = turnTo(t, dt, 2.5 + t.level * 0.6);
+  t.recoil = Math.max(0, (t.recoil || 0) - dt * 4); t.box.position.z = -t.recoil * 0.15; t.box.rotation.x = -0.06;
+  t.cool -= dt; if (!t.target || !aligned || t.cool > 0) return;
+  t.cool = CANNON.rate / t.muzzles.length / (1 + 0.2 * card("srate") + MOD("srate")); t.recoil = 1;
+  t.g.updateMatrixWorld(true);
+  const from = t.box.localToWorld(t.muzzles[t.shot++ % t.muzzles.length].clone()), aim = t.target.pos.clone().setY(1);
+  const dir = aim.clone().sub(from).setY(0).normalize(); let hitD = turretRange(t) + 2;
+  for (const bx of boxColliders) { const d = rayBox(t.x, t.z, dir.x, dir.z, bx); if (d !== null && d < hitD) hitD = d; }
+  hitD = Math.min(hitD, structHitD(t.x, t.z, dir.x, dir.z, hitD, t));
+  let hit = null; for (const e of enemies) { if (e.dead) continue; const d = rayCircle(t.x, t.z, dir.x, dir.z, e.pos.x, e.pos.z, 0.5 * (ENEMY_TYPES[e.type].scale || 1)); if (d !== null && d < hitD) { hitD = d; hit = e; } }
+  const to = new THREE.Vector3(t.x, 0.9, t.z).addScaledVector(dir, hitD);
+  spawnTracer(from, to, 2.6);
+  spawnSprite(from.clone().addScaledVector(dir, 0.15), dir.clone().multiplyScalar(3), { color: 0xffc46b, size: 1.1, grow: 0.6, life: 0.08, opacity: 1, additive: true, drag: 0 });
+  for (let k = 0; k < 3; k++) spawnSprite(from.clone(), dir.clone().multiplyScalar(1.5).add(new THREE.Vector3((Math.random() - 0.5), 0.6, (Math.random() - 0.5))), { color: 0xd8d4cc, size: 0.4, grow: 2.5, life: 0.9, opacity: 0.4, drag: 2 });
+  if (hit || hitD < turretRange(t) + 1.9) explode(to, 1.4, CANNON.dmg[t.level] * (1 + 0.25 * card("sdmg") + MOD("sdmg")), { small: true });
+  shake = Math.max(shake, 0.05);
+}
+function updateTraps(dt) {
+  const zero = new THREE.Vector3();
+  for (const t of traps) {
+    const inside = enemies.filter(e => !e.dead && Math.abs(e.pos.x - t.x) < 1.05 && Math.abs(e.pos.z - t.z) < 1.05);
+    if (t.kind === "wire") {
+      for (const e of inside) { e.slowT = 0.3; e.wireT = (e.wireT || 0) + dt; if (e.wireT > 0.5) { e.wireT = 0; hurtEnemy(e, t.level >= 2 ? 16 : 5, zero, 0, false, true);
+        if (t.level >= 2) for (let k = 0; k < 3; k++) spawnSprite(e.pos.clone().setY(0.4 + Math.random()), new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3), { color: 0x9fd0ff, size: 0.1, life: 0.2, opacity: 1, additive: true, drag: 1 }); } }
+      if (t.level >= 2 && Math.random() < dt * 3) spawnSprite(new THREE.Vector3(t.x + (Math.random() - 0.5) * 1.8, 0.4 + Math.random() * 0.4, t.z + (Math.random() < 0.5 ? -0.45 : 0.45)), zero.clone(), { color: 0x8fb8ff, size: 0.18, grow: 0.5, life: 0.1, opacity: 1, additive: true, drag: 0 });
+    } else if (t.kind === "spikes") {
+      t.cd = Math.max(0, (t.cd || 0) - dt); t.pop = Math.max(0, (t.pop || 0) - dt);
+      if (!t.cd && inside.length && t.pack <= 0) {
+        t.cd = t.level >= 2 ? 1.0 : 1.6; t.pop = 0.6;
+        for (const e of inside) hurtEnemy(e, Math.round((t.level >= 2 ? 110 : 60) * (1 + MOD("sdmg"))), new THREE.Vector3(0, 1, 0), 0);
+        sparkFx(new THREE.Vector3(t.x, 0.4, t.z), new THREE.Vector3(0, 1, 0), 8);
+      }
+      t.spikes.position.y = t.pop > 0.45 ? 0 : -0.62 * (1 - t.pop / 0.45);   // out in a flash, back down slowly
+    }
+    t.pack = Math.max(0, (t.pack || 0) - dt);
+  }
+  for (const e of enemies) {   // burning (flamethrower): a few seconds of damage and flames on the body
+    if (e.dead || !(e.burnT > 0)) continue; e.burnT -= dt; e.burnTick = (e.burnTick || 0) - dt;
+    if (Math.random() < dt * 10) spawnSprite(e.pos.clone().setY(0.6 + Math.random() * 1.2), new THREE.Vector3(0, 1.5, 0), { color: FIRE_COLS[Math.floor(Math.random() * 4)], size: 0.3, grow: 2, life: 0.35, opacity: 0.9, additive: true, drag: 1 });
+    if (e.burnTick <= 0) { e.burnTick = 0.4; hurtEnemy(e, 5, zero, 0, false, true); }
+  }
+}
+
 /* ---------- Walls ---------- */
 // 1 x 1 x 1 m blocks. Level 1: six rusty corrugated sheets cobbled together; level 2: timber frame with
 // patchwork sheeting like the base; level 3: fully sheeted in cleaner galvanised steel with corner angles.
@@ -1966,36 +2134,41 @@ function makeWallModel(level = 1) {
 }
 
 /* ---------- Structures: sentries + walls, stats, placement, damage ---------- */
-const sentries = [], walls = [];
+const sentries = [], walls = [], traps = [];
+const listOf = (k) => k === "wall" ? walls : TRAP_KINDS.has(k) ? traps : sentries;
 const SENTRY = { range: 10, rate: 0.11, dmg: 10 };
 const STRUCT = {
   rocket: { name: "ROCKET LAUNCHER", hp: [0, 300, 500, 700, 950], up: [0, 150, 220, 300], baseReq: [0, 0, 0, 0], info: ["", "Bursts of 3 homing rockets, 15 m range", "Bigger box and a targeting dome: bursts of 5", "Repainted, fires heavy rockets: bigger blasts", "Twin launchers: bursts of 6 heavy rockets"] },
+  flamer: { name: "FLAMETHROWER", hp: [0, 300, 450, 650, 900], up: [0, 80, 120, 170], baseReq: [0, 0, 0, 0], info: ["", "Short-range fire cone: burns everything in it", "Bigger tanks: hotter flames", "Twin nozzles", "A wide nozzle and a huge cone"] },
+  cannon: { name: "CANNON", hp: [0, 350, 550, 800, 1100], up: [0, 120, 170, 240], baseReq: [0, 0, 0, 0], info: ["", "40 mm autocannon: long range, exploding shells", "Twin barrels and a gun shield", "Three barrels", "Four barrels"] },
+  spikes: { name: "SPIKE TRAP", hp: [0, 400, 700], up: [0, 40], baseReq: [0, 0], info: ["", "Stabs whatever steps on it, then resets", "Bladed spearheads: harder and faster"] },
+  wire: { name: "BARBED WIRE", hp: [0, 300, 500], up: [0, 35], baseReq: [0, 0], info: ["", "Slows and cuts anything crossing it", "Electrified: far more damage"] },
   sentry: { name: "SENTRY", hp: [0, 250, 400, 600, 850], up: [0, 60, 90, 130], baseReq: [0, 0], info: ["", "Six-barrel gun, shoots enemies within 10 m", "Twin barrels: double fire rate", "Heavier guns and a laser targeter: harder hits, faster turning", "A third barrel pod"] },
   wall: { name: "WALL", hp: [0, 600, 1000, 1600, 2400], up: [0, 30, 60, 100], baseReq: [0, 0, 2], info: ["", "Rusty sheets cobbled together", "The same sheets in a timber frame", "New corrugated steel, welded seams", "Steel plated and bolted"] },
 };
 const CAPS = { sentry: [0, 5, 8, 10], rocket: [0, 0, 2, 4], wall: [0, 30, 60, 80] };
-const structs = () => [...sentries, ...walls];
+const structs = () => [...sentries, ...walls, ...traps];
 const saveBuilds = () => { save.builds = structs().map(s => ({ t: s.kind, x: s.x, z: s.z, y: s.y, lv: s.level, spent: s.spent })); writeSave(); };
 // stacking: a wall can sit on a wall; a sentry can sit on a 2 x 2 block of walls (and shoots 3 m further)
 const sentryCovers = (t, x, z) => t.x === x && t.z === z;
 const onTop = (s) => s.kind === "wall" && !s.y && (walls.some(w => w !== s && w.y > 0 && w.x === s.x && w.z === s.z) || sentries.some(t => t.y > 0 && sentryCovers(t, s.x, s.z)));
-const turretRange = (t) => (t.kind === "rocket" ? ROCKET.range : SENTRY.range) + (t.y ? 3 : 0) + 2 * card("srange") + MOD("range");
+const turretRange = (t) => (RANGE_OF[t.kind] || SENTRY.range) + (t.y ? 3 : 0) + 2 * card("srange") + MOD("range");
 const sentryRange = turretRange;
 function buildModel(s) {
   if (s.g) { scene.remove(s.g); }
-  if (s.kind !== "wall") { const m = (s.kind === "rocket" ? makeRocketModel : makeSentryModel)(s.level); Object.assign(s, m); m.g.scale.setScalar(1.35); m.head.rotation.y = s.yaw; }
+  if (s.kind !== "wall") { const m = MODEL_OF[s.kind](s.level); Object.assign(s, m); m.g.scale.setScalar(TRAP_KINDS.has(s.kind) ? 1 : 1.35); if (m.head) m.head.rotation.y = s.yaw; }
   else s.g = makeWallModel(s.level);
   s.g.position.set(s.x, s.y || 0, s.z); scene.add(s.g); s.hulls = addHulls(s.g);
   if (hovered === s) showHulls(s, true);
 }
 function addStruct(kind, x, z, level = 1, spent = 0, hp, y = 0) {
   const s = { kind, x, z, y, level, spent, hp: hp ?? STRUCT[kind].hp[level], g: null, bar: null, yaw: Math.atan2(x - BASE_C.x, z - BASE_C.y), cool: 0, spinV: 0, target: null, retarget: 0, shot: 0 };
-  buildModel(s); (kind === "wall" ? walls : sentries).push(s);
+  buildModel(s); listOf(kind).push(s);
   return s;
 }
 function removeStruct(s) {
   if (s.beam) { scene.remove(s.beam); s.beam = null; }
-  const list = s.kind === "wall" ? walls : sentries, i = list.indexOf(s); if (i >= 0) list.splice(i, 1);
+  const list = listOf(s.kind), i = list.indexOf(s); if (i >= 0) list.splice(i, 1);
   scene.remove(s.g); removeBar(s.bar); s.bar = null;
   if (hovered === s) { showHulls(s, false); hovered = null; }
   if (menuTarget === s) closeMenu();
@@ -2073,10 +2246,12 @@ function updateLaser(t) {
 }
 const LV_DMG = [0, 1, 1, 1.45, 1.6], LV_RATE = [0, 1, 1, 0.8, 0.75], LV_TURN = [0, 6, 7, 9, 11];   // sentry stats by level
 function updateSentries(dt) {
-  updateRockets(dt);
+  updateRockets(dt); updateTraps(dt);
   for (const t of [...sentries]) {
     if (t.pack > 0) { t.pack -= dt; t.target = null; t.burst = 0; continue; }   // just moved: packing up / setting up
     if (t.kind === "rocket") { updateRocketTurret(t, dt); continue; }
+    if (t.kind === "flamer") { updateFlamer(t, dt); continue; }
+    if (t.kind === "cannon") { updateCannon(t, dt); continue; }
     t.retarget -= dt;
     if (t.retarget <= 0 || (t.target && (t.target.dead || !enemies.includes(t.target)))) {
       t.retarget = 0.2; t.target = pickTarget(t, sentryRange(t));
@@ -2119,6 +2294,10 @@ const BUILDS = DEF ? [
   { id: "sentry", name: "SENTRY", req: 1, cost: () => run.free.sentry > 0 ? 0 : buyPrice("sentry") },
   { id: "wall", name: "WALL", req: 1, cost: () => run.free.wall > 0 ? 0 : buyPrice("wall") },
   { id: "rocket", name: "ROCKET LAUNCHER", req: 1, cost: () => run.free.rocket > 0 ? 0 : buyPrice("rocket") },
+  { id: "flamer", name: "FLAMETHROWER", req: 1, cost: () => run.free.flamer > 0 ? 0 : buyPrice("flamer") },
+  { id: "cannon", name: "CANNON", req: 1, cost: () => run.free.cannon > 0 ? 0 : buyPrice("cannon") },
+  { id: "spikes", name: "SPIKE TRAP", req: 1, cost: () => run.free.spikes > 0 ? 0 : buyPrice("spikes") },
+  { id: "wire", name: "BARBED WIRE", req: 1, cost: () => run.free.wire > 0 ? 0 : buyPrice("wire") },
 ] : [
   { id: "sentry", name: "SENTRY", req: 1, cost: () => save.firstSentry ? 25 : 5 },
   { id: "wall", name: "WALL", req: 1, cost: () => 20 },
@@ -2128,7 +2307,7 @@ const BUILDS = DEF ? [
 ];
 const lockOf = (b) => DEF ? "" : save.base < b.req ? `BASE LV${b.req}` : b.soon ? "SOON" : "";
 const countOf = (id) => id === "wall" ? walls.length : sentries.filter(t => t.kind === id).length;
-const DEF_CAPS = { sentry: 16, wall: 60, rocket: 6 }, MAXLV = { sentry: 4, rocket: 4, wall: 4 };
+const DEF_CAPS = { sentry: 16, wall: 60, rocket: 6, flamer: 6, cannon: 6, spikes: 20, wire: 30 }, MAXLV = { sentry: 4, rocket: 4, wall: 4, flamer: 4, cannon: 4, spikes: 2, wire: 2 };
 const capOf = (id) => DEF ? DEF_CAPS[id] : CAPS[id]?.[Math.min(save.base, 3)] ?? 0;
 const ICONS = {};
 const weaponSlots = document.getElementById("weaponSlots"), buildSlots = document.getElementById("buildSlots"), buildBar = document.getElementById("buildBar"), buildKey = document.getElementById("buildKey");
@@ -2172,6 +2351,11 @@ function makeGhosts() {
   const c3 = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9).rotateX(-Math.PI / 2), cellM()); c3.position.y = 0.025; c3.scale.setScalar(1 / 1.35); rk.add(c3);
   rk.userData.marks = [ring2, c3]; ring2.visible = false;
   for (const [k, g] of [["sentry", s], ["wall", w], ["rocket", rk]]) { g.visible = false; scene.add(g); ghosts[k] = g; }
+  for (const k of ["flamer", "cannon", "spikes", "wire"]) {
+    const sc = TRAP_KINDS.has(k) ? 1 : 1.35, gg = tint(MODEL_OF[k](1).g); gg.scale.setScalar(sc);
+    const c = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9).rotateX(-Math.PI / 2), cellM()); c.position.y = 0.025; c.scale.setScalar(1 / sc); gg.add(c); gg.userData.marks = [c];
+    gg.visible = false; scene.add(gg); ghosts[k] = gg;
+  }
 }
 function showGhost() { const id = carry ? carry.s.kind : buildSel >= 0 ? BUILDS[buildSel].id : null; for (const k in ghosts) ghosts[k].visible = buildMode && k === id; ghost = buildMode && id ? ghosts[id] : null; }
 function setBuildMode(on) {
@@ -2217,7 +2401,8 @@ function placeHeight(kind, x, z, ignore) {
   const ws = walls.filter(w => w !== ignore), ss = sentries.filter(t => t !== ignore);
   const playerOn = () => !DEF && cells.some(([cx, cz]) => Math.abs(player.pos.x - cx) < 0.85 && Math.abs(player.pos.z - cz) < 0.85);
   const over = (o) => Math.abs(o.x - x) < 2 && Math.abs(o.z - z) < 2, same = (o) => o.x === x && o.z === z;
-  if (ss.some(over)) return -1;
+  if (ss.some(over) || traps.some(t => t !== ignore && over(t))) return -1;
+  if (TRAP_KINDS.has(kind)) return ws.some(over) ? -1 : 0;
   const wo = ws.filter(over);
   if (!wo.length) return playerOn() ? -1 : 0;
   if (!wo.every(same)) return -1;   // only straight on top of one wall stack
@@ -2255,10 +2440,10 @@ function showFireArea(x, z, y, range, self) {
   fp.setXYZ(0, 0, 0, 0); fp.needsUpdate = lp.needsUpdate = true; fireFill.geometry.computeBoundingSphere();
 }
 function updateTiles() {
-  const isT = (o) => o?.kind && !o.group && o.kind !== "wall", rt = isT(menuTarget) ? menuTarget : isT(hovered) ? hovered : null;
+  const isT = (o) => o?.kind && !o.group && RANGE_OF[o.kind], rt = isT(menuTarget) ? menuTarget : isT(hovered) ? hovered : null;
   rangeRing.visible = false;
   const gk = buildMode && ghost?.visible ? (carry ? carry.s.kind : BUILDS[buildSel]?.id) : null;
-  if (gk && gk !== "wall") { const gy = ghost.userData.y || 0; showFireArea(ghost.position.x, ghost.position.z, gy, (gk === "rocket" ? ROCKET.range : SENTRY.range) + (gy ? 3 : 0) + 2 * card("srange") + MOD("range"), carry?.s ? Object.assign(Object.create(carry.s), { y: gy }) : null); }
+  if (gk && RANGE_OF[gk]) { const gy = ghost.userData.y || 0; showFireArea(ghost.position.x, ghost.position.z, gy, RANGE_OF[gk] + (gy ? 3 : 0) + 2 * card("srange") + MOD("range"), carry?.s ? Object.assign(Object.create(carry.s), { y: gy }) : null); }
   else if (rt && !buildMode) showFireArea(rt.x, rt.z, rt.y || 0, sentryRange(rt), rt);
   else fireArea.visible = false;
   let n = 0; const put = (x, z, c) => { if (n >= 1500) return; _tm.makeTranslation(x, 0.022, z); tileMesh.setMatrixAt(n, _tm); tileMesh.setColorAt(n, c); n++; };
@@ -2278,7 +2463,7 @@ function updateTiles() {
 // become one turret a level up. Walls don't merge.
 let ghostMerge = null;
 function mergeTarget(kind, x, z, lvl, ignore) {
-  if (!DEF || kind === "wall" || lvl >= MAXLV[kind] || paint) return null;   // no merging while paint-placing
+  if (!DEF || !MERGEABLE.has(kind) || lvl >= MAXLV[kind] || paint) return null;   // no merging while paint-placing
   for (const t of sentries) if (t !== ignore && t.kind === kind && t.level === lvl && Math.abs(t.x - x) <= 1 && Math.abs(t.z - z) <= 1) return t;
   return null;
 }
@@ -2314,7 +2499,7 @@ function tryPlace() {
   const x = ghost.position.x, z = ghost.position.z, y = ghost.userData.y || 0;
   for (let k = 0; k < 4; k++) spawnSprite(ghost.position.clone().setY(0.2), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0xc9a45c, size: 0.4, grow: 2, life: 0.7, opacity: 0.45, drag: 2.5 });
   if (carry) {   // drop the carried structure here, same level and HP
-    const s = carry.s; carry = null; s.x = x; s.z = z; s.y = y; buildModel(s); (s.kind === "wall" ? walls : sentries).push(s); saveBuilds(); showGhost(); renderBuildBar(); return;
+    const s = carry.s; carry = null; s.x = x; s.z = z; s.y = y; buildModel(s); listOf(s.kind).push(s); saveBuilds(); showGhost(); renderBuildBar(); return;
   }
   const b = BUILDS[buildSel], c = b.cost();
   save.xp -= c; if (b.id === "sentry") save.firstSentry = true;
@@ -2327,7 +2512,7 @@ function startCarry(s) {   // "Move": lift it off the map into the build hand
   buildSel = BUILDS.findIndex(b => b.id === s.kind); setBuildMode(true); showGhost(); renderBuildBar();
 }
 function cancelCarry() {   // swapped out or closed: it goes back where it was, unharmed
-  const { s, from } = carry; carry = null; s.x = from.x; s.z = from.z; s.y = from.y; buildModel(s); (s.kind === "wall" ? walls : sentries).push(s); renderBuildBar();
+  const { s, from } = carry; carry = null; s.x = from.x; s.z = from.z; s.y = from.y; buildModel(s); listOf(s.kind).push(s); renderBuildBar();
 }
 // Orthographic 3/4 render, framed to the object's projected bounds so nothing is ever cropped.
 function renderIcon(obj) {
@@ -2381,11 +2566,11 @@ function renderMenu() {
   }
   const D = STRUCT[t.kind], max = D.hp[t.level], nextCost = upCost(t), req = D.baseReq[t.level];
   smTitle.textContent = D.name; smLv.textContent = `LV ${t.level}`; smHpRow.hidden = false; smMove.hidden = false; smSell.hidden = false;
-  if (DEF) smMove.textContent = t.kind !== "wall" && t.level > 1 ? `PICK UP (+${2 ** (t.level - 1)})` : "PICK UP";
+  if (DEF) smMove.textContent = MERGEABLE.has(t.kind) && t.level > 1 ? `PICK UP (+${2 ** (t.level - 1)})` : "PICK UP";
   smHp.style.width = `${Math.max(0, t.hp / max) * 100}%`; smHpT.textContent = `${Math.ceil(t.hp)}/${max}`;
   smInfo.innerHTML = D.info[t.level] + (nextCost ? `<br><b>LV ${t.level + 1}:</b> ${D.info[t.level + 1]}` : "");
   smUp.hidden = false;
-  if (DEF) smInfo.innerHTML += (t.kind !== "wall" && t.level < MAXLV[t.kind] ? `<br><b>Or drop another LV ${t.level} ${D.name} on it to merge</b>` : "") + "<br>Drag it to move it";
+  if (DEF) smInfo.innerHTML += (MERGEABLE.has(t.kind) && t.level < MAXLV[t.kind] ? `<br><b>Or drop another LV ${t.level} ${D.name} on it to merge</b>` : "") + "<br>Drag it to move it";
   if (!nextCost) { smUp.textContent = "MAX LEVEL"; smUp.disabled = true; }
   else if (!DEF && save.base < req) { smUp.textContent = `NEEDS BASE LV ${req}`; smUp.disabled = true; }
   else { smUp.textContent = `UPGRADE · ${nextCost} SCRAP`; smUp.disabled = save.xp < nextCost; }
@@ -2412,9 +2597,10 @@ function updateHoverTip() {
 function updateMenu(dt) { updateHoverTip(); if (!menuTarget) return; menuT -= dt; if (menuT <= 0) { menuT = 0.2; renderMenu(); } placeMenu(); }
 document.getElementById("smClose").addEventListener("click", closeMenu);
 // the scrap price of a build, ignoring any free stock
-const buyPrice = (k) => k === "sentry" ? 15 + 5 * countOf("sentry") : k === "rocket" ? 70 + 25 * countOf("rocket") : 8;
+const PRICE = { sentry: [15, 5], rocket: [70, 25], flamer: [55, 20], cannon: [85, 30], wall: [8, 0], spikes: [20, 0], wire: [10, 0] };
+const buyPrice = (k) => PRICE[k][0] + PRICE[k][1] * countOf(k);
 // upgrading a turret costs what the turret a merge would eat costs; walls (which don't merge) use their own prices
-const upCost = (t) => DEF && t.kind !== "wall" ? (t.level < MAXLV[t.kind] ? buyPrice(t.kind) : 0) : STRUCT[t.kind].up[t.level] || 0;
+const upCost = (t) => DEF && MERGEABLE.has(t.kind) ? (t.level < MAXLV[t.kind] ? buyPrice(t.kind) : 0) : STRUCT[t.kind].up[t.level] || 0;
 function upgradeOne(t) {
   const D = STRUCT[t.kind], c = upCost(t); if (!c || save.xp < c) return false;
   const frac = t.hp / D.hp[t.level]; save.xp -= c; t.spent += c; t.level++; t.hp = D.hp[t.level] * Math.max(frac, 0.5);
@@ -2829,6 +3015,7 @@ const MODELS = [
   { id: "shanty", label: "Shanty (baked)", src: "shanty.glb · tools/bake.mjs", make: () => shantyTemplate ? makeShanty() : new THREE.Group() },
   { id: "sentry", label: "Sentry turret", src: "code · makeSentryModel", make: () => makeSentryModel().g },
   { id: "rocket1", label: "Rocket turret LV1", src: "code · makeRocketModel", make: () => makeRocketModel(1).g },
+  ...["flamer", "cannon", "spikes", "wire"].flatMap(k => [1, MAXLV[k]].map(l => ({ id: k + l, label: `${k} LV${l}`, src: "code", make: () => MODEL_OF[k](l).g }))),
   { id: "rocket2", label: "Rocket turret LV2", src: "code · makeRocketModel", make: () => makeRocketModel(2).g },
   { id: "pine", label: "Pine tree", src: "code · buildPineGeos (Poly Haven textures)", make: () => makePine(2) },
 ];
@@ -3226,7 +3413,7 @@ function renderTray() {
 function addFree(k, n) { run.free[k] = (run.free[k] || 0) + n; run.freeTotal[k] = (run.freeTotal[k] || 0) + n; renderTray(); }
 const freeLabel = (k) => `${run.free[k]}/${run.freeTotal[k]}`;
 function pickUp(t) {   // back into the tray; a merged turret comes back as the two it was made from
-  if (onTop(t)) return; const n = t.kind === "wall" ? 1 : 2 ** (t.level - 1);
+  if (onTop(t)) return; const n = MERGEABLE.has(t.kind) ? 2 ** (t.level - 1) : 1;
   closeMenu(); removeStruct(t); saveBuilds(); addFree(t.kind, n);
   for (let k = 0; k < 6; k++) spawnSprite(new THREE.Vector3(t.x, (t.y || 0) + 0.6, t.z), new THREE.Vector3((Math.random() - 0.5) * 2, 2 + Math.random(), (Math.random() - 0.5) * 2), { color: 0x7dffd6, size: 0.12, life: 0.6, opacity: 1, additive: true, drag: 1.5 });
   popNumber(new THREE.Vector3(t.x, (t.y || 0) + 2, t.z), `+${n} ${STRUCT[t.kind].name}`, true, "dmg");
@@ -3327,7 +3514,7 @@ function defPlace(keep = false) {
   if (carry) {
     const s = carry.s; carry = null; buildMode = buildSel >= 0;
     if (mt) { mergeInto(mt, s.spent); showGhost(); renderTray(); return true; }
-    s.x = x; s.z = z; s.y = y; buildModel(s); (s.kind === "wall" ? walls : sentries).push(s); if (s.kind !== "wall") { s.pack = 2; popNumber(new THREE.Vector3(x, y + 2, z), "SETTING UP", false, "dmg"); }
+    s.x = x; s.z = z; s.y = y; buildModel(s); listOf(s.kind).push(s); if (s.kind !== "wall") { s.pack = 2; popNumber(new THREE.Vector3(x, y + 2, z), "SETTING UP", false, "dmg"); }
     showGhost(); renderTray(); return true;
   }
   const b = BUILDS[buildSel], c = b.cost(); save.xp -= c; if (run.free[b.id] > 0 && --run.free[b.id] === 0) run.freeTotal[b.id] = 0;
@@ -3650,7 +3837,8 @@ camera.position.copy(player.pos).add(CAM_OFFSET);
 renderAmmo(); renderSaveDump(); killEl.textContent = `${kills} KILLS`;
 for (const id of SLOT_IDS) ICONS[id] = "data:image/png;base64," + GUN_ICON[id]; ICONS.m1911 = ICONS.pistol;
 for (const [k, mk] of Object.entries(SUPPLY_MODELS)) ICONS[k] = renderIcon(mk());
-ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.rocket = renderIcon(makeRocketModel().g); ICONS.wall = renderIcon(makeWallModel(1));
+ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.rocket = renderIcon(makeRocketModel().g);
+for (const k of ["flamer", "cannon", "spikes", "wire"]) ICONS[k] = renderIcon(MODEL_OF[k](1).g); ICONS.wall = renderIcon(makeWallModel(1));
 if (!DEF) for (const [l] of interior?.userData.lights || []) shanty.add(l);   // no going inside in defense mode
 applyBaseLevel(); buildBaseFootprint();
 if (!DEF) for (const b of save.builds) if (STRUCT[b.t]) addStruct(b.t, b.x, b.z, b.lv || 1, b.spent ?? (b.t === "sentry" ? 5 : 20), undefined, b.y || 0);
