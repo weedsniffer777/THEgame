@@ -1902,13 +1902,12 @@ function wallGeometries() {
     galv.push(quad(1.08, 1.04, 5, new THREE.Matrix4().makeTranslation(0.02, 0.985, -0.01).multiply(new THREE.Matrix4().makeRotationX(-Math.PI / 2 + 0.04)).multiply(new THREE.Matrix4().makeRotationZ(0.06))));
     paint.push(quad(0.55, 0.5, 5, face(1, 0.515, 0.55, 0.5, 0.42).multiply(new THREE.Matrix4().makeRotationZ(0.5)).multiply(new THREE.Matrix4().makeTranslation(0.12, 0, 0))));
     out[1] = [[M.galv, mergeGeometries(galv)], [M.paint, mergeGeometries(paint)]]; }
-  // level 2: timber frame + sheets
-  { const wood = [], galv = [], paint = [];
-    for (const [x, z] of [[-0.46, -0.46], [0.46, -0.46], [-0.46, 0.46], [0.46, 0.46]]) wood.push(box(0.08, 1, 0.08, 4, x, 0.5, z));
-    for (const y of [0.05, 0.96]) { wood.push(box(0.92, 0.07, 0.07, 4, 0, y, -0.46), box(0.92, 0.07, 0.07, 4, 0, y, 0.46), box(0.07, 0.07, 0.92, 4, -0.46, y, 0), box(0.07, 0.07, 0.92, 4, 0.46, y, 0)); }
-    for (let i = 0; i < 3; i++) wood.push(box(0.98, 0.04, 0.3, 4, 0, 1.0, -0.31 + i * 0.31));
-    for (let i = 0; i < 4; i++) (i === 1 ? paint : galv).push(quad(0.88, 0.86, 5, face(i, 0.43, 0.88, 0.86, 0.5)));
-    out[2] = [[M.wood, mergeGeometries(wood)], [M.galv, mergeGeometries(galv)], [M.paint, mergeGeometries(paint)]]; }
+  // level 2: the same level 1 sheets, now held in a timber frame (corner posts, rails outside the sheets, top battens)
+  { const wood = [];
+    for (const [x, z] of [[-0.52, -0.52], [0.52, -0.52], [-0.52, 0.52], [0.52, 0.52]]) wood.push(box(0.08, 1.06, 0.08, 4, x, 0.53, z));
+    for (const y of [0.08, 0.94]) { wood.push(box(1.0, 0.07, 0.05, 4, 0, y, -0.535), box(1.0, 0.07, 0.05, 4, 0, y, 0.535), box(0.05, 0.07, 1.0, 4, -0.535, y, 0), box(0.05, 0.07, 1.0, 4, 0.535, y, 0)); }
+    for (let i = 0; i < 3; i++) wood.push(box(1.08, 0.04, 0.12, 4, 0, 1.03, -0.36 + i * 0.36));
+    out[2] = [[M.wood, mergeGeometries(wood)], ...out[1]]; }
   // level 3: clean steel
   { const clean = [], steel = [];
     for (let i = 0; i < 4; i++) clean.push(quad(1.0, 1.0, 5, face(i, 0.5, 1, 1, 0.5)));
