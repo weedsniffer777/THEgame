@@ -919,7 +919,7 @@ function fire() {
       for (const bx of boxColliders) { const d = rayBox(ox, oz, dir.x, dir.z, bx); if (d !== null && d < wallD) wallD = d; }
       for (const c of treeColliders) { const d = rayCircle(ox, oz, dir.x, dir.z, c.x, c.z, c.r); if (d !== null && d < wallD) wallD = d; }
       const hits = [];
-      for (const e of enemies) { if (e.dead) continue; const d = rayCircle(ox, oz, dir.x, dir.z, e.pos.x, e.pos.z, 0.42); if (d !== null && d < wallD) hits.push([d, e]); }
+      for (const e of enemies) { if (e.dead) continue; const d = rayCircle(ox, oz, dir.x, dir.z, e.pos.x, e.pos.z, ENEMY_HIT_R); if (d !== null && d < wallD) hits.push([d, e]); }
       hits.sort((a, b) => a[0] - b[0]);
       const struck = hits.slice(0, w.pierce || 1), endD = struck.length >= (w.pierce || 1) && struck.length ? struck[struck.length - 1][0] : wallD;
       for (const [d, e] of struck) {
@@ -986,7 +986,7 @@ function updateGrenades(dt) {
     n.m.position.copy(p); n.m.lookAt(p.clone().add(p.clone().sub(n.prev))); n.prev.copy(p);
     if (Math.random() < 0.7) spawnSprite(p.clone(), new THREE.Vector3(0, 0.3, 0), { color: 0xbab6ae, size: 0.16, grow: 2.5, life: 0.5, opacity: 0.35, drag: 2 });
     let boom = k >= 1;
-    if (!boom) for (const e of enemies) if (!e.dead && p.y < 2 && Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < 0.5) { boom = true; break; }
+    if (!boom) for (const e of enemies) if (!e.dead && p.y < 2.3 && Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < ENEMY_HIT_R) { boom = true; break; }
     if (!boom) for (const bx of boxColliders) if (p.y < 2.5 && p.x > bx[0] && p.x < bx[1] && p.z > bx[2] && p.z < bx[3]) { boom = true; break; }
     if (!boom) for (const c of treeColliders) if (p.y < 3 && Math.hypot(p.x - c.x, p.z - c.z) < c.r) { boom = true; break; }
     if (boom) { scene.remove(n.m); grenades.splice(i, 1); explode(p.setY(Math.max(0.3, p.y)), n.g.radius, n.g.dmg, { player: false, byPlayer: true }); }
@@ -1086,6 +1086,8 @@ function rayCircle(ox, oz, dx, dz, cx, cz, r) {
 // bombers (flash yellow, red outline, "!" when they show up, blow up next to whatever they reach). All from day 1.
 // They head for the player, but anything you've built nearby pulls them off you. They scale with the
 // day and with how much you've invested in your base.
+// generous hit volume for your bullets, grenades and the reticle (the body you see is narrower)
+const ENEMY_HIT_R = 0.62;
 const enemies = [], enemyPools = { walker: [], runner: [], bomber: [] };
 const ENEMY_TYPES = {
   walker: { hp: 50, dmg: 12, speed: [1.5, 2.1], color: 0xa3241b, xp: 1, bonus: 2, clip: "Walk_Loop", clipSpeed: 1.3, arms: true, weight: 5,
@@ -1400,7 +1402,7 @@ const _hb = new THREE.Box3();
 function updateHover() {
   let best = null, bestD = Infinity; const ray = raycaster.ray, hit = new THREE.Vector3();
   if (!player.inside) {
-    for (const e of enemies) { if (e.dead) continue; _hb.min.set(e.pos.x - 0.38, 0, e.pos.z - 0.38); _hb.max.set(e.pos.x + 0.38, 1.9, e.pos.z + 0.38); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = e; } } }
+    for (const e of enemies) { if (e.dead) continue; _hb.min.set(e.pos.x - ENEMY_HIT_R, 0, e.pos.z - ENEMY_HIT_R); _hb.max.set(e.pos.x + ENEMY_HIT_R, 2.25, e.pos.z + ENEMY_HIT_R); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = e; } } }
     if (!best) for (const t of structs()) { const r = t.kind === "wall" ? 0.5 : 0.6, y0 = t.y || 0; _hb.min.set(t.x - r, y0, t.z - r); _hb.max.set(t.x + r, y0 + (t.kind === "wall" ? 1.0 : 1.55), t.z + r); if (ray.intersectBox(_hb, hit)) { const d = hit.distanceToSquared(ray.origin); if (d < bestD) { bestD = d; best = t; } } }
   }
   if (best !== hovered) { showHulls(hovered, false); showHulls(best, true); hovered = best; }
