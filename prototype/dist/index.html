@@ -1015,16 +1015,26 @@ let SENTRY_MATS = null;
 function sentryMats() {
   if (SENTRY_MATS) return SENTRY_MATS;
   const worn = wornMetalTexture();
-  const olive = new THREE.MeshStandardMaterial({ color: 0x6a7552, roughness: 0.75 });
+  const olive = new THREE.MeshStandardMaterial({ color: 0x5a6640, roughness: 0.75 });
   SENTRY_MATS = {
-    metal: new THREE.MeshStandardMaterial({ color: 0x3a3c3f, map: worn, roughness: 0.55, metalness: 0.55 }),
-    dark: new THREE.MeshStandardMaterial({ color: 0x1d1e20, roughness: 0.5, metalness: 0.6 }),
-    leg: new THREE.MeshStandardMaterial({ color: 0x2c2d2e, map: worn, roughness: 0.7, metalness: 0.4 }),
+    metal: new THREE.MeshStandardMaterial({ color: 0x8a8e92, map: worn, roughness: 0.6, metalness: 0.2 }),
+    dark: new THREE.MeshStandardMaterial({ color: 0x45484c, roughness: 0.55, metalness: 0.25 }),
+    leg: new THREE.MeshStandardMaterial({ color: 0x6a6d70, map: worn, roughness: 0.7, metalness: 0.15 }),
     olive, label: new THREE.MeshStandardMaterial({ map: ammoLabelTexture(), roughness: 0.75 }),
     brass: new THREE.MeshStandardMaterial({ color: 0xc8a046, roughness: 0.35, metalness: 0.85 }),
     led: new THREE.MeshBasicMaterial({ color: 0x7dff6e, toneMapped: false }),
   };
   return SENTRY_MATS;
+}
+// Merge a group's direct child meshes into one mesh per material (child groups are left alone).
+function mergeByMaterial(grp) {
+  const byMat = new Map();
+  for (const o of [...grp.children]) if (o.isMesh) {
+    o.updateMatrix(); const geo = o.geometry.index ? o.geometry.clone() : o.geometry.clone(); geo.applyMatrix4(o.matrix);
+    for (const k of Object.keys(geo.attributes)) if (!["position", "normal", "uv"].includes(k)) geo.deleteAttribute(k);
+    (byMat.get(o.material) || byMat.set(o.material, []).get(o.material)).push(geo); grp.remove(o);
+  }
+  for (const [m, geos] of byMat) { const mesh = new THREE.Mesh(mergeGeometries(geos), m); mesh.castShadow = true; mesh.receiveShadow = true; grp.add(mesh); }
 }
 function makeSentryModel() {
   const M = sentryMats(), g = new THREE.Group(); g.name = "sentry";
@@ -1035,7 +1045,7 @@ function makeSentryModel() {
   };
   // tripod
   const HUB = 0.74;
-  add(g, new THREE.CylinderGeometry(0.075, 0.09, 0.14, 8), M.metal, 0, HUB, 0);
+  add(g, new THREE.CylinderGeometry(0.075, 0.09, 0.14, 6), M.metal, 0, HUB, 0);
   for (let i = 0; i < 3; i++) {
     const a = i * Math.PI * 2 / 3 + Math.PI, ca = Math.cos(a), sa = Math.sin(a);
     const top = new THREE.Vector3(ca * 0.07, HUB - 0.03, sa * 0.07), knee = new THREE.Vector3(ca * 0.36, 0.38, sa * 0.36), foot = new THREE.Vector3(ca * 0.62, 0.05, sa * 0.62);
@@ -1043,42 +1053,44 @@ function makeSentryModel() {
     beam(g, knee.clone().lerp(top, 0.12), foot, 0.062, 0.05, M.leg);           // lower sleeve, a bit thicker
     const clamp = beam(g, knee.clone().lerp(top, 0.18), knee.clone().lerp(foot, 0.08), 0.08, 0.065, M.dark);
     const hnd = knee.clone().lerp(top, 0.55); add(g, new THREE.BoxGeometry(0.012, 0.12, 0.05), M.dark, hnd.x + sa * 0.04, hnd.y, hnd.z - ca * 0.04, 0, -a, 0);
-    add(g, new THREE.CylinderGeometry(0.02, 0.02, 0.06, 8), M.dark, top.x * 1.6, HUB - 0.02, top.z * 1.6, Math.PI / 2, 0, -a + Math.PI / 2);
+    add(g, new THREE.CylinderGeometry(0.02, 0.02, 0.06, 5), M.dark, top.x * 1.6, HUB - 0.02, top.z * 1.6, Math.PI / 2, 0, -a + Math.PI / 2);
     add(g, new THREE.CylinderGeometry(0.075, 0.075, 0.016, 3), M.dark, foot.x, 0.035, foot.z, 0, -a, 0);
-    add(g, new THREE.ConeGeometry(0.022, 0.07, 6), M.dark, foot.x * 1.03, 0.0, foot.z * 1.03, Math.PI, 0, 0);
+    add(g, new THREE.ConeGeometry(0.022, 0.07, 4), M.dark, foot.x * 1.03, 0.0, foot.z * 1.03, Math.PI, 0, 0);
   }
-  add(g, new THREE.CylinderGeometry(0.042, 0.042, 0.22, 10), M.metal, 0, HUB + 0.15, 0);
-  add(g, new THREE.CylinderGeometry(0.12, 0.12, 0.035, 12), M.dark, 0, HUB + 0.27, 0);
+  add(g, new THREE.CylinderGeometry(0.042, 0.042, 0.22, 6), M.metal, 0, HUB + 0.15, 0);
+  add(g, new THREE.CylinderGeometry(0.12, 0.12, 0.035, 8), M.dark, 0, HUB + 0.27, 0);
   // head: yaws on the pan plate
   const head = new THREE.Group(); head.position.y = HUB + 0.29; g.add(head);
   add(head, new THREE.BoxGeometry(0.18, 0.045, 0.16), M.metal, 0, 0.022, 0);
-  for (const s of [-1, 1]) { add(head, new THREE.BoxGeometry(0.03, 0.2, 0.15), M.metal, s * 0.1, 0.13, 0); add(head, new THREE.CylinderGeometry(0.055, 0.055, 0.035, 10), M.dark, s * 0.125, 0.17, 0, 0, 0, Math.PI / 2); }
+  for (const s of [-1, 1]) { add(head, new THREE.BoxGeometry(0.03, 0.2, 0.15), M.metal, s * 0.1, 0.13, 0); add(head, new THREE.CylinderGeometry(0.055, 0.055, 0.035, 6), M.dark, s * 0.125, 0.17, 0, 0, 0, Math.PI / 2); }
   const gun = new THREE.Group(); gun.position.y = 0.22; head.add(gun);
   add(gun, new THREE.BoxGeometry(0.15, 0.17, 0.38), M.metal, 0, 0, -0.02);                 // receiver
   add(gun, new THREE.BoxGeometry(0.16, 0.03, 0.32), M.dark, 0, 0.1, -0.03);                // top cover
   for (let i = 0; i < 6; i++) add(gun, new THREE.BoxGeometry(0.045, 0.014, 0.02), M.dark, 0, 0.122, -0.15 + i * 0.045);   // rail teeth
   add(gun, new THREE.BoxGeometry(0.075, 0.075, 0.11), M.dark, 0.0, 0.17, -0.12);           // optic
-  add(gun, new THREE.CylinderGeometry(0.025, 0.025, 0.012, 10), M.olive, 0, 0.17, -0.06, Math.PI / 2);
-  add(gun, new THREE.SphereGeometry(0.009, 6, 4), M.led, 0.04, 0.19, -0.16);
-  add(gun, new THREE.CylinderGeometry(0.004, 0.004, 0.2, 4), M.dark, 0.05, 0.27, -0.17);   // antenna
+  add(gun, new THREE.CylinderGeometry(0.025, 0.025, 0.012, 6), M.olive, 0, 0.17, -0.06, Math.PI / 2);
+  add(gun, new THREE.BoxGeometry(0.018, 0.018, 0.018), M.led, 0.04, 0.19, -0.16);
+  add(gun, new THREE.CylinderGeometry(0.004, 0.004, 0.2, 3), M.dark, 0.05, 0.27, -0.17);   // antenna
   add(gun, new THREE.BoxGeometry(0.05, 0.13, 0.06), M.dark, 0.0, -0.14, 0.12, 0.25);       // front grip
-  add(gun, new THREE.CylinderGeometry(0.085, 0.085, 0.13, 10), M.metal, 0, 0, 0.23, Math.PI / 2);   // motor housing
+  add(gun, new THREE.CylinderGeometry(0.085, 0.085, 0.13, 6), M.metal, 0, 0, 0.23, Math.PI / 2);   // motor housing
   const spin = new THREE.Group(); spin.position.z = 0.3; gun.add(spin);
-  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; add(spin, new THREE.CylinderGeometry(0.012, 0.012, 0.58, 6), M.dark, Math.cos(a) * 0.038, Math.sin(a) * 0.038, 0.29, Math.PI / 2); }
-  add(spin, new THREE.CylinderGeometry(0.016, 0.016, 0.56, 6), M.metal, 0, 0, 0.28, Math.PI / 2);
-  for (const z of [0.06, 0.2, 0.34]) add(spin, new THREE.CylinderGeometry(0.066, 0.066, 0.035, 8), M.metal, 0, 0, z, Math.PI / 2);
-  add(spin, new THREE.CylinderGeometry(0.085, 0.085, 0.13, 8), M.metal, 0, 0, 0.53, Math.PI / 2);     // muzzle shroud
-  add(spin, new THREE.CircleGeometry(0.07, 8), M.dark, 0, 0, 0.596);
+  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; add(spin, new THREE.CylinderGeometry(0.012, 0.012, 0.58, 4), M.dark, Math.cos(a) * 0.038, Math.sin(a) * 0.038, 0.29, Math.PI / 2); }
+  add(spin, new THREE.CylinderGeometry(0.016, 0.016, 0.56, 4), M.metal, 0, 0, 0.28, Math.PI / 2);
+  for (const z of [0.06, 0.2, 0.34]) add(spin, new THREE.CylinderGeometry(0.066, 0.066, 0.035, 6), M.metal, 0, 0, z, Math.PI / 2);
+  add(spin, new THREE.CylinderGeometry(0.085, 0.085, 0.13, 6), M.metal, 0, 0, 0.53, Math.PI / 2);     // muzzle shroud
+  add(spin, new THREE.CircleGeometry(0.07, 6), M.dark, 0, 0, 0.596);
   // ammo can on the left side + belt into the receiver
-  const box = add(gun, new THREE.BoxGeometry(0.2, 0.22, 0.32), [M.olive, M.label, M.olive, M.olive, M.olive, M.olive], 0.2, -0.03, -0.03);
+  add(gun, new THREE.BoxGeometry(0.2, 0.22, 0.32), M.olive, 0.2, -0.03, -0.03);
+  add(gun, new THREE.PlaneGeometry(0.3, 0.2), M.label, 0.301, -0.03, -0.03, 0, Math.PI / 2, 0);
   add(gun, new THREE.BoxGeometry(0.21, 0.03, 0.33), M.olive, 0.2, 0.09, -0.03);             // lid lip
   add(gun, new THREE.BoxGeometry(0.012, 0.03, 0.12), M.dark, 0.2, 0.12, -0.03);             // handle
   add(gun, new THREE.BoxGeometry(0.02, 0.07, 0.04), M.dark, 0.305, 0.0, -0.13);            // latch
   for (let i = 0; i < 6; i++) { const t = i / 5; add(gun, new THREE.BoxGeometry(0.014, 0.012, 0.055), M.brass, 0.2 - t * 0.12, 0.11 + Math.sin(t * Math.PI) * 0.04, 0.05, 0, 0, 0.3); }
+  for (const grp of [g, head, gun, spin]) mergeByMaterial(grp);   // ~15 draw calls instead of ~75
   return { g, head, spin, muzzle: new THREE.Vector3(0, 0, 0.92), gun };
 }
 const sentries = [];
-const SENTRY = { range: 14, rate: 0.09, dmg: 10, hp: 250 };
+const SENTRY = { range: 10, rate: 0.11, dmg: 10, hp: 250 };
 function placeSentry(x, z, save_ = true) {
   const s = makeSentryModel(); s.g.position.set(x, 0, z); s.g.scale.setScalar(1.35); scene.add(s.g);
   const t = { ...s, hulls: addHulls(s.g), x, z, yaw: Math.atan2(x - BASE_C.x, z - BASE_C.y), hp: SENTRY.hp, cool: 0, spinV: 0, target: null, retarget: 0, bar: null, shot: 0 };
@@ -1319,7 +1331,7 @@ function showModel(m) {
   document.querySelectorAll("#viewerList button").forEach(b => b.classList.toggle("sel", b.dataset.id === m.id));
   document.getElementById("vAnim").disabled = !m.rigged;
 }
-function applyWire() { if (vObj) vObj.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.wireframe = vWire; } }); }
+function applyWire() { if (vObj) vObj.traverse(o => { if (o.isMesh) { o.material = Array.isArray(o.material) ? o.material.map(m => Object.assign(m.clone(), { wireframe: vWire })) : Object.assign(o.material.clone(), { wireframe: vWire }); } }); }
 function openViewer() { if (!vr) initViewer(); viewerEl.hidden = false; vResize(); showModel(vSel || MODELS[2]); }
 function closeViewer() { viewerEl.hidden = true; }
 document.getElementById("btnViewer").addEventListener("click", openViewer);
