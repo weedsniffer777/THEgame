@@ -283,6 +283,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
     <h2>Cheats</h2>
     <div class="row">
       <button id="btnAmmo" type="button">+100 XP</button>
+      <button id="btnXpBig" type="button">+1,000,000 XP</button>
     </div>
   </section>
   <section>
@@ -2118,6 +2119,7 @@ document.getElementById("btnResetYes").addEventListener("click", () => {
   saveLocked = true; wipeSave(); location.reload();   // fresh run: day 1, no builds, no XP, start position
 });
 document.getElementById("btnAmmo").addEventListener("click", () => { save.xp += 100; renderXp(); writeSave(); });
+document.getElementById("btnXpBig").addEventListener("click", () => { save.xp += 1000000; renderXp(); writeSave(); });
 const perfEl = document.getElementById("perf");
 
 /* ---------- Model viewer ---------- */

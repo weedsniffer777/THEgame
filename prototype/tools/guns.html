@@ -37,16 +37,6 @@ for (const [name, keep, attach, iconOnly] of JOBS) {
     o.position.set((rb.min.x + rb.max.x) / 2 - (ob.min.x + ob.max.x) / 2, rb.max.y - ob.min.y - 0.012, (rb.min.z + rb.max.z) / 2 - (ob.min.z + ob.max.z) / 2 + 0.035);
     o.name = name + "_Optic"; g.add(o);
   }
-  if (name === "GrenadeLauncher_C") {   // drop the flip-up ladder sight and trim its mount off the body (partMods.cut above 0.0732)
-    const sights = []; g.traverse(o => { if (/_Sight(_Back|_Front)?$/.test(o.name)) sights.push(o); }); sights.forEach(o => o.removeFromParent());
-    g.updateMatrixWorld(true);
-    g.traverse(o => { if (!o.isMesh || o.name !== "GrenadeLauncher_C") return;
-      let geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); const P = geo.attributes.position, keep = [], v = new THREE.Vector3();
-      for (let t = 0; t < P.count; t += 3) { let cy = 0; for (let k = 0; k < 3; k++) cy += v.fromBufferAttribute(P, t + k).applyMatrix4(o.matrixWorld).y / 3; if (cy <= 0.0732) keep.push(t); }
-      const out = new THREE.BufferGeometry();
-      for (const [n, a] of Object.entries(geo.attributes)) { const arr = new a.array.constructor(keep.length * 3 * a.itemSize); keep.forEach((t, i) => { for (let k = 0; k < 3 * a.itemSize; k++) arr[i * 3 * a.itemSize + k] = a.array[t * a.itemSize + k]; }); out.setAttribute(n, new THREE.BufferAttribute(arr, a.itemSize, a.normalized)); }
-      o.geometry = out; });
-  }
   const png = icon(g.clone());
   if (iconOnly) { out[name] = { png }; continue; }
   let before = 0, after = 0;
