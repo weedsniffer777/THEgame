@@ -1952,14 +1952,15 @@ function spawnTracer(from, to, scale = 1, fade = false) {
   }
   scene.add(line); tracers.push({ line, life: 0.1 });
 }
-// Turret targeting: bombers first, then runners, then the nearest of the rest (all within range and sight)
-const TARGET_PRIO = { bomber: 2, runner: 1 };
+// Turret targeting (within range and sight): anything inside CLOSE_R that's a bomber or runner, then anything
+// else inside CLOSE_R, then bombers, then runners further out, then the nearest
+const TARGET_PRIO = { bomber: 2, runner: 1 }, CLOSE_R = 4;
 function pickTarget(t, range, minR = 0) {
   let best = null, bs = Infinity;
   for (const e of enemies) {
     if (e.dead) continue; const dx = e.pos.x - t.x, dz = e.pos.z - t.z, d = Math.hypot(dx, dz);
     if (d >= range || d <= minR) continue;
-    const sc = d - (TARGET_PRIO[e.type] || 0) * 1000; if (sc < bs && losClear(t.x, t.z, dx / d, dz / d, d)) { bs = sc; best = e; }
+    const sc = d - (TARGET_PRIO[e.type] || 0) * 1000 - (d < CLOSE_R ? 3000 : 0); if (sc < bs && losClear(t.x, t.z, dx / d, dz / d, d)) { bs = sc; best = e; }
   }
   return best;
 }
