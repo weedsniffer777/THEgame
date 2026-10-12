@@ -1544,10 +1544,10 @@ function updateEnemies(dt) {
     if (onCam && !T.bomber && (T.arms || wind || sw)) {   // walkers always reach; everyone swings when attacking
       e.model.updateMatrixWorld(true);
       const c = e.chest.getWorldPosition(new THREE.Vector3()), f = new THREE.Vector3(Math.sin(e.yaw), 0, Math.cos(e.yaw)), l = new THREE.Vector3(Math.cos(e.yaw), 0, -Math.sin(e.yaw));
-      const reachA = (T.arms ? 0.48 : 0.3) - wind * 0.3 + sw * 0.32, bob = Math.sin(now * 3.3 + e.seed) * 0.04, up = -0.04 + wind * 0.6 - sw * 0.3;
+      const k = T.scale || 1, reachA = ((T.arms ? 0.48 : 0.3) - wind * 0.3 + sw * 0.32) * k, bob = Math.sin(now * 3.3 + e.seed) * 0.04 * k, up = (-0.04 + wind * 0.6 - sw * 0.3) * k;
       for (const [s, sg] of [["r", -1], ["l", 1]]) {
-        const tg = c.clone().addScaledVector(f, reachA).addScaledVector(l, sg * (0.17 + wind * 0.08)).add(new THREE.Vector3(0, up + bob * sg * (1 - wind), 0));
-        armIK(e.arms[s], tg, c.clone().addScaledVector(l, sg * 0.5).add(new THREE.Vector3(0, -0.5, 0)), f);
+        const tg = c.clone().addScaledVector(f, reachA).addScaledVector(l, sg * (0.17 + wind * 0.08) * k).add(new THREE.Vector3(0, up + bob * sg * (1 - wind), 0));
+        armIK(e.arms[s], tg, c.clone().addScaledVector(l, sg * 0.5 * k).add(new THREE.Vector3(0, -0.5 * k, 0)), f);
       }
     }
   }
@@ -2071,9 +2071,9 @@ function updateSentries(dt) {
 // swaps the number keys to it. "Move" on a structure picks it up into the build hand.
 
 const BUILDS = DEF ? [
-  { id: "sentry", name: "SENTRY", req: 1, cost: () => run.free.sentry > 0 ? 0 : 15 + 5 * countOf("sentry") },
-  { id: "wall", name: "WALL", req: 1, cost: () => run.free.wall > 0 ? 0 : 8 },
-  { id: "rocket", name: "ROCKET LAUNCHER", req: 1, cost: () => run.free.rocket > 0 ? 0 : 70 + 25 * countOf("rocket") },
+  { id: "sentry", name: "SENTRY", req: 1, cost: () => run.free.sentry > 0 ? 0 : buyPrice("sentry") },
+  { id: "wall", name: "WALL", req: 1, cost: () => run.free.wall > 0 ? 0 : buyPrice("wall") },
+  { id: "rocket", name: "ROCKET LAUNCHER", req: 1, cost: () => run.free.rocket > 0 ? 0 : buyPrice("rocket") },
 ] : [
   { id: "sentry", name: "SENTRY", req: 1, cost: () => save.firstSentry ? 25 : 5 },
   { id: "wall", name: "WALL", req: 1, cost: () => 20 },
@@ -2313,12 +2313,12 @@ function renderMenu() {
   const t = menuTarget; if (!t) return;
   if (t.group) {   // a batch of one kind: upgrade / pick up / sell them all at once
     t.list = t.list.filter(o => structs().includes(o)); if (!t.list.length) { closeMenu(); return; }
-    const D = STRUCT[t.kind], L = t.list, up = L.filter(o => D.up[o.level]), upCost = up.reduce((a, o) => a + D.up[o.level], 0), free = L.filter(o => !onTop(o));
+    const D = STRUCT[t.kind], L = t.list, up = L.filter(o => upCost(o)), upSum = up.reduce((a, o) => a + upCost(o), 0), free = L.filter(o => !onTop(o));
     const hp = L.reduce((a, o) => a + o.hp, 0), max = L.reduce((a, o) => a + D.hp[o.level], 0);
     smTitle.textContent = `${L.length} × ${D.name}`; smLv.textContent = `LV ${Math.min(...L.map(o => o.level))}–${Math.max(...L.map(o => o.level))}`.replace(/LV (\d+)–\1$/, "LV $1");
     smHpRow.hidden = false; smHp.style.width = `${hp / max * 100}%`; smHpT.textContent = `${Math.ceil(hp)}/${max}`;
     smInfo.innerHTML = "Selected together · right-drag a box to pick another batch";
-    smUp.hidden = false; smUp.textContent = up.length ? `UPGRADE ${up.length} · ${upCost} SCRAP` : "ALL MAX LEVEL"; smUp.disabled = !up.length || save.xp < Math.min(...up.map(o => D.up[o.level]));
+    smUp.hidden = false; smUp.textContent = up.length ? `UPGRADE ${up.length} · ${upSum} SCRAP` : "ALL MAX LEVEL"; smUp.disabled = !up.length || save.xp < Math.min(...up.map(o => upCost(o)));
     smMove.hidden = false; smMove.textContent = `PICK UP ${free.length}`; smMove.disabled = !free.length;
     smSell.hidden = false; smSell.textContent = `SELL ${free.length} +${free.reduce((a, o) => a + Math.floor(o.spent / 2), 0)} SCRAP`; smSell.disabled = !free.length;
     smRepair.hidden = true; return;
@@ -2334,7 +2334,7 @@ function renderMenu() {
     smHpRow.hidden = false; smHp.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; smHpT.textContent = `${Math.ceil(save.baseHp)}/${baseMax()}`; renderRepair("base");
     return;
   }
-  const D = STRUCT[t.kind], max = D.hp[t.level], nextCost = D.up[t.level], req = D.baseReq[t.level];
+  const D = STRUCT[t.kind], max = D.hp[t.level], nextCost = upCost(t), req = D.baseReq[t.level];
   smTitle.textContent = D.name; smLv.textContent = `LV ${t.level}`; smHpRow.hidden = false; smMove.hidden = false; smSell.hidden = false;
   if (DEF) smMove.textContent = t.kind !== "wall" && t.level > 1 ? `PICK UP (+${2 ** (t.level - 1)})` : "PICK UP";
   smHp.style.width = `${Math.max(0, t.hp / max) * 100}%`; smHpT.textContent = `${Math.ceil(t.hp)}/${max}`;
@@ -2366,8 +2366,12 @@ function updateHoverTip() {
 }
 function updateMenu(dt) { updateHoverTip(); if (!menuTarget) return; menuT -= dt; if (menuT <= 0) { menuT = 0.2; renderMenu(); } placeMenu(); }
 document.getElementById("smClose").addEventListener("click", closeMenu);
+// the scrap price of a build, ignoring any free stock
+const buyPrice = (k) => k === "sentry" ? 15 + 5 * countOf("sentry") : k === "rocket" ? 70 + 25 * countOf("rocket") : 8;
+// upgrading a turret costs what the turret a merge would eat costs; walls (which don't merge) use their own prices
+const upCost = (t) => DEF && t.kind !== "wall" ? (t.level < MAXLV[t.kind] ? buyPrice(t.kind) : 0) : STRUCT[t.kind].up[t.level] || 0;
 function upgradeOne(t) {
-  const D = STRUCT[t.kind], c = D.up[t.level]; if (!c || save.xp < c) return false;
+  const D = STRUCT[t.kind], c = upCost(t); if (!c || save.xp < c) return false;
   const frac = t.hp / D.hp[t.level]; save.xp -= c; t.spent += c; t.level++; t.hp = D.hp[t.level] * Math.max(frac, 0.5);
   buildModel(t); upgradeFx(cellsOf(t), new THREE.Vector3(t.x, (t.y || 0) + 1.2, t.z), t.g, `LV ${t.level}!`); return true;
 }
@@ -2376,7 +2380,7 @@ smUp.addEventListener("click", () => {
   if (t.group) { for (const o of [...t.list].sort((a, b) => a.level - b.level)) upgradeOne(o); for (const o of t.list) showHulls(o, true); saveBuilds(); renderXp(); renderMenu(); return; }
   if (t === "base") { const c = BASE_UP[save.base + 1]; if (!c || save.xp < c) return; save.xp -= c; const m0 = baseMax(); save.base++; save.baseHp += baseMax() - m0; renderBaseHp(); applyBaseLevel(); renderXp(); writeSave(); renderMenu();
     upgradeFx([...BASE_FOOT].map(k => k.split(",").map(Number)).map(([x, z]) => [x + 0.5, z + 0.5]), new THREE.Vector3(0, 3.4, SHACK_Z), null, `BASE LV ${save.base}!`); return; }
-  const D = STRUCT[t.kind], c = D.up[t.level]; if (!c || save.xp < c || (!DEF && save.base < D.baseReq[t.level])) return;
+  const D = STRUCT[t.kind], c = upCost(t); if (!c || save.xp < c || (!DEF && save.base < D.baseReq[t.level])) return;
   const frac = t.hp / D.hp[t.level]; save.xp -= c; t.spent += c; t.level++; t.hp = D.hp[t.level] * Math.max(frac, 0.5);
   buildModel(t); saveBuilds(); renderXp(); renderMenu();
   upgradeFx(cellsOf(t), new THREE.Vector3(t.x, (t.y || 0) + 1.2, t.z), t.g, `LV ${t.level}!`);
@@ -3406,9 +3410,13 @@ function defSpawns(dt) {
   const rate = { walker: lerp(2.6, 1.3, Math.pow(k, 0.8)) * surge, runner: !ph.night || ph.n < 2 && ph.c < DAY_LEN + 10 ? 0 : lerp(6, 1.6, k) * surge, bomber: !ph.night || ph.n < 2 ? 0 : lerp(9, 2.6, k) * surge };
   const size = (max) => 1 + Math.floor(Math.pow(Math.random(), 2.2) * max);
   const pack = { walker: size(ph.night ? 3 + k * 22 : 2 + k * 5), runner: size(1 + k * 5), bomber: size(1 + k * 2) };
+  if (ph.night && ph.n !== run.nightN) { run.nightN = ph.n; run.nightSpawned = 0; }
+  if (ph.night && run.nightSpawned >= nightBudget(ph.n)) return;   // this night's horde is all out
   for (const type of ["walker", "runner", "bomber"]) { if (!rate[type]) continue; spT[type] -= dt; if (spT[type] <= 0) { spT[type] = rate[type] * (0.7 + Math.random() * 0.6); gang(type, pack[type]); } }
 }
-function gang(type, n) { const f = anyDir(); for (let i = 0; i < n; i++) spawnAt(type, f); }   // one direction, a tight bunch
+function gang(type, n) { const f = anyDir(); for (let i = 0; i < n; i++) spawnAt(type, f); if (phaseOf(run.t).night) run.nightSpawned += n * (type === "brute" ? 10 : 1); }   // one direction, a tight bunch
+// each night sends a set number of enemies (a brute counts as 10); once it's all out, the night just has to be held
+const nightBudget = (n) => 45 + n * 30;
 function updateFronts() {
   for (let i = 0; i < frontEls.length; i++) {
     const f = run.fronts[i], el = frontEls[i]; if (!f) { el.hidden = true; continue; }
@@ -3433,7 +3441,7 @@ function defReset() {
   for (const o of orbs) { o.el.remove(); orbPool.push(o.el); } orbs.length = 0;
   for (const el of frontEls) el.remove(); frontEls.length = 0; camPan.set(0, 0, 0); camZoom = 1;
   carry = null; buildSel = -1; buildMode = false; showGhost(); closeMenu();
-  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { sentry: 3 }, freeTotal: { sentry: 3 }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0 });
+  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { sentry: 3 }, freeTotal: { sentry: 3 }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, final: false, nightN: 0, nightSpawned: 0 });
   spT = { walker: 1.5, runner: 0, bomber: 0 };
   runOver = false; shantyGone = false; player.dead = 0; save.xp = 25; save.base = 1;   // the base starts every run at level 1 save.cards = []; save.builds = [];
   applyBaseLevel(); save.baseHp = baseMax(); renderBaseHp(); runEl.hidden = true; cardsEl.hidden = true; picking = 0;
@@ -3488,8 +3496,11 @@ function defUpdate(rdt) {
   run.sinceHit = (run.sinceHit || 0) + dt;
   if (run.started && !runOver && run.sinceHit > 5 && save.baseHp < baseMax()) save.baseHp = Math.min(baseMax(), save.baseHp + baseMax() * 0.006 * dt);   // slow self-repair
   if (run.started && !runOver) {
-    const p0 = phaseOf(run.t); run.t += dt; defSpawns(dt); const p1 = phaseOf(run.t);
-    if (run.t >= RUN_LEN) defWin();
+    const p0 = phaseOf(run.t); run.t = Math.min(RUN_LEN - 0.001, run.t + dt); if (!run.final) defSpawns(dt); const p1 = phaseOf(run.t);
+    if (run.t >= RUN_LEN - 0.002) {   // the last night doesn't end on the clock: it ends when the last enemy is dead
+      if (!run.final) { run.final = true; showBanner("NO MORE ARE COMING · FINISH THEM!", 3.5, true); }
+      if (!enemies.some(e => !e.dead)) defWin();
+    }
     else if (p1.n > p0.n) showBanner(`DAWN · NIGHT ${p0.n} SURVIVED! ${NIGHTS - p0.n} TO GO`, 3.5);
     else if (!p0.night && p1.night) showBanner(`NIGHT ${p1.n} OF ${NIGHTS} · HERE THEY COME!`, 3.5, true);
     else if (!p1.night && p0.c < DAY_LEN - FADE && p1.c >= DAY_LEN - FADE) showBanner("NIGHT IS COMING · GET READY!", 3, true);
@@ -3517,10 +3528,11 @@ function defUpdate(rdt) {
   if (shake > 0) { shake = Math.max(0, shake - rdt); camera.position.add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.6)); }
   const cc = BC.clone().add(camPan); if (!sun.target.position.equals(cc)) { sunMoved = true; sun.position.copy(cc).add(new THREE.Vector3(-6, 14, 9)); sun.target.position.copy(cc); }   // shadows follow the view
   camera.updateMatrixWorld();
-  defLight(nightKAt(run.t) * 0.9);
+  const lp = phaseOf(run.t); defLight((lp.n === NIGHTS && lp.night ? 1 : nightKAt(run.t)) * 0.9);   // the last night has no dawn until it's won
   // HUD
   const ph = phaseOf(Math.min(run.t, RUN_LEN - 0.01)); defTimer.textContent = `${ph.night ? "NIGHT" : "DAY"} ${ph.n} / ${NIGHTS}`; defTimer.classList.toggle("final", ph.night && run.started);
-  defPhase.textContent = `${ph.night ? (ph.n === NIGHTS ? "VICTORY" : "DAY") : "NIGHT"} IN ${fmtT(Math.ceil(ph.left))}`; defPhase.classList.toggle("night", ph.night);
+  const left = enemies.reduce((a, e) => a + !e.dead, 0);
+  defPhase.textContent = run.final ? `${left} LEFT · CLEAR THEM OUT` : ph.night && ph.n === NIGHTS ? `HOLD ON · ${fmtT(Math.ceil(ph.left))}` : `${ph.night ? "DAY" : "NIGHT"} IN ${fmtT(Math.ceil(ph.left))}`; defPhase.classList.toggle("night", ph.night);
   xpFill.style.width = `${run.xp / xpNeed(run.lvl) * 100}%`; xpLv.textContent = `LV ${run.lvl}`;
   xpBumpT -= rdt; xpWrap.classList.toggle("bump", xpBumpT > 0); bankBumpT -= rdt; bankEl.classList.toggle("bump", bankBumpT > 0);
   trayT -= rdt; if (trayT <= 0) { trayT = 0.25; renderTrayState(); }
