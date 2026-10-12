@@ -1174,8 +1174,7 @@ function killEnemy(e, dir, amt, silent = false, byPlayer = false) {
   if (silent) return;
   sparkFx(at, dir, 14);
   comboT = 2.5; combo++;
-  dropXp(e.pos, T.xp);                          // one green orb
-  if (byPlayer) dropXp(e.pos, T.bonus, true);   // plus a big blue one when you got the kill yourself
+  dropXpTotal(e.pos, T.xp + (byPlayer ? T.bonus : 0));   // your own kills are worth more
   if (combo >= 3) popNumber(at.clone().setY(2.7), `x${combo} COMBO`, true, "dmg combo");
   kills++; save.kills = kills; writeSave(); killEl.textContent = `${kills} KILLS`;
   popNumber(at.setY(2.1), amt, true); tutEvent("kill", e);
@@ -1420,6 +1419,8 @@ const gems = [];
 const xpHud = document.getElementById("xpHud"), xpNum = document.getElementById("xpNum");
 function renderXp() { xpNum.textContent = save.xp; renderBuildBar(); if (!shopEl.hidden) renderShop(); }
 const XP_CAP = 800;   // max XP lying on the ground; the oldest gems go first
+// orbs by value: blue = 2 XP, green = 1 XP (e.g. 3 XP -> one blue + one green)
+function dropXpTotal(at, total) { for (let i = 0; i < Math.floor(total / 2); i++) dropXp(at, 2, true); if (total % 2) dropXp(at, 1); }
 function dropXp(at, value, blue = false) {
   let onGround = gems.reduce((a, g) => a + g.value, 0);
   while (gems.length && onGround + value > XP_CAP) { const g = gems.shift(); onGround -= g.value; scene.remove(g.m); }
