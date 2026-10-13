@@ -2109,7 +2109,7 @@ function updateRockets(dt) {
     let boom = d < 0.6 || r.pos.y < 0.12 || r.age > 3;
     if (!boom) for (const e of enemies) if (!e.dead && r.pos.y < 2 && Math.hypot(e.pos.x - r.pos.x, e.pos.z - r.pos.z) < 0.55) { boom = true; break; }
     if (!boom && r.pos.y < 3.2 && r.age > 0.25) for (const [x0, x1, z0, z1] of boxColliders) if (r.pos.x > x0 && r.pos.x < x1 && r.pos.z > z0 && r.pos.z < z1) { boom = true; break; }
-    if (boom) { scene.remove(r.m); rockets.splice(i, 1); shooter = r.src; const hv = r.lvl >= 3 ? 1 : 0, bp = r.pos.clone().setY(Math.max(0.35, r.pos.y)), br = ROCKET.radius * (1 + MOD("rrad")) * (1 + hv * 0.3) * (1 + MOD("thermo")); rocketPerks(bp, br); explode(bp, br, ROCKET.dmg * (1 + hv * 0.6) * powerOf("rocket") * (1 + 0.25 * card("sdmg") + MOD("rdmg")), { small: !hv }); shooter = null; }
+    if (boom) { scene.remove(r.m); rockets.splice(i, 1); shooter = r.src; const hv = r.lvl >= 3 ? 1 : 0, bp = r.pos.clone().setY(Math.max(0.35, r.pos.y)), br = ROCKET.radius * (1 + MOD("rrad")) * (1 + hv * 0.3) * (1 + MOD("thermo")); rocketPerks(bp, br); explode(bp, br, ROCKET.dmg * (1 + hv * 0.6) * powerOf("rocket") * lastK() * (1 + 0.25 * card("sdmg") + MOD("rdmg")), { small: !hv }); shooter = null; }
   }
 }
 function updateRocketTurret(t, dt) {
@@ -2127,7 +2127,7 @@ function updateRocketTurret(t, dt) {
   t.cool -= dt;
   if (t.burst > 0) { t.burstT -= dt; if (t.burstT <= 0 && t.target) { fireRocket(t); t.burst--; t.burstT = 0.13; } else if (!t.target) t.burst = 0; }
   else if (t.target && aligned && t.cool <= 0) {   // covers pop on the cells about to fire, then the rockets follow
-    t.burst = ROCKET.burst[t.level] + MOD("rburst"); t.burstT = 0.18; t.cool = ROCKET.rate[t.level] / (1 + 0.2 * card("srate") + MOD("srate"));
+    t.burst = ROCKET.burst[t.level] + MOD("rburst"); t.burstT = 0.18; t.cool = ROCKET.rate[t.level] / ocK() / (1 + 0.2 * card("srate") + MOD("rlaunch") + 0 * MOD("srate"));
     for (let k = 0; k < Math.min(t.burst, t.cells.length); k++) setCover(t, (t.shot + k) % t.cells.length, true); t.coversOpen = true;
   }
   if (t.coversOpen && !t.burst && t.cool < ROCKET.rate[t.level] * 0.45) { for (let i = 0; i < t.cells.length; i++) setCover(t, i, false); t.coversOpen = false; }   // reloaded
@@ -2342,7 +2342,7 @@ function updateFlamer(t, dt) {
     fireLightAt = from.clone().addScaledVector(dir, range * 0.4).setY(1.2); fireLightK = 1;
   }
   t.tick = (t.tick || 0) - dt; if (t.tick > 0) return; t.tick = 0.15;
-  const dmg = FLAME.dps[t.level] * 0.15 * powerOf("flamer") * (1 + 0.25 * card("sdmg") + MOD("sdmg"));
+  const dmg = FLAME.dps[t.level] * 0.15 * powerOf("flamer") * (1 + MOD("fdmg")) * lastK();
   for (const e of enemies) {   // everything in the cone burns
     if (e.dead) continue; const dx = e.pos.x - t.x, dz = e.pos.z - t.z, d = Math.hypot(dx, dz); if (d > range + 0.5) continue;
     const da = Math.atan2(Math.sin(Math.atan2(dx, dz) - t.yaw), Math.cos(Math.atan2(dx, dz) - t.yaw)); if (Math.abs(da) > cone + 0.3 / Math.max(1, d)) continue;
@@ -2356,7 +2356,7 @@ function updateCannon(t, dt) {
   t.pitch = THREE.MathUtils.lerp(t.pitch ?? 0.6, t.target ? 0.07 : 0.6, Math.min(1, dt * 3)); t.box.rotation.x = -t.pitch;   // resting barrels point up, AA style
   t.cool -= dt; if (!t.target || !aligned || t.cool > 0) return;
   if (!(t.burst > 0)) t.burst = t.level + 1;
-  t.burst--; t.cool = t.burst > 0 ? CANNON.gap : CANNON.rate / (1 + 0.2 * card("srate") + MOD("srate")); t.recoil = 1;
+  t.burst--; t.cool = t.burst > 0 ? CANNON.gap : CANNON.rate / ocK() / (1 + MOD("crate")); t.recoil = 1;
   t.g.updateMatrixWorld(true);
   const from = t.box.localToWorld(t.muzzles[t.shot++ % t.muzzles.length].clone()), aim = t.target.pos.clone().setY(1);
   const dir = new THREE.Vector3(aim.x - t.x, 0, aim.z - t.z).normalize(); let hitD = turretRange(t) + 2;
@@ -2369,8 +2369,8 @@ function updateCannon(t, dt) {
   spawnSprite(from.clone().addScaledVector(dir, 0.15), dir.clone().multiplyScalar(3), { color: 0xffc46b, size: 1.6, grow: 0.6, life: 0.09, opacity: 1, additive: true, drag: 0 });
   spawnSprite(from.clone().addScaledVector(dir, 0.3), new THREE.Vector3(), { color: 0xff8a2a, size: 3.2, grow: 0.6, life: 0.08, opacity: 0.5, additive: true, drag: 0 }); muzzleLight(from, 45, 11);
   for (let k = 0; k < 3; k++) spawnSprite(from.clone(), dir.clone().multiplyScalar(1.5).add(new THREE.Vector3((Math.random() - 0.5), 0.6, (Math.random() - 0.5))), { color: 0xd8d4cc, size: 0.4, grow: 2.5, life: 0.9, opacity: 0.4, drag: 2 });
-  if (hit || hitD < turretRange(t) + 1.9) delayed.push({ t: flight, fn: () => { shooter = t; const cd = CANNON.dmg[t.level] * powerOf("cannon") * (1 + 0.25 * card("sdmg") + MOD("sdmg")); explode(to, 1.4, cd, { small: true });
-    if (MOD("frag")) { for (const e of [...enemies]) { if (e.dead) continue; const d = Math.hypot(e.pos.x - to.x, e.pos.z - to.z); if (d > 1.4 && d < 2.8) hurtEnemy(e, Math.round(cd * MOD("frag")), new THREE.Vector3(e.pos.x - to.x, 0, e.pos.z - to.z).normalize(), 0.1); }
+  if (hit || hitD < turretRange(t) + 1.9) delayed.push({ t: flight, fn: () => { shooter = t; const cd = CANNON.dmg[t.level] * powerOf("cannon") * (1 + MOD("cdmg")) * lastK(); explode(to, 1.4, cd, { small: true });
+    if (MOD("frag")) { for (const e of [...enemies]) { if (e.dead) continue; const d = Math.hypot(e.pos.x - to.x, e.pos.z - to.z); if (d > 1.4 && d < 2.8 + MOD("fragR")) hurtEnemy(e, Math.round(cd * MOD("frag")), new THREE.Vector3(e.pos.x - to.x, 0, e.pos.z - to.z).normalize(), 0.1); }
       for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; spawnSprite(to.clone().setY(0.5), new THREE.Vector3(Math.sin(a) * 9, 1 + Math.random() * 2, Math.cos(a) * 9), { color: 0xffd080, size: 0.08, life: 0.3, opacity: 1, additive: true, drag: 1 }); } }
     shooter = null; } });   // the shell lands when the streak gets there
   shake = Math.max(shake, 0.05);
@@ -2387,7 +2387,7 @@ function updateTraps(dt) {
       t.cd = Math.max(0, (t.cd || 0) - dt); t.pop = Math.max(0, (t.pop || 0) - dt);
       if (!t.cd && inside.length && t.pack <= 0) {
         t.cd = [0, 1.6, 1.0, 0.85, 0.7][t.level]; t.pop = 0.6;
-        for (const e of inside) hurtEnemy(e, Math.round([0, 60, 110, 160, 220][t.level] * powerOf("spikes") * (1 + MOD("sdmg"))), new THREE.Vector3(0, 1, 0), 0);
+        for (const e of inside) hurtEnemy(e, Math.round([0, 60, 110, 160, 220][t.level] * powerOf("spikes")), new THREE.Vector3(0, 1, 0), 0);
         sparkFx(new THREE.Vector3(t.x, 0.4, t.z), new THREE.Vector3(0, 1, 0), 8);
       }
       t.spikes.position.y = t.pop > 0.45 ? 0 : -0.62 * (1 - t.pop / 0.45);   // out in a flash, back down slowly
@@ -2565,7 +2565,7 @@ const saveBuilds = () => { save.builds = structs().map(s => ({ t: s.kind, x: s.x
 // stacking: a wall can sit on a wall; a sentry can sit on a 2 x 2 block of walls (and shoots 3 m further)
 const sentryCovers = (t, x, z) => t.x === x && t.z === z;
 const onTop = (s) => s.kind === "wall" && !s.y && (walls.some(w => w !== s && w.y > 0 && w.x === s.x && w.z === s.z) || sentries.some(t => t.y > 0 && sentryCovers(t, s.x, s.z)));
-const turretRange = (t) => (t.kind === "flamer" ? FLAME_RANGE[t.level] : RANGE_OF[t.kind] || SENTRY.range) + (t.y ? 3 : 0) + 2 * card("srange") + MOD("range");
+const turretRange = (t) => (t.kind === "flamer" ? FLAME_RANGE[t.level] : RANGE_OF[t.kind] || SENTRY.range) + (t.y ? 3 : 0) + 2 * card("srange") + (t.kind === "sentry" ? MOD("range") : 0);
 const sentryRange = turretRange;
 function buildModel(s) {
   if (s.g) { scene.remove(s.g); }
@@ -2613,6 +2613,7 @@ function hurtStruct(s, n) {
   s.hp -= n; if (!s.bar) s.bar = worldBar(true);
   sparkFx(new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 1.4 : 1.0), s.z), new THREE.Vector3(0, 1, 0), 3);
   if (s.hp <= 0) {
+    if (DEF && MOD("salvage") && s.spent) { save.xp += Math.round(s.spent * MOD("salvage")); renderXp(); }
     removeStruct(s); supportGone(s); saveBuilds(); renderBuildBar();
     for (let k = 0; k < 3; k++) spawnSprite(new THREE.Vector3(s.x, 0.7, s.z), new THREE.Vector3((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2), { color: 0x6b6862, size: 0.6, grow: 2.5, life: 1.4, opacity: 0.6, drag: 1.5 });
     sparkFx(new THREE.Vector3(s.x, 0.8, s.z), new THREE.Vector3(0, 1, 0), 20);
@@ -2712,7 +2713,7 @@ function updateSentries(dt) {
     for (const sp of t.spins) sp.rotation.z += t.spinV * 40 * dt;
     t.cool -= dt;
     if (t.target && aligned && t.spinV > 0.75 && t.cool <= 0) {
-      t.cool = SENTRY.rate * LV_RATE[t.level] / t.muzzles.length / (1 + 0.2 * card("srate") + MOD("srate")); t.shot++;
+      t.cool = SENTRY.rate * LV_RATE[t.level] / t.muzzles.length / ocK() / (1 + 0.2 * card("srate") + MOD("srate")); t.shot++;
       t.g.updateMatrixWorld(true);
       const from = t.gun.localToWorld(t.muzzles[t.shot % t.muzzles.length].clone()), ang = t.yaw + (Math.random() - 0.5) * 0.06, dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
       let hitD = sentryRange(t) + 2, hit = null;
@@ -2725,13 +2726,13 @@ function updateSentries(dt) {
       spawnSprite(from.clone().addScaledVector(dir, 0.06), dir.clone().multiplyScalar(2), { color: 0xffc46b, size: 0.8, grow: 0.4, life: 0.06, opacity: 1, additive: true, drag: 0 });
       spawnSprite(from.clone().addScaledVector(dir, 0.1), new THREE.Vector3(), { color: 0xff9a3a, size: 1.8, grow: 0.5, life: 0.07, opacity: 0.55, additive: true, drag: 0 }); muzzleLight(from, 22, 7);
       if (t.shot % 3 === 0) spawnCasing(from.clone().addScaledVector(dir, -0.5).add(new THREE.Vector3(0, -0.05, 0)), dir);
-      const sdm = Math.round(SENTRY.dmg * LV_DMG[t.level] * powerOf("sentry") * (1 + 0.25 * card("sdmg") + MOD("sdmg")));
+      const sdm = Math.round(SENTRY.dmg * LV_DMG[t.level] * powerOf("sentry") * (1 + 0.25 * card("sdmg") + MOD("sdmg")) * lastK());
       if (hit && MOD("pierce") && Math.random() < MOD("pierce")) {   // AP sabots: the round carries on into the next one behind
         let h2 = null, d2 = sentryRange(t) + 2; for (const e of enemies) { if (e.dead || e === hit) continue; const d = rayCircle(t.x, t.z, dir.x, dir.z, e.pos.x, e.pos.z, 0.42); if (d !== null && d > hitD && d < d2) { d2 = d; h2 = e; } }
         if (h2) { shooter = t; hurtEnemy(h2, sdm, dir); shooter = null; }
       }
       shooter = t; if (hit) hurtEnemy(hit, sdm, dir); shooter = null;
-      if (hit && MOD("incb")) { hit.burnT = Math.max(hit.burnT || 0, 2.2); hit.burnDps = Math.max(hit.burnDps || 0, MOD("incb")); }
+      if (hit && MOD("incb")) { hit.burnT = Math.max(hit.burnT || 0, 2.2 * (1 + MOD("incb2"))); hit.burnDps = Math.max(hit.burnDps || 0, MOD("incb") * (1 + MOD("napalm"))); }
       if (hit && MOD("tesla") && (t.zap = (t.zap || 0) + 1) % 8 === 0) teslaArc(hit, MOD("tesla"));
     }
   }
@@ -4123,7 +4124,7 @@ function mergeInto(t, spent) {
 const orbs = [], orbPool = []; let orbRectT = 0, orbTo = [0, 0, 0, 0];
 const FLY_ORBS = false;
 function defOrbs(e, n) {
-  run.kills++; run.strike = (run.strike || 0) + (e.type === "brute" ? 10 : 1) * (1 + MOD("ovch"));
+  run.kills++; run.strike = (run.strike || 0) + (e.type === "brute" ? 10 : 1) * (1 + MOD("charge"));
   const [sx, sy] = toScreen(e.pos.clone().setY(1.2)), big = n >= 10, count = big ? Math.ceil(n / 3) : n, val = big ? 3 : 1;
   if (FLY_ORBS === false) { for (let i = 0; i < count; i++) { addOrb(val, false); addOrb(val, true); } return; }   // straight into the bar and the bank: no flying orbs over the field
   for (let i = 0; i < count; i++) for (const gold of [false, true]) {
@@ -4160,47 +4161,103 @@ const pct = (v) => `${Math.round(v * 100)}%`;
 const hasRockets = () => countOf("rocket") > 0;
 const hasGuns = () => sentries.length > 0;
 const FREE_DROPS = [{ wall: 4, sentry: 1 }, { sentry: 1 }, { sentry: 2 }, { rocket: 1 }, { rocket: 2, sentry: 2 }];
+// Level-up cards. Three kinds:
+//  stat     — rolled rarity, stacks (each pick adds its value)
+//  rep      — rolled rarity, a one-off effect, offered forever
+//  ladder   — one owned tier at a time; only higher tiers are offered and a higher tier replaces the lower (min: lowest tier it comes in)
+//  unique   — a fixed rarity, taken once (or up to max times); some need another card first (req)
+const inDeck = (k) => BUILDS.some(b => b.id === k), owned = (id) => (run.got?.[id] || 0) > 0;
 const UPGRADES = [
-  { id: "sdmg", name: "AP ROUNDS", ic: "✸", v: [0.12, 0.18, 0.27, 0.4, 0.65], txt: (v) => `Sentries deal +${pct(v)} damage`, ok: () => countOf("sentry") > 0 },
-  { id: "rrad", name: "BIG BOOM", ic: "◉", v: [0.12, 0.18, 0.27, 0.4, 0.65], txt: (v) => `Rocket blasts +${pct(v)} wider`, ok: hasRockets },
-  { id: "drop", name: "SUPPLY DROP", ic: "▼", v: FREE_DROPS, ok: () => BUILDS.some(b => b.id === "sentry"), txt: (v) => `Free: ${Object.entries(v).filter(([k]) => BUILDS.some(b => b.id === k)).map(([k, n]) => `${n} ${BUILDS.find(b => b.id === k).name.toLowerCase()}${n > 1 ? "s" : ""}`).join(" + ")}`,
-    now: (v) => { for (const [k, n] of Object.entries(v)) if (BUILDS.some(b => b.id === k)) addFree(k, n); } },
-  { id: "fieldup", name: "FIELD UPGRADE", ic: "▲", v: [1, 2, 3, 5, 99], txt: (v) => v > 50 ? "Every tower goes up a level" : `${v} random tower${v > 1 ? "s go" : " goes"} up a level`,
+  { id: "sdmg", kind: "stat", name: "AP ROUNDS", ic: "✸", v: [0.1, 0.15, 0.22, 0.32, 0.5], txt: (v) => `Sentries deal +${pct(v)} damage`, ok: () => inDeck("sentry") },
+  { id: "srate", kind: "stat", name: "RAPID FIRE", ic: "»", v: [0.06, 0.09, 0.13, 0.19, 0.3], txt: (v) => `Sentries fire +${pct(v)} faster`, ok: () => inDeck("sentry") },
+  { id: "range", kind: "stat", name: "RANGEFINDER", ic: "◎", v: [0.5, 0.8, 1.2, 1.8, 3], txt: (v) => `+${v} m sentry range`, ok: () => inDeck("sentry") },
+  { id: "rrad", kind: "stat", name: "BIG BOOM", ic: "◉", v: [0.08, 0.12, 0.18, 0.26, 0.4], txt: (v) => `Rocket blasts +${pct(v)} wider`, ok: () => inDeck("rocket") },
+  { id: "rlaunch", kind: "stat", name: "RAPID LAUNCH", ic: "»", v: [0.06, 0.09, 0.13, 0.19, 0.3], txt: (v) => `Rocket launchers fire +${pct(v)} faster`, ok: () => inDeck("rocket") },
+  { id: "crate", kind: "stat", name: "RAPID FIRE", ic: "»", v: [0.06, 0.09, 0.13, 0.19, 0.3], txt: (v) => `Cannons fire +${pct(v)} faster`, ok: () => inDeck("cannon") },
+  { id: "cdmg", kind: "stat", name: "HEAVY SHELLS", ic: "✸", v: [0.1, 0.15, 0.22, 0.32, 0.5], txt: (v) => `Cannons deal +${pct(v)} damage`, ok: () => inDeck("cannon") },
+  { id: "armor", kind: "stat", name: "FORTIFY", ic: "▣", v: [0.05, 0.08, 0.12, 0.17, 0.25], txt: (v) => `Towers take ${pct(v)} less damage`, ok: () => MOD("armor") < 0.6 && structs().length > 0 },
+  { id: "drop", kind: "rep", name: "DEFENSES", ic: "▼", v: [4, 4, 4, 4, 4], max: 1, txt: () => `Free: 4 walls`, ok: () => inDeck("wall"), now: () => addFree("wall", 4) },
+  { id: "armory", kind: "rep", name: "ARMORY", ic: "✚", v: [1, 1, 2, 3, 4], txt: (v) => `${v} free turret${v > 1 ? "s" : ""} from your deck`, ok: () => BUILDS.some(b => MERGEABLE.has(b.id)),
+    now: (v) => { const ks = BUILDS.map(b => b.id).filter(k => MERGEABLE.has(k)); for (let i = 0; i < v; i++) addFree(ks[Math.floor(Math.random() * ks.length)], 1); } },
+  { id: "fieldup", kind: "rep", name: "FIELD UPGRADE", ic: "▲", v: [1, 2, 3, 5, 99], txt: (v) => v > 50 ? "Every tower goes up a level" : `${v} random tower${v > 1 ? "s go" : " goes"} up a level`,
     ok: () => structs().some(t => t.level < MAXLV[t.kind]), now: (v) => { const up = structs().filter(t => t.level < MAXLV[t.kind]).sort(() => Math.random() - 0.5).slice(0, v); for (const t of up) upgradeStruct(t); } },
-  { id: "incb", perk: 1, fx: "flame", name: "INCENDIARY ROUNDS", ic: "✹", v: [4, 6, 9, 13, 20], txt: (v) => `Sentry hits set enemies on fire for ${v} damage a second`, ok: () => countOf("sentry") > 0 },
+  { id: "stash", kind: "rep", name: "STASH", ic: "$", v: [30, 50, 80, 130, 250], txt: (v) => `+${stashOf(v)} scrap right now`, now: (v) => { save.xp += stashOf(v); renderXp(); } },
+  { id: "repair", kind: "rep", name: "PATCH UP", ic: "+", v: [0.08, 0.12, 0.18, 0.28, 0.5], txt: (v) => `Repair the base and every tower by ${pct(v)}`, now: (v) => {
+    save.baseHp = Math.min(baseMax(), save.baseHp + baseMax() * v); renderBaseHp(); for (const s of structs()) s.hp = Math.min(STRUCT[s.kind].hp[s.level], s.hp + STRUCT[s.kind].hp[s.level] * v); } },
+  { id: "loot", kind: "ladder", min: 1, name: "SCAVENGER", ic: "$", v: [0, 0.15, 0.25, 0.4, 0.6], txt: (v) => `+${pct(v)} scrap from every kill` },
+  { id: "charge", kind: "ladder", min: 0, name: "AIR SUPPORT", ic: "✈", fx: "jet", v: [0.15, 0.25, 0.4, 0.6, 1], txt: (v) => `The airstrike charges ${pct(v)} faster` },
+  { id: "salvage", kind: "ladder", min: 2, name: "SALVAGE", ic: "♻", v: [0, 0, 0.25, 0.35, 0.5], txt: (v) => `A destroyed tower refunds ${pct(v)} of its scrap` },
+  { id: "oc", kind: "ladder", min: 3, name: "OVERCLOCK", ic: "⚡", v: [0, 0, 0, 1, 2], txt: (v) => v > 1 ? "Every 20 s, all turrets fire twice as fast for 6 s" : "Every 30 s, all turrets fire twice as fast for 4 s", ok: () => BUILDS.some(b => MERGEABLE.has(b.id)) },
+  { id: "fdmg", kind: "ladder", min: 2, name: "SUPERHEATED", fx: "flame", ic: "✹", v: [0, 0, 0.4, 0.7, 0.7], top: 3, txt: (v) => `Flamethrowers deal +${pct(v)} damage`, ok: () => inDeck("flamer") },
+  { id: "incb", kind: "unique", tier: 3, name: "INCENDIARY ROUNDS", fx: "flame", ic: "✹", val: 8, txt: () => `Sentry hits set enemies on fire (8 damage a second)`, ok: () => inDeck("sentry") },
+  { id: "incb2", kind: "unique", tier: 3, req: "incb", name: "IMPROVED INCENDIARY", fx: "flame", ic: "✹", val: 1, txt: () => `Incendiary fires burn twice as long`, ok: () => inDeck("sentry") },
+  { id: "napalm", kind: "unique", tier: 4, req: "incb", name: "NAPALM", fx: "flame", ic: "✹", val: 1, txt: () => `Every fire burns twice as hot`, ok: () => inDeck("sentry") || inDeck("flamer") },
+  { id: "pierce", kind: "unique", tier: 2, name: "ARMOR PIERCING ROUNDS", fx: "sabot", ic: "➹", val: 0.5, txt: () => `Half of all sentry rounds punch through into a second enemy`, ok: () => inDeck("sentry") },
+  { id: "cluster", kind: "unique", tier: 4, name: "CLUSTER ROCKETS", fx: "boom", ic: "⁂", val: 3, txt: () => `Every rocket scatters 3 bomblets`, ok: () => inDeck("rocket") },
+  { id: "bomblets", kind: "unique", tier: 3, req: "cluster", max: 3, name: "MORE BOMBLETS", fx: "boom", ic: "⁂", val: 2, into: "cluster", txt: () => `+2 bomblets on every cluster rocket`, ok: () => inDeck("rocket") },
+  { id: "frag", kind: "unique", tier: 4, name: "FRAG SHELLS", fx: "boom", ic: "✷", val: 0.5, txt: () => `Cannon shells burst into shrapnel: 50% damage in a ring twice as wide`, ok: () => inDeck("cannon") },
+  { id: "fragx", kind: "unique", tier: 3, req: "frag", max: 3, name: "FRAGMENTATION", fx: "boom", ic: "✷", val: 0.2, txt: () => `More fragments: shrapnel hits harder and reaches further`, ok: () => inDeck("cannon"), now: () => { run.mods.frag = (run.mods.frag || 0) + 0.2; run.mods.fragR = (run.mods.fragR || 0) + 0.7; } },
+  { id: "react", kind: "unique", tier: 2, name: "REACTIVE ARMOR", fx: "boom", ic: "⛨", val: 80, txt: () => `Walls blast attackers back every 200 damage they take (80 damage)`, ok: () => inDeck("wall") },
+  { id: "thorns", kind: "unique", tier: 3, name: "SHARP WALLS", fx: "razor", ic: "✂", val: 20, txt: () => `Anything that hits a wall takes 20 damage back`, ok: () => inDeck("wall") },
+  { id: "laststand", kind: "unique", tier: 3, name: "LAST STAND", ic: "♥", val: 1, txt: () => `Below 30% base health, all turrets deal +50% damage`, ok: () => BUILDS.some(b => MERGEABLE.has(b.id)) },
 ];
+const stashOf = (v) => Math.round(v * (1 + 0.25 * (phaseOf(run.t).n - 1)));
+const ocK = () => { const v = MOD("oc"); if (!v) return 1; const per = v > 1 ? 20 : 30, dur = v > 1 ? 6 : 4; return (run.t % per) < dur ? 2 : 1; };   // overclock
+const lastK = () => MOD("laststand") && save.baseHp < baseMax() * 0.3 ? 1.5 : 1;   // last stand
 function rollRarity(min = 0) {
   const luck = Math.min(2.5, 1 + run.lvl * 0.06), ws = RAR.map((r, i) => i < min ? 0 : r.w * (i >= 2 ? luck : 1));
   let x = Math.random() * ws.reduce((a, b) => a + b, 0); for (let i = 0; i < ws.length; i++) if ((x -= ws[i]) <= 0) return i; return 0;
 }
+// what each card would be if offered now (rarity, value), or null if it can't be
+function cardOffer(u) {
+  if (u.ok && !u.ok()) return null; const have = run.got[u.id] || 0;
+  if (u.kind === "stat" || u.kind === "rep") return { u, r: rollRarity(0) };
+  if (u.kind === "ladder") { const top = u.top ?? 4, r = Math.max(rollRarity(u.min), have ? run.lad[u.id] + 1 : u.min); return r > top ? null : { u, r }; }
+  if (have >= (u.max || 1) || (u.req && !owned(u.req))) return null; return { u, r: u.tier };
+}
 let offer = [];
 function dealUpgrades() {
   if (runOver || run.lobby) return;
-  const all = UPGRADES.filter(u => !u.ok || u.ok()).sort(() => Math.random() - 0.5), perk = all.find(u => u.perk);   // always at least one perk on offer
-  const pool = (perk ? [perk, ...all.filter(u => u !== perk).slice(0, 2)] : all.slice(0, 3)).sort(() => Math.random() - 0.5);
-  offer = pool.map(u => ({ u, r: rollRarity(u.min || 0) }));
+  run.got ||= {}; run.lad ||= {};
+  const shuffle = (a) => a.sort(() => Math.random() - 0.5), take = (list) => { for (const u of shuffle(list)) { if (offer.some(o => o.u.id === u.id)) continue; const o = cardOffer(u); if (o) { offer.push(o); return o; } } return null; };
+  offer = [];
+  take(UPGRADES.filter(u => u.kind === "stat"));                                              // 1: a stat
+  take(UPGRADES.filter(u => u.kind === (Math.random() < 0.5 ? "stat" : "rep"))) || take(UPGRADES.filter(u => u.kind === "rep" || u.kind === "stat"));   // 2: a stat or a one-off
+  const special = shuffle(UPGRADES.filter(u => u.kind === "ladder" || u.kind === "unique")).map(cardOffer).filter(Boolean);   // 3: a unique or ladder, rarer tiers less often
+  const W = [52, 27, 18, 10, 5], sum = special.reduce((a, o) => a + W[o.r], 0); let x = Math.random() * sum, pick = null; for (const o of special) if ((x -= W[o.r]) <= 0) { pick = o; break; }
+  if (pick) offer.push(pick); else take(UPGRADES.filter(u => u.kind === "rep"));
+  while (offer.length < 3 && take(UPGRADES)) {}
+  shuffle(offer);
   cardRow.innerHTML = offer.map(({ u, r }, i) => {
- const txt = u.txt(u.v[r]), fxI = u.fx && ICONS["fx_" + u.fx], big = u.perk ? "" : (txt.match(/[+-]?\d+(\.\d+)?%|\+\d+(\.\d+)? m|\+\d+|\d+ (?=random|tower)/) || [""])[0], icon = CARD_ICON[u.id]?.(u.v[r]);
+    const val = u.v ? u.v[r] : u.val, txt = u.txt(val), fxI = u.fx && ICONS["fx_" + u.fx], icon = CARD_ICON[u.id]?.(), spec = u.kind === "unique" || u.kind === "ladder";
+    const big = spec ? "" : (txt.match(/[+-]?\d+(\.\d+)?%|\+\d+(\.\d+)? m|\+\d+|\d+ (?=random|free|tower)/) || [""])[0];
+    const tag = u.kind === "ladder" && run.got[u.id] ? `UPGRADE · ${RAR[run.lad[u.id]].name} → ${RAR[r].name}` : u.kind === "unique" ? ((run.got[u.id] || 0) ? `${run.got[u.id] + 1} / ${u.max}` : "UNIQUE") : u.kind === "ladder" ? "PERK" : "";
     const sparks = r >= 2 ? Array.from({ length: 4 + r * 3 }, () => `<i class="spk" style="left:${8 + Math.random() * 84}%;animation-delay:${(Math.random() * 2).toFixed(2)}s;animation-duration:${(1.4 + Math.random() * 1.4).toFixed(2)}s"></i>`).join("") : "";
     return `<button type="button" class="card px rar ${RAR[r].id}" style="--rc:${RAR[r].col};animation-delay:${i * 0.09}s" data-u="${i}"><span class="rays"></span><span class="shine"></span>${sparks}
       <span class="rl">${RAR[r].name}</span><span class="pips">${"◆".repeat(r + 1)}<i>${"◆".repeat(4 - r)}</i></span>
-      <span class="ic${fxI ? " fx" : ""}">${fxI ? `<img alt="" src="${fxI}">${icon ? `<em><img alt="" src="${icon}"></em>` : ""}` : `${icon ? `<img alt="" src="${icon}">` : ""}<em>${u.ic}</em>`}</span>${u.perk ? `<span class="ptag">PERK</span>` : ""}<b>${u.name}</b>${big ? `<span class="val">${big}</span>` : ""}<small>${txt}</small></button>`; }).join("");
+      <span class="ic${fxI ? " fx" : ""}">${fxI ? `<img alt="" src="${fxI}">${icon ? `<em><img alt="" src="${icon}"></em>` : ""}` : `${icon ? `<img alt="" src="${icon}">` : ""}<em>${u.ic}</em>`}</span>${tag ? `<span class="ptag">${tag}</span>` : ""}<b>${u.name}</b>${big ? `<span class="val">${big}</span>` : ""}<small>${txt}</small></button>`; }).join("");
   cardLeft.textContent = run.picks > 1 ? `LEVEL ${run.lvl - run.picks + 1} · ${run.picks - 1} MORE AFTER THIS` : `LEVEL ${run.lvl}`;
   cardsEl.querySelector("h2").textContent = "LEVEL UP!"; cardsEl.hidden = false; picking = 1;
 }
-const CARD_ICON = { incb: () => ICONS.sentry, tesla: () => ICONS.sentry, pierce: () => ICONS.sentry, thermo: () => ICONS.rocket, incr: () => ICONS.rocket, cluster: () => ICONS.rocket, frag: () => ICONS.cannon, napalm: () => ICONS.flamer, react: () => ICONS.wall, thorns: () => ICONS.wall,
-  sdmg: () => ICONS.sentry, srate: () => ICONS.cannon || ICONS.sentry, range: () => ICONS.sentry, rdmg: () => ICONS.rocket, rrad: () => ICONS.rocket, rburst: () => ICONS.rocket,
-  armor: () => ICONS.wall, repair: () => ICONS.base, drop: (v) => ICONS[Object.keys(v).find(k => BUILDS.some(b => b.id === k)) || "sentry"], fieldup: () => ICONS.sentry };
+function takeCard(u, r) {
+  run.got[u.id] = (run.got[u.id] || 0) + 1;
+  if (u.kind === "ladder") { run.lad[u.id] = r; run.mods[u.id] = u.v[r]; return; }   // replaces the lower tier
+  if (u.kind === "unique") { if (u.now) u.now(); else run.mods[u.into || u.id] = (run.mods[u.into || u.id] || 0) + u.val; return; }
+  const v = u.v[r]; if (u.now) u.now(v); else run.mods[u.id] = (run.mods[u.id] || 0) + v;
+}
+const CARD_ICON = { sdmg: () => ICONS.sentry, srate: () => ICONS.sentry, range: () => ICONS.sentry, rrad: () => ICONS.rocket, rlaunch: () => ICONS.rocket, crate: () => ICONS.cannon, cdmg: () => ICONS.cannon,
+  armor: () => ICONS.wall, drop: () => ICONS.wall, armory: () => ICONS.sentry, fieldup: () => ICONS.sentry, repair: () => ICONS.base, fdmg: () => ICONS.flamer,
+  incb: () => ICONS.sentry, incb2: () => ICONS.sentry, napalm: () => ICONS.flamer, pierce: () => ICONS.sentry, cluster: () => ICONS.rocket, bomblets: () => ICONS.rocket, frag: () => ICONS.cannon, fragx: () => ICONS.cannon,
+  react: () => ICONS.wall, thorns: () => ICONS.wall, laststand: () => ICONS.base, salvage: () => ICONS.sentry, oc: () => ICONS.sentry };
 cardRow.addEventListener("click", (e) => {
   const b = e.target.closest("[data-u]"); if (!b || !DEF || cardRow.classList.contains("busy")) return;
-  const { u, r } = offer[+b.dataset.u], v = u.v[r]; act();
+  const { u, r } = offer[+b.dataset.u]; act();
   cardRow.classList.add("busy"); b.classList.add("picked"); for (const o of cardRow.children) if (o !== b) o.classList.add("gone");
   const rc = b.getBoundingClientRect(), col = RAR[r].col;
   for (let k = 0; k < 18 + r * 8; k++) { const sp = document.createElement("i"); sp.className = "burst"; const a = Math.random() * Math.PI * 2, d = 80 + Math.random() * 140;
     sp.style.cssText = `left:${rc.left + rc.width / 2}px;top:${rc.top + rc.height / 2}px;background:${col};--bx:${Math.cos(a) * d}px;--by:${Math.sin(a) * d}px`; document.body.appendChild(sp); setTimeout(() => sp.remove(), 800); }
   setTimeout(() => {
-    cardRow.classList.remove("busy");
-    if (u.now) u.now(v); else run.mods[u.id] = (run.mods[u.id] || 0) + v;
+    cardRow.classList.remove("busy"); takeCard(u, r);
     run.picks--; if (run.picks > 0) dealUpgrades(); else { cardsEl.hidden = true; picking = 0; }
   }, 420);
 });
@@ -4299,7 +4356,7 @@ const starter = () => BUILDS.find(b => catOf(b.id) === "weapon")?.id || BUILDS[0
 function defReset() {
   clearWorld(); run.lobby = false; document.body.classList.remove("lobby"); lobbyEl.hidden = true;
   BUILDS = loadout();
-  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { [starter()]: starterN() }, freeTotal: { [starter()]: starterN() }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, phaseKey: 0, phaseSpawned: 0, lastAct: 0, perf: 0, priceK: 1, strike: 0, strikeNeed: STRIKE_NEED0, raidT: 0, got: {} });
+  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { [starter()]: starterN() }, freeTotal: { [starter()]: starterN() }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, phaseKey: 0, phaseSpawned: 0, lastAct: 0, perf: 0, priceK: 1, lad: {}, strike: 0, strikeNeed: STRIKE_NEED0, raidT: 0, got: {} });
   spT = { walker: 1.5, runner: 0, bomber: 0 }; gangT = 2;
   save.xp = 25; save.cards = []; save.builds = [];
   // the opening: a first front, a few walkers already on their way in slow motion, a free sentry to place
@@ -4507,7 +4564,8 @@ const FX_ICONS = (() => {
     return g;
   };
   const ball = (g, x, y, z, r, age = 0.2, heat = 1.1) => { const m = new THREE.Mesh(boomGeo, boomMatBase.clone()); m.material.uniforms.uSeed.value = x * 7 + y * 13 + r * 5; m.material.uniforms.uAge.value = age; m.material.uniforms.uHeat.value = heat; m.position.set(x, y, z); m.scale.setScalar(r); g.add(m); return m; };
-  const boomG = () => { const g = new THREE.Group(); ball(g, 0, 0, 0, 0.75, 0.16, 1.15); ball(g, -0.55, 0.15, 0.2, 0.5, 0.22); ball(g, 0.55, 0.2, 0.1, 0.48, 0.24); ball(g, 0.1, 0.65, -0.1, 0.5, 0.3); ball(g, -0.3, 0.95, -0.3, 0.45, 0.55, 0.7); ball(g, 0.35, 1.0, -0.3, 0.4, 0.6, 0.7); return g; };
+  const boomG = () => { const g = new THREE.Group(); ball(g, 0, 0, 0, 0.8, 0.2, 1.1); return g; };
+  const boomG_old = () => { const g = new THREE.Group(); ball(g, 0, 0, 0, 0.75, 0.16, 1.15); ball(g, -0.55, 0.15, 0.2, 0.5, 0.22); ball(g, 0.55, 0.2, 0.1, 0.48, 0.24); ball(g, 0.1, 0.65, -0.1, 0.5, 0.3); ball(g, -0.3, 0.95, -0.3, 0.45, 0.55, 0.7); ball(g, 0.35, 1.0, -0.3, 0.4, 0.6, 0.7); return g; };
   const shell = () => { const g = new THREE.Group(), brass = S(0xd8a840, 0.85, 0.3); g.add(mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.9, 16), brass)); g.add(mesh(new THREE.ConeGeometry(0.22, 0.45, 16), S(0x4a4e52, 0.7, 0.4), 0, 0.67, 0)); g.add(mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.08, 16), brass, 0, -0.45, 0)); return g; };
   const shard = (mat, x, y, z) => { const o = new THREE.Mesh(new THREE.TetrahedronGeometry(0.16), mat); o.position.set(x, y, z); o.rotation.set(x * 3, y * 2, z); return o; };
   const rocket = () => { const g = new THREE.Group(), body = S(0xe6e2d8, 0.2, 0.5); g.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.2, 12), body)); g.add(mesh(new THREE.ConeGeometry(0.16, 0.4, 12), S(0xc8402c), 0, 0.8, 0));
