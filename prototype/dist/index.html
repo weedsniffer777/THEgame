@@ -1031,7 +1031,7 @@ function impCamera() {
 }
 function treeImpostors(list) {
   const cam = impCamera(), { leafMat, barkMat } = pineMaterials(), N = 3;
-  IMP.rt = new THREE.WebGLRenderTarget(1024, 512, { samples: 0 }); IMP.rt.texture.colorSpace = THREE.SRGBColorSpace; IMP.rt.texture.generateMipmaps = true; IMP.rt.texture.minFilter = THREE.LinearMipmapLinearFilter;
+  IMP.rt = new THREE.WebGLRenderTarget(1024, 512, { samples: 0 }); IMP.rt.texture.colorSpace = THREE.SRGBColorSpace;
   for (let v = 0; v < N; v++) {   // frame each variant: its bounds as seen by the camera, in camera space
     const geos = buildPineGeos(v + 1), grp = new THREE.Group(); grp.add(new THREE.Mesh(geos.trunk, barkMat), new THREE.Mesh(geos.foliage, leafMat));
     const box = new THREE.Box3().setFromObject(grp); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
@@ -1042,7 +1042,7 @@ function treeImpostors(list) {
   const pos = [], uv = [], nrm = [], idx = [];
   for (const [x, z, v, s, sy, flip] of list) {
     const c = IMP.cells[v], base = pos.length / 3, ky = sy / s;
-    const ctr = new THREE.Vector3(x, 0, z).addScaledVector(IMP.right, c.cx * s).addScaledVector(IMP.up, c.cy * s * ky).addScaledVector(CAM_OFFSET, 2.5 / CAM_OFFSET.length());   // nudged toward the camera so the card's foot stays above the ground
+    const ctr = new THREE.Vector3(x, 0, z).addScaledVector(IMP.right, c.cx * s).addScaledVector(IMP.up, c.cy * s * ky).addScaledVector(CAM_OFFSET, 1.2 / CAM_OFFSET.length());   // nudged a little toward the camera so the card's foot stays above the ground
     for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
       const p = ctr.clone().addScaledVector(IMP.right, a * c.hw * s).addScaledVector(IMP.up, b * c.hh * s * ky); pos.push(p.x, p.y, p.z); nrm.push(0, 1, 0);
       const u = (v + ((flip ? -a : a) + 1) / 2) / N; uv.push(u, (b + 1) / 2);
@@ -1050,7 +1050,7 @@ function treeImpostors(list) {
     idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
   }
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(nrm, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
-  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: IMP.rt.texture, alphaTest: 0.5, side: THREE.DoubleSide })); m.name = "impostors";
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ alphaTest: 0.5, side: THREE.DoubleSide })); m.name = "impostors"; m.visible = false; IMP.mesh = m;   // shown once the picture is baked
   return m;
 }
 function bakeTreeImpostors() {
@@ -1063,6 +1063,13 @@ function bakeTreeImpostors() {
     sc.add(c.grp); Object.assign(cam, { left: c.cx - c.hw, right: c.cx + c.hw, top: c.cy + c.hh, bottom: c.cy - c.hh }); cam.updateProjectionMatrix();
     const w = 1024 / N; renderer.setViewport(v * w, 0, w, 512); renderer.setScissor(v * w, 0, w, 512); renderer.render(sc, cam); sc.remove(c.grp);
   });
+  // copy it into an ordinary texture: hard alpha (no see-through fringes), the empty pixels filled with foliage green so filtering doesn't halo
+  const W = 1024, H = 512, buf = new Uint8Array(W * H * 4); renderer.readRenderTargetPixels(IMP.rt, 0, 0, W, H, buf);
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const cx2 = cv.getContext("2d"), img = cx2.createImageData(W, H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = ((H - 1 - y) * W + x) * 4, o = (y * W + x) * 4, a = buf[i + 3] > 110;
+    img.data[o] = a ? buf[i] : 34; img.data[o + 1] = a ? buf[i + 1] : 46; img.data[o + 2] = a ? buf[i + 2] : 26; img.data[o + 3] = a ? 255 : 0; }
+  cx2.putImageData(img, 0, 0); const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  IMP.mesh.material.map = tex; IMP.mesh.material.needsUpdate = true; IMP.mesh.visible = true;
   renderer.setScissorTest(false); renderer.setRenderTarget(prevT); renderer.setClearColor(prevC, prevA); renderer.setViewport(0, 0, renderer.domElement.width / renderer.getPixelRatio(), renderer.domElement.height / renderer.getPixelRatio());
 }
 function buildTreeline() {
@@ -1074,7 +1081,7 @@ function buildTreeline() {
   for (let gx = -FAR; gx <= FAR; gx += STEP) for (let gz = -FAR; gz <= FAR; gz += STEP) {
     const x = gx + (rndp() - 0.5) * STEP * 0.9, z = gz + (rndp() - 0.5) * STEP * 0.9, d = Math.hypot(x, z), e = clearingR(Math.atan2(z, x));
     const keep = d < e - 1.5 ? 0 : d < e ? 0.3 : d < e + 3 ? 0.8 : d < e + 9 ? 0.93 : 0.8;
-    if (rndp() < keep) spots.push([x, z, d > e + 5]);
+    if (rndp() < keep) spots.push([x, z, d > e + 8]);   // the inner rings are real trees (with shadows); past that, impostor cards
   }
   // Split the treeline into 12 m chunks, each merged into one trunk mesh + one foliage mesh.
   // Every chunk has its own bounds, so three.js frustum-culls the ones off camera (and off the
@@ -1084,7 +1091,8 @@ function buildTreeline() {
   const CHUNK = 12, chunks = new Map();
   const imp = [];   // far trees: flat cards (2 triangles each) with a picture of the tree taken from the camera's angle
   spots.forEach(([x, z, far], i) => {
-    if (far) { const s = 0.8 + rndp() * 0.45; imp.push([x, z, i % 3, s, s * (0.9 + rndp() * 0.2), rndp() < 0.5]); rndp(); return; }
+    if (far) { const s = 0.8 + rndp() * 0.45, d = Math.hypot(x, z), front = Math.max(0, (x + z) / (Math.SQRT2 * d)) * THREE.MathUtils.clamp(1 - (d - clearingR(Math.atan2(z, x))) / 22, 0, 1);
+      imp.push([x, z, i % 3, s, s * (0.9 + rndp() * 0.2) * (1 - 0.5 * front), rndp() < 0.5]); rndp(); return; }   // camera-side ones shortened like the real trees
     const key = `${Math.floor(x / CHUNK)},${Math.floor(z / CHUNK)},${far ? 1 : 0}`, v = (far ? farVariants : variants)[i % 3];
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rndp() * Math.PI * 2); const s = 0.8 + rndp() * 0.45;
     // trees on the camera side of the clearing are shorter so they don't hide the play area
@@ -2267,16 +2275,16 @@ function makeWireModel(level = 1) {
 }
 const MODEL_RAW = { sentry: (l) => makeSentryModel(l), rocket: (l) => makeRocketModel(l), flamer: makeFlamerModel, cannon: makeCannonModel, spikes: makeSpikesModel, wire: makeWireModel }, RAW_MAX = { sentry: 4, rocket: 4, flamer: 4, cannon: 4, spikes: 2, wire: 2 };
 const MODEL_OF = Object.fromEntries(Object.keys(MODEL_RAW).map(k => [k, (l = 1) => dressTier(MODEL_RAW[k](Math.min(l, RAW_MAX[k])), k, l)]));
-// Turret levels past 4 keep the LV4 gun and repaint it: LV5 desert tan, LV6 urban grey-blue, LV7 crimson, LV8 black with gold
+// Turret levels past 4 keep the LV4 gun and repaint it: LV5 desert sand, LV6 blue, LV7 crimson, LV8 black with gold
 // metalwork. One small status light on the head in the tier's colour. Traps: LV3 blackened steel, LV4 red-hot / high voltage.
-const TIER_PAINT = { 5: 0xb39a66, 6: 0x7c8a98, 7: 0x8a2020, 8: 0x161618 }, TIER_GLOW = { 5: 0xfff0c0, 6: 0x3ad8ff, 7: 0xff7a1a, 8: 0xffc83a }, tierMats = new Map();
+const TIER_PAINT = { 5: 0xc9a456, 6: 0x3f78b8, 7: 0xa01c1c, 8: 0x141416 }, TIER_GLOW = { 5: 0xfff0c0, 6: 0x3ad8ff, 7: 0xff7a1a, 8: 0xffc83a }, tierMats = new Map();
 const lum = (c) => 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
 function tierMat(m, lv) {
-  const p = TIER_PAINT[lv]; if (!p || !m?.isMeshStandardMaterial || m.transparent || m.emissiveIntensity > 0.5) return m;
+  const p = TIER_PAINT[lv]; if (!p || !m?.isMeshStandardMaterial || m.transparent || (m.emissive?.getHex() && m.emissiveIntensity > 0.3)) return m;   // leave glowing bits alone
   const key = m.uuid + ":" + lv; if (tierMats.has(key)) return tierMats.get(key);
-  const t = m.clone(), L = lum(m.color);
-  if (lv === 8 && m.metalness >= 0.45 && L > 0.2) { t.color.setHex(0xd8a83a); t.metalness = 0.9; t.roughness = 0.3; }   // bright metal turns gold
-  else if (L > 0.1) { t.color.lerp(new THREE.Color(p), lv === 8 ? 0.85 : 0.75); if (lv === 8) t.roughness *= 0.7; }   // the body takes the paint
+  const t = m.clone(), L = lum(m.color.clone().convertLinearToSRGB());   // brightness as you see it (colours are stored linear)
+  if (lv === 8 && m.metalness >= 0.45 && L > 0.42) { t.color.setHex(0xd8a83a); t.metalness = 0.9; t.roughness = 0.3; }   // bright metal turns gold
+  else if (L > 0.22) { t.color.lerp(new THREE.Color(p), 0.85); if (lv === 8) t.roughness *= 0.7; }   // the body takes the paint
   tierMats.set(key, t); return t;
 }
 const TM = {};
@@ -2541,12 +2549,12 @@ const sentries = [], walls = [], traps = [];
 const listOf = (k) => k === "wall" ? walls : TRAP_KINDS.has(k) ? traps : sentries;
 const SENTRY = { range: 10, rate: 0.11, dmg: 10 };
 const STRUCT = {
-  rocket: { name: "ROCKET LAUNCHER", hp: [0, 300, 500, 700, 950, 1250, 1600, 2000, 2500], up: [0, 150, 220, 300], baseReq: [0, 0, 0, 0], info: ["", "Bursts of 3 homing rockets, 15 m range", "Bigger box and a targeting dome: bursts of 5", "Repainted, fires heavy rockets: bigger blasts", "Twin launchers: bursts of 6 heavy rockets", "LV5 · side armour and a sandbag ring", "LV6 · gunmetal paint and running lights", "LV7 · crimson paint, sensor mast, a concrete pad", "LV8 · black and gold"] },
-  flamer: { name: "FLAMETHROWER", hp: [0, 300, 450, 650, 900, 1200, 1550, 1950, 2400], up: [0, 80, 120, 170], baseReq: [0, 0, 0, 0], info: ["", "Short-range fire cone: burns everything in it", "Bigger tanks: hotter flames", "Twin nozzles", "A wide nozzle and a huge cone", "LV5 · side armour and a sandbag ring", "LV6 · gunmetal paint and running lights", "LV7 · crimson paint, sensor mast, a concrete pad", "LV8 · black and gold"] },
-  cannon: { name: "CANNON", hp: [0, 350, 550, 800, 1100, 1450, 1850, 2300, 2850], up: [0, 120, 170, 240], baseReq: [0, 0, 0, 0], info: ["", "40 mm autocannon: long range, exploding shells", "Twin barrels and a gun shield", "Three barrels", "Four barrels", "LV5 · side armour and a sandbag ring", "LV6 · gunmetal paint and running lights", "LV7 · crimson paint, sensor mast, a concrete pad", "LV8 · black and gold"] },
+  rocket: { name: "ROCKET LAUNCHER", hp: [0, 300, 500, 700, 950, 1250, 1600, 2000, 2500], up: [0, 150, 220, 300], baseReq: [0, 0, 0, 0], info: ["", "Bursts of 3 homing rockets, 15 m range", "Bigger box and a targeting dome: bursts of 5", "Repainted, fires heavy rockets: bigger blasts", "Twin launchers: bursts of 6 heavy rockets", "LV5 · desert sand paint", "LV6 · blue paint", "LV7 · crimson paint", "LV8 · black and gold"] },
+  flamer: { name: "FLAMETHROWER", hp: [0, 300, 450, 650, 900, 1200, 1550, 1950, 2400], up: [0, 80, 120, 170], baseReq: [0, 0, 0, 0], info: ["", "Short-range fire cone: burns everything in it", "Bigger tanks: hotter flames", "Twin nozzles", "A wide nozzle and a huge cone", "LV5 · desert sand paint", "LV6 · blue paint", "LV7 · crimson paint", "LV8 · black and gold"] },
+  cannon: { name: "CANNON", hp: [0, 350, 550, 800, 1100, 1450, 1850, 2300, 2850], up: [0, 120, 170, 240], baseReq: [0, 0, 0, 0], info: ["", "40 mm autocannon: long range, exploding shells", "Twin barrels and a gun shield", "Three barrels", "Four barrels", "LV5 · desert sand paint", "LV6 · blue paint", "LV7 · crimson paint", "LV8 · black and gold"] },
   spikes: { name: "SPIKE TRAP", hp: [0, 400, 700, 1000, 1400], up: [0, 40, 90, 160], baseReq: [0, 0], info: ["", "Stabs whatever steps on it, then resets", "Bladed spearheads: harder and faster", "Hazard-striped frame: faster resets", "Red-hot blades: brutal"] },
   wire: { name: "BARBED WIRE", hp: [0, 300, 500, 750, 1050], up: [0, 35, 80, 140], baseReq: [0, 0], info: ["", "Slows and cuts anything crossing it", "Electrified: far more damage", "A third coil: more voltage", "High voltage: glowing posts, huge damage"] },
-  sentry: { name: "SENTRY", hp: [0, 250, 400, 600, 850, 1150, 1500, 1900, 2400], up: [0, 60, 90, 130], baseReq: [0, 0], info: ["", "Six-barrel gun, shoots enemies within 10 m", "Twin barrels: double fire rate", "Heavier guns and a laser targeter: harder hits, faster turning", "A third barrel pod", "LV5 · side armour and a sandbag ring", "LV6 · gunmetal paint and running lights", "LV7 · crimson paint, sensor mast, a concrete pad", "LV8 · black and gold"] },
+  sentry: { name: "SENTRY", hp: [0, 250, 400, 600, 850, 1150, 1500, 1900, 2400], up: [0, 60, 90, 130], baseReq: [0, 0], info: ["", "Six-barrel gun, shoots enemies within 10 m", "Twin barrels: double fire rate", "Heavier guns and a laser targeter: harder hits, faster turning", "A third barrel pod", "LV5 · desert sand paint", "LV6 · blue paint", "LV7 · crimson paint", "LV8 · black and gold"] },
   wall: { name: "WALL", hp: [0, 600, 1000, 1600, 2400, 3400, 4600], up: [0, 30, 60, 100, 160, 240], baseReq: [0, 0, 2], info: ["", "Rusty sheets cobbled together", "The same sheets in a timber frame", "New corrugated steel, welded seams", "Steel plated and bolted", "Steel corner beams, sandbags on top", "Bastion: capped, with firing slits"] },
 };
 const CAPS = { sentry: [0, 5, 8, 10], rocket: [0, 0, 2, 4], wall: [0, 30, 60, 80] };
@@ -4167,7 +4175,7 @@ const UPGRADES = [
   // perks: new behaviour, not just numbers (icons are little 3D renders)
   { id: "incb", perk: 1, fx: "flame", name: "INCENDIARY ROUNDS", ic: "✹", v: [4, 6, 9, 13, 20], txt: (v) => `Sentry hits set enemies on fire for ${v} damage a second`, ok: () => countOf("sentry") > 0 },
   { id: "tesla", perk: 1, fx: "bolt", name: "TESLA ROUNDS", ic: "⚡", v: [12, 18, 26, 38, 60], txt: (v) => `Every 8th sentry hit arcs to 3 more enemies for ${v} each`, ok: () => countOf("sentry") > 0 },
-  { id: "pierce", perk: 1, fx: "sabot", name: "AP SABOTS", ic: "➹", v: [0.25, 0.35, 0.5, 0.7, 1], txt: (v) => `${pct(Math.min(1, v))} of sentry rounds punch through into a second enemy`, ok: () => countOf("sentry") > 0 && MOD("pierce") < 1 },
+  { id: "pierce", perk: 1, fx: "sabot", name: "ARMOR PIERCING ROUNDS", ic: "➹", v: [0.25, 0.35, 0.5, 0.7, 1], txt: (v) => `${pct(Math.min(1, v))} of sentry rounds punch through into a second enemy`, ok: () => countOf("sentry") > 0 && MOD("pierce") < 1 },
   { id: "thermo", perk: 1, fx: "thermo", name: "THERMOBARIC WARHEADS", ic: "✺", v: [0.2, 0.3, 0.45, 0.65, 1], txt: (v) => `Rocket blasts ${pct(v)} bigger, and they stagger everything caught`, ok: hasRockets },
   { id: "incr", perk: 1, fx: "incrocket", name: "INCENDIARY ROCKETS", ic: "✹", v: [6, 9, 13, 19, 30], txt: (v) => `Rocket blasts leave everything burning for ${v} damage a second`, ok: hasRockets },
   { id: "cluster", perk: 1, fx: "cluster", name: "CLUSTER ROCKETS", ic: "⁂", v: [2, 2, 3, 4, 6], min: 1, txt: (v) => `Every rocket scatters ${v} bomblets`, ok: hasRockets },
@@ -4522,7 +4530,7 @@ const FX_ICONS = (() => {
       const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.15, bevelEnabled: false }), B(0x8ad0ff))); const o = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: false }), B(0xffffff)); o.scale.setScalar(0.6); o.position.set(0.02, 0.02, 0.16); g.add(o); return g; },
     sabot: () => { const g = new THREE.Group(), dart = mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 8), S(0xc9ccd0, 0.9, 0.25)); g.add(dart); g.add(mesh(new THREE.ConeGeometry(0.06, 0.3, 8), S(0xe8e2d4, 0.9, 0.2), 0, 0.95, 0));
       for (let i = 0; i < 4; i++) { const f = mesh(new THREE.BoxGeometry(0.02, 0.3, 0.2), S(0x3a3d38), Math.sin(i * Math.PI / 2) * 0.1, -0.65, Math.cos(i * Math.PI / 2) * 0.1); f.rotation.y = i * Math.PI / 2; g.add(f); }
-      const t = mesh(new THREE.TorusGeometry(0.5, 0.05, 6, 20), S(0x6a3024, 0.4, 0.6)); t.rotation.x = Math.PI / 2; g.add(t); g.rotation.z = -0.9; return g; },
+      g.rotation.z = -0.9; return g; },
     shield: () => { const sh = new THREE.Shape(); sh.moveTo(0, 0.9); sh.lineTo(0.7, 0.65); sh.lineTo(0.65, -0.1); sh.quadraticCurveTo(0.5, -0.65, 0, -0.95); sh.quadraticCurveTo(-0.5, -0.65, -0.65, -0.1); sh.lineTo(-0.7, 0.65); sh.lineTo(0, 0.9);
       const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.15, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05 }), S(0x5a6068, 0.8, 0.35))); const b = boomG(); b.scale.setScalar(0.55); b.position.set(0.45, 0.45, 0.35); g.add(b); return g; },
     razor: () => { const g = new THREE.Group(), pts = []; for (let i = 0; i <= 80; i++) { const t = i / 80, a = t * Math.PI * 2 * 5; pts.push(new THREE.Vector3(-0.9 + t * 1.8, Math.sin(a) * 0.4, Math.cos(a) * 0.4)); }
@@ -4894,6 +4902,6 @@ if (DEF) {   // the player sits this one out
   document.body.classList.add("def"); tut.step = "done"; player.pos.set(0, 0, 500); playerModel.visible = false; blockHands.r.visible = blockHands.l.visible = false;
   defReset();   // straight into a game on load; the lobby comes after a run
 }
-window.__game = { setZoom: (z) => { camZoom = z; }, run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
+window.__game = { setZoom: (z) => { camZoom = z; }, IMP, renderer, MODEL_OF, sentries, run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
 requestAnimationFrame(frame);
 </script>
