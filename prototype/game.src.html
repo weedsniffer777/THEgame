@@ -1558,7 +1558,8 @@ function updateEnemies(dt) {
     else if (T.bomber) {   // slow yellow pulse that speeds up as it closes in
       const near = 1 - THREE.MathUtils.clamp((tdist - reach) / 10, 0, 1), hz = e.fuse > 0 ? 12 : 0.9 + near * 5;
       e.blink = (e.blink || 0) + dt * hz; e.mat.emissive.copy(BOMB_YELLOW).multiplyScalar(0.15 + 0.85 * (0.5 + 0.5 * Math.sin(e.blink * Math.PI * 2)));
-    } else e.mat.emissive.copy(NIGHT_GLOW).multiplyScalar(glow);
+    } else if (e.burnT > 0) e.mat.emissive.setRGB(1.0, 0.32, 0.04).multiplyScalar(0.55 + 0.35 * Math.sin(now * 23 + e.seed * 7));   // on fire: glowing
+    else e.mat.emissive.copy(NIGHT_GLOW).multiplyScalar(glow);
     if (e.bar) placeBar(e.bar, e.pos.clone().setY(2.15), e.hp / e.maxHp);
     const onCam = Math.abs(e.pos.x - camera.position.x + CAM_OFFSET.x) < 30 && Math.abs(e.pos.z - camera.position.z + CAM_OFFSET.z) < 30;
     if (e.mark) {   // "!" above bombers: big for a few seconds after they show up, then small
@@ -1933,36 +1934,42 @@ function xMats() {
   return XMATS;
 }
 const xAdd = (parent, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
-// Flamethrower turret: an octagonal pedestal and turntable; the turning head is an armoured box with fuel
-// tanks strapped to its flanks, hoses into the nozzle, a perforated heat shroud and a blue pilot light.
-// LV2 a third tank on top and a longer nozzle, LV3 twin nozzles, LV4 a wide nozzle behind a heat shield.
+// Flamethrower: a real flamethrower gun laid on a platform stand: deck plate, pivot post and cradle; the gun
+// is a fat red fuel body with a pressure gauge, a long barrel and a flared nozzle, a gas bottle slung under it.
+// LV2 adds the igniter (pilot box with a burning flame), LV3 a second bottle and a longer barrel, LV4 a second barrel.
 function makeFlamerModel(level = 1) {
   const M = xMats(), g = new THREE.Group(); g.name = "flamer";
-  xAdd(g, new THREE.CylinderGeometry(0.4, 0.48, 0.22, 8), M.dark, 0, 0.11, 0);
-  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 + Math.PI / 8; xAdd(g, new THREE.CylinderGeometry(0.025, 0.025, 0.04, 6), M.metal, Math.cos(a) * 0.43, 0.23, Math.sin(a) * 0.43); }
-  xAdd(g, new THREE.CylinderGeometry(0.33, 0.33, 0.05, 16), M.metal, 0, 0.245, 0);
-  const head = new THREE.Group(); head.position.y = 0.27; g.add(head);
-  xAdd(head, new THREE.BoxGeometry(0.44, 0.3, 0.5), M.gun, 0, 0.17, -0.02);
-  xAdd(head, new THREE.BoxGeometry(0.44, 0.16, 0.16), M.gun, 0, 0.27, 0.2, -0.65);   // sloped front plate
-  xAdd(head, new THREE.BoxGeometry(0.3, 0.05, 0.3), M.dark, 0, 0.345, -0.1);         // hatch
-  const tanks = [[-0.32, 0.2, -0.05], [0.32, 0.2, -0.05]]; if (level >= 2) tanks.push([0, 0.46, -0.12]);
-  for (const [x, y, z] of tanks) {
-    xAdd(head, new THREE.CylinderGeometry(0.11, 0.11, 0.48, 12), M.tank, x, y, z, Math.PI / 2);
-    for (const s of [-1, 1]) xAdd(head, new THREE.SphereGeometry(0.11, 12, 6), M.tank, x, y, z + s * 0.24);
-    for (const zz of [-0.12, 0.12]) xAdd(head, new THREE.CylinderGeometry(0.118, 0.118, 0.03, 12), M.dark, x, y, z + zz, Math.PI / 2);
-  }
-  const muzzles = [], len = 0.42 + level * 0.06, xs = level === 3 ? [-0.09, 0.09] : [0], r = level >= 4 ? 0.06 : 0.04;
+  xAdd(g, new THREE.BoxGeometry(1.0, 0.07, 1.0), M.plate, 0, 0.035, 0);
+  for (const [x, z] of [[0.42, 0.42], [-0.42, 0.42], [0.42, -0.42], [-0.42, -0.42]]) xAdd(g, new THREE.CylinderGeometry(0.03, 0.03, 0.03, 6), M.metal, x, 0.08, z);
+  xAdd(g, new THREE.BoxGeometry(0.34, 0.12, 0.34), M.dark, 0, 0.13, 0);
+  xAdd(g, new THREE.CylinderGeometry(0.075, 0.09, 0.42, 10), M.metal, 0, 0.4, 0);
+  const head = new THREE.Group(); head.position.y = 0.62; g.add(head);
+  xAdd(head, new THREE.BoxGeometry(0.2, 0.06, 0.26), M.dark, 0, 0, 0);                                  // cradle
+  for (const s of [-1, 1]) xAdd(head, new THREE.BoxGeometry(0.03, 0.16, 0.18), M.dark, s * 0.1, 0.08, 0);
+  const xs = level >= 4 ? [-0.12, 0.12] : [0], blen = 0.55 + (level >= 3 ? 0.25 : 0), muzzles = [];
   for (const x of xs) {
-    xAdd(head, new THREE.CylinderGeometry(r * 2.1, r * 2.1, len * 0.45, 10), M.metal, x, 0.16, 0.25 + len * 0.22, Math.PI / 2);   // heat shroud
-    for (let k = 0; k < 4; k++) xAdd(head, new THREE.CylinderGeometry(r * 2.18, r * 2.18, 0.015, 10), M.dark, x, 0.16, 0.28 + k * len * 0.11, Math.PI / 2);
-    xAdd(head, new THREE.CylinderGeometry(r, r * 0.85, len, 10), M.dark, x, 0.16, 0.25 + len / 2, Math.PI / 2);
-    xAdd(head, new THREE.CylinderGeometry(r * 1.7, r, 0.09, 10), M.metal, x, 0.16, 0.27 + len, Math.PI / 2);
-    xAdd(head, new THREE.BoxGeometry(0.06, 0.05, 0.08), M.dark, x, 0.16 - r - 0.04, 0.2 + len);
-    xAdd(head, new THREE.SphereGeometry(0.022, 6, 4), M.pilot, x, 0.16 - r - 0.04, 0.25 + len);
-    for (const [tx] of tanks.slice(0, 2)) xAdd(head, new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(tx, 0.2, 0.18), new THREE.Vector3(tx * 0.6, 0.06, 0.3), new THREE.Vector3(x, 0.12, 0.34)]), 10, 0.018, 5), M.hose, 0, 0, 0);
-    muzzles.push(new THREE.Vector3(x, 0.16, 0.32 + len));
+    xAdd(head, new THREE.CylinderGeometry(0.085, 0.085, 0.42, 14), M.tank, x, 0.16, -0.05, Math.PI / 2);            // fuel body
+    xAdd(head, new THREE.SphereGeometry(0.085, 12, 8), M.tank, x, 0.16, -0.26);
+    xAdd(head, new THREE.CylinderGeometry(0.06, 0.085, 0.1, 12), M.metal, x, 0.16, 0.2, Math.PI / 2);               // neck
+    xAdd(head, new THREE.CylinderGeometry(0.038, 0.042, blen, 10), M.dark, x, 0.16, 0.25 + blen / 2, Math.PI / 2);  // barrel
+    for (let k = 0; k < 3; k++) xAdd(head, new THREE.CylinderGeometry(0.05, 0.05, 0.025, 10), M.metal, x, 0.16, 0.32 + k * blen * 0.3, Math.PI / 2);
+    xAdd(head, new THREE.CylinderGeometry(0.075, 0.045, 0.12, 12), M.metal, x, 0.16, 0.31 + blen, Math.PI / 2);     // flared nozzle
+    xAdd(head, new THREE.CylinderGeometry(0.035, 0.035, 0.02, 12), M.metal, x + 0.07, 0.24, -0.08, 0, 0, Math.PI / 2);   // pressure gauge
+    xAdd(head, new THREE.CircleGeometry(0.03, 12), M.insul, x + 0.081, 0.24, -0.08, 0, Math.PI / 2, 0);
+    xAdd(head, new THREE.BoxGeometry(0.04, 0.1, 0.05), M.dark, x, 0.06, -0.12, 0.3);                                   // grip
+    if (level >= 2) {   // igniter: a pilot box under the nozzle with a small live flame
+      xAdd(head, new THREE.BoxGeometry(0.06, 0.06, 0.12), M.dark, x, 0.08, 0.26 + blen);
+      xAdd(head, new THREE.SphereGeometry(0.022, 6, 4), M.pilot, x, 0.08, 0.33 + blen);
+    }
+    muzzles.push(new THREE.Vector3(x, 0.16, 0.38 + blen));
   }
-  if (level >= 4) xAdd(head, new THREE.BoxGeometry(0.6, 0.36, 0.035), M.plate, 0, 0.2, 0.36);
+  const bottles = level >= 3 ? [-0.11, 0.11] : [0];
+  for (const bx of bottles) {   // gas bottle slung under the gun, a valve and a hose up to the body
+    xAdd(head, new THREE.CylinderGeometry(0.06, 0.06, 0.4, 12), M.gun, bx, -0.06, 0.02, Math.PI / 2);
+    xAdd(head, new THREE.SphereGeometry(0.06, 10, 6), M.gun, bx, -0.06, 0.22);
+    xAdd(head, new THREE.CylinderGeometry(0.02, 0.02, 0.06, 6), M.brass, bx, -0.06, 0.27, Math.PI / 2);
+    xAdd(head, new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(bx, -0.06, 0.3), new THREE.Vector3(bx * 0.5, 0.0, 0.34), new THREE.Vector3(xs[0], 0.12, 0.2)]), 10, 0.014, 5), M.hose, 0, 0, 0);
+  }
   mergeByMaterial(g); mergeByMaterial(head);
   return { g, head, muzzles };
 }
@@ -2034,9 +2041,9 @@ function makeWireModel(level = 1) {
   return { g };
 }
 const MODEL_OF = { sentry: (l) => makeSentryModel(l), rocket: (l) => makeRocketModel(l), flamer: makeFlamerModel, cannon: makeCannonModel, spikes: makeSpikesModel, wire: makeWireModel };
-const RANGE_OF = { sentry: 10, rocket: 15, flamer: 6.5, cannon: 20 };
+const RANGE_OF = { sentry: 10, rocket: 15, flamer: 6, cannon: 20 }, FLAME_RANGE = [0, 6, 7, 8, 9];
 // ---- their behaviour
-const FLAME = { dps: [0, 55, 75, 100, 130], cone: [0, 0.35, 0.4, 0.45, 0.62] }, CANNON = { dmg: [0, 60, 60, 70, 80], rate: 1.15 };
+const FLAME = { dps: [0, 55, 70, 90, 115], cone: [0, 0.32, 0.36, 0.4, 0.5], burn: [0, 5, 8, 11, 15] }, CANNON = { dmg: [0, 60, 60, 70, 80], rate: 1.15 };
 const FIRE_COLS = [0xffb24a, 0xff6a1a, 0xffe08a, 0xff8a2a];
 function turnTo(t, dt, speed) {
   if (!t.target) { t.head.rotation.y = t.yaw; return false; }
@@ -2049,20 +2056,22 @@ function updateFlamer(t, dt) {
   if (!t.target || !aligned) return;
   t.g.updateMatrixWorld(true);
   const dir = new THREE.Vector3(Math.sin(t.yaw), 0, Math.cos(t.yaw)), range = turretRange(t), cone = FLAME.cone[t.level];
-  for (const m of t.muzzles) {   // flames: hot, fast, spreading puffs
+  for (const m of t.muzzles) {   // a jet of glowing fire: dense near the nozzle, billowing and rising further out
     const from = t.head.localToWorld(m.clone());
-    for (let k = 0; k < (t.level >= 4 ? 2 : 1); k++) {
-      const a = t.yaw + (Math.random() - 0.5) * cone * 1.4, v = new THREE.Vector3(Math.sin(a), 0.05 + Math.random() * 0.15, Math.cos(a)).multiplyScalar(range * 1.5 + Math.random() * 3);
-      spawnSprite(from.clone(), v, { color: FIRE_COLS[Math.floor(Math.random() * 4)], size: 0.3, grow: 4, life: 0.42 + Math.random() * 0.1, opacity: 0.95, additive: true, drag: 1.2 });
+    for (let k = 0; k < 7; k++) {
+      const a = t.yaw + (Math.random() - 0.5) * cone * 1.5, sp = range * (2.0 + Math.random() * 0.8);
+      emitFire(from, new THREE.Vector3(Math.sin(a) * sp, (Math.random() - 0.3) * 1.2, Math.cos(a) * sp), 0.45 + Math.random() * 0.2, 0, 0.55 + t.level * 0.08);
     }
-    if (Math.random() < 0.15) spawnSprite(from.clone().addScaledVector(dir, range * 0.6), new THREE.Vector3(0, 1.2, 0), { color: 0x3a3330, size: 0.6, grow: 3, life: 1.0, opacity: 0.35, drag: 1 });
+    if (Math.random() < 0.5) emitFire(from, new THREE.Vector3(Math.sin(t.yaw) * range * 2 + (Math.random() - 0.5) * 4, 2 + Math.random() * 3, Math.cos(t.yaw) * range * 2 + (Math.random() - 0.5) * 4), 0.8, 1);   // sparks
+    if (Math.random() < 0.08) spawnSprite(from.clone().addScaledVector(dir, range * 0.7).setY(1.6), new THREE.Vector3(0, 1.2, 0), { color: 0x2e2a28, size: 0.8, grow: 3, life: 1.2, opacity: 0.3, drag: 1 });
+    fireLightAt = from.clone().addScaledVector(dir, range * 0.4).setY(1.2); fireLightK = 1;
   }
   t.tick = (t.tick || 0) - dt; if (t.tick > 0) return; t.tick = 0.15;
   const dmg = FLAME.dps[t.level] * 0.15 * powerOf("flamer") * (1 + 0.25 * card("sdmg") + MOD("sdmg"));
   for (const e of enemies) {   // everything in the cone burns
     if (e.dead) continue; const dx = e.pos.x - t.x, dz = e.pos.z - t.z, d = Math.hypot(dx, dz); if (d > range + 0.5) continue;
     const da = Math.atan2(Math.sin(Math.atan2(dx, dz) - t.yaw), Math.cos(Math.atan2(dx, dz) - t.yaw)); if (Math.abs(da) > cone + 0.3 / Math.max(1, d)) continue;
-    hurtEnemy(e, Math.round(dmg), dir, 0.02, false, true); e.burnT = 2.5;
+    hurtEnemy(e, Math.round(dmg), dir, 0.02, false, true); e.burnT = 2.5 + t.level * 0.5; e.burnDps = Math.max(e.burnDps || 0, FLAME.burn[t.level] * powerOf("flamer"));
   }
 }
 function updateCannon(t, dt) {
@@ -2079,10 +2088,10 @@ function updateCannon(t, dt) {
   hitD = Math.min(hitD, structHitD(t.x, t.z, dir.x, dir.z, hitD, t));
   let hit = null; for (const e of enemies) { if (e.dead) continue; const d = rayCircle(t.x, t.z, dir.x, dir.z, e.pos.x, e.pos.z, 0.5 * (ENEMY_TYPES[e.type].scale || 1)); if (d !== null && d < hitD) { hitD = d; hit = e; } }
   const to = new THREE.Vector3(t.x, 0.9, t.z).addScaledVector(dir, hitD);
-  spawnTracer(from, to, 2.6);
+  const flight = from.distanceTo(to) / 70; spawnBullet(from, to, { scale: 3, len: 1.4, speed: 70, glow: 0xff7a1a, core: 0xfff0b0 });
   spawnSprite(from.clone().addScaledVector(dir, 0.15), dir.clone().multiplyScalar(3), { color: 0xffc46b, size: 1.1, grow: 0.6, life: 0.08, opacity: 1, additive: true, drag: 0 });
   for (let k = 0; k < 3; k++) spawnSprite(from.clone(), dir.clone().multiplyScalar(1.5).add(new THREE.Vector3((Math.random() - 0.5), 0.6, (Math.random() - 0.5))), { color: 0xd8d4cc, size: 0.4, grow: 2.5, life: 0.9, opacity: 0.4, drag: 2 });
-  if (hit || hitD < turretRange(t) + 1.9) explode(to, 1.4, CANNON.dmg[t.level] * powerOf("cannon") * (1 + 0.25 * card("sdmg") + MOD("sdmg")), { small: true });
+  if (hit || hitD < turretRange(t) + 1.9) delayed.push({ t: flight, fn: () => explode(to, 1.4, CANNON.dmg[t.level] * powerOf("cannon") * (1 + 0.25 * card("sdmg") + MOD("sdmg")), { small: true }) });   // the shell lands when the streak gets there
   shake = Math.max(shake, 0.05);
 }
 function updateTraps(dt) {
@@ -2106,9 +2115,66 @@ function updateTraps(dt) {
   }
   for (const e of enemies) {   // burning (flamethrower): a few seconds of damage and flames on the body
     if (e.dead || !(e.burnT > 0)) continue; e.burnT -= dt; e.burnTick = (e.burnTick || 0) - dt;
-    if (Math.random() < dt * 10) spawnSprite(e.pos.clone().setY(0.6 + Math.random() * 1.2), new THREE.Vector3(0, 1.5, 0), { color: FIRE_COLS[Math.floor(Math.random() * 4)], size: 0.3, grow: 2, life: 0.35, opacity: 0.9, additive: true, drag: 1 });
-    if (e.burnTick <= 0) { e.burnTick = 0.4; hurtEnemy(e, 5, zero, 0, false, true); }
+    const sc = ENEMY_TYPES[e.type].scale || 1;   // they go up in flames: fire licking off the body, sparks and embers
+    for (let k = 0; k < 2; k++) emitFire(e.pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.5 * sc, (0.3 + Math.random() * 1.4) * sc, (Math.random() - 0.5) * 0.5 * sc)), new THREE.Vector3((Math.random() - 0.5) * 0.6, 1.5 + Math.random(), (Math.random() - 0.5) * 0.6), 0.4 + Math.random() * 0.2, 0, 0.45 * sc);
+    if (Math.random() < dt * 8) emitFire(e.pos.clone().setY(1.2 * sc), new THREE.Vector3((Math.random() - 0.5) * 3, 2 + Math.random() * 2, (Math.random() - 0.5) * 3), 0.7, 1);
+    if (Math.random() < dt * 4) emitFire(e.pos.clone().setY(1.5 * sc), new THREE.Vector3((Math.random() - 0.5), 1, (Math.random() - 0.5)), 1.6, 2);
+    if (e.burnTick <= 0) { e.burnTick = 0.4; hurtEnemy(e, Math.round((e.burnDps || 5) * 0.4), zero, 0, false, true); }
+    if (e.burnT <= 0) e.burnDps = 0;
   }
+}
+
+
+/* ---------- Fire: one additive point cloud (flames, sparks, embers) and one shared flickering light ---------- */
+const FIRE_MAX = 5000, firePos = new Float32Array(FIRE_MAX * 3), fireVel = new Float32Array(FIRE_MAX * 3), fireAge = new Float32Array(FIRE_MAX * 2), fireKind = new Float32Array(FIRE_MAX * 2);
+fireAge.fill(1); for (let i = 0; i < FIRE_MAX; i++) fireAge[i * 2 + 1] = 1;
+let fireNext = 0, fireActive = 0;
+const fireGeo = new THREE.BufferGeometry();
+fireGeo.setAttribute("position", new THREE.BufferAttribute(firePos, 3).setUsage(THREE.DynamicDrawUsage));
+fireGeo.setAttribute("aAge", new THREE.BufferAttribute(fireAge, 2).setUsage(THREE.DynamicDrawUsage));
+fireGeo.setAttribute("aKind", new THREE.BufferAttribute(fireKind, 2).setUsage(THREE.DynamicDrawUsage));
+const fireMat = new THREE.ShaderMaterial({
+  uniforms: { uScale: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: `attribute vec2 aAge; attribute vec2 aKind; uniform float uScale; varying float vT; varying float vK; varying float vSeed;
+    void main() { float t = aAge.x / aAge.y; vT = t; vK = aKind.x; vSeed = aKind.y;
+      float sz = aKind.x < 0.5 ? mix(0.35, 1.8, sqrt(t)) : aKind.x < 1.5 ? 0.12 : 0.18;
+      gl_PointSize = t >= 1.0 ? 0.0 : sz * aKind.y * uScale; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `varying float vT; varying float vK; varying float vSeed;
+    float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+    float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+    void main() {
+      vec2 c = gl_PointCoord - 0.5; float d = length(c) * 2.0; if (d > 1.0) discard;
+      if (vK > 0.5) { float a = (1.0 - d) * (1.0 - vT); gl_FragColor = vec4(vec3(1.6, 1.15, 0.55) * a * (vK > 1.5 ? 0.6 : 1.4), 1.0); return; }
+      float turb = n(c * 5.0 + vSeed * 13.0 + vT * 3.0) * 0.6 + n(c * 11.0 - vSeed * 7.0) * 0.4;   // ragged, licking edges
+      float body = smoothstep(1.0, 0.15, d + (turb - 0.5) * 0.7);
+      vec3 hot = vec3(2.2, 1.9, 1.3), mid = vec3(2.0, 0.85, 0.2), cool = vec3(0.9, 0.18, 0.04);
+      vec3 col = vT < 0.2 ? mix(hot, mid, vT / 0.2) : mix(mid, cool, (vT - 0.2) / 0.8);
+      float a = body * pow(1.0 - vT, 1.3) * 0.55;
+      gl_FragColor = vec4(col * a, 1.0);
+    }`,
+});
+const firePts = new THREE.Points(fireGeo, fireMat); firePts.frustumCulled = false; firePts.renderOrder = 6; scene.add(firePts);
+const fireLight = new THREE.PointLight(0xff7a2a, 0, 9, 1.6); scene.add(fireLight);   // always in the scene; only its intensity changes
+let fireLightAt = null, fireLightK = 0;
+// kind 0 flame (rises, slows, swells), 1 spark (falls, streaks), 2 ember (floats)
+function emitFire(p, v, life, kind = 0, size = 1) {
+  const i = fireNext; fireNext = (fireNext + 1) % FIRE_MAX;
+  firePos.set([p.x, p.y, p.z], i * 3); fireVel.set([v.x, v.y, v.z], i * 3); fireAge[i * 2] = 0; fireAge[i * 2 + 1] = life; fireKind[i * 2] = kind; fireKind[i * 2 + 1] = size * (0.8 + Math.random() * 0.4);
+}
+function updateFire(dt) {
+  fireMat.uniforms.uScale.value = renderer.getPixelRatio() * innerHeight / (2 * curView);
+  for (let i = 0; i < FIRE_MAX; i++) {
+    const a = fireAge[i * 2]; if (a >= fireAge[i * 2 + 1]) continue;
+    fireAge[i * 2] = a + dt; const k = fireKind[i * 2], o = i * 3;
+    if (k < 0.5) { fireVel[o] *= 1 - dt * 2.6; fireVel[o + 2] *= 1 - dt * 2.6; fireVel[o + 1] = fireVel[o + 1] * (1 - dt * 1.5) + dt * 3.2; }
+    else if (k < 1.5) fireVel[o + 1] -= dt * 9;
+    else { fireVel[o + 1] = fireVel[o + 1] * (1 - dt) + dt * 0.8; }
+    firePos[o] += fireVel[o] * dt; firePos[o + 1] = Math.max(0.02, firePos[o + 1] + fireVel[o + 1] * dt); firePos[o + 2] += fireVel[o + 2] * dt;
+  }
+  fireGeo.attributes.position.needsUpdate = true; fireGeo.attributes.aAge.needsUpdate = true; fireGeo.attributes.aKind.needsUpdate = true;
+  fireLightK = Math.max(0, fireLightK - dt * 3);
+  if (fireLightAt) { fireLight.position.copy(fireLightAt); fireLightAt = null; }
+  fireLight.intensity = fireLightK * (10 + Math.random() * 6);
 }
 
 /* ---------- Walls ---------- */
@@ -2203,7 +2269,7 @@ const saveBuilds = () => { save.builds = structs().map(s => ({ t: s.kind, x: s.x
 // stacking: a wall can sit on a wall; a sentry can sit on a 2 x 2 block of walls (and shoots 3 m further)
 const sentryCovers = (t, x, z) => t.x === x && t.z === z;
 const onTop = (s) => s.kind === "wall" && !s.y && (walls.some(w => w !== s && w.y > 0 && w.x === s.x && w.z === s.z) || sentries.some(t => t.y > 0 && sentryCovers(t, s.x, s.z)));
-const turretRange = (t) => (RANGE_OF[t.kind] || SENTRY.range) + (t.y ? 3 : 0) + 2 * card("srange") + MOD("range");
+const turretRange = (t) => (t.kind === "flamer" ? FLAME_RANGE[t.level] : RANGE_OF[t.kind] || SENTRY.range) + (t.y ? 3 : 0) + 2 * card("srange") + MOD("range");
 const sentryRange = turretRange;
 function buildModel(s) {
   if (s.g) { scene.remove(s.g); }
@@ -2253,6 +2319,13 @@ function losClear(ox, oz, dx, dz, dist) {
   for (const bx of boxColliders) { const t = rayBox(ox, oz, dx, dz, bx); if (t !== null && t < dist) return false; }
   for (const c of treeColliders) { const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.r); if (t !== null && t < dist) return false; }
   return true;
+}
+// A bullet you can see travel: a short glowing streak flying from the muzzle to where the (hitscan) shot landed.
+function spawnBullet(from, to, { speed = 110, len = 1.6, scale = 1, fade = false, glow = 0xff2414, core = 0xffb0a0 } = {}) {
+  const dist = from.distanceTo(to); if (dist < 0.05) return;
+  const line = new THREE.Group();
+  for (const [m, r, c] of [[tracerGlow, 0.035 * scale, glow], [tracerCore, 0.012 * scale, core]]) { const o = new THREE.Mesh(beamGeo, m.clone()); o.material.color.setHex(c); o.scale.set(r, r, 1); line.add(o); }
+  scene.add(line); tracers.push({ line, from: from.clone(), dir: to.clone().sub(from).normalize(), dist, len, speed, s: 0, bullet: true, fade, life: 1 });
 }
 function spawnTracer(from, to, scale = 1, fade = false) {
   // fade: the shot ran out of range, so the last stretch thins out instead of stopping dead
@@ -2327,7 +2400,7 @@ function updateSentries(dt) {
       for (const c of treeColliders) { const d = rayCircle(t.x, t.z, dir.x, dir.z, c.x, c.z, c.r); if (d !== null && d < hitD) { hitD = d; hit = null; } }
       { const d = structHitD(t.x, t.z, dir.x, dir.z, hitD, t); if (d < hitD) { hitD = d; hit = null; } }   // stray rounds stop on our own walls
       const to = new THREE.Vector3(t.x, from.y, t.z).addScaledVector(dir, hitD);
-      spawnTracer(from, to, t.level >= 3 ? 1.5 : 0.8, !hit && hitD >= sentryRange(t) + 2 - 0.01);
+      spawnBullet(from, to, { scale: t.level >= 3 ? 1.5 : 0.9, len: t.level >= 3 ? 2.2 : 1.6, speed: 120, fade: !hit && hitD >= sentryRange(t) + 2 - 0.01 });
       spawnSprite(from.clone().addScaledVector(dir, 0.06), dir.clone().multiplyScalar(2), { color: 0xffc46b, size: 0.45, grow: 0.3, life: 0.05, opacity: 1, additive: true, drag: 0 });
       if (t.shot % 3 === 0) spawnCasing(from.clone().addScaledVector(dir, -0.5).add(new THREE.Vector3(0, -0.05, 0)), dir);
       if (hit) hurtEnemy(hit, Math.round(SENTRY.dmg * LV_DMG[t.level] * powerOf("sentry") * (1 + 0.25 * card("sdmg") + MOD("sdmg"))), dir);
@@ -3431,6 +3504,7 @@ const defPhase = document.getElementById("defPhase"), defTimer = document.getEle
 const orbLayer = document.getElementById("orbLayer");
 const xpNeed = (l) => 5 + 3 * l + Math.floor(l * l * 0.5);
 let ptrDown = null, trayDrag = null, paint = null, brush = null;
+const delayed = [];   // things that happen a moment later (cannon shells landing)
 function paintStep() {   // keep placing under the cursor while the right button is held
   updateGhost(); if (!ghost?.visible || !ghostOk) return;
   const key = `${ghost.position.x},${ghost.position.z}`; if (paint.done.has(key)) return;   // one build per spot per press: no endless stacking
@@ -3717,8 +3791,9 @@ function defReset() {
   for (const t of tracers) scene.remove(t.line); tracers.length = 0;
   for (const q of pops) q.el.remove(); pops.length = 0;
   for (const u of upFx) scene.remove(u.tiles); upFx.length = 0;
-  for (const g of gems) scene.remove(g.m); gems.length = 0;
-  shake = 0; flash.intensity = 0; bannerEl.hidden = true; hoverTip.hidden = true; spotEl.hidden = true; tutPtr.hidden = true; xpBumpT = bankBumpT = 0;
+  for (const g of gems) scene.remove(g.m); gems.length = 0; delayed.length = 0;
+  shake = 0;
+  for (let i = 0; i < FIRE_MAX; i++) fireAge[i * 2] = fireAge[i * 2 + 1]; fireLightK = 0; flash.intensity = 0; bannerEl.hidden = true; hoverTip.hidden = true; spotEl.hidden = true; tutPtr.hidden = true; xpBumpT = bankBumpT = 0;
   for (const s of [...structs()]) removeStruct(s);
   for (const e of enemies) { scene.remove(e.model); removeBar(e.bar); e.mark?.remove(); e.mark = null; enemyPools[e.type].push(e); }
   enemies.length = 0; hovered = null; pendingHits.length = 0;
@@ -3834,10 +3909,19 @@ function defUpdate(rdt) {
   if (shanty && !shantyGone) shanty.userData.outline.visible = baseHover || menuTarget === "base";
   flash.intensity = Math.max(0, flash.intensity - dt * 120);
   for (let i = tracers.length - 1; i >= 0; i--) {
-    const t = tracers[i]; t.life -= dt; t.line.traverse(c => { if (c.isMesh) c.material.opacity = Math.max(0, t.life / 0.1) * (c.userData.k ?? 1); });
+    const t = tracers[i];
+    if (t.bullet) {   // fly the streak along its path
+      t.s += t.speed * dt; const a = Math.max(0, t.s - t.len), b = Math.min(t.s, t.dist);
+      if (a >= t.dist) { scene.remove(t.line); t.line.traverse(c => { if (c.isMesh) c.material.dispose(); }); tracers.splice(i, 1); continue; }
+      t.line.position.copy(t.from).addScaledVector(t.dir, (a + b) / 2); t.line.lookAt(t.from.clone().addScaledVector(t.dir, b + 0.001));
+      const op = t.fade ? Math.max(0, 1 - a / t.dist) : 1; t.line.children.forEach(c => { c.scale.z = Math.max(0.01, b - a); c.material.opacity = op; });
+      continue;
+    }
+    t.life -= dt; t.line.traverse(c => { if (c.isMesh) c.material.opacity = Math.max(0, t.life / 0.1) * (c.userData.k ?? 1); });
     if (t.life <= 0) { scene.remove(t.line); t.line.traverse(c => { if (c.isMesh) c.material.dispose(); }); tracers.splice(i, 1); }
   }
-  updateParticles(dt); updateEnemies(dt); updateSentries(dt); updateBooms(dt); updateShots(dt);
+  for (let i = delayed.length - 1; i >= 0; i--) { delayed[i].t -= dt; if (delayed[i].t <= 0) { delayed[i].fn(); delayed.splice(i, 1); } }
+  updateFire(dt); updateParticles(dt); updateEnemies(dt); updateSentries(dt); updateBooms(dt); updateShots(dt);
   updateMenu(rdt); updateTiles(); updateUpFx(rdt); updatePops(rdt); updateOrbs(rdt); updateFronts();
   // fixed camera on the base
   const wantView = defView() * camZoom; if (Math.abs(curView - wantView) > 0.01) { curView += (wantView - curView) * Math.min(1, rdt * 14); camFrustum(); }
