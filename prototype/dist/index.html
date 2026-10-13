@@ -2866,7 +2866,7 @@ function placeHeight(kind, x, z, ignore) {
   const wo = ws.filter(over);
   if (!wo.length) return playerOn() ? -1 : 0;
   if (!wo.every(same)) return -1;   // only straight on top of one wall stack
-  if (kind === "wall") return wo.length === 1 ? WALL_H : -1;
+  if (kind === "wall") return DEF ? -1 : wo.length === 1 ? WALL_H : -1;   // defense: no wall on a wall (only turrets go up top); a wall ghost aims at the ground behind
   return wo.length === 1 && !wo[0].y ? WALL_H : -1;
 }
 // floor tiles: in build mode every occupied 1 m cell is shown (base footprint red, your builds white);
