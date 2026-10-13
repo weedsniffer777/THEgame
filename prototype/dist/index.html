@@ -113,6 +113,7 @@ body.lobby #game { cursor: default; } body.lobby #reticle { display: none; }
 @keyframes flashk { 50% { background: #e0b04a; color: #1a1408; } }
 #hoverTip { left: 0; top: 0; z-index: 4; padding: 5px 9px 6px; font-size: 13px; letter-spacing: .08em; min-width: 120px; display: grid; gap: 3px; }
 #hoverTip span { color: #e0b04a; margin-left: 6px; } #hoverTip small { font-size: 10px; color: #9d978a; }
+#hoverTip .drag { display: block; margin-top: 3px; font-style: normal; font-size: 10px; letter-spacing: .14em; color: #7dffd6; }
 #hoverTip .bar { height: 5px; background: #3a3c38; } #hoverTip .bar i { display: block; height: 100%; background: #7dff6e; }
 #spot { z-index: 3; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .5), inset 0 0 24px 8px rgba(0, 0, 0, .5); transition: left .08s, top .08s; }
 #banner { left: 50%; top: calc(84px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 5; padding: 8px 16px; font-size: 20px; letter-spacing: .1em; text-align: center; max-width: calc(100vw - 32px); }
@@ -3051,7 +3052,7 @@ function updateHoverTip() {
   const t = !buildMode && !menuTarget && !player.inside && !player.dead ? (hovered ? (hovered.kind ? hovered : null) : baseHover ? "base" : null) : null;
   hoverTip.hidden = !t; if (!t) return;
   if (t === "base") hoverTip.innerHTML = `<b>BASE</b> <span>LV ${save.base}</span><small>Click to manage</small>`;
-  else { const max = STRUCT[t.kind].hp[t.level]; hoverTip.innerHTML = `<b>${STRUCT[t.kind].name}</b> <span>LV ${t.level}</span><div class="bar"><i style="width:${Math.max(0, t.hp / max) * 100}%"></i></div><small>${Math.ceil(t.hp)}/${max} HP</small>`; }
+  else { const max = STRUCT[t.kind].hp[t.level]; hoverTip.innerHTML = `<b>${STRUCT[t.kind].name}</b> <span>LV ${t.level}</span><div class="bar"><i style="width:${Math.max(0, t.hp / max) * 100}%"></i></div><small>${Math.ceil(t.hp)}/${max} HP</small>${DEF && !onTop(t) ? `<em class="drag">${touch.on ? "HOLD" : "DRAG"} TO MOVE</em>` : ""}`; }
   const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, (t.y || 0) + (t.kind === "wall" ? 2.2 : 1.8), t.z);
   const [x, y] = toScreen(at); hoverTip.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
 }
