@@ -1560,6 +1560,7 @@ function killEnemy(e, dir, amt, silent = false, byPlayer = false) {
   if (silent) return;
   sparkFx(at, dir, 14);
   comboT = 2.5; combo++;
+  if (DEF && !runOver) run.killD = (run.killD ?? 16) * 0.97 + baseDist(e.pos)[0] * 0.03;
   if (DEF) { if (!runOver) defOrbs(e, T.xp * 2); } else dropXpTotal(e.pos, T.xp + (byPlayer ? T.bonus + card("loot") : 0));   // your own kills are worth more
   if (combo >= 3) popNumber(at.clone().setY(2.7), `x${combo} COMBO`, true, "dmg combo");
   kills++; save.kills = kills; if (!DEF) writeSave(); killEl.textContent = `${kills} KILLS`;
@@ -2991,7 +2992,7 @@ function renderIcon(obj, straight = false) {   // straight: glowing effect shade
 }
 
 /* ---------- Info menus: structures and the base ---------- */
-const BASE_UP = DEF ? [0, 0, 250, 500, 850, 1300, 1900, 2600, 3500] : [0, 0, 300, 700];   // scrap to reach each base level (level 3 is the max for now)
+const BASE_UP = DEF ? [0, 0, 350, 750, 1300, 2000, 2900, 4000, 5500] : [0, 0, 300, 700];   // scrap to reach each base level (level 3 is the max for now)
 const smenu = document.getElementById("smenu"), smTitle = document.getElementById("smTitle"), smLv = document.getElementById("smLv"), smHpRow = document.getElementById("smHpRow"),
   smHp = document.getElementById("smHp"), smHpT = document.getElementById("smHpT"), smInfo = document.getElementById("smInfo"), smUp = document.getElementById("smUp"), smMove = document.getElementById("smMove"), smSell = document.getElementById("smSell");
 let menuTarget = null, menuT = 0;
@@ -4006,7 +4007,7 @@ function setBuild(i) {
   if (i >= 0) run.events.firstPick = true;
 }
 trayCards.addEventListener("pointerdown", (e) => {
-  const q = e.target.closest("[data-q]"); if (q) { e.preventDefault(); e.stopPropagation(); if (!runOver && !picking && !paused) quickAct(q.dataset.q); return; }
+  noteClick(); const q = e.target.closest("[data-q]"); if (q) { e.preventDefault(); e.stopPropagation(); if (!runOver && !picking && !paused) quickAct(q.dataset.q); return; }
   const c = e.target.closest(".tcard"); if (!c || runOver || picking || paused) return; e.preventDefault();
   const i = +c.dataset.i, again = buildMode && buildSel === i;
   if (!again) { setBuild(i); if (buildSel !== i) return; }
@@ -4042,6 +4043,7 @@ addEventListener("pointermove", (e) => {
 });
 cv.addEventListener("pointerdown", (e) => {
   if (!DEF || runOver || picking || paused || run.lobby) return;
+  noteClick();
   if (run.aim) { if (e.button === 2) cancelAim(); else fireAim(e.clientX, e.clientY); return; }
   { const c = chestAt(e.clientX, e.clientY); if (c && !carry && !buildMode) { openChest(c); return; } }
   if (e.pointerType === "touch") {
@@ -4292,16 +4294,27 @@ const nightBudget = (n) => 90 + n * 50, dayBudget = (n) => Math.round(nightBudge
 // how many come scales with: what you've built (scrap sitting in the bank counts extra: spend it), how far out you're
 // stopping them (crushing it = more), whether you're actually playing (crushing it while idle = a lot more), and base health (hurting = fewer)
 let strengthT = 0, strengthK = 1;
+// The scaler. Pressure goes up with:
+//  - firepower: every tower by kind and level (scrap sitting in the bank counts extra: spend it)
+//  - dominance: how far from the base enemies die on average, and how far out the living ones are held
+//  - boredom: crushing it while barely clicking ramps spawns up hard; busy, engaged play gets a gentler curve
+// and comes down when the base is hurting or enemies are dying at the walls
 const act = () => { run.lastAct = run.t; };
+function noteClick() { if (!run.started || runOver) return; (run.clicks ||= []).push(run.t); run.lastClick = run.t; }
 function strengthMult() {
   if ((strengthT -= 1 / 60) > 0) return strengthK; strengthT = 1;
-  let worth = save.xp * 1.6; for (const s of structs()) worth += PRICE[s.kind][0] * (MERGEABLE.has(s.kind) ? 2 ** (s.level - 1) : s.level);
+  let worth = save.xp * 1.6; for (const s of structs()) worth += PRICE[s.kind][0] * (MERGEABLE.has(s.kind) ? 1.75 ** (s.level - 1) * (1 + 0.15 * (s.level - 1)) : s.level);
   let n = 0, sum = 0; for (const e of enemies) if (!e.dead && e.type !== "bomber") { sum += baseDist(e.pos)[0]; n++; }
-  const avgD = n >= 6 ? sum / n : 18, hpK = save.baseHp / baseMax(), idle = run.t - (run.lastAct ?? 0);
-  let want = clamp((avgD - 15) / 18, -0.35, 0.5) - (1 - hpK) * 0.5;   // held far out: more; at the walls: fewer
-  if (avgD > 15 && idle > 30) want += Math.min(0.6, (idle - 30) / 40);   // crushing it without touching anything: too easy
-  run.perf = (run.perf || 0) + (want - (run.perf || 0)) * 0.12;
-  return (strengthK = clamp((1 + Math.max(0, worth - 150) / 450) * (1 + run.perf), 0.7, 5));
+  const liveD = n >= 6 ? sum / n : 18, killD = run.killD ?? 16, hpK = save.baseHp / baseMax();
+  const cl = run.clicks || []; while (cl.length && cl[0] < run.t - 60) cl.shift();
+  const apm = cl.length, idle = run.t - Math.max(run.lastClick ?? 0, run.lastAct ?? 0);
+  let want = clamp((killD - 13) / 12, -0.45, 0.8) + clamp((liveD - 15) / 20, -0.3, 0.3) - (1 - hpK) * 0.7;
+  const winning = hpK > 0.6 && killD > 12;
+  if (winning && idle > 12) want += Math.min(1.0, (idle - 12) / 25);             // bored / AFK while on top: flood it
+  else if (winning && apm < 6) want += 0.25;                                      // barely touching it
+  if (apm >= 25) want -= 0.2; else if (apm >= 12) want -= 0.1;                    // busy and engaged: a gentler curve
+  run.perf = (run.perf || 0) + (want - (run.perf || 0)) * 0.15;
+  return (strengthK = clamp((1 + Math.max(0, worth - 120) / 380) * (1 + run.perf), 0.7, 6));
 }
 function defSpawns(dt) {
   const t = run.t, k = clamp(t / 600, 0, 1), ph = phaseOf(t);
@@ -4356,7 +4369,7 @@ const starter = () => BUILDS.find(b => catOf(b.id) === "weapon")?.id || BUILDS[0
 function defReset() {
   clearWorld(); run.lobby = false; document.body.classList.remove("lobby"); lobbyEl.hidden = true;
   BUILDS = loadout();
-  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { [starter()]: starterN() }, freeTotal: { [starter()]: starterN() }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, phaseKey: 0, phaseSpawned: 0, lastAct: 0, perf: 0, priceK: 1, lad: {}, strike: 0, strikeNeed: STRIKE_NEED0, raidT: 0, got: {} });
+  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { [starter()]: starterN() }, freeTotal: { [starter()]: starterN() }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, phaseKey: 0, phaseSpawned: 0, lastAct: 0, perf: 0, priceK: 1, lad: {}, clicks: [], lastClick: 0, killD: 16, strike: 0, strikeNeed: STRIKE_NEED0, raidT: 0, got: {} });
   spT = { walker: 1.5, runner: 0, bomber: 0 }; gangT = 2;
   save.xp = 25; save.cards = []; save.builds = [];
   // the opening: a first front, a few walkers already on their way in slow motion, a free sentry to place
