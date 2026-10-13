@@ -213,9 +213,9 @@ body.def #game { cursor: default; }
 .tcard.sel { transform: translateY(-8px); box-shadow: 0 0 0 3px #e0b04a, 0 0 0 5px #101211, 0 10px 0 #101211; }
 .tcard.poor { opacity: .55; } .tcard.locked { opacity: .35; filter: grayscale(1); } .tcard.locked .cost { color: #9d978a; font-size: 11px; } .tcard.deny { animation: deny .25s; } .tcard.poor .cost { color: #e8584a; }
 .tcard.free .cost { color: #7dffd6; }
-.tcard .qp { position: absolute; left: 50%; top: -34px; transform: translateX(-50%); padding: 5px 10px 4px; font-size: 11px; letter-spacing: .14em; color: #0f1a0d; background: #6fe05a; box-shadow: 0 0 0 2px #101211, 0 4px 0 #101211; cursor: pointer; white-space: nowrap; }
-.tcard .qp:hover { filter: brightness(1.15); } .tcard .qp.mg { background: #7dffd6; } .tcard .qp.off { background: #3a3d3a; color: #7a7f7a; }
-.tcard.poor .qp:not(.off) { opacity: 1; } body.mobile .tcard .qp { top: -28px; font-size: 10px; padding: 4px 7px 3px; }
+.tcard .qp { position: absolute; left: 50%; top: -40px; transform: translateX(-50%); width: 84px; padding: 4px 2px 3px; font-size: 10px; line-height: 1.1; letter-spacing: .1em; text-align: center; white-space: normal !important; color: #0f1a0d; background: #6fe05a; box-shadow: 0 0 0 2px #101211, 0 4px 0 #101211; cursor: pointer; white-space: nowrap; }
+.tcard .qp:hover { filter: brightness(1.15); } .tcard .qp.up { background: #ffd23a; } .tcard .qp.mg { background: #7dffd6; } .tcard .qp.off { background: #3a3d3a; color: #7a7f7a; }
+.tcard.poor .qp:not(.off) { opacity: 1; } body.mobile .tcard .qp { top: -34px; width: 66px; font-size: 9px; padding: 3px 2px 2px; }
 .tcard.strike { overflow: hidden; } .tcard.strike .jet { font-size: 38px; line-height: 64px; color: #6a726c; position: relative; } .tcard.strike b { position: relative; }
 .tcard.strike .sfill { position: absolute; inset: 0; display: flex; align-items: flex-end; pointer-events: none; } .tcard.strike .sfill i { display: block; width: 100%; height: 0; background: linear-gradient(0deg, rgba(255, 130, 40, .55), rgba(255, 200, 80, .15)); transition: height .2s; }
 .tcard.strike.ready { animation: sbounce .7s ease-in-out infinite; box-shadow: 0 0 0 3px #ff9a3a, 0 0 0 5px #101211, 0 0 26px 6px rgba(255, 140, 50, .7); } .tcard.strike.aiming { transform: translateY(-8px); box-shadow: 0 0 0 3px #ff4a2a, 0 0 0 5px #101211, 0 0 20px 4px rgba(255, 74, 42, .7); } .tcard.strike.aiming .jet { color: #ff8a6a; }
@@ -345,6 +345,9 @@ body.def #banner { top: calc(104px + env(safe-area-inset-top, 0px)); } body.def.
 .card .ic img { width: 62px; height: 62px; filter: drop-shadow(0 0 8px var(--rc)) drop-shadow(0 3px 2px rgba(0, 0, 0, .6)); }
 .card .ic em { position: absolute; right: -6px; bottom: -6px; width: 26px; height: 26px; display: grid; place-items: center; font-style: normal; font-size: 15px; color: #101211; background: var(--rc); box-shadow: 0 0 0 2px #101211, 0 0 10px var(--rc); }
 .card .ic:not(:has(img)) em { position: static; width: auto; height: auto; background: none; box-shadow: none; font-size: 38px; color: var(--rc); text-shadow: 0 0 14px var(--rc); }
+.card .ic.fx { width: 92px; height: 92px; } .card .ic.fx > img { width: 84px; height: 84px; filter: drop-shadow(0 0 12px var(--rc)) drop-shadow(0 3px 2px rgba(0, 0, 0, .6)); }
+.card .ic.fx em { width: 34px; height: 34px; background: #1b1d1b; box-shadow: 0 0 0 2px var(--rc), 0 0 10px var(--rc); } .card .ic.fx em img { width: 30px; height: 30px; filter: none; }
+.card .ptag { font-size: 10px; letter-spacing: .3em; padding: 2px 8px 1px; color: #101211; background: var(--rc); box-shadow: 0 0 10px var(--rc); }
 .card .val { font-size: 30px; line-height: 1; color: #fff; text-shadow: 0 0 14px var(--rc), 0 2px 0 #000; }
 .card.legendary { animation: cardIn .5s cubic-bezier(.2, 1.5, .4, 1) backwards, legend 1.2s ease-in-out .5s infinite; } @keyframes legend { 50% { box-shadow: 0 0 0 3px var(--rc), 0 0 0 5px #101211, 0 0 34px 8px var(--rc), 0 8px 0 #101211; } }
 .card.picked { transform: scale(1.12) translateY(-10px); box-shadow: 0 0 0 3px #fff, 0 0 0 5px #101211, 0 0 50px 12px var(--rc); z-index: 2; } .card.gone { opacity: 0; transform: translateY(40px) scale(.85); pointer-events: none; }
@@ -1019,6 +1022,49 @@ function makePine(seed) {
   const { leafMat, barkMat } = pineMaterials(), v = buildPineGeos(seed), g = new THREE.Group(); g.name = "pine";
   g.add(new THREE.Mesh(v.trunk, barkMat), new THREE.Mesh(v.foliage, leafMat)); return g;
 }
+// impostors: the three pine variants rendered once (orthographic, from exactly the game camera's direction) into one texture;
+// far trees use a camera-facing card of that picture. The camera never turns, so they look the same as the real thing
+const IMP = { rt: null, cells: [], right: new THREE.Vector3(), up: new THREE.Vector3(), cam: null };
+function impCamera() {
+  if (IMP.cam) return IMP.cam; const c = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 100); c.position.copy(CAM_OFFSET).normalize(); c.lookAt(0, 0, 0); c.updateMatrixWorld(true);
+  IMP.right.setFromMatrixColumn(c.matrixWorld, 0); IMP.up.setFromMatrixColumn(c.matrixWorld, 1); return (IMP.cam = c);
+}
+function treeImpostors(list) {
+  const cam = impCamera(), { leafMat, barkMat } = pineMaterials(), N = 3;
+  IMP.rt = new THREE.WebGLRenderTarget(1024, 512, { samples: 0 }); IMP.rt.texture.colorSpace = THREE.SRGBColorSpace; IMP.rt.texture.generateMipmaps = true; IMP.rt.texture.minFilter = THREE.LinearMipmapLinearFilter;
+  for (let v = 0; v < N; v++) {   // frame each variant: its bounds as seen by the camera, in camera space
+    const geos = buildPineGeos(v + 1), grp = new THREE.Group(); grp.add(new THREE.Mesh(geos.trunk, barkMat), new THREE.Mesh(geos.foliage, leafMat));
+    const box = new THREE.Box3().setFromObject(grp); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (let i = 0; i < 8; i++) { const p = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).applyMatrix4(cam.matrixWorldInverse); x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+    const hh = Math.max(y1 - y0, (x1 - x0) * (512 / (1024 / N))) / 2 * 1.03, hw = hh * (1024 / N) / 512, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    IMP.cells.push({ grp, cx, cy, hw, hh });
+  }
+  const pos = [], uv = [], nrm = [], idx = [];
+  for (const [x, z, v, s, sy, flip] of list) {
+    const c = IMP.cells[v], base = pos.length / 3, ky = sy / s;
+    const ctr = new THREE.Vector3(x, 0, z).addScaledVector(IMP.right, c.cx * s).addScaledVector(IMP.up, c.cy * s * ky).addScaledVector(CAM_OFFSET, 2.5 / CAM_OFFSET.length());   // nudged toward the camera so the card's foot stays above the ground
+    for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      const p = ctr.clone().addScaledVector(IMP.right, a * c.hw * s).addScaledVector(IMP.up, b * c.hh * s * ky); pos.push(p.x, p.y, p.z); nrm.push(0, 1, 0);
+      const u = (v + ((flip ? -a : a) + 1) / 2) / N; uv.push(u, (b + 1) / 2);
+    }
+    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(nrm, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: IMP.rt.texture, alphaTest: 0.5, side: THREE.DoubleSide })); m.name = "impostors";
+  return m;
+}
+function bakeTreeImpostors() {
+  if (IMP.done || !IMP.rt) return; const { leafMat, barkMat } = pineMaterials(); if (!leafMat.map.image || !barkMat.map.image) return; IMP.done = true;
+  const cam = impCamera(), sc = new THREE.Scene(), N = IMP.cells.length;
+  sc.add(new THREE.HemisphereLight(0xffffff, 0x8a8a7a, 2.2)); const dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(-6, 14, 9); sc.add(dl);
+  const prevT = renderer.getRenderTarget(), prevC = renderer.getClearColor(new THREE.Color()), prevA = renderer.getClearAlpha(), prevS = renderer.shadowMap.autoUpdate;
+  renderer.setRenderTarget(IMP.rt); renderer.setClearColor(0x2a3a22, 0); renderer.clear(); renderer.setScissorTest(true);
+  IMP.cells.forEach((c, v) => {
+    sc.add(c.grp); Object.assign(cam, { left: c.cx - c.hw, right: c.cx + c.hw, top: c.cy + c.hh, bottom: c.cy - c.hh }); cam.updateProjectionMatrix();
+    const w = 1024 / N; renderer.setViewport(v * w, 0, w, 512); renderer.setScissor(v * w, 0, w, 512); renderer.render(sc, cam); sc.remove(c.grp);
+  });
+  renderer.setScissorTest(false); renderer.setRenderTarget(prevT); renderer.setClearColor(prevC, prevA); renderer.setViewport(0, 0, renderer.domElement.width / renderer.getPixelRatio(), renderer.domElement.height / renderer.getPixelRatio());
+}
 function buildTreeline() {
   const { leafMat, leafDepth, barkMat } = pineMaterials();
   // Fill everything outside the clearing out to the far edge on a jittered grid: a ragged edge (some trees a
@@ -1028,7 +1074,7 @@ function buildTreeline() {
   for (let gx = -FAR; gx <= FAR; gx += STEP) for (let gz = -FAR; gz <= FAR; gz += STEP) {
     const x = gx + (rndp() - 0.5) * STEP * 0.9, z = gz + (rndp() - 0.5) * STEP * 0.9, d = Math.hypot(x, z), e = clearingR(Math.atan2(z, x));
     const keep = d < e - 1.5 ? 0 : d < e ? 0.3 : d < e + 3 ? 0.8 : d < e + 9 ? 0.93 : 0.8;
-    if (rndp() < keep) spots.push([x, z, d > e + 6]);
+    if (rndp() < keep) spots.push([x, z, d > e + 5]);
   }
   // Split the treeline into 12 m chunks, each merged into one trunk mesh + one foliage mesh.
   // Every chunk has its own bounds, so three.js frustum-culls the ones off camera (and off the
@@ -1036,7 +1082,9 @@ function buildTreeline() {
   const variants = [1, 2, 3].map(v => buildPineGeos(v)), farVariants = [1, 2, 3].map(v => buildPineGeos(v, true)), m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
   const group = new THREE.Group(); group.name = "treeline";
   const CHUNK = 12, chunks = new Map();
+  const imp = [];   // far trees: flat cards (2 triangles each) with a picture of the tree taken from the camera's angle
   spots.forEach(([x, z, far], i) => {
+    if (far) { const s = 0.8 + rndp() * 0.45; imp.push([x, z, i % 3, s, s * (0.9 + rndp() * 0.2), rndp() < 0.5]); rndp(); return; }
     const key = `${Math.floor(x / CHUNK)},${Math.floor(z / CHUNK)},${far ? 1 : 0}`, v = (far ? farVariants : variants)[i % 3];
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rndp() * Math.PI * 2); const s = 0.8 + rndp() * 0.45;
     // trees on the camera side of the clearing are shorter so they don't hide the play area
@@ -1046,6 +1094,7 @@ function buildTreeline() {
     const c = chunks.get(key) || chunks.set(key, { trunks: [], leaves: [] }).get(key);
     c.trunks.push(v.trunk.clone().applyMatrix4(m)); c.leaves.push(v.foliage.clone().applyMatrix4(m));
   });
+  group.add(treeImpostors(imp));
   for (const [key, c] of chunks) {
     const far = key.endsWith(",1"), trunks = new THREE.Mesh(mergeGeometries(c.trunks), barkMat), leaves = new THREE.Mesh(mergeGeometries(c.leaves), leafMat);
     leaves.customDepthMaterial = leafDepth;
@@ -1054,6 +1103,7 @@ function buildTreeline() {
   return group;
 }
 scene.add(buildTreeline()); // enemies will come out of the woods from every side
+// the impostor picture is baked as soon as the pine textures have loaded (see defUpdate / frame)
 // A few lone pines inside the arena; circle colliders for the player and for bullets.
 const treeColliders = [];
 {
@@ -1695,7 +1745,7 @@ function updateEnemies(dt) {
     } else if (wallHit || (reach && tdist < reach)) {   // melee: wind up, then swipe if still in reach
       e.inMelee = true;
       if (e.atk <= 0) e.atk = 0.45; e.atk -= dt;
-      if (e.atk <= 0) { e.lunge = 0.25; e.atk = 1.1; e.hitAt = run.t; const sd = (T.sdmg || 15) * dmgMul(); if (wallHit) hitStruct(e.wallT, sd); else if (tgt === BASE_T) hurtBase(DEF ? sd * 0.3 : sd); else if (tgt) hitStruct(tgt, sd); else if (tdist < reach + 0.3) hurtPlayer(Math.round(e.dmg)); }
+      if (e.atk <= 0) { e.lunge = 0.25; e.atk = 1.1; e.hitAt = run.t; const sd = (T.sdmg || 15) * dmgMul(); if (wallHit) hitStruct(e.wallT, sd, e); else if (tgt === BASE_T) hurtBase(DEF ? sd * 0.3 : sd); else if (tgt) hitStruct(tgt, sd, e); else if (tdist < reach + 0.3) hurtPlayer(Math.round(e.dmg)); }
     } else { e.atk = 0; e.inMelee = false; }
     e.lunge = Math.max(0, e.lunge - dt); e.flash = Math.max(0, e.flash - dt); e.slowT = Math.max(0, (e.slowT || 0) - dt);
     // attack animation: arms come up and the body leans back on the wind-up, then a forward lunge and downward swipe
@@ -2020,7 +2070,7 @@ function setCover(t, i, open) {
   }
 }
 // Rockets: launched up out of the box, then they curve onto their target and blow up on it
-const ROCKET = { range: 15, minRange: 2.5, dmg: 45, radius: 2.0, rate: [0, 3.0, 2.6, 2.5, 2.3], burst: [0, 3, 5, 5, 6] };   // LV3+: heavy rockets
+const ROCKET = { range: 15, minRange: 2.5, dmg: 45, radius: 2.0, rate: [0, 3.0, 2.6, 2.5, 2.3, 2.15, 2.0, 1.9, 1.8], burst: [0, 3, 5, 5, 6, 7, 7, 8, 9] };   // LV3+: heavy rockets
 const rockets = [], rocketGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.3, 6).rotateX(Math.PI / 2), rocketNoseGeo = new THREE.ConeGeometry(0.035, 0.09, 6).rotateX(Math.PI / 2).translate(0, 0, 0.195);
 const rocketBodyMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d8, roughness: 0.5 }), rocketTipMat = new THREE.MeshStandardMaterial({ color: 0xc8402c, roughness: 0.5 });
 function fireRocket(t) {
@@ -2049,7 +2099,7 @@ function updateRockets(dt) {
     let boom = d < 0.6 || r.pos.y < 0.12 || r.age > 3;
     if (!boom) for (const e of enemies) if (!e.dead && r.pos.y < 2 && Math.hypot(e.pos.x - r.pos.x, e.pos.z - r.pos.z) < 0.55) { boom = true; break; }
     if (!boom && r.pos.y < 3.2 && r.age > 0.25) for (const [x0, x1, z0, z1] of boxColliders) if (r.pos.x > x0 && r.pos.x < x1 && r.pos.z > z0 && r.pos.z < z1) { boom = true; break; }
-    if (boom) { scene.remove(r.m); rockets.splice(i, 1); shooter = r.src; const hv = r.lvl >= 3 ? 1 : 0; explode(r.pos.clone().setY(Math.max(0.35, r.pos.y)), ROCKET.radius * (1 + MOD("rrad")) * (1 + hv * 0.3), ROCKET.dmg * (1 + hv * 0.6) * powerOf("rocket") * (1 + 0.25 * card("sdmg") + MOD("rdmg")), { small: !hv }); shooter = null; }
+    if (boom) { scene.remove(r.m); rockets.splice(i, 1); shooter = r.src; const hv = r.lvl >= 3 ? 1 : 0, bp = r.pos.clone().setY(Math.max(0.35, r.pos.y)), br = ROCKET.radius * (1 + MOD("rrad")) * (1 + hv * 0.3) * (1 + MOD("thermo")); rocketPerks(bp, br); explode(bp, br, ROCKET.dmg * (1 + hv * 0.6) * powerOf("rocket") * (1 + 0.25 * card("sdmg") + MOD("rdmg")), { small: !hv }); shooter = null; }
   }
 }
 function updateRocketTurret(t, dt) {
@@ -2215,10 +2265,50 @@ function makeWireModel(level = 1) {
   mergeByMaterial(g);
   return { g };
 }
-const MODEL_OF = { sentry: (l) => makeSentryModel(l), rocket: (l) => makeRocketModel(l), flamer: makeFlamerModel, cannon: makeCannonModel, spikes: makeSpikesModel, wire: makeWireModel };
-const RANGE_OF = { sentry: 10, rocket: 15, flamer: 6, cannon: 20 }, FLAME_RANGE = [0, 6, 7, 8, 9];
+const MODEL_RAW = { sentry: (l) => makeSentryModel(l), rocket: (l) => makeRocketModel(l), flamer: makeFlamerModel, cannon: makeCannonModel, spikes: makeSpikesModel, wire: makeWireModel }, RAW_MAX = { sentry: 4, rocket: 4, flamer: 4, cannon: 4, spikes: 2, wire: 2 };
+const MODEL_OF = Object.fromEntries(Object.keys(MODEL_RAW).map(k => [k, (l = 1) => dressTier(MODEL_RAW[k](Math.min(l, RAW_MAX[k])), k, l)]));
+// Turret levels past 4 keep the LV4 gun and repaint it: LV5 desert tan, LV6 urban grey-blue, LV7 crimson, LV8 black with gold
+// metalwork. One small status light on the head in the tier's colour. Traps: LV3 blackened steel, LV4 red-hot / high voltage.
+const TIER_PAINT = { 5: 0xb39a66, 6: 0x7c8a98, 7: 0x8a2020, 8: 0x161618 }, TIER_GLOW = { 5: 0xfff0c0, 6: 0x3ad8ff, 7: 0xff7a1a, 8: 0xffc83a }, tierMats = new Map();
+const lum = (c) => 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
+function tierMat(m, lv) {
+  const p = TIER_PAINT[lv]; if (!p || !m?.isMeshStandardMaterial || m.transparent || m.emissiveIntensity > 0.5) return m;
+  const key = m.uuid + ":" + lv; if (tierMats.has(key)) return tierMats.get(key);
+  const t = m.clone(), L = lum(m.color);
+  if (lv === 8 && m.metalness >= 0.45 && L > 0.2) { t.color.setHex(0xd8a83a); t.metalness = 0.9; t.roughness = 0.3; }   // bright metal turns gold
+  else if (L > 0.1) { t.color.lerp(new THREE.Color(p), lv === 8 ? 0.85 : 0.75); if (lv === 8) t.roughness *= 0.7; }   // the body takes the paint
+  tierMats.set(key, t); return t;
+}
+const TM = {};
+function tierParts() {
+  if (TM.glow) return TM;
+  TM.glow = Object.fromEntries(Object.entries(TIER_GLOW).map(([l, c]) => [l, new THREE.MeshBasicMaterial({ color: c, toneMapped: false })]));
+  TM.black = new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.45, metalness: 0.85 });
+  TM.hot = new THREE.MeshStandardMaterial({ color: 0xffb08a, emissive: 0xff3a10, emissiveIntensity: 1.2, roughness: 0.3, metalness: 0.8 });
+  TM.zap2 = new THREE.MeshStandardMaterial({ color: 0xbfe0ff, emissive: 0x3a7cff, emissiveIntensity: 2.2, roughness: 0.3, metalness: 0.8 });
+  return TM;
+}
+function dressTier(m, kind, level) {
+  const T = tierParts();
+  if (TRAP_KINDS.has(kind)) {
+    if (level < 3) return m; const X = xMats();
+    m.g.traverse(o => { if (!o.isMesh) return;
+      if (kind === "spikes" && o.material === X.spike) o.material = level >= 4 ? T.hot : T.black;
+      if (kind === "wire" && o.material === X.zap) o.material = level >= 4 ? T.zap2 : o.material;
+      if (kind === "wire" && o.material === X.dark && level >= 3) o.material = T.black; });
+    return m;
+  }
+  if (level < 5) return m;
+  m.g.traverse(o => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map(x => tierMat(x, level)) : tierMat(o.material, level); });
+  if (m.head) {   // one status light on top of the head
+    m.g.updateMatrixWorld(true); const hb = new THREE.Box3().setFromObject(m.head), l = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), T.glow[level]);
+    l.position.set(0, hb.max.y - m.head.position.y + 0.02, Math.min(0, hb.min.z + 0.15)); m.head.add(l);
+  }
+  return m;
+}
+const RANGE_OF = { sentry: 10, rocket: 15, flamer: 6, cannon: 20 }, FLAME_RANGE = [0, 6, 7, 8, 9, 9.5, 10, 10.5, 11];
 // ---- their behaviour
-const FLAME = { dps: [0, 55, 70, 90, 115], cone: [0, 0.32, 0.36, 0.4, 0.5], burn: [0, 5, 8, 11, 15] }, CANNON = { dmg: [0, 60, 60, 70, 80], rate: 0.85, gap: 0.11 };   // bursts of level + 1 shells
+const FLAME = { dps: [0, 55, 70, 90, 115, 145, 180, 220, 270], cone: [0, 0.32, 0.36, 0.4, 0.5, 0.52, 0.55, 0.58, 0.62], burn: [0, 5, 8, 11, 15, 19, 24, 30, 36] }, CANNON = { dmg: [0, 60, 60, 70, 80, 90, 100, 115, 130], rate: 0.85, gap: 0.11 };   // bursts of level + 1 shells
 const FIRE_COLS = [0xffb24a, 0xff6a1a, 0xffe08a, 0xff8a2a];
 function turnTo(t, dt, speed) {
   if (!t.target) { t.head.rotation.y = t.yaw; return false; }
@@ -2246,7 +2336,7 @@ function updateFlamer(t, dt) {
   for (const e of enemies) {   // everything in the cone burns
     if (e.dead) continue; const dx = e.pos.x - t.x, dz = e.pos.z - t.z, d = Math.hypot(dx, dz); if (d > range + 0.5) continue;
     const da = Math.atan2(Math.sin(Math.atan2(dx, dz) - t.yaw), Math.cos(Math.atan2(dx, dz) - t.yaw)); if (Math.abs(da) > cone + 0.3 / Math.max(1, d)) continue;
-    shooter = t; hurtEnemy(e, Math.round(dmg), dir, 0.02, false, true); shooter = null; e.burnT = 2.5 + t.level * 0.5; e.burnDps = Math.max(e.burnDps || 0, FLAME.burn[t.level] * powerOf("flamer"));
+    shooter = t; hurtEnemy(e, Math.round(dmg), dir, 0.02, false, true); shooter = null; e.burnT = (2.5 + t.level * 0.5) * (1 + MOD("napalm")); e.burnDps = Math.max(e.burnDps || 0, FLAME.burn[t.level] * powerOf("flamer") * (1 + MOD("napalm")));
   }
 }
 function updateCannon(t, dt) {
@@ -2269,7 +2359,10 @@ function updateCannon(t, dt) {
   spawnSprite(from.clone().addScaledVector(dir, 0.15), dir.clone().multiplyScalar(3), { color: 0xffc46b, size: 1.6, grow: 0.6, life: 0.09, opacity: 1, additive: true, drag: 0 });
   spawnSprite(from.clone().addScaledVector(dir, 0.3), new THREE.Vector3(), { color: 0xff8a2a, size: 3.2, grow: 0.6, life: 0.08, opacity: 0.5, additive: true, drag: 0 }); muzzleLight(from, 45, 11);
   for (let k = 0; k < 3; k++) spawnSprite(from.clone(), dir.clone().multiplyScalar(1.5).add(new THREE.Vector3((Math.random() - 0.5), 0.6, (Math.random() - 0.5))), { color: 0xd8d4cc, size: 0.4, grow: 2.5, life: 0.9, opacity: 0.4, drag: 2 });
-  if (hit || hitD < turretRange(t) + 1.9) delayed.push({ t: flight, fn: () => { shooter = t; explode(to, 1.4, CANNON.dmg[t.level] * powerOf("cannon") * (1 + 0.25 * card("sdmg") + MOD("sdmg")), { small: true }); shooter = null; } });   // the shell lands when the streak gets there
+  if (hit || hitD < turretRange(t) + 1.9) delayed.push({ t: flight, fn: () => { shooter = t; const cd = CANNON.dmg[t.level] * powerOf("cannon") * (1 + 0.25 * card("sdmg") + MOD("sdmg")); explode(to, 1.4, cd, { small: true });
+    if (MOD("frag")) { for (const e of [...enemies]) { if (e.dead) continue; const d = Math.hypot(e.pos.x - to.x, e.pos.z - to.z); if (d > 1.4 && d < 2.8) hurtEnemy(e, Math.round(cd * MOD("frag")), new THREE.Vector3(e.pos.x - to.x, 0, e.pos.z - to.z).normalize(), 0.1); }
+      for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; spawnSprite(to.clone().setY(0.5), new THREE.Vector3(Math.sin(a) * 9, 1 + Math.random() * 2, Math.cos(a) * 9), { color: 0xffd080, size: 0.08, life: 0.3, opacity: 1, additive: true, drag: 1 }); } }
+    shooter = null; } });   // the shell lands when the streak gets there
   shake = Math.max(shake, 0.05);
 }
 function updateTraps(dt) {
@@ -2277,14 +2370,14 @@ function updateTraps(dt) {
   for (const t of traps) {
     const inside = enemies.filter(e => !e.dead && Math.abs(e.pos.x - t.x) < 1.05 && Math.abs(e.pos.z - t.z) < 1.05);
     if (t.kind === "wire") {
-      for (const e of inside) { e.slowT = 0.3; e.wireT = (e.wireT || 0) + dt; if (e.wireT > 0.5) { e.wireT = 0; hurtEnemy(e, Math.round((t.level >= 2 ? 16 : 5) * powerOf("wire")), zero, 0, false, true);
+      for (const e of inside) { e.slowT = 0.3; e.wireT = (e.wireT || 0) + dt; if (e.wireT > 0.5) { e.wireT = 0; hurtEnemy(e, Math.round([0, 5, 16, 26, 38][t.level] * powerOf("wire")), zero, 0, false, true);
         if (t.level >= 2) for (let k = 0; k < 3; k++) spawnSprite(e.pos.clone().setY(0.4 + Math.random()), new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3), { color: 0x9fd0ff, size: 0.1, life: 0.2, opacity: 1, additive: true, drag: 1 }); } }
       if (t.level >= 2 && Math.random() < dt * 3) spawnSprite(new THREE.Vector3(t.x + (Math.random() - 0.5) * 1.8, 0.4 + Math.random() * 0.4, t.z + (Math.random() < 0.5 ? -0.45 : 0.45)), zero.clone(), { color: 0x8fb8ff, size: 0.18, grow: 0.5, life: 0.1, opacity: 1, additive: true, drag: 0 });
     } else if (t.kind === "spikes") {
       t.cd = Math.max(0, (t.cd || 0) - dt); t.pop = Math.max(0, (t.pop || 0) - dt);
       if (!t.cd && inside.length && t.pack <= 0) {
-        t.cd = t.level >= 2 ? 1.0 : 1.6; t.pop = 0.6;
-        for (const e of inside) hurtEnemy(e, Math.round((t.level >= 2 ? 110 : 60) * powerOf("spikes") * (1 + MOD("sdmg"))), new THREE.Vector3(0, 1, 0), 0);
+        t.cd = [0, 1.6, 1.0, 0.85, 0.7][t.level]; t.pop = 0.6;
+        for (const e of inside) hurtEnemy(e, Math.round([0, 60, 110, 160, 220][t.level] * powerOf("spikes") * (1 + MOD("sdmg"))), new THREE.Vector3(0, 1, 0), 0);
         sparkFx(new THREE.Vector3(t.x, 0.4, t.z), new THREE.Vector3(0, 1, 0), 8);
       }
       t.spikes.position.y = t.pop > 0.45 ? 0 : -0.62 * (1 - t.pop / 0.45);   // out in a flash, back down slowly
@@ -2422,9 +2515,24 @@ function wallGeometries() {
 }
 const WALL2 = {}, WALL_H = 2;   // 2 x 2 x 2 m: the 1 m block model scaled up
 const wall2Geometries = (level) => WALL2[level] ||= wallGeometries()[level].map(([m, g]) => [m, g.clone().scale(2, 2, 2)]);
+const wallTierMats = {};
+function wallTierMat(lv) {
+  if (wallTierMats[lv]) return wallTierMats[lv];
+  const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d");
+  if (lv === 5) {   // concrete: grey, speckled, pour lines and form-tie holes
+    x.fillStyle = "#8f8d87"; x.fillRect(0, 0, 128, 128); for (let i = 0; i < 1800; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? "60,60,58" : "190,188,180"},${Math.random() * 0.18})`; x.fillRect(Math.random() * 128, Math.random() * 128, 2, 2); }
+    x.fillStyle = "rgba(50,50,48,.35)"; x.fillRect(0, 63, 128, 2); for (const [a, b] of [[32, 32], [96, 32], [32, 96], [96, 96]]) { x.beginPath(); x.arc(a, b, 3, 0, 7); x.fill(); }
+  } else {   // steel plate: dark, panel seams, a row of rivets
+    x.fillStyle = "#3e4248"; x.fillRect(0, 0, 128, 128); for (let i = 0; i < 900; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? "20,22,26" : "120,126,134"},${Math.random() * 0.12})`; x.fillRect(Math.random() * 128, Math.random() * 128, 4, 1); }
+    x.fillStyle = "rgba(15,16,18,.7)"; x.fillRect(0, 0, 128, 3); x.fillRect(0, 0, 3, 128); x.fillStyle = "#6a7078"; for (let i = 0; i < 8; i++) { x.beginPath(); x.arc(10 + i * 15.5, 10, 2.2, 0, 7); x.fill(); x.beginPath(); x.arc(10 + i * 15.5, 118, 2.2, 0, 7); x.fill(); }
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return (wallTierMats[lv] = new THREE.MeshStandardMaterial({ map: t, roughness: lv === 5 ? 0.95 : 0.5, metalness: lv === 5 ? 0 : 0.6 }));
+}
 function makeWallModel(level = 1) {
   const g = new THREE.Group(); g.name = "wall";
-  for (const [m, geo] of wall2Geometries(level)) { const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh); }
+  for (const [m, geo] of wall2Geometries(Math.min(level, 4))) { const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh); }
+  if (level >= 5) { const mat = wallTierMat(level); for (const o of g.children) o.material = mat; }   // LV5 poured concrete, LV6 dark steel plate
   return g;
 }
 
@@ -2433,13 +2541,13 @@ const sentries = [], walls = [], traps = [];
 const listOf = (k) => k === "wall" ? walls : TRAP_KINDS.has(k) ? traps : sentries;
 const SENTRY = { range: 10, rate: 0.11, dmg: 10 };
 const STRUCT = {
-  rocket: { name: "ROCKET LAUNCHER", hp: [0, 300, 500, 700, 950], up: [0, 150, 220, 300], baseReq: [0, 0, 0, 0], info: ["", "Bursts of 3 homing rockets, 15 m range", "Bigger box and a targeting dome: bursts of 5", "Repainted, fires heavy rockets: bigger blasts", "Twin launchers: bursts of 6 heavy rockets"] },
-  flamer: { name: "FLAMETHROWER", hp: [0, 300, 450, 650, 900], up: [0, 80, 120, 170], baseReq: [0, 0, 0, 0], info: ["", "Short-range fire cone: burns everything in it", "Bigger tanks: hotter flames", "Twin nozzles", "A wide nozzle and a huge cone"] },
-  cannon: { name: "CANNON", hp: [0, 350, 550, 800, 1100], up: [0, 120, 170, 240], baseReq: [0, 0, 0, 0], info: ["", "40 mm autocannon: long range, exploding shells", "Twin barrels and a gun shield", "Three barrels", "Four barrels"] },
-  spikes: { name: "SPIKE TRAP", hp: [0, 400, 700], up: [0, 40], baseReq: [0, 0], info: ["", "Stabs whatever steps on it, then resets", "Bladed spearheads: harder and faster"] },
-  wire: { name: "BARBED WIRE", hp: [0, 300, 500], up: [0, 35], baseReq: [0, 0], info: ["", "Slows and cuts anything crossing it", "Electrified: far more damage"] },
-  sentry: { name: "SENTRY", hp: [0, 250, 400, 600, 850], up: [0, 60, 90, 130], baseReq: [0, 0], info: ["", "Six-barrel gun, shoots enemies within 10 m", "Twin barrels: double fire rate", "Heavier guns and a laser targeter: harder hits, faster turning", "A third barrel pod"] },
-  wall: { name: "WALL", hp: [0, 600, 1000, 1600, 2400], up: [0, 30, 60, 100], baseReq: [0, 0, 2], info: ["", "Rusty sheets cobbled together", "The same sheets in a timber frame", "New corrugated steel, welded seams", "Steel plated and bolted"] },
+  rocket: { name: "ROCKET LAUNCHER", hp: [0, 300, 500, 700, 950, 1250, 1600, 2000, 2500], up: [0, 150, 220, 300], baseReq: [0, 0, 0, 0], info: ["", "Bursts of 3 homing rockets, 15 m range", "Bigger box and a targeting dome: bursts of 5", "Repainted, fires heavy rockets: bigger blasts", "Twin launchers: bursts of 6 heavy rockets", "LV5 · side armour and a sandbag ring", "LV6 · gunmetal paint and running lights", "LV7 · crimson paint, sensor mast, a concrete pad", "LV8 · black and gold"] },
+  flamer: { name: "FLAMETHROWER", hp: [0, 300, 450, 650, 900, 1200, 1550, 1950, 2400], up: [0, 80, 120, 170], baseReq: [0, 0, 0, 0], info: ["", "Short-range fire cone: burns everything in it", "Bigger tanks: hotter flames", "Twin nozzles", "A wide nozzle and a huge cone", "LV5 · side armour and a sandbag ring", "LV6 · gunmetal paint and running lights", "LV7 · crimson paint, sensor mast, a concrete pad", "LV8 · black and gold"] },
+  cannon: { name: "CANNON", hp: [0, 350, 550, 800, 1100, 1450, 1850, 2300, 2850], up: [0, 120, 170, 240], baseReq: [0, 0, 0, 0], info: ["", "40 mm autocannon: long range, exploding shells", "Twin barrels and a gun shield", "Three barrels", "Four barrels", "LV5 · side armour and a sandbag ring", "LV6 · gunmetal paint and running lights", "LV7 · crimson paint, sensor mast, a concrete pad", "LV8 · black and gold"] },
+  spikes: { name: "SPIKE TRAP", hp: [0, 400, 700, 1000, 1400], up: [0, 40, 90, 160], baseReq: [0, 0], info: ["", "Stabs whatever steps on it, then resets", "Bladed spearheads: harder and faster", "Hazard-striped frame: faster resets", "Red-hot blades: brutal"] },
+  wire: { name: "BARBED WIRE", hp: [0, 300, 500, 750, 1050], up: [0, 35, 80, 140], baseReq: [0, 0], info: ["", "Slows and cuts anything crossing it", "Electrified: far more damage", "A third coil: more voltage", "High voltage: glowing posts, huge damage"] },
+  sentry: { name: "SENTRY", hp: [0, 250, 400, 600, 850, 1150, 1500, 1900, 2400], up: [0, 60, 90, 130], baseReq: [0, 0], info: ["", "Six-barrel gun, shoots enemies within 10 m", "Twin barrels: double fire rate", "Heavier guns and a laser targeter: harder hits, faster turning", "A third barrel pod", "LV5 · side armour and a sandbag ring", "LV6 · gunmetal paint and running lights", "LV7 · crimson paint, sensor mast, a concrete pad", "LV8 · black and gold"] },
+  wall: { name: "WALL", hp: [0, 600, 1000, 1600, 2400, 3400, 4600], up: [0, 30, 60, 100, 160, 240], baseReq: [0, 0, 2], info: ["", "Rusty sheets cobbled together", "The same sheets in a timber frame", "New corrugated steel, welded seams", "Steel plated and bolted", "Steel corner beams, sandbags on top", "Bastion: capped, with firing slits"] },
 };
 const CAPS = { sentry: [0, 5, 8, 10], rocket: [0, 0, 2, 4], wall: [0, 30, 60, 80] };
 const structs = () => [...sentries, ...walls, ...traps];
@@ -2481,12 +2589,17 @@ function supportGone(s) {
   }
 }
 // enemy hits on a ground wall with another stacked on it are shared: each half takes half
-function hitStruct(s, n) {
+function hitStruct(s, n, by) {
+  if (by && s.kind === "wall" && MOD("thorns") && !by.dead) hurtEnemy(by, Math.round(MOD("thorns")), new THREE.Vector3(by.pos.x - s.x, 0, by.pos.z - s.z).normalize(), 0.15);   // razor plating
   const up = s.kind === "wall" && !s.y ? walls.find(w => w.y > 0 && w.x === s.x && w.z === s.z) : null;
   if (up) { hurtStruct(up, n / 2); hurtStruct(s, n / 2); } else hurtStruct(s, n);
 }
 function hurtStruct(s, n) {
   n *= (1 - Math.min(0.7, MOD("armor"))) / (1 + 0.43 * card("fort")) / (s.kind === "wall" ? powerOf("wall") : 1);   // Fortify: less damage taken
+  if (s.kind === "wall" && MOD("react") && (s.react = (s.react || 0) + n) >= 200) {   // reactive armour: the wall bursts and throws everyone back
+    s.react = 0; const c = new THREE.Vector3(s.x, (s.y || 0) + 1, s.z); boomFx(c, 2.2, true);
+    for (const e of [...enemies]) { if (e.dead) continue; const dx = e.pos.x - s.x, dz = e.pos.z - s.z, d = Math.hypot(dx, dz); if (d > 3.4) continue; hurtEnemy(e, Math.round(MOD("react")), new THREE.Vector3(dx / (d || 1), 0, dz / (d || 1)), 1.8); e.slowT = Math.max(e.slowT || 0, 0.8); }
+  }
   s.hp -= n; if (!s.bar) s.bar = worldBar(true);
   sparkFx(new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 1.4 : 1.0), s.z), new THREE.Vector3(0, 1, 0), 3);
   if (s.hp <= 0) {
@@ -2544,13 +2657,29 @@ const laserTex = (() => { const c = document.createElement("canvas"); c.width = 
 const laserGeo = (() => { const w = 0.025, P = [-w, 0, 0, w, 0, 0, w, 0, 1, -w, 0, 1, 0, -w, 0, 0, w, 0, 0, w, 1, 0, -w, 1], U = [0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(U, 2)); g.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]); return g; })();
 const laserMat = new THREE.MeshBasicMaterial({ map: laserTex, color: 0xff3a2a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+function rocketPerks(p, r) {
+  if (MOD("thermo") || MOD("incr")) for (const e of enemies) { if (e.dead || Math.hypot(e.pos.x - p.x, e.pos.z - p.z) > r) continue;
+    if (MOD("thermo")) e.slowT = Math.max(e.slowT || 0, 1.2);
+    if (MOD("incr")) { e.burnT = Math.max(e.burnT || 0, 3); e.burnDps = Math.max(e.burnDps || 0, MOD("incr")); } }
+  if (MOD("incr")) for (let k = 0; k < 6; k++) emitFire(p.clone().setY(0.3), new THREE.Vector3((Math.random() - 0.5) * 4, 2 + Math.random() * 2, (Math.random() - 0.5) * 4), 0.7, 0, 0.9);
+  const n = Math.round(MOD("cluster")); for (let k = 0; k < n; k++) { const a = Math.random() * Math.PI * 2, d = 1.5 + Math.random() * 2; delayed.push({ t: 0.15 + k * 0.07, fn: () => explode(new THREE.Vector3(p.x + Math.sin(a) * d, 0.3, p.z + Math.cos(a) * d), 1.2, ROCKET.dmg * 0.4, { small: true }) }); }
+}
+function teslaArc(from, dmg) {   // jumps to the 3 nearest, one after another
+  const done = new Set([from]); let at = from;
+  for (let k = 0; k < 3; k++) {
+    let nx = null, nd = 4.5; for (const e of enemies) { if (e.dead || done.has(e)) continue; const d = Math.hypot(e.pos.x - at.pos.x, e.pos.z - at.pos.z); if (d < nd) { nd = d; nx = e; } }
+    if (!nx) break; done.add(nx);
+    spawnBullet(at.pos.clone().setY(1.2), nx.pos.clone().setY(1.2), { speed: 260, len: 6, scale: 1.4, glow: 0x3a7cff, core: 0xe0f0ff });
+    sparkFx(nx.pos.clone().setY(1.2), new THREE.Vector3(0, 1, 0), 4); hurtEnemy(nx, Math.round(dmg), new THREE.Vector3(), 0); at = nx;
+  }
+}
 function updateLaser(t) {
   if (!t.laserAt || !t.target || t.pack > 0) { if (t.beam) t.beam.visible = false; return; }
   if (!t.beam) { t.beam = new THREE.Mesh(laserGeo, laserMat); t.beam.frustumCulled = false; scene.add(t.beam); }
   t.g.updateMatrixWorld(true); const from = t.gun.localToWorld(t.laserAt.clone()), to = t.target.pos.clone().setY(1.2 * (ENEMY_TYPES[t.target.type].scale || 1));
   t.beam.visible = true; t.beam.position.copy(from); t.beam.lookAt(to); t.beam.scale.set(1, 1, Math.min(6, from.distanceTo(to)));
 }
-const LV_DMG = [0, 1, 1, 1.45, 1.6], LV_RATE = [0, 1, 1, 0.8, 0.75], LV_TURN = [0, 6, 7, 9, 11];   // sentry stats by level
+const LV_DMG = [0, 1, 1, 1.45, 1.6, 1.9, 2.25, 2.65, 3.1], LV_RATE = [0, 1, 1, 0.8, 0.75, 0.7, 0.66, 0.62, 0.58], LV_TURN = [0, 6, 7, 9, 11, 12, 13, 14, 15];   // sentry stats by level
 function updateSentries(dt) {
   updateRockets(dt); updateTraps(dt);
   for (const t of [...sentries]) {
@@ -2586,7 +2715,14 @@ function updateSentries(dt) {
       spawnSprite(from.clone().addScaledVector(dir, 0.06), dir.clone().multiplyScalar(2), { color: 0xffc46b, size: 0.8, grow: 0.4, life: 0.06, opacity: 1, additive: true, drag: 0 });
       spawnSprite(from.clone().addScaledVector(dir, 0.1), new THREE.Vector3(), { color: 0xff9a3a, size: 1.8, grow: 0.5, life: 0.07, opacity: 0.55, additive: true, drag: 0 }); muzzleLight(from, 22, 7);
       if (t.shot % 3 === 0) spawnCasing(from.clone().addScaledVector(dir, -0.5).add(new THREE.Vector3(0, -0.05, 0)), dir);
-      shooter = t; if (hit) hurtEnemy(hit, Math.round(SENTRY.dmg * LV_DMG[t.level] * powerOf("sentry") * (1 + 0.25 * card("sdmg") + MOD("sdmg"))), dir); shooter = null;
+      const sdm = Math.round(SENTRY.dmg * LV_DMG[t.level] * powerOf("sentry") * (1 + 0.25 * card("sdmg") + MOD("sdmg")));
+      if (hit && MOD("pierce") && Math.random() < MOD("pierce")) {   // AP sabots: the round carries on into the next one behind
+        let h2 = null, d2 = sentryRange(t) + 2; for (const e of enemies) { if (e.dead || e === hit) continue; const d = rayCircle(t.x, t.z, dir.x, dir.z, e.pos.x, e.pos.z, 0.42); if (d !== null && d > hitD && d < d2) { d2 = d; h2 = e; } }
+        if (h2) { shooter = t; hurtEnemy(h2, sdm, dir); shooter = null; }
+      }
+      shooter = t; if (hit) hurtEnemy(hit, sdm, dir); shooter = null;
+      if (hit && MOD("incb")) { hit.burnT = Math.max(hit.burnT || 0, 2.2); hit.burnDps = Math.max(hit.burnDps || 0, MOD("incb")); }
+      if (hit && MOD("tesla") && (t.zap = (t.zap || 0) + 1) % 8 === 0) teslaArc(hit, MOD("tesla"));
     }
   }
   const regen = 3 * card("regen"); if (regen) for (const s of structs()) s.hp = Math.min(STRUCT[s.kind].hp[s.level], s.hp + regen * dt);
@@ -2620,7 +2756,7 @@ let BUILDS = DEF ? [
 const ALL_BUILDS = BUILDS;   // the run's tray (BUILDS) is the loadout picked in the lobby
 const lockOf = (b) => DEF ? "" : save.base < b.req ? `BASE LV${b.req}` : b.soon ? "SOON" : "";
 const countOf = (id) => id === "wall" ? walls.length : sentries.filter(t => t.kind === id).length;
-const DEF_CAPS = { sentry: 16, wall: 60, rocket: 6, flamer: 6, cannon: 6, spikes: 20, wire: 30 }, MAXLV = { sentry: 4, rocket: 4, wall: 4, flamer: 4, cannon: 4, spikes: 2, wire: 2 };
+const DEF_CAPS = { sentry: 16, wall: 60, rocket: 6, flamer: 6, cannon: 6, spikes: 20, wire: 30 }, MAXLV = { sentry: 8, rocket: 8, wall: 6, flamer: 8, cannon: 8, spikes: 4, wire: 4 };
 // how many of each you can have, by base level: upgrading the base makes room
 const GUNS_CAP = [0, 4, 5, 6, 7, 8, 9, 10, 12], DEF_CAP_LV = { sentry: [0, 8, 10, 12, 14, 17, 20, 22, 24], rocket: GUNS_CAP, flamer: GUNS_CAP, cannon: GUNS_CAP,
   wall: [0, 40, 50, 60, 70, 80, 90, 100, 120], spikes: [0, 12, 14, 16, 18, 20, 22, 24, 26], wire: [0, 20, 25, 30, 35, 40, 45, 50, 60] };
@@ -2844,14 +2980,14 @@ function renderIcon(obj) {
 }
 
 /* ---------- Info menus: structures and the base ---------- */
-const BASE_UP = DEF ? [0, 0, 150, 350] : [0, 0, 300, 700];   // scrap to reach each base level (level 3 is the max for now)
+const BASE_UP = DEF ? [0, 0, 250, 500, 850, 1300, 1900, 2600, 3500] : [0, 0, 300, 700];   // scrap to reach each base level (level 3 is the max for now)
 const smenu = document.getElementById("smenu"), smTitle = document.getElementById("smTitle"), smLv = document.getElementById("smLv"), smHpRow = document.getElementById("smHpRow"),
   smHp = document.getElementById("smHp"), smHpT = document.getElementById("smHpT"), smInfo = document.getElementById("smInfo"), smUp = document.getElementById("smUp"), smMove = document.getElementById("smMove"), smSell = document.getElementById("smSell");
 let menuTarget = null, menuT = 0;
 const smRepair = document.getElementById("smRepair");
 // repairing costs scrap in proportion to the missing HP
 const repairCost = (t) => t === "base" ? Math.ceil((baseMax() - save.baseHp) / 12) : Math.ceil((1 - t.hp / STRUCT[t.kind].hp[t.level]) * Math.max(10, t.spent) * 0.6);
-function renderRepair(t) { if (DEF && t === "base") { smRepair.hidden = true; return; } const c = repairCost(t); smRepair.hidden = c <= 0; smRepair.textContent = `REPAIR · ${c} SCRAP`; smRepair.disabled = save.xp < c; smRepair.classList.toggle("buy", save.xp >= c); }
+function renderRepair(t) { if (DEF && t === "base") { smRepair.hidden = true; return; } const c = repairCost(t); smRepair.hidden = false; smRepair.style.visibility = c <= 0 ? "hidden" : ""; smRepair.textContent = `REPAIR · ${c} SCRAP`; smRepair.disabled = save.xp < c; smRepair.classList.toggle("buy", save.xp >= c); }
 let menuFrom = new THREE.Vector3();
 function openMenu(t) { menuTarget = t; menuFrom.copy(player.pos); smenu.hidden = false; renderMenu(); placeMenu(); }
 function closeMenu() { if (menuTarget?.group) for (const s of menuTarget.list) if (s !== hovered) showHulls(s, false); menuTarget = null; smenu.hidden = true; }
@@ -2872,11 +3008,11 @@ function renderMenu() {
   if (t === "base") {
     const lv = save.base, next = BASE_UP[lv + 1];
     smTitle.textContent = "BASE"; smLv.textContent = `LV ${lv}`; smHpRow.hidden = true; smMove.hidden = true; smSell.hidden = true;
-    const LV_TXT = DEF ? { 2: "patched walls, caged windows, a bigger fence and an outhouse", 3: "an armoured steel shell" } : { 2: "patched walls, caged windows, bigger fence, outhouse · rocket turrets · LV 3 walls", 3: "armoured steel shell, slit windows, steel door" };
+    const LV_TXT = DEF ? { 2: "patched walls, caged windows, a bigger fence and an outhouse", 3: "a shipping-container house", 4: "a third container on top", 5: "an armoured steel shell", 6: "the shell in gunmetal", 7: "a concrete bunker", 8: "a two-storey bunker" } : { 2: "patched walls, caged windows, bigger fence, outhouse · rocket turrets · LV 3 walls", 3: "armoured steel shell, slit windows, steel door" };
     smInfo.innerHTML = `Enemies can't get inside.<br>Sentries ${countOf("sentry")}/${capOf("sentry")}${capOf("rocket") ? ` · Rocket launchers ${countOf("rocket")}/${capOf("rocket")}` : ""} · Walls ${walls.length}/${capOf("wall")}` +
       (next ? `<br><b>LV ${lv + 1}:</b> ${LV_TXT[lv + 1]} · ${BASE_HP[lv + 1]} HP · ${CAPS.sentry[lv + 1]} sentries · ${CAPS.rocket[lv + 1]} rocket turrets · ${CAPS.wall[lv + 1]} walls` : "<br>Max level for now");
     smUp.hidden = false; smUp.textContent = next ? `UPGRADE · ${next} SCRAP` : "MAX LEVEL"; smUp.disabled = !next || save.xp < next;
-    if (DEF) smInfo.innerHTML = `Lose it and the run is over. It patches itself up slowly when left alone.` + (next ? `<br><b>LV ${lv + 1}:</b> ${BASE_HP[lv + 1]} HP · ${LV_TXT[lv + 1]}` : "<br>Max level");
+    if (DEF) smInfo.innerHTML = `Lose it and the run is over. It patches itself up slowly when left alone.` + (next ? `<br><b>LV ${lv + 1}:</b> ${BASE_HP[lv + 1]} HP · ${LV_TXT[lv + 1]} · room for ${capOf("sentry") < DEF_CAP_LV.sentry[lv + 1] ? `${DEF_CAP_LV.sentry[lv + 1]} sentries, ` : ""}more of everything` : "<br>Max level");
     smHpRow.hidden = false; smHp.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; smHpT.textContent = `${Math.ceil(save.baseHp)}/${baseMax()}`; renderRepair("base");
     return;
   }
@@ -2884,9 +3020,9 @@ function renderMenu() {
   smTitle.textContent = D.name; smLv.textContent = `LV ${t.level}`; smHpRow.hidden = false; smMove.hidden = false; smSell.hidden = false;
   if (DEF) smMove.textContent = MERGEABLE.has(t.kind) && t.level > 1 ? `PICK UP (+${2 ** (t.level - 1)})` : "PICK UP";
   smHp.style.width = `${Math.max(0, t.hp / max) * 100}%`; smHpT.textContent = `${Math.ceil(t.hp)}/${max}`;
-  smInfo.innerHTML = D.info[t.level] + (nextCost ? `<br><b>LV ${t.level + 1}:</b> ${D.info[t.level + 1]}` : "");
+  smInfo.innerHTML = D.info[t.level] + (nextCost ? `<br><b>LV ${t.level + 1}:</b> ${D.info[t.level + 1]}` : DEF ? "<br><b>Max level</b>" : "");   // same number of lines either way so the buttons never move
   smUp.hidden = false;
-  if (DEF) smInfo.innerHTML += (MERGEABLE.has(t.kind) && t.level < MAXLV[t.kind] ? `<br><b>Or drop another LV ${t.level} ${D.name} on it to merge</b>` : "") + "<br>Drag it to move it";
+  if (DEF) smInfo.innerHTML += (MERGEABLE.has(t.kind) ? (t.level < MAXLV[t.kind] ? `<br><b>Or drop another LV ${t.level} ${D.name} on it to merge</b>` : "<br>Fully upgraded") : "") + "<br>Drag it to move it";
   if (!nextCost) { smUp.textContent = "MAX LEVEL"; smUp.disabled = true; }
   else if (!DEF && save.base < req) { smUp.textContent = `NEEDS BASE LV ${req}`; smUp.disabled = true; }
   else { smUp.textContent = `UPGRADE · ${nextCost} SCRAP`; smUp.disabled = save.xp < nextCost; }
@@ -2914,21 +3050,24 @@ function updateMenu(dt) { updateHoverTip(); if (!menuTarget) return; menuT -= dt
 document.getElementById("smClose").addEventListener("click", closeMenu);
 // the scrap price of a build, ignoring any free stock
 const PRICE = { sentry: [15, 5], rocket: [70, 25], flamer: [55, 20], cannon: [85, 30], wall: [8, 0], spikes: [20, 0], wire: [10, 0] };
-const buyPrice = (k) => PRICE[k][0] + PRICE[k][1] * countOf(k);
+const buyPrice = (k) => Math.round((PRICE[k][0] + PRICE[k][1] * countOf(k)) * (DEF ? run.priceK || 1 : 1));
+// prices follow the horde: the more that's coming (nights, the scaler), the more things cost. Only re-rated right after you
+// buy or upgrade something, so a price never jumps while you're looking at it
+function reprice() { if (!DEF) return; const ph = phaseOf(run.t), k = 1 + 0.3 * Math.max(0, strengthK - 1) + 0.06 * (ph.n - 1); run.priceK = Math.max(run.priceK || 1, Math.round(k * 20) / 20); }
 // upgrading a turret costs what a merge would eat: one more turret of its level (LV2 = 2 bought, LV3 = 4); walls (which don't merge) use their own prices
-const upCost = (t) => DEF && MERGEABLE.has(t.kind) ? (t.level < MAXLV[t.kind] ? buyPrice(t.kind) * 2 ** (t.level - 1) : 0) : STRUCT[t.kind].up[t.level] || 0;
+const upCost = (t) => DEF && MERGEABLE.has(t.kind) ? (t.level < MAXLV[t.kind] ? Math.round(buyPrice(t.kind) * 1.75 ** (t.level - 1)) : 0) : Math.round((STRUCT[t.kind].up[t.level] || 0) * (DEF ? run.priceK || 1 : 1));
 function upgradeOne(t) {
   const D = STRUCT[t.kind], c = upCost(t); if (!c || save.xp < c) return false; act();
-  const frac = t.hp / D.hp[t.level]; save.xp -= c; t.spent += c; t.level++; t.hp = D.hp[t.level] * Math.max(frac, 0.5);
+  const frac = t.hp / D.hp[t.level]; save.xp -= c; t.spent += c; t.level++; reprice(); t.hp = D.hp[t.level] * Math.max(frac, 0.5);
   buildModel(t); upgradeFx(cellsOf(t), new THREE.Vector3(t.x, (t.y || 0) + 1.2, t.z), t.g, `LV ${t.level}!`); return true;
 }
 smUp.addEventListener("click", () => {
   const t = menuTarget; if (!t) return;
   if (t.group) { for (const o of [...t.list].sort((a, b) => a.level - b.level)) upgradeOne(o); for (const o of t.list) showHulls(o, true); saveBuilds(); renderXp(); renderMenu(); return; }
-  if (t === "base") { const c = BASE_UP[save.base + 1]; if (!c || save.xp < c) return; save.xp -= c; const m0 = baseMax(); save.base++; save.baseHp += baseMax() - m0; renderBaseHp(); applyBaseLevel(); renderXp(); writeSave(); renderMenu();
+  if (t === "base") { const c = BASE_UP[save.base + 1]; if (!c || save.xp < c) return; save.xp -= c; reprice(); const m0 = baseMax(); save.base++; save.baseHp += baseMax() - m0; renderBaseHp(); applyBaseLevel(); renderXp(); writeSave(); renderMenu();
     upgradeFx([...BASE_FOOT].map(k => k.split(",").map(Number)).map(([x, z]) => [x + 0.5, z + 0.5]), new THREE.Vector3(0, 3.4, SHACK_Z), null, `BASE LV ${save.base}!`); return; }
   const D = STRUCT[t.kind], c = upCost(t); if (!c || save.xp < c || (!DEF && save.base < D.baseReq[t.level])) return;
-  const frac = t.hp / D.hp[t.level]; save.xp -= c; t.spent += c; t.level++; t.hp = D.hp[t.level] * Math.max(frac, 0.5);
+  const frac = t.hp / D.hp[t.level]; save.xp -= c; t.spent += c; t.level++; reprice(); t.hp = D.hp[t.level] * Math.max(frac, 0.5);
   buildModel(t); saveBuilds(); renderXp(); renderMenu();
   upgradeFx(cellsOf(t), new THREE.Vector3(t.x, (t.y || 0) + 1.2, t.z), t.g, `LV ${t.level}!`);
 });
@@ -3201,7 +3340,7 @@ function updateCycle(dt) {
 // A run lasts until the base falls; then it starts over from day 1 with no guns, scrap, cards or builds.
 // Every night you survive deals 3 upgrade cards to pick 1 from.
 const BASE_T = { kind: "base" };   // what enemies aim at when they go for the base
-const BASE_HP = [0, 1000, 1800, 2800];
+const BASE_HP = [0, 1000, 1800, 2600, 3500, 4600, 6000, 7600, 9500];
 let runOver = false, picking = 0, baseHitBanner = 0;
 const BASE_BOX = () => boxColliders[0];
 const baseMax = () => Math.round(BASE_HP[Math.min(save.base, BASE_HP.length - 1)] * (1 + 0.3 * card("basehp")) * (DEF ? powerOf("base") : 1));
@@ -3355,7 +3494,7 @@ const MODELS = [
   { id: "shanty", label: "Shanty (baked)", src: "shanty.glb · tools/bake.mjs", make: () => shantyTemplate ? makeShanty() : new THREE.Group() },
   { id: "sentry", label: "Sentry turret", src: "code · makeSentryModel", make: () => makeSentryModel().g },
   { id: "rocket1", label: "Rocket turret LV1", src: "code · makeRocketModel", make: () => makeRocketModel(1).g },
-  ...["flamer", "cannon", "spikes", "wire"].flatMap(k => (k === "flamer" ? [1, 2, 3, 4] : [1, MAXLV[k]]).map(l => ({ id: k + l, label: `${k} LV${l}`, src: "code", make: () => MODEL_OF[k](l).g }))),
+  ...["sentry", "flamer", "cannon", "spikes", "wire"].flatMap(k => (k === "spikes" || k === "wire" ? [1, 2, 3, 4] : [1, 4, 5, 6, 7, 8]).map(l => ({ id: k + l, label: `${k} LV${l}`, src: "code", make: () => MODEL_OF[k](l).g }))),
   { id: "rocket2", label: "Rocket turret LV2", src: "code · makeRocketModel", make: () => makeRocketModel(2).g },
   { id: "pine", label: "Pine tree", src: "code · buildPineGeos (Poly Haven textures)", make: () => makePine(2) },
 ];
@@ -3572,13 +3711,64 @@ const OUTHOUSE_BOX = [5.25, 6.75, SHACK_Z - 1.65, SHACK_Z - 0.15].map((v, i, a) 
 // which baked parts show: level 1 boarded windows, level 2 cages and patches, level 3 armour (hides the
 // wooden door, roof sheets and level 2 bits under it); no roof while you're inside; nothing once it fell
 let shantyGone = false;
+const baseVis = (l) => !DEF ? l : l <= 1 ? 1 : l <= 4 ? 2 : 3;   // which baked shack a base level shows (LV3/4/7/8 hide it for their own building)
 function shantyVis() {
-  const b = shanty?.children[0]; if (!b) return; const lv = save.base, up = !shantyGone, roof = up && !player.inside;
+  const b = shanty?.children[0]; if (!b) return; const lv = baseVis(save.base), own = DEF && CUSTOM_BASE.has(save.base), up = !shantyGone && !own, roof = up && !player.inside;
+  if (DEF) { if (!baseDeco) baseDeco = buildBaseDeco(); for (const [k, gr] of Object.entries(baseDeco)) gr.visible = !shantyGone && save.base === +k; tintShell(save.base === 6); }
   const vis = { shack: up, shack_l1: up && lv < 2, shack_l2: up && lv === 2, shack_l12: up && lv < 3, shack_l3: up && lv >= 3,
-    shack_roof: roof, shack_roof_l12: roof && lv < 3, shack_roof_l3: roof && lv >= 3, yard_l1: lv < 2, yard_l2: lv >= 2 };
+    shack_roof: roof, shack_roof_l12: roof && lv < 3, shack_roof_l3: roof && lv >= 3, yard_l1: !shantyGone && lv < 2, yard_l2: !shantyGone && lv >= 2 };
   for (const [n, v] of Object.entries(vis)) { const o = b.getObjectByName(n); if (o) o.visible = v; }
   shanty.userData.outline.userData.l3.visible = lv >= 3; shanty.userData.doorFrame.position.z = lv >= 3 ? 0.09 : 0;
 }
+// base tiers past 2 change the building itself: LV3 two grey shipping containers, LV4 a blue one stacked on top, LV5 the armour
+// shell, LV6 the shell in gunmetal, LV7 a concrete bunker, LV8 a two-storey bunker. Built once, shown by level.
+let baseDeco = null;
+const CUSTOM_BASE = new Set([3, 4, 7, 8]);
+function baseCanvas(fn, w = 256, h = 128) { const c = document.createElement("canvas"); c.width = w; c.height = h; fn(c.getContext("2d"), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; }
+function containerMats(hex) {
+  const col = "#" + hex.toString(16).padStart(6, "0");
+  const ribs = baseCanvas((x, w, h) => { x.fillStyle = col; x.fillRect(0, 0, w, h); for (let i = 0; i < w; i += 8) { x.fillStyle = "rgba(255,255,255,.12)"; x.fillRect(i, 0, 3, h); x.fillStyle = "rgba(0,0,0,.22)"; x.fillRect(i + 5, 0, 2, h); }
+    for (let i = 0; i < 500; i++) { x.fillStyle = `rgba(60,40,25,${Math.random() * 0.15})`; x.fillRect(Math.random() * w, h * 0.6 + Math.random() * h * 0.4, 3, 2); } x.fillStyle = "rgba(0,0,0,.35)"; x.fillRect(0, 0, w, 5); x.fillRect(0, h - 5, w, 5); });
+  const doors = baseCanvas((x, w, h) => { x.fillStyle = col; x.fillRect(0, 0, w, h); for (let i = 0; i < w; i += 10) { x.fillStyle = "rgba(255,255,255,.1)"; x.fillRect(i, 0, 4, h); }
+    x.fillStyle = "rgba(0,0,0,.4)"; x.fillRect(w / 2 - 1, 0, 2, h); x.fillRect(0, 0, w, 6); x.fillRect(0, h - 6, w, 6); x.fillStyle = "#2a2c2e"; for (const f of [0.18, 0.38, 0.62, 0.82]) x.fillRect(w * f - 2, 6, 4, h - 12); }, 128, 128);
+  const top = baseCanvas((x, w, h) => { x.fillStyle = col; x.fillRect(0, 0, w, h); x.fillStyle = "rgba(0,0,0,.15)"; for (let i = 0; i < w; i += 16) x.fillRect(i, 0, 2, h); });
+  const M = (map) => new THREE.MeshStandardMaterial({ map, roughness: 0.6, metalness: 0.45 });
+  return [M(doors), M(doors), M(top), M(top), M(ribs), M(ribs)];
+}
+function concreteMat() {
+  return new THREE.MeshStandardMaterial({ roughness: 0.95, map: baseCanvas((x, w, h) => { x.fillStyle = "#8e8c86"; x.fillRect(0, 0, w, h); for (let i = 0; i < 4000; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? "60,60,58" : "185,183,176"},${Math.random() * 0.16})`; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+    x.fillStyle = "rgba(50,50,48,.3)"; x.fillRect(0, h / 2, w, 2); for (let i = 16; i < w; i += 32) for (const y of [h / 4, h * 3 / 4]) { x.beginPath(); x.arc(i, y, 2.5, 0, 7); x.fill(); } }) });
+}
+function buildBaseDeco() {
+  const out = {}, mk = (lv) => { const g = new THREE.Group(); scene.add(g); out[lv] = g; return g; };
+  const [x0, x1, z0, z1] = boxColliders[0], W = x1 - x0, D = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  const box = (p, w, h, d, mat, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; p.add(o); return o; };
+  const steel = new THREE.MeshStandardMaterial({ color: 0x34383c, roughness: 0.5, metalness: 0.6 }), slit = new THREE.MeshBasicMaterial({ color: 0x0c0d0e });
+  const grey = containerMats(0x7d848a), blue = containerMats(0x3f6488), conc = concreteMat();
+  const container = (p, mats, len, x, y, z, alongZ = false) => {   // a 2.6 m tall box on four dark corner castings
+    const w = alongZ ? D / 2 : len, d = alongZ ? len : D / 2 - 0.04, b = box(p, alongZ ? 2.1 : w, 2.5, alongZ ? len : d, mats, x, y + 1.25, z); if (alongZ) b.rotation.y = 0;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(p, 0.16, 2.54, 0.16, steel, x + sx * ((alongZ ? 2.1 : w) / 2 - 0.06), y + 1.27, z + sz * ((alongZ ? len : d) / 2 - 0.06));
+  };
+  // LV3: two grey containers side by side; LV4 adds a blue one across the top
+  for (const lv of [3, 4]) { const g = mk(lv); container(g, grey, W, cx, 0, cz - D / 4); container(g, grey, W, cx, 0, cz + D / 4); if (lv === 4) container(g, blue, D, cx - W * 0.22, 2.5, cz, true); }
+  // LV7: a concrete bunker with a capped roof, firing slits and a steel door; LV8 a second storey
+  for (const lv of [7, 8]) {
+    const g = mk(lv), H = 2.7; box(g, W, H, D, conc, cx, H / 2, cz); box(g, W - 0.4, 0.25, D - 0.4, conc, cx, H + 0.125, cz);
+    for (const [w, d, x, z] of [[1.2, 0.04, cx - W / 4, z1 + 0.01], [1.2, 0.04, cx + W / 4, z1 + 0.01], [1.2, 0.04, cx - W / 4, z0 - 0.01], [1.2, 0.04, cx + W / 4, z0 - 0.01], [0.04, 1.0, x0 - 0.01, cz], [0.04, 1.0, x1 + 0.01, cz]]) box(g, w, 0.16, d, slit, x, H * 0.72, z);
+    box(g, 1.0, 2.0, 0.08, steel, cx, 1.0, z1 + 0.03);
+    if (lv === 8) { const W2 = W * 0.55, D2 = D * 0.62, H2 = 2.0, X2 = cx - W * 0.16; box(g, W2, H2, D2, conc, X2, H + 0.25 + H2 / 2, cz); box(g, W2 + 0.1, 0.16, D2 + 0.1, steel, X2, H + 0.25 + H2 + 0.08, cz);
+      for (const z of [cz + D2 / 2 + 0.01, cz - D2 / 2 - 0.01]) box(g, W2 * 0.6, 0.14, 0.04, slit, X2, H + 0.25 + H2 * 0.62, z); }
+  }
+  return out;
+}
+const SHELL_TINT = new Map();
+function tintShell(on) {   // LV6: the armour shell repainted gunmetal
+  const b = shanty?.children[0]; if (!b) return;
+  for (const n of ["shack_l3", "shack_roof_l3"]) b.getObjectByName(n)?.traverse(o => { if (!o.isMesh) return;
+    if (!o.userData.mat0) o.userData.mat0 = o.material;
+    if (on) { let t = SHELL_TINT.get(o.userData.mat0); if (!t) { t = o.userData.mat0.clone(); t.color.lerp(new THREE.Color(0x3e464e), 0.6); t.metalness = Math.min(1, (t.metalness || 0) + 0.2); SHELL_TINT.set(o.userData.mat0, t); } o.material = t; } else o.material = o.userData.mat0; });
+}
+function animBaseDeco() {}
 function applyBaseLevel() {
   if (!shanty?.children[0]) return; shantyVis();
   if (!boxColliders.includes(OUTHOUSE_BOX)) boxColliders.push(OUTHOUSE_BOX);   // scrap pile at LV1, outhouse from LV2
@@ -3761,8 +3951,10 @@ function quickSpot(kind) {
   return best;
 }
 const mergePair = (kind) => { const ts = sentries.filter(t => t.kind === kind && t.level < MAXLV[kind] && !(t.pack > 0)).sort((a, b) => a.level - b.level); for (let i = 0; i < ts.length; i++) for (let j = i + 1; j < ts.length; j++) if (ts[i].level === ts[j].level) return [ts[i], ts[j]]; return null; };
+const wallToUp = () => walls.filter(w => w.level < MAXLV.wall && save.xp >= upCost(w)).sort((a, b) => a.level - b.level || Math.hypot(b.x - BC.x, b.z - BC.z) - Math.hypot(a.x - BC.x, a.z - BC.z))[0];
 function quickAct(kind) {
   const b = BUILDS.find(o => o.id === kind); if (!b) return; act();
+  if (kind === "wall") { const w = wallToUp(); if (!w) { deny(trayCards.querySelector(`[data-q="wall"]`)); return; } upgradeOne(w); saveBuilds(); renderXp(); return; }   // QUICK UPGRADE: the lowest wall, outermost first
   if (countOf(kind) >= capOf(kind)) {
     const pr = mergePair(kind); if (!pr) { deny(trayCards.querySelector(`[data-q="${kind}"]`)); return; }
     const [a, c] = Math.hypot(pr[0].x - BC.x, pr[0].z - BC.z) > Math.hypot(pr[1].x - BC.x, pr[1].z - BC.z) ? pr : [pr[1], pr[0]];   // the outer one folds into the inner one
@@ -3771,7 +3963,7 @@ function quickAct(kind) {
   }
   const c = b.cost(); if (save.xp < c) { deny(trayCards.querySelector(`[data-q="${kind}"]`)); return; }
   const sp = quickSpot(kind); if (!sp) { deny(trayCards.querySelector(`[data-q="${kind}"]`)); return; }
-  save.xp -= c; if (run.free[kind] > 0 && --run.free[kind] === 0) run.freeTotal[kind] = 0;
+  save.xp -= c; if (run.free[kind] > 0 && --run.free[kind] === 0) run.freeTotal[kind] = 0; if (c > 0) reprice();
   const t = addStruct(kind, sp.x, sp.z, 1, c, undefined, 0); if (run.started) t.pack = t.packMax = 1.5; saveBuilds();
   for (let k = 0; k < 6; k++) spawnSprite(new THREE.Vector3(sp.x, 0.2, sp.z), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0xc9a45c, size: 0.4, grow: 2, life: 0.7, opacity: 0.45, drag: 2.5 });
   renderXp(); if (!run.started && !run.tut) defGo();
@@ -3780,7 +3972,7 @@ function renderTray() {
   bankNum.textContent = save.xp;
   trayCards.innerHTML = BUILDS.map((b, i) => { const c = b.cost(), n = countOf(b.id), cap = capOf(b.id), free = run.free[b.id] > 0;
     if (locked(i)) return `<button type="button" class="tcard locked" data-i="${i}"><span class="k">${i + 1}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">LOCKED</span></button>`;
-    const qb = MERGEABLE.has(b.id) && save.def.tut2 ? `<span class="qp" data-q="${b.id}">${n >= cap ? "MERGE" : "AUTO"}</span>` : "";
+    const qb = !save.def.tut2 ? "" : MERGEABLE.has(b.id) ? `<span class="qp" data-q="${b.id}">${n >= cap ? "QUICK MERGE" : "QUICK PLACE"}</span>` : b.id === "wall" ? `<span class="qp up" data-q="wall">QUICK UPGRADE</span>` : "";
     return `<button type="button" class="tcard${buildSel === i && buildMode ? " sel" : ""}${save.xp < c || n >= cap ? " poor" : ""}${free ? " free" : ""}" data-i="${i}">${qb}<span class="k">${i + 1}</span><span class="cnt">${n}/${cap}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">${free ? freeLabel(b.id) : c}</span></button>`; }).join("");
   if (!run.started && !run.events.firstPick) trayCards.children[0]?.classList.add("flash");
 }
@@ -3900,7 +4092,7 @@ function defPlace(keep = false) {
     s.x = x; s.z = z; s.y = y; buildModel(s); listOf(s.kind).push(s); structVer++; if (s.kind !== "wall") { s.pack = s.packMax = 2; popNumber(new THREE.Vector3(x, y + 2, z), "SETTING UP", false, "dmg"); }
     showGhost(); renderTray(); return true;
   }
-  const b = BUILDS[buildSel], c = b.cost(); save.xp -= c; if (run.free[b.id] > 0 && --run.free[b.id] === 0) run.freeTotal[b.id] = 0;
+  const b = BUILDS[buildSel], c = b.cost(); save.xp -= c; if (run.free[b.id] > 0 && --run.free[b.id] === 0) run.freeTotal[b.id] = 0; if (c > 0) reprice();
   if (mt) mergeInto(mt, c); else { run.lastPlaced = addStruct(b.id, x, z, 1, c, undefined, y); if (run.started && b.id !== "wall") run.lastPlaced.pack = run.lastPlaced.packMax = 1.5; }
   if (!keep && MERGEABLE.has(b.id)) setBuild(-1); renderXp();
   if (!save.def.tutBox && !touch.on && run.started && countOf(b.id) >= 3) { save.def.tutBox = 1; writeSave(); showBanner("RIGHT-CLICK AND DRAG A BOX TO SELECT MULTIPLE AT ONCE!", 6); }   // turrets: hand empty again; walls and traps stay in hand for the next one
@@ -3920,7 +4112,7 @@ function mergeInto(t, spent) {
 const orbs = [], orbPool = []; let orbRectT = 0, orbTo = [0, 0, 0, 0];
 const FLY_ORBS = false;
 function defOrbs(e, n) {
-  run.kills++; run.strike = (run.strike || 0) + (e.type === "brute" ? 10 : 1);
+  run.kills++; run.strike = (run.strike || 0) + (e.type === "brute" ? 10 : 1) * (1 + MOD("ovch"));
   const [sx, sy] = toScreen(e.pos.clone().setY(1.2)), big = n >= 10, count = big ? Math.ceil(n / 3) : n, val = big ? 3 : 1;
   if (FLY_ORBS === false) { for (let i = 0; i < count; i++) { addOrb(val, false); addOrb(val, true); } return; }   // straight into the bar and the bank: no flying orbs over the field
   for (let i = 0; i < count; i++) for (const gold of [false, true]) {
@@ -3954,16 +4146,17 @@ const RAR = [
   { id: "rare", name: "RARE", col: "#4aa3ff", w: 13 }, { id: "epic", name: "EPIC", col: "#b06bff", w: 6 }, { id: "legendary", name: "LEGENDARY", col: "#ffc83a", w: 2 },
 ];
 const pct = (v) => `${Math.round(v * 100)}%`;
-const hasRockets = () => countOf("rocket") > 0 || run.lvl >= 4;
+const hasRockets = () => countOf("rocket") > 0;
+const hasGuns = () => sentries.length > 0;
 const FREE_DROPS = [{ wall: 4, sentry: 1 }, { sentry: 1 }, { sentry: 2 }, { rocket: 1 }, { rocket: 2, sentry: 2 }];
 const UPGRADES = [
-  { id: "sdmg", name: "AP ROUNDS", ic: "✸", v: [0.12, 0.18, 0.27, 0.4, 0.65], txt: (v) => `Sentries deal +${pct(v)} damage` },
-  { id: "srate", name: "HOT BARRELS", ic: "»", v: [0.08, 0.12, 0.18, 0.27, 0.45], txt: (v) => `All turrets fire +${pct(v)} faster` },
-  { id: "range", name: "LONG SIGHTS", ic: "◎", v: [0.6, 1, 1.5, 2.2, 3.5], txt: (v) => `+${v} m range for all turrets` },
+  { id: "sdmg", name: "AP ROUNDS", ic: "✸", v: [0.12, 0.18, 0.27, 0.4, 0.65], txt: (v) => `Sentries deal +${pct(v)} damage`, ok: () => countOf("sentry") > 0 },
+  { id: "srate", name: "HOT BARRELS", ic: "»", v: [0.08, 0.12, 0.18, 0.27, 0.45], txt: (v) => `All turrets fire +${pct(v)} faster`, ok: hasGuns },
+  { id: "range", name: "LONG SIGHTS", ic: "◎", v: [0.6, 1, 1.5, 2.2, 3.5], txt: (v) => `+${v} m range for all turrets`, ok: hasGuns },
   { id: "rdmg", name: "HE WARHEADS", ic: "✹", v: [0.15, 0.22, 0.33, 0.5, 0.8], txt: (v) => `Rockets deal +${pct(v)} damage`, ok: hasRockets },
   { id: "rrad", name: "BIG BOOM", ic: "◉", v: [0.12, 0.18, 0.27, 0.4, 0.65], txt: (v) => `Rocket blasts +${pct(v)} wider`, ok: hasRockets },
   { id: "rburst", name: "EXTRA TUBES", ic: "⁘", v: [1, 1, 1, 2, 3], min: 1, txt: (v) => `Rocket bursts fire +${v} rocket${v > 1 ? "s" : ""}`, ok: hasRockets },
-  { id: "armor", name: "FORTIFY", ic: "▣", v: [0.06, 0.1, 0.15, 0.22, 0.35], txt: (v) => `Towers take ${pct(v)} less damage`, ok: () => MOD("armor") < 0.7 },
+  { id: "armor", name: "FORTIFY", ic: "▣", v: [0.06, 0.1, 0.15, 0.22, 0.35], txt: (v) => `Towers take ${pct(v)} less damage`, ok: () => MOD("armor") < 0.7 && structs().length > 0 },
   { id: "loot", name: "SCAVENGER", ic: "$", v: [0.15, 0.25, 0.4, 0.6, 1], txt: (v) => `+${pct(v)} scrap from every orb` },
   { id: "repair", name: "PATCH UP", ic: "+", v: [0.15, 0.25, 0.4, 0.6, 1], txt: (v) => `Repair the base and every tower by ${pct(v)}`, now: (v) => {
     save.baseHp = Math.min(baseMax(), save.baseHp + baseMax() * v); renderBaseHp(); for (const s of structs()) s.hp = Math.min(STRUCT[s.kind].hp[s.level], s.hp + STRUCT[s.kind].hp[s.level] * v); } },
@@ -3971,7 +4164,19 @@ const UPGRADES = [
     now: (v) => { for (const [k, n] of Object.entries(v)) if (BUILDS.some(b => b.id === k)) addFree(k, n); } },
   { id: "fieldup", name: "FIELD UPGRADE", ic: "▲", v: [1, 2, 3, 5, 99], txt: (v) => v > 50 ? "Every tower goes up a level" : `${v} random tower${v > 1 ? "s go" : " goes"} up a level`,
     ok: () => structs().some(t => t.level < MAXLV[t.kind]), now: (v) => { const up = structs().filter(t => t.level < MAXLV[t.kind]).sort(() => Math.random() - 0.5).slice(0, v); for (const t of up) upgradeStruct(t); } },
-  { id: "stash", name: "STASH", ic: "▤", v: [30, 50, 80, 130, 250], txt: (v) => `+${v} scrap right now`, now: (v) => { save.xp += v; renderXp(); } },
+  // perks: new behaviour, not just numbers (icons are little 3D renders)
+  { id: "incb", perk: 1, fx: "flame", name: "INCENDIARY ROUNDS", ic: "✹", v: [4, 6, 9, 13, 20], txt: (v) => `Sentry hits set enemies on fire for ${v} damage a second`, ok: () => countOf("sentry") > 0 },
+  { id: "tesla", perk: 1, fx: "bolt", name: "TESLA ROUNDS", ic: "⚡", v: [12, 18, 26, 38, 60], txt: (v) => `Every 8th sentry hit arcs to 3 more enemies for ${v} each`, ok: () => countOf("sentry") > 0 },
+  { id: "pierce", perk: 1, fx: "sabot", name: "AP SABOTS", ic: "➹", v: [0.25, 0.35, 0.5, 0.7, 1], txt: (v) => `${pct(Math.min(1, v))} of sentry rounds punch through into a second enemy`, ok: () => countOf("sentry") > 0 && MOD("pierce") < 1 },
+  { id: "thermo", perk: 1, fx: "thermo", name: "THERMOBARIC WARHEADS", ic: "✺", v: [0.2, 0.3, 0.45, 0.65, 1], txt: (v) => `Rocket blasts ${pct(v)} bigger, and they stagger everything caught`, ok: hasRockets },
+  { id: "incr", perk: 1, fx: "incrocket", name: "INCENDIARY ROCKETS", ic: "✹", v: [6, 9, 13, 19, 30], txt: (v) => `Rocket blasts leave everything burning for ${v} damage a second`, ok: hasRockets },
+  { id: "cluster", perk: 1, fx: "cluster", name: "CLUSTER ROCKETS", ic: "⁂", v: [2, 2, 3, 4, 6], min: 1, txt: (v) => `Every rocket scatters ${v} bomblets`, ok: hasRockets },
+  { id: "frag", perk: 1, fx: "frag", name: "FRAG SHELLS", ic: "✷", v: [0.25, 0.35, 0.5, 0.7, 1], txt: (v) => `Cannon shells burst into shrapnel: ${pct(v)} damage in a ring twice as wide`, ok: () => countOf("cannon") > 0 },
+  { id: "napalm", perk: 1, fx: "napalm", name: "NAPALM MIX", ic: "✹", v: [0.3, 0.45, 0.65, 0.9, 1.4], txt: (v) => `Flamethrower fires burn ${pct(v)} longer and hotter`, ok: () => countOf("flamer") > 0 },
+  { id: "react", perk: 1, fx: "shield", name: "REACTIVE ARMOR", ic: "⛨", v: [40, 60, 90, 130, 200], txt: (v) => `Walls blast attackers back every 200 damage they take, for ${v} damage`, ok: () => walls.length > 0 },
+  { id: "thorns", perk: 1, fx: "razor", name: "RAZOR PLATING", ic: "✂", v: [6, 9, 13, 19, 30], txt: (v) => `Anything that hits a wall takes ${v} damage back`, ok: () => walls.length > 0 },
+  { id: "ovch", perk: 1, fx: "jet", name: "AIR SUPPORT", ic: "✈", v: [0.2, 0.3, 0.45, 0.65, 1], txt: (v) => `Airstrikes charge ${pct(v)} faster`, ok: () => true },
+  { id: "stash", name: "STASH", ic: "$", v: [30, 50, 80, 130, 250], txt: (v) => `+${v} scrap right now`, now: (v) => { save.xp += v; renderXp(); } },
 ];
 function rollRarity(min = 0) {
   const luck = Math.min(2.5, 1 + run.lvl * 0.06), ws = RAR.map((r, i) => i < min ? 0 : r.w * (i >= 2 ? luck : 1));
@@ -3980,18 +4185,20 @@ function rollRarity(min = 0) {
 let offer = [];
 function dealUpgrades() {
   if (runOver || run.lobby) return;
-  const pool = UPGRADES.filter(u => !u.ok || u.ok()).sort(() => Math.random() - 0.5).slice(0, 3);
+  const all = UPGRADES.filter(u => !u.ok || u.ok()).sort(() => Math.random() - 0.5), perk = all.find(u => u.perk);   // always at least one perk on offer
+  const pool = (perk ? [perk, ...all.filter(u => u !== perk).slice(0, 2)] : all.slice(0, 3)).sort(() => Math.random() - 0.5);
   offer = pool.map(u => ({ u, r: rollRarity(u.min || 0) }));
   cardRow.innerHTML = offer.map(({ u, r }, i) => {
-    const txt = u.txt(u.v[r]), big = (txt.match(/[+-]?\d+(\.\d+)?%|\+\d+(\.\d+)? m|\+\d+|\d+ (?=random|tower)/) || [""])[0], icon = CARD_ICON[u.id]?.(u.v[r]);
+ const txt = u.txt(u.v[r]), fxI = u.fx && ICONS["fx_" + u.fx], big = u.perk ? "" : (txt.match(/[+-]?\d+(\.\d+)?%|\+\d+(\.\d+)? m|\+\d+|\d+ (?=random|tower)/) || [""])[0], icon = CARD_ICON[u.id]?.(u.v[r]);
     const sparks = r >= 2 ? Array.from({ length: 4 + r * 3 }, () => `<i class="spk" style="left:${8 + Math.random() * 84}%;animation-delay:${(Math.random() * 2).toFixed(2)}s;animation-duration:${(1.4 + Math.random() * 1.4).toFixed(2)}s"></i>`).join("") : "";
     return `<button type="button" class="card px rar ${RAR[r].id}" style="--rc:${RAR[r].col};animation-delay:${i * 0.09}s" data-u="${i}"><span class="rays"></span><span class="shine"></span>${sparks}
       <span class="rl">${RAR[r].name}</span><span class="pips">${"◆".repeat(r + 1)}<i>${"◆".repeat(4 - r)}</i></span>
-      <span class="ic">${icon ? `<img alt="" src="${icon}">` : ""}<em>${u.ic}</em></span><b>${u.name}</b>${big ? `<span class="val">${big}</span>` : ""}<small>${txt}</small></button>`; }).join("");
+      <span class="ic${fxI ? " fx" : ""}">${fxI ? `<img alt="" src="${fxI}">${icon ? `<em><img alt="" src="${icon}"></em>` : ""}` : `${icon ? `<img alt="" src="${icon}">` : ""}<em>${u.ic}</em>`}</span>${u.perk ? `<span class="ptag">PERK</span>` : ""}<b>${u.name}</b>${big ? `<span class="val">${big}</span>` : ""}<small>${txt}</small></button>`; }).join("");
   cardLeft.textContent = run.picks > 1 ? `LEVEL ${run.lvl - run.picks + 1} · ${run.picks - 1} MORE AFTER THIS` : `LEVEL ${run.lvl}`;
   cardsEl.querySelector("h2").textContent = "LEVEL UP!"; cardsEl.hidden = false; picking = 1;
 }
-const CARD_ICON = { sdmg: () => ICONS.sentry, srate: () => ICONS.cannon || ICONS.sentry, range: () => ICONS.sentry, rdmg: () => ICONS.rocket, rrad: () => ICONS.rocket, rburst: () => ICONS.rocket,
+const CARD_ICON = { incb: () => ICONS.sentry, tesla: () => ICONS.sentry, pierce: () => ICONS.sentry, thermo: () => ICONS.rocket, incr: () => ICONS.rocket, cluster: () => ICONS.rocket, frag: () => ICONS.cannon, napalm: () => ICONS.flamer, react: () => ICONS.wall, thorns: () => ICONS.wall,
+  sdmg: () => ICONS.sentry, srate: () => ICONS.cannon || ICONS.sentry, range: () => ICONS.sentry, rdmg: () => ICONS.rocket, rrad: () => ICONS.rocket, rburst: () => ICONS.rocket,
   armor: () => ICONS.wall, repair: () => ICONS.base, drop: (v) => ICONS[Object.keys(v).find(k => BUILDS.some(b => b.id === k)) || "sentry"], fieldup: () => ICONS.sentry };
 cardRow.addEventListener("click", (e) => {
   const b = e.target.closest("[data-u]"); if (!b || !DEF || cardRow.classList.contains("busy")) return;
@@ -4101,7 +4308,7 @@ const starter = () => BUILDS.find(b => catOf(b.id) === "weapon")?.id || BUILDS[0
 function defReset() {
   clearWorld(); run.lobby = false; document.body.classList.remove("lobby"); lobbyEl.hidden = true;
   BUILDS = loadout();
-  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { [starter()]: starterN() }, freeTotal: { [starter()]: starterN() }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, phaseKey: 0, phaseSpawned: 0, lastAct: 0, perf: 0, strike: 0, strikeNeed: STRIKE_NEED0, raidT: 0, got: {} });
+  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { [starter()]: starterN() }, freeTotal: { [starter()]: starterN() }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, phaseKey: 0, phaseSpawned: 0, lastAct: 0, perf: 0, priceK: 1, strike: 0, strikeNeed: STRIKE_NEED0, raidT: 0, got: {} });
   spT = { walker: 1.5, runner: 0, bomber: 0 }; gangT = 2;
   save.xp = 25; save.cards = []; save.builds = [];
   // the opening: a first front, a few walkers already on their way in slow motion, a free sentry to place
@@ -4289,6 +4496,42 @@ function airstrike(c) {
   spawnBullet(from, to, { speed: 70, len: 4, scale: 3, glow: 0xff8a2a, core: 0xfff0c0 });
   delayed.push({ t: flight, fn: () => { explode(to, 4 + Math.min(4, c.n * 0.35), 99999); for (let k = 0; k < 2; k++) boomFx(to.clone().add(new THREE.Vector3((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3)), 2.5 + Math.random() * 1.5); shake = Math.min(1.2, shake + 0.35); } });
 }
+// little 3D models for the perk cards: fire, blasts, shells, bolts... rendered once into icons like the towers
+const FX_ICONS = (() => {
+  const B = (c) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false }), S = (c, m = 0.3, r = 0.5) => new THREE.MeshStandardMaterial({ color: c, metalness: m, roughness: r });
+  const mesh = (geo, mat, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); return o; };
+  const spiky = (r, amp, det, mat, seed) => { const g = new THREE.IcosahedronGeometry(r, det), p = g.attributes.position; let st = seed; const rnd = () => ((st = (st * 16807) % 2147483647) / 2147483647);
+    const map = new Map(); for (let i = 0; i < p.count; i++) { const key = `${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`; if (!map.has(key)) map.set(key, 1 + (rnd() - 0.3) * amp); const k = map.get(key); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k); }
+    g.computeVertexNormals(); return new THREE.Mesh(g, mat); };
+  const flameG = () => { const g = new THREE.Group(); [[0.55, 1.5, 0xff4a10], [0.4, 1.15, 0xff9a20], [0.24, 0.75, 0xfff0a0]].forEach(([r, h, c], i) => { const pts = []; for (let k = 0; k <= 10; k++) { const u = k / 10; pts.push(new THREE.Vector2(r * Math.sin(Math.PI * Math.min(1, u * 1.25)) * (1 - u * 0.75), u * h)); } const o = new THREE.Mesh(new THREE.LatheGeometry(pts, 14), B(c)); o.position.z = i * 0.06; o.rotation.z = (i - 1) * 0.12; g.add(o); });
+    for (let i = 0; i < 4; i++) g.add(mesh(new THREE.SphereGeometry(0.05, 6, 4), B(0xffc040), (i - 1.5) * 0.3, 1.3 + (i % 2) * 0.3, 0.1)); return g; };
+  const boomG = (hot = 0xffa030, outer = 0xff5a1a) => { const g = new THREE.Group(); g.add(spiky(0.75, 0.9, 1, B(outer), 7)); g.add(spiky(0.5, 0.7, 1, B(hot), 11)); g.add(mesh(new THREE.SphereGeometry(0.28, 10, 8), B(0xfff2c0)));
+    for (const [x, y, r] of [[-0.6, 0.6, 0.35], [0.5, 0.75, 0.3], [0, 0.95, 0.38]]) g.add(mesh(new THREE.SphereGeometry(r, 10, 8), S(0x3a3430, 0, 1), x, y, -0.3)); return g; };
+  const shell = () => { const g = new THREE.Group(), brass = S(0xd8a840, 0.85, 0.3); g.add(mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.9, 16), brass)); g.add(mesh(new THREE.ConeGeometry(0.22, 0.45, 16), S(0x4a4e52, 0.7, 0.4), 0, 0.67, 0)); g.add(mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.08, 16), brass, 0, -0.45, 0)); return g; };
+  const shard = (mat, x, y, z) => { const o = new THREE.Mesh(new THREE.TetrahedronGeometry(0.16), mat); o.position.set(x, y, z); o.rotation.set(x * 3, y * 2, z); return o; };
+  const rocket = () => { const g = new THREE.Group(), body = S(0xe6e2d8, 0.2, 0.5); g.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.2, 12), body)); g.add(mesh(new THREE.ConeGeometry(0.16, 0.4, 12), S(0xc8402c), 0, 0.8, 0));
+    for (let i = 0; i < 3; i++) { const f = mesh(new THREE.BoxGeometry(0.02, 0.3, 0.22), S(0x3a3d38), Math.sin(i * 2.1) * 0.16, -0.5, Math.cos(i * 2.1) * 0.16); f.rotation.y = i * 2.1; g.add(f); } return g; };
+  return {
+    flame: () => flameG(),
+    boom: () => boomG(),
+    thermo: () => { const g = boomG(0xfff0a0, 0xff8a20); g.scale.setScalar(1.15); return g; },
+    incrocket: () => { const g = new THREE.Group(), r = rocket(); r.rotation.z = -0.6; g.add(r); const f = flameG(); f.scale.setScalar(0.6); f.position.set(-0.55, -0.75, 0); f.rotation.z = 2.5; g.add(f); return g; },
+    cluster: () => { const g = new THREE.Group(); [[-0.45, 0.2, 0], [0.4, 0.35, 0.1], [0, -0.35, -0.1]].forEach(([x, y, z]) => { const b = mesh(new THREE.SphereGeometry(0.28, 12, 10), S(0x55603f, 0.3, 0.6), x, y, z); g.add(b); g.add(mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.2, 8), S(0x2a2c2e), x, y + 0.3, z)); }); return g; },
+    frag: () => { const g = shell(); g.rotation.z = -0.5; const m = S(0x4a4e52, 0.8, 0.4); for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; g.add(shard(m, Math.cos(a) * 0.85, 0.2 + Math.sin(a) * 0.85, 0)); } g.add(spiky(0.25, 0.8, 0, B(0xffb040), 5)); return g; },
+    bolt: () => { const sh = new THREE.Shape(); [[0.1, 1], [-0.45, 0.05], [0, 0.05], [-0.25, -1], [0.45, 0.15], [0, 0.15], [0.35, 1]].forEach(([x, y], i) => i ? sh.lineTo(x, y) : sh.moveTo(x, y));
+      const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.15, bevelEnabled: false }), B(0x8ad0ff))); const o = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: false }), B(0xffffff)); o.scale.setScalar(0.6); o.position.set(0.02, 0.02, 0.16); g.add(o); return g; },
+    sabot: () => { const g = new THREE.Group(), dart = mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 8), S(0xc9ccd0, 0.9, 0.25)); g.add(dart); g.add(mesh(new THREE.ConeGeometry(0.06, 0.3, 8), S(0xe8e2d4, 0.9, 0.2), 0, 0.95, 0));
+      for (let i = 0; i < 4; i++) { const f = mesh(new THREE.BoxGeometry(0.02, 0.3, 0.2), S(0x3a3d38), Math.sin(i * Math.PI / 2) * 0.1, -0.65, Math.cos(i * Math.PI / 2) * 0.1); f.rotation.y = i * Math.PI / 2; g.add(f); }
+      const t = mesh(new THREE.TorusGeometry(0.5, 0.05, 6, 20), S(0x6a3024, 0.4, 0.6)); t.rotation.x = Math.PI / 2; g.add(t); g.rotation.z = -0.9; return g; },
+    shield: () => { const sh = new THREE.Shape(); sh.moveTo(0, 0.9); sh.lineTo(0.7, 0.65); sh.lineTo(0.65, -0.1); sh.quadraticCurveTo(0.5, -0.65, 0, -0.95); sh.quadraticCurveTo(-0.5, -0.65, -0.65, -0.1); sh.lineTo(-0.7, 0.65); sh.lineTo(0, 0.9);
+      const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.15, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05 }), S(0x5a6068, 0.8, 0.35))); const b = boomG(); b.scale.setScalar(0.55); b.position.set(0.45, 0.45, 0.35); g.add(b); return g; },
+    razor: () => { const g = new THREE.Group(), pts = []; for (let i = 0; i <= 80; i++) { const t = i / 80, a = t * Math.PI * 2 * 5; pts.push(new THREE.Vector3(-0.9 + t * 1.8, Math.sin(a) * 0.4, Math.cos(a) * 0.4)); }
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, 0.03, 5), S(0xc9ccd0, 0.9, 0.3))); const m = S(0xe8eaec, 0.9, 0.2); for (let i = 0; i < 10; i++) g.add(shard(m, -0.85 + i * 0.19, Math.sin(i * 2) * 0.4, Math.cos(i * 2) * 0.4)); return g; },
+    napalm: () => { const g = new THREE.Group(); g.add(mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.9, 16), S(0x9a2a1a, 0.4, 0.5), 0, -0.3, 0)); for (const y of [-0.6, 0]) g.add(mesh(new THREE.TorusGeometry(0.4, 0.03, 6, 20), S(0x2a2c2e), 0, y, 0)).rotation.x = Math.PI / 2;
+      const f = flameG(); f.scale.setScalar(0.65); f.position.y = 0.15; g.add(f); return g; },
+    jet: () => { spawnJet(0, 0, 0, 1); const j = jets.pop(); scene.remove(j.m); j.m.position.set(0, 0, 0); j.m.rotation.set(0.5, 0.8, -0.3); return j.m; },
+  };
+})();
 const jets = []; let jetGeo = null;
 function spawnJet(x, z, ax, az) {
   if (!jetGeo) { const m = new THREE.MeshStandardMaterial({ color: 0x4a5258, roughness: 0.6, metalness: 0.3 }), g = new THREE.Group();
@@ -4514,7 +4757,7 @@ function defUpdate(rdt) {
   if (ptrDown?.s && !carry && (ptrDown.moved || performance.now() - ptrDown.t > 320)) { const s = ptrDown.s; ptrDown.s = null; ptrDown.moved = true; defPickUp(s); }
   updateGhost();
   baseHover = active && !buildMode && !(hovered && hovered.kind) && !!shantyBox && raycaster.ray.intersectsBox(shantyBox);
-  if (shanty && !shantyGone) shanty.userData.outline.visible = baseHover || menuTarget === "base";
+  if (shanty && !shantyGone) shanty.userData.outline.visible = (baseHover || menuTarget === "base") && !CUSTOM_BASE.has(save.base);
   flash.intensity = Math.max(0, flash.intensity - dt * 120);
   for (let i = tracers.length - 1; i >= 0; i--) {
     const t = tracers[i];
@@ -4550,6 +4793,7 @@ function defUpdate(rdt) {
   defBase.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; defBaseNum.textContent = Math.max(0, Math.ceil(save.baseHp));
   // opening guide
   if (run.lobby) { lobbyCam(rdt); dioramaTick(rdt); }
+  animBaseDeco(performance.now() / 1000);
   if (!run.started && !runOver && !run.lobby) {
     const c = trayCards.children[0];
     c?.classList.toggle("flash", !buildMode);
@@ -4574,7 +4818,7 @@ function updateUpMarks() {   // a bouncing ▲ over up to three towers you can a
 }
 function renderTrayState() {
   bankNum.textContent = save.xp;
-  for (const q of trayCards.querySelectorAll("[data-q]")) { const k = q.dataset.q, full = countOf(k) >= capOf(k), b = BUILDS.find(o => o.id === k); q.textContent = full ? "MERGE" : "AUTO"; q.classList.toggle("off", full ? !mergePair(k) : save.xp < b.cost()); q.classList.toggle("mg", full); }
+  for (const q of trayCards.querySelectorAll("[data-q]")) { const k = q.dataset.q; if (k === "wall") { q.classList.toggle("off", !wallToUp()); continue; } const full = countOf(k) >= capOf(k), b = BUILDS.find(o => o.id === k); q.textContent = full ? "QUICK MERGE" : "QUICK PLACE"; q.classList.toggle("off", full ? !mergePair(k) : save.xp < b.cost()); q.classList.toggle("mg", full); }
   [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], ok = save.xp >= b.cost() && countOf(b.id) < capOf(b.id); if (ok && el.classList.contains("poor") && run.started) { el.classList.remove("ping"); void el.offsetWidth; el.classList.add("ping"); } });
   [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], c = b.cost(); el.classList.toggle("poor", save.xp < c || countOf(b.id) >= capOf(b.id)); el.classList.toggle("sel", buildMode && buildSel === i); el.querySelector(".cost").textContent = run.free[b.id] > 0 ? freeLabel(b.id) : c; el.classList.toggle("free", run.free[b.id] > 0); el.querySelector(".cnt").textContent = `${countOf(b.id)}/${capOf(b.id)}`; });
 }
@@ -4583,11 +4827,13 @@ function renderTrayState() {
 const pauseEl = document.getElementById("pause"); let paused = false;
 function setPaused(on) { paused = on; pauseEl.hidden = !on; keys.clear(); mouseDown = false; }
 document.getElementById("pResume").addEventListener("click", () => setPaused(false));
-document.getElementById("pRestart").addEventListener("click", () => { setPaused(false); defReset(); });
-document.getElementById("pMenu").addEventListener("click", () => { setPaused(false); openLobby(); });
+// both end the run for real: everything blows, then the end card (PLAY AGAIN / LOBBY from there)
+document.getElementById("pRestart").addEventListener("click", () => { setPaused(false); if (run.started && !runOver && !run.lobby) defFall(); else if (!runOver) defReset(); });
+document.getElementById("pMenu").addEventListener("click", () => { setPaused(false); if (run.started && !runOver && !run.lobby) defFall(); else if (!runOver) openLobby(); });
 const perfHud = document.getElementById("perfHud"); let cpuMs = 0, perfLast = performance.now();
 let tickers = null, frameNo = 0, slowChecks = 0, prWant = prNow, sunMoved = false;
 function frame(now) {
+  if (!IMP.done) bakeTreeImpostors();
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const tSec = now / 1000;
   if (viewerEl.hidden) {
@@ -4630,6 +4876,7 @@ for (const [k, mk] of Object.entries(SUPPLY_MODELS)) ICONS[k] = renderIcon(mk())
 ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.rocket = renderIcon(makeRocketModel().g);
 for (const k of ["flamer", "cannon", "spikes", "wire"]) { const m = MODEL_OF[k](1); if (m.spikes) m.spikes.position.y = 0; ICONS[k] = renderIcon(m.g); }   // the spike trap's icon shows it sprung
 if (shantyTemplate) ICONS.base = renderIcon(makeShanty()); ICONS.wall = renderIcon(makeWallModel(1));
+for (const [k, mk] of Object.entries(FX_ICONS)) ICONS["fx_" + k] = renderIcon(mk());
 if (!DEF) for (const [l] of interior?.userData.lights || []) shanty.add(l);   // no going inside in defense mode
 applyBaseLevel(); buildBaseFootprint();
 if (!DEF) for (const b of save.builds) if (STRUCT[b.t]) addStruct(b.t, b.x, b.z, b.lv || 1, b.spent ?? (b.t === "sentry" ? 5 : 20), undefined, b.y || 0);
@@ -4647,6 +4894,6 @@ if (DEF) {   // the player sits this one out
   document.body.classList.add("def"); tut.step = "done"; player.pos.set(0, 0, 500); playerModel.visible = false; blockHands.r.visible = blockHands.l.visible = false;
   defReset();   // straight into a game on load; the lobby comes after a run
 }
-window.__game = { run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
+window.__game = { setZoom: (z) => { camZoom = z; }, run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
 requestAnimationFrame(frame);
 </script>
