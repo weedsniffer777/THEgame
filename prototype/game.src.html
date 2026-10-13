@@ -2975,8 +2975,8 @@ function cancelCarry() {   // swapped out or closed: it goes back where it was, 
   const { s, from } = carry; carry = null; s.x = from.x; s.z = from.z; s.y = from.y; buildModel(s); listOf(s.kind).push(s); renderBuildBar();
 }
 // Orthographic 3/4 render, framed to the object's projected bounds so nothing is ever cropped.
-function renderIcon(obj) {
-  const r = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true }); r.setSize(160, 160); r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.3;
+function renderIcon(obj, straight = false) {   // straight: glowing effect shaders (fire, blasts) write straight alpha
+  const r = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true, premultipliedAlpha: !straight }); r.setSize(160, 160); r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.3;
   const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x666666, 3.0)); const dl = new THREE.DirectionalLight(0xffffff, 2.8); dl.position.set(2, 3, 2); sc.add(dl); sc.add(obj); obj.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 100);
   cam.position.copy(c).add(new THREE.Vector3(1, 0.7, 1.15).normalize()); cam.lookAt(c); cam.updateMatrixWorld(true);
@@ -4176,12 +4176,12 @@ const UPGRADES = [
   { id: "incb", perk: 1, fx: "flame", name: "INCENDIARY ROUNDS", ic: "✹", v: [4, 6, 9, 13, 20], txt: (v) => `Sentry hits set enemies on fire for ${v} damage a second`, ok: () => countOf("sentry") > 0 },
   { id: "tesla", perk: 1, fx: "bolt", name: "TESLA ROUNDS", ic: "⚡", v: [12, 18, 26, 38, 60], txt: (v) => `Every 8th sentry hit arcs to 3 more enemies for ${v} each`, ok: () => countOf("sentry") > 0 },
   { id: "pierce", perk: 1, fx: "sabot", name: "ARMOR PIERCING ROUNDS", ic: "➹", v: [0.25, 0.35, 0.5, 0.7, 1], txt: (v) => `${pct(Math.min(1, v))} of sentry rounds punch through into a second enemy`, ok: () => countOf("sentry") > 0 && MOD("pierce") < 1 },
-  { id: "thermo", perk: 1, fx: "thermo", name: "THERMOBARIC WARHEADS", ic: "✺", v: [0.2, 0.3, 0.45, 0.65, 1], txt: (v) => `Rocket blasts ${pct(v)} bigger, and they stagger everything caught`, ok: hasRockets },
-  { id: "incr", perk: 1, fx: "incrocket", name: "INCENDIARY ROCKETS", ic: "✹", v: [6, 9, 13, 19, 30], txt: (v) => `Rocket blasts leave everything burning for ${v} damage a second`, ok: hasRockets },
-  { id: "cluster", perk: 1, fx: "cluster", name: "CLUSTER ROCKETS", ic: "⁂", v: [2, 2, 3, 4, 6], min: 1, txt: (v) => `Every rocket scatters ${v} bomblets`, ok: hasRockets },
-  { id: "frag", perk: 1, fx: "frag", name: "FRAG SHELLS", ic: "✷", v: [0.25, 0.35, 0.5, 0.7, 1], txt: (v) => `Cannon shells burst into shrapnel: ${pct(v)} damage in a ring twice as wide`, ok: () => countOf("cannon") > 0 },
-  { id: "napalm", perk: 1, fx: "napalm", name: "NAPALM MIX", ic: "✹", v: [0.3, 0.45, 0.65, 0.9, 1.4], txt: (v) => `Flamethrower fires burn ${pct(v)} longer and hotter`, ok: () => countOf("flamer") > 0 },
-  { id: "react", perk: 1, fx: "shield", name: "REACTIVE ARMOR", ic: "⛨", v: [40, 60, 90, 130, 200], txt: (v) => `Walls blast attackers back every 200 damage they take, for ${v} damage`, ok: () => walls.length > 0 },
+  { id: "thermo", perk: 1, fx: "boom", name: "THERMOBARIC WARHEADS", ic: "✺", v: [0.2, 0.3, 0.45, 0.65, 1], txt: (v) => `Rocket blasts ${pct(v)} bigger, and they stagger everything caught`, ok: hasRockets },
+  { id: "incr", perk: 1, fx: "flame", name: "INCENDIARY ROCKETS", ic: "✹", v: [6, 9, 13, 19, 30], txt: (v) => `Rocket blasts leave everything burning for ${v} damage a second`, ok: hasRockets },
+  { id: "cluster", perk: 1, fx: "boom", name: "CLUSTER ROCKETS", ic: "⁂", v: [2, 2, 3, 4, 6], min: 1, txt: (v) => `Every rocket scatters ${v} bomblets`, ok: hasRockets },
+  { id: "frag", perk: 1, fx: "boom", name: "FRAG SHELLS", ic: "✷", v: [0.25, 0.35, 0.5, 0.7, 1], txt: (v) => `Cannon shells burst into shrapnel: ${pct(v)} damage in a ring twice as wide`, ok: () => countOf("cannon") > 0 },
+  { id: "napalm", perk: 1, fx: "flame", name: "NAPALM MIX", ic: "✹", v: [0.3, 0.45, 0.65, 0.9, 1.4], txt: (v) => `Flamethrower fires burn ${pct(v)} longer and hotter`, ok: () => countOf("flamer") > 0 },
+  { id: "react", perk: 1, fx: "boom", name: "REACTIVE ARMOR", ic: "⛨", v: [40, 60, 90, 130, 200], txt: (v) => `Walls blast attackers back every 200 damage they take, for ${v} damage`, ok: () => walls.length > 0 },
   { id: "thorns", perk: 1, fx: "razor", name: "RAZOR PLATING", ic: "✂", v: [6, 9, 13, 19, 30], txt: (v) => `Anything that hits a wall takes ${v} damage back`, ok: () => walls.length > 0 },
   { id: "ovch", perk: 1, fx: "jet", name: "AIR SUPPORT", ic: "✈", v: [0.2, 0.3, 0.45, 0.65, 1], txt: (v) => `Airstrikes charge ${pct(v)} faster`, ok: () => true },
   { id: "stash", name: "STASH", ic: "$", v: [30, 50, 80, 130, 250], txt: (v) => `+${v} scrap right now`, now: (v) => { save.xp += v; renderXp(); } },
@@ -4511,10 +4511,19 @@ const FX_ICONS = (() => {
   const spiky = (r, amp, det, mat, seed) => { const g = new THREE.IcosahedronGeometry(r, det), p = g.attributes.position; let st = seed; const rnd = () => ((st = (st * 16807) % 2147483647) / 2147483647);
     const map = new Map(); for (let i = 0; i < p.count; i++) { const key = `${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`; if (!map.has(key)) map.set(key, 1 + (rnd() - 0.3) * amp); const k = map.get(key); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k); }
     g.computeVertexNormals(); return new THREE.Mesh(g, mat); };
-  const flameG = () => { const g = new THREE.Group(); [[0.55, 1.5, 0xff4a10], [0.4, 1.15, 0xff9a20], [0.24, 0.75, 0xfff0a0]].forEach(([r, h, c], i) => { const pts = []; for (let k = 0; k <= 10; k++) { const u = k / 10; pts.push(new THREE.Vector2(r * Math.sin(Math.PI * Math.min(1, u * 1.25)) * (1 - u * 0.75), u * h)); } const o = new THREE.Mesh(new THREE.LatheGeometry(pts, 14), B(c)); o.position.z = i * 0.06; o.rotation.z = (i - 1) * 0.12; g.add(o); });
-    for (let i = 0; i < 4; i++) g.add(mesh(new THREE.SphereGeometry(0.05, 6, 4), B(0xffc040), (i - 1.5) * 0.3, 1.3 + (i % 2) * 0.3, 0.1)); return g; };
-  const boomG = (hot = 0xffa030, outer = 0xff5a1a) => { const g = new THREE.Group(); g.add(spiky(0.75, 0.9, 1, B(outer), 7)); g.add(spiky(0.5, 0.7, 1, B(hot), 11)); g.add(mesh(new THREE.SphereGeometry(0.28, 10, 8), B(0xfff2c0)));
-    for (const [x, y, r] of [[-0.6, 0.6, 0.35], [0.5, 0.75, 0.3], [0, 0.95, 0.38]]) g.add(mesh(new THREE.SphereGeometry(r, 10, 8), S(0x3a3430, 0, 1), x, y, -0.3)); return g; };
+  // the real in-game effects: flamethrower fire particles and explosion fireballs (their materials, made to keep a see-through background)
+  const flameG = (px = 58, n = 70, H = 1.7, W = 0.55) => {   // px: pixels per metre in the 160 px icon (points don't scale with the group)
+    const iconFire = fireMat.clone(); iconFire.fragmentShader = iconFire.fragmentShader.replace("gl_FragColor = vec4(col * a, 1.0);", "gl_FragColor = vec4(col * 0.85, clamp(a * 2.4, 0.0, 1.0));").replace("* (vK > 1.5 ? 0.6 : 1.4), 1.0);", "* (vK > 1.5 ? 0.6 : 1.4), a);"); iconFire.blending = THREE.NormalBlending; iconFire.uniforms = { uScale: { value: px } };
+    const P = [], A = [], K = []; let st = 99; const rnd = () => ((st = (st * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < n; i++) { const t = rnd(), sp = W * (0.25 + t * 0.9) * (rnd() - 0.5) * 2; P.push(sp, t * H + rnd() * 0.15, (rnd() - 0.5) * W); A.push(t * 0.9, 1); K.push(0, 0.55 + rnd() * 0.5); }
+    for (let i = 0; i < 10; i++) { P.push((rnd() - 0.5) * W * 2, H * (0.6 + rnd() * 0.6), (rnd() - 0.5) * 0.3); A.push(rnd() * 0.6, 1); K.push(1, 1); }   // sparks
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute("aAge", new THREE.Float32BufferAttribute(A, 2)); geo.setAttribute("aKind", new THREE.Float32BufferAttribute(K, 2));
+    const g = new THREE.Group(), pts = new THREE.Points(geo, iconFire); g.add(pts);
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(W * 3.2, H * 1.5, 0.1)); pad.visible = false; pad.position.y = H * 0.55; g.add(pad);   // frames the icon around the flames
+    return g;
+  };
+  const ball = (g, x, y, z, r, age = 0.2, heat = 1.1) => { const m = new THREE.Mesh(boomGeo, boomMatBase.clone()); m.material.uniforms.uSeed.value = x * 7 + y * 13 + r * 5; m.material.uniforms.uAge.value = age; m.material.uniforms.uHeat.value = heat; m.position.set(x, y, z); m.scale.setScalar(r); g.add(m); return m; };
+  const boomG = () => { const g = new THREE.Group(); ball(g, 0, 0, 0, 0.75, 0.16, 1.15); ball(g, -0.55, 0.15, 0.2, 0.5, 0.22); ball(g, 0.55, 0.2, 0.1, 0.48, 0.24); ball(g, 0.1, 0.65, -0.1, 0.5, 0.3); ball(g, -0.3, 0.95, -0.3, 0.45, 0.55, 0.7); ball(g, 0.35, 1.0, -0.3, 0.4, 0.6, 0.7); return g; };
   const shell = () => { const g = new THREE.Group(), brass = S(0xd8a840, 0.85, 0.3); g.add(mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.9, 16), brass)); g.add(mesh(new THREE.ConeGeometry(0.22, 0.45, 16), S(0x4a4e52, 0.7, 0.4), 0, 0.67, 0)); g.add(mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.08, 16), brass, 0, -0.45, 0)); return g; };
   const shard = (mat, x, y, z) => { const o = new THREE.Mesh(new THREE.TetrahedronGeometry(0.16), mat); o.position.set(x, y, z); o.rotation.set(x * 3, y * 2, z); return o; };
   const rocket = () => { const g = new THREE.Group(), body = S(0xe6e2d8, 0.2, 0.5); g.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.2, 12), body)); g.add(mesh(new THREE.ConeGeometry(0.16, 0.4, 12), S(0xc8402c), 0, 0.8, 0));
@@ -4522,21 +4531,21 @@ const FX_ICONS = (() => {
   return {
     flame: () => flameG(),
     boom: () => boomG(),
-    thermo: () => { const g = boomG(0xfff0a0, 0xff8a20); g.scale.setScalar(1.15); return g; },
-    incrocket: () => { const g = new THREE.Group(), r = rocket(); r.rotation.z = -0.6; g.add(r); const f = flameG(); f.scale.setScalar(0.6); f.position.set(-0.55, -0.75, 0); f.rotation.z = 2.5; g.add(f); return g; },
+    thermo: () => { const g = new THREE.Group(); const a = boomG(); g.add(a); const b = boomG(); b.scale.setScalar(0.7); b.position.set(-1.1, -0.3, 0.4); g.add(b); const c = boomG(); c.scale.setScalar(0.6); c.position.set(1.05, -0.25, 0.3); g.add(c); return g; },   // several real fireballs
+    incrocket: () => { const g = new THREE.Group(), r = rocket(); r.rotation.z = -0.6; g.add(r); const f = flameG(38); f.scale.setScalar(0.6); f.position.set(-0.55, -0.75, 0); f.rotation.z = 2.5; g.add(f); return g; },
     cluster: () => { const g = new THREE.Group(); [[-0.45, 0.2, 0], [0.4, 0.35, 0.1], [0, -0.35, -0.1]].forEach(([x, y, z]) => { const b = mesh(new THREE.SphereGeometry(0.28, 12, 10), S(0x55603f, 0.3, 0.6), x, y, z); g.add(b); g.add(mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.2, 8), S(0x2a2c2e), x, y + 0.3, z)); }); return g; },
-    frag: () => { const g = shell(); g.rotation.z = -0.5; const m = S(0x4a4e52, 0.8, 0.4); for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; g.add(shard(m, Math.cos(a) * 0.85, 0.2 + Math.sin(a) * 0.85, 0)); } g.add(spiky(0.25, 0.8, 0, B(0xffb040), 5)); return g; },
+    frag: () => { const g = new THREE.Group(), sh = shell(); sh.rotation.z = -0.5; sh.position.set(-0.5, -0.3, 0.3); g.add(sh); const m = S(0x4a4e52, 0.8, 0.4); for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; g.add(shard(m, 0.3 + Math.cos(a) * 0.9, 0.35 + Math.sin(a) * 0.9, 0)); } ball(g, 0.3, 0.35, 0, 0.45, 0.3, 1.0); return g; },
     bolt: () => { const sh = new THREE.Shape(); [[0.1, 1], [-0.45, 0.05], [0, 0.05], [-0.25, -1], [0.45, 0.15], [0, 0.15], [0.35, 1]].forEach(([x, y], i) => i ? sh.lineTo(x, y) : sh.moveTo(x, y));
       const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.15, bevelEnabled: false }), B(0x8ad0ff))); const o = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: false }), B(0xffffff)); o.scale.setScalar(0.6); o.position.set(0.02, 0.02, 0.16); g.add(o); return g; },
     sabot: () => { const g = new THREE.Group(), dart = mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 8), S(0xc9ccd0, 0.9, 0.25)); g.add(dart); g.add(mesh(new THREE.ConeGeometry(0.06, 0.3, 8), S(0xe8e2d4, 0.9, 0.2), 0, 0.95, 0));
       for (let i = 0; i < 4; i++) { const f = mesh(new THREE.BoxGeometry(0.02, 0.3, 0.2), S(0x3a3d38), Math.sin(i * Math.PI / 2) * 0.1, -0.65, Math.cos(i * Math.PI / 2) * 0.1); f.rotation.y = i * Math.PI / 2; g.add(f); }
       g.rotation.z = -0.9; return g; },
-    shield: () => { const sh = new THREE.Shape(); sh.moveTo(0, 0.9); sh.lineTo(0.7, 0.65); sh.lineTo(0.65, -0.1); sh.quadraticCurveTo(0.5, -0.65, 0, -0.95); sh.quadraticCurveTo(-0.5, -0.65, -0.65, -0.1); sh.lineTo(-0.7, 0.65); sh.lineTo(0, 0.9);
-      const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.15, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05 }), S(0x5a6068, 0.8, 0.35))); const b = boomG(); b.scale.setScalar(0.55); b.position.set(0.45, 0.45, 0.35); g.add(b); return g; },
+    shield: () => { const sh = new THREE.Shape();   // a plate with a real blast going off behind it sh.moveTo(0, 0.9); sh.lineTo(0.7, 0.65); sh.lineTo(0.65, -0.1); sh.quadraticCurveTo(0.5, -0.65, 0, -0.95); sh.quadraticCurveTo(-0.5, -0.65, -0.65, -0.1); sh.lineTo(-0.7, 0.65); sh.lineTo(0, 0.9);
+      const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.15, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05 }), S(0x5a6068, 0.8, 0.35))); const b = boomG(); b.scale.setScalar(0.42); b.position.set(0.62, 0.62, -0.4); g.add(b); return g; },
     razor: () => { const g = new THREE.Group(), pts = []; for (let i = 0; i <= 80; i++) { const t = i / 80, a = t * Math.PI * 2 * 5; pts.push(new THREE.Vector3(-0.9 + t * 1.8, Math.sin(a) * 0.4, Math.cos(a) * 0.4)); }
       g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, 0.03, 5), S(0xc9ccd0, 0.9, 0.3))); const m = S(0xe8eaec, 0.9, 0.2); for (let i = 0; i < 10; i++) g.add(shard(m, -0.85 + i * 0.19, Math.sin(i * 2) * 0.4, Math.cos(i * 2) * 0.4)); return g; },
     napalm: () => { const g = new THREE.Group(); g.add(mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.9, 16), S(0x9a2a1a, 0.4, 0.5), 0, -0.3, 0)); for (const y of [-0.6, 0]) g.add(mesh(new THREE.TorusGeometry(0.4, 0.03, 6, 20), S(0x2a2c2e), 0, y, 0)).rotation.x = Math.PI / 2;
-      const f = flameG(); f.scale.setScalar(0.65); f.position.y = 0.15; g.add(f); return g; },
+      const f = flameG(42); f.scale.setScalar(0.65); f.position.y = 0.15; g.add(f); return g; },
     jet: () => { spawnJet(0, 0, 0, 1); const j = jets.pop(); scene.remove(j.m); j.m.position.set(0, 0, 0); j.m.rotation.set(0.5, 0.8, -0.3); return j.m; },
   };
 })();
@@ -4884,7 +4893,7 @@ for (const [k, mk] of Object.entries(SUPPLY_MODELS)) ICONS[k] = renderIcon(mk())
 ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.rocket = renderIcon(makeRocketModel().g);
 for (const k of ["flamer", "cannon", "spikes", "wire"]) { const m = MODEL_OF[k](1); if (m.spikes) m.spikes.position.y = 0; ICONS[k] = renderIcon(m.g); }   // the spike trap's icon shows it sprung
 if (shantyTemplate) ICONS.base = renderIcon(makeShanty()); ICONS.wall = renderIcon(makeWallModel(1));
-for (const [k, mk] of Object.entries(FX_ICONS)) ICONS["fx_" + k] = renderIcon(mk());
+for (const [k, mk] of Object.entries(FX_ICONS)) ICONS["fx_" + k] = renderIcon(mk(), k === "flame" || k === "boom");
 if (!DEF) for (const [l] of interior?.userData.lights || []) shanty.add(l);   // no going inside in defense mode
 applyBaseLevel(); buildBaseFootprint();
 if (!DEF) for (const b of save.builds) if (STRUCT[b.t]) addStruct(b.t, b.x, b.z, b.lv || 1, b.spent ?? (b.t === "sentry" ? 5 : 20), undefined, b.y || 0);
@@ -4902,6 +4911,6 @@ if (DEF) {   // the player sits this one out
   document.body.classList.add("def"); tut.step = "done"; player.pos.set(0, 0, 500); playerModel.visible = false; blockHands.r.visible = blockHands.l.visible = false;
   defReset();   // straight into a game on load; the lobby comes after a run
 }
-window.__game = { setZoom: (z) => { camZoom = z; }, IMP, renderer, MODEL_OF, sentries, run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
+window.__game = { ICONS, setZoom: (z) => { camZoom = z; }, IMP, renderer, MODEL_OF, sentries, run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
 requestAnimationFrame(frame);
 </script>
