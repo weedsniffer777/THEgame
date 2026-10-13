@@ -213,7 +213,8 @@ body.def #game { cursor: default; }
 .tcard.free .cost { color: #7dffd6; }
 .tcard.strike { overflow: hidden; } .tcard.strike .jet { font-size: 38px; line-height: 64px; color: #6a726c; position: relative; } .tcard.strike b { position: relative; }
 .tcard.strike .sfill { position: absolute; inset: 0; display: flex; align-items: flex-end; pointer-events: none; } .tcard.strike .sfill i { display: block; width: 100%; height: 0; background: linear-gradient(0deg, rgba(255, 130, 40, .55), rgba(255, 200, 80, .15)); transition: height .2s; }
-.tcard.strike.ready { animation: sbounce .7s ease-in-out infinite; box-shadow: 0 0 0 3px #ff9a3a, 0 0 0 5px #101211, 0 0 26px 6px rgba(255, 140, 50, .7); } .tcard.strike.ready .jet { color: #fff2c0; text-shadow: 0 0 12px #ff9a3a; }
+.tcard.strike.ready { animation: sbounce .7s ease-in-out infinite; box-shadow: 0 0 0 3px #ff9a3a, 0 0 0 5px #101211, 0 0 26px 6px rgba(255, 140, 50, .7); } .tcard.strike.aiming { transform: translateY(-8px); box-shadow: 0 0 0 3px #ff4a2a, 0 0 0 5px #101211, 0 0 20px 4px rgba(255, 74, 42, .7); } .tcard.strike.aiming .jet { color: #ff8a6a; }
+.tcard.strike.ready .jet { color: #fff2c0; text-shadow: 0 0 12px #ff9a3a; }
 @keyframes sbounce { 50% { transform: translateY(-9px) scale(1.04); } }
 .chestPtr { position: absolute; left: 0; top: 0; margin-left: -24px; margin-top: -52px; width: 48px; display: grid; justify-items: center; pointer-events: none; animation: cbob .6s ease-in-out infinite alternate; }
 .chestPtr span { font-size: 13px; letter-spacing: .14em; color: #ffd23a; text-shadow: 0 2px 0 #000; } .chestPtr i { width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 14px solid #ffd23a; filter: drop-shadow(0 2px 0 #000); }
@@ -244,7 +245,8 @@ body.lobby #tray, body.lobby #xpWrap, body.lobby #defTop, body.lobby #banner, bo
 .lh { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 0 8px; font-size: 15px; letter-spacing: .16em; color: var(--gold); } .lh span { font-size: 10px; letter-spacing: .1em; color: #9d978a; }
 .lrow { display: grid; grid-template-columns: 22px repeat(3, 1fr); gap: 10px; margin-bottom: 12px; align-items: stretch; }
 .lrow .rl { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 10px; letter-spacing: .22em; color: #9d978a; text-align: center; }
-.lrow.target .lslot > .lcard { animation: tflash .8s ease-in-out infinite; }
+.ldeck { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; } body.mobile .ldeck { gap: 8px; }
+.ldeck.target .lslot > .lcard, .lrow.target .lslot > .lcard { animation: tflash .8s ease-in-out infinite; }
 .lsep { height: 3px; margin: 6px -14px 12px; background: #101211; box-shadow: 0 1px 0 #2b2e2b; }
 .lcoll { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .lcard { position: relative; height: 118px; display: grid; justify-items: center; align-content: start; gap: 1px; padding: 14px 4px 0; color: #e8e2d4; background: rgba(18, 20, 19, .92); cursor: pointer;
@@ -281,6 +283,32 @@ body.mobile #lobby .lpanel { top: calc(60px + env(safe-area-inset-top, 0px)); le
 body.mobile .lcard { height: 92px; padding-top: 12px; } body.mobile .lcard img { width: 44px; height: 44px; } body.mobile .lcard b { font-size: 9px; } body.mobile .lrow { gap: 8px; margin-bottom: 8px; } body.mobile .lcoll { gap: 8px; } body.mobile .lh { font-size: 12px; margin-bottom: 6px; }
 body.mobile #lobby .lside { right: 8px; bottom: 8px; gap: 8px; } body.mobile #lobby .lbasep { grid-template-columns: 70px auto; padding: 6px 10px; } body.mobile #lobby .lbasep .lcard { width: 70px; } body.mobile #lobby .lbasep p { font-size: 10px; }
 body.mobile #lPlay { font-size: 22px; width: 190px; padding: 9px 0 7px; } body.mobile #lobby .lpop { width: 210px; } body.mobile #lobby .lhint { top: 58px; font-size: 11px; }
+#res { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(30, 12, 6, .5), rgba(0, 0, 0, .86)); }
+#res .rx { width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow-y: auto; padding: 18px 22px 20px; display: grid; gap: 14px; text-align: center; animation: alertIn .35s ease-out; }
+#res .rhead { position: relative; display: grid; justify-items: center; } #res .rhead small { font-size: 12px; letter-spacing: .3em; color: #ff8a6a; }
+#res .rnight { font-size: 30px; letter-spacing: .16em; color: #e8e2d4; line-height: 1; } #res .rnight b { display: inline-block; font-size: 64px; color: #ffd23a; text-shadow: 0 4px 0 #000, 0 0 24px rgba(255, 200, 60, .5); vertical-align: -6px; }
+#res .pop { animation: rpop .22s ease-out; } @keyframes rpop { 40% { transform: scale(1.35); } }
+#res .rbest { position: absolute; right: 4px; top: 10px; padding: 5px 10px; font-size: 16px; letter-spacing: .14em; color: #1b1407; background: #ffd23a; transform: rotate(10deg); box-shadow: 0 0 0 3px #101211, 0 0 20px rgba(255, 210, 60, .7); animation: stamp .35s cubic-bezier(.2, 2, .4, 1); }
+@keyframes stamp { from { transform: rotate(10deg) scale(3); opacity: 0; } }
+#res .rstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; } #res .rstats div { display: grid; gap: 2px; padding: 8px 4px; background: rgba(0, 0, 0, .3); box-shadow: inset 0 0 0 2px #2b2e2b; }
+#res .rstats span { font-size: 10px; letter-spacing: .2em; color: #9d978a; } #res .rstats b { font-size: 24px; color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; } #res .rstats .gold { color: #ffd23a; display: flex; gap: 8px; align-items: center; justify-content: center; } #res .rstats em { font-style: normal; }
+#res .coin { display: inline-block; width: 13px; height: 13px; background: #ffd23a; transform: rotate(45deg); box-shadow: 0 0 8px 2px rgba(255, 200, 60, .6); }
+#res .rtr { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; font-size: 13px; color: #e0b04a; } #res .rtr .tbar { height: 12px; } #res .rtr .tbar i { transition: width 1.1s cubic-bezier(.3, .8, .3, 1); }
+#res .rtierup { font-size: 14px; color: #7dffd6; letter-spacing: .08em; animation: stamp .35s ease-out; } #res .rtierup b { color: #fff; font-weight: 600; }
+#res .rcards { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; } #res .rc { opacity: 0; transform: rotateY(90deg) scale(.6); animation: none; background: rgba(18, 20, 19, .92); box-shadow: 0 0 0 3px #2b2e2b, 0 0 0 5px #101211, 0 5px 0 #101211; border-radius: 0; }
+#res .rc.in { opacity: 1; transform: none; transition: transform .35s cubic-bezier(.2, 1.6, .4, 1), opacity .2s; } #res .rc.new { background: rgba(60, 46, 16, .95); box-shadow: 0 0 0 3px #e0b04a, 0 0 0 5px #101211, 0 0 22px rgba(255, 210, 90, .7); }
+#res .rbtns { display: grid; grid-template-columns: 1fr auto; gap: 10px; opacity: 0; transform: translateY(14px); transition: .3s ease-out; } #res .rbtns.in { opacity: 1; transform: none; }
+#res .rbtns button { font-family: inherit; font-weight: 600; border: 0; cursor: pointer; letter-spacing: .16em; }
+#res .again { font-size: 26px; padding: 14px 10px 12px; color: #0f1a0d; background: linear-gradient(180deg, #9cf784, #46b534); box-shadow: 0 0 0 3px #1c4a14, 0 0 0 5px #101211, 0 7px 0 #101211; animation: breathe 1.4s ease-in-out infinite; }
+#res .lob { position: relative; font-size: 15px; padding: 0 18px; color: #e8e2d4; background: #2b2e2b; box-shadow: 0 0 0 3px #101211, 0 6px 0 #101211; }
+.dot { position: absolute; right: -8px; top: -8px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #e8402c; color: #fff; font-style: normal; font-size: 12px; line-height: 20px; letter-spacing: 0; box-shadow: 0 0 0 2px #101211; animation: cbob .5s ease-in-out infinite alternate; }
+@keyframes breathe { 50% { transform: scale(1.04); filter: brightness(1.1); } }
+#lPlay { animation: breathe 1.4s ease-in-out infinite; }
+.lcard .newb { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); padding: 1px 6px; font-size: 10px; letter-spacing: .12em; color: #fff; background: #e8402c; box-shadow: 0 0 0 2px #101211; animation: cbob .5s ease-in-out infinite alternate; z-index: 1; }
+.lcard.up { box-shadow: 0 0 0 3px #5fd35a, 0 0 0 5px #101211, 0 6px 0 #101211, 0 0 18px rgba(95, 211, 90, .45); }
+.upMark { position: absolute; left: 0; top: 0; margin: -14px 0 0 -9px; font-size: 20px; color: #7dff6e; text-shadow: 0 2px 0 #000, 0 0 10px rgba(125, 255, 110, .8); pointer-events: none; animation: cbob .45s ease-in-out infinite alternate; }
+.tcard.ping { animation: tping .5s cubic-bezier(.2, 1.8, .4, 1); } @keyframes tping { 40% { transform: translateY(-14px) scale(1.08); } }
+body.mobile #res .rnight b { font-size: 46px; } body.mobile #res .rx { gap: 9px; padding: 12px 14px; } body.mobile #res .again { font-size: 20px; padding: 10px; }
 #runOver .rtrack { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: 13px; color: #e0b04a; }
 #runOver .rtier { font-size: 14px; color: #7dffd6; letter-spacing: .06em; } #runOver .rtier b { color: #fff; font-weight: 600; }
 #runOver .rcards { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
@@ -445,6 +473,7 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
 <div class="px" id="pause" hidden><div class="pbox pxbox"><h1>PAUSED</h1>
   <div class="keys"><span><b>WASD</b> MOVE</span><span><b>MOUSE</b> AIM · CLICK TO SHOOT</span><span><b>SHIFT</b> SPRINT</span><span><b>R</b> RELOAD</span><span><b>B</b> BUILD MENU</span><span><b>1-6</b> PICK SLOT</span><span><b>E</b> ENTER / LEAVE BASE</span><span><b>CLICK</b> A BUILD FOR ITS MENU</span><span><b>P</b> PAUSE</span></div>
   <div class="pbtns"><button type="button" id="pResume">RESUME</button><button type="button" id="pRestart">RESTART</button><button type="button" id="pMenu">MENU</button></div></div></div>
+<div class="px" id="res" hidden></div>
 <div class="px" id="runOver" hidden><div class="rbox pxbox">
   <h1>BASE DESTROYED</h1><div class="rsub" id="rSub"></div>
   <button type="button" id="rRespawn" class="big">RESPAWN</button>
@@ -566,6 +595,7 @@ if (!save.def.meta) save.def.meta = { unlock: { sentry: 1, wall: 1, rocket: 1 },
 // cards level builds up (Clash style), the reward track unlocks new ones, the loadout picks 3 of each kind per run
 Object.assign(save.def.meta, { cards: save.def.meta.cards || {}, xp: save.def.meta.xp || 0, tier: save.def.meta.tier || 0,
   slots: save.def.meta.slots || { weapon: ["sentry", "rocket", null], struct: ["wall", null, null], trap: [null, null, null] } });
+if (!save.def.meta.deck) { const sl = save.def.meta.slots, d = [...sl.weapon, ...sl.struct, ...sl.trap].filter(Boolean); save.def.meta.deck = [...d, ...Array(8).fill(null)].slice(0, 8); }   // 8 open slots, 2 rows of 4
 const META = save.def.meta, powerOf = (k) => 1 + 0.1 * (META.power[k] || 0), perkOf = (k) => META.perk[k] || 0;
 let ptrOn = false;   // a pointer is over the map (mouse hovering, or a finger down)
 
@@ -3154,7 +3184,7 @@ function defFall() {
     for (let i = 0; i < 60; i++) spawnSprite(c.clone(), new THREE.Vector3((Math.random() - 0.5) * 22, 6 + Math.random() * 12, (Math.random() - 0.5) * 22), { color: Math.random() < 0.5 ? 0x6a5a44 : 0x8a6a48, size: 0.2 + Math.random() * 0.3, life: 2.2, opacity: 1, drag: 0.3, gravity: 12 });
     for (let i = 0; i < 24; i++) spawnSprite(c.clone().setY(1), new THREE.Vector3((Math.random() - 0.5) * 14, 2 + Math.random() * 10, (Math.random() - 0.5) * 14), { color: 0xffb040, size: 0.18, life: 1.4, opacity: 1, additive: true, drag: 0.6, gravity: 8 });
   } });
-  delayed.push({ t: tb + 2.6, fn: () => { writeSave(); defResults(false); } });
+  delayed.push({ t: tb + 2.6, fn: () => { writeSave(); defResults(); } });
 }
 function baseFalls() {
   if (DEF) { defFall(); return; }
@@ -3175,7 +3205,7 @@ function baseFalls() {
 }
 const runEl = document.getElementById("runOver");
 function showRunOver() {
-  if (DEF) { defResults(false); return; }
+  if (DEF) { defResults(); return; }
   const f = fallInfo;
   document.getElementById("rSub").textContent = `You held out until ${f.night ? "NIGHT" : "DAY"} ${f.reached} · ${f.kills} kills · best: day ${save.best}`;
   document.getElementById("rRespawn").innerHTML = `RETRY<small>NEW RUN FROM DAY 1 · AN UPGRADE PICK AFTER EVERY NIGHT</small>`;
@@ -3696,6 +3726,7 @@ trayCards.addEventListener("pointerdown", (e) => {
 function defKey(k) {
   if (run.lobby) return;
   if (k === "q") { airRaid(); return; }
+  if (k === "escape" && run.aim) { cancelAim(); return; }
   if (k === "p") { setPaused(!paused); return; }
   if (paused) { if (k === "escape") setPaused(false); return; }
   if (k === "`") { toggleDev(); return; }
@@ -3722,6 +3753,7 @@ addEventListener("pointermove", (e) => {
 });
 cv.addEventListener("pointerdown", (e) => {
   if (!DEF || runOver || picking || paused || run.lobby) return;
+  if (run.aim) { if (e.button === 2) cancelAim(); else fireAim(e.clientX, e.clientY); return; }
   { const c = chestAt(e.clientX, e.clientY); if (c && !carry && !buildMode) { openChest(c); return; } }
   if (e.pointerType === "touch") {
     enableTouch(); touchPts.set(e.pointerId, [e.clientX, e.clientY]);
@@ -3783,8 +3815,8 @@ function defPlace(keep = false) {
     showGhost(); renderTray(); return true;
   }
   const b = BUILDS[buildSel], c = b.cost(); save.xp -= c; if (run.free[b.id] > 0 && --run.free[b.id] === 0) run.freeTotal[b.id] = 0;
-  if (mt) mergeInto(mt, c); else run.lastPlaced = addStruct(b.id, x, z, 1, c, undefined, y);
-  if (!keep) setBuild(-1); renderXp();   // hand empty again, so a drag looks around
+  if (mt) mergeInto(mt, c); else { run.lastPlaced = addStruct(b.id, x, z, 1, c, undefined, y); if (run.started && b.id !== "wall") run.lastPlaced.pack = run.lastPlaced.packMax = 1.5; }
+  if (!keep && MERGEABLE.has(b.id)) setBuild(-1); renderXp();   // turrets: hand empty again; walls and traps stay in hand for the next one
   if (!run.started) {
     if (!save.def.tut2 && !run.tut) { run.tut = "merge"; showBanner(touch.on ? "NOW DRAG A 2ND SENTRY ONTO IT TO MERGE THEM" : "NOW DROP A 2ND SENTRY ONTO IT TO MERGE THEM", 999); }
     else if (run.tut === "merge" && mt) { run.tut = null; save.def.tut2 = 1; defGo(); showBanner("MERGED! A LEVEL 2 SENTRY · HOLD THE BASE!", 3.5); }
@@ -3810,8 +3842,8 @@ function defOrbs(e, n) {
   }
 }
 function addOrb(v, gold) {
-  if (gold) { run.scrapFrac += v * 1.4 * (1 + MOD("loot")); const add = Math.floor(run.scrapFrac); run.scrapFrac -= add; save.xp += add; bankBumpT = 0.15; return; }
-  run.xp += v * 0.7; xpBumpT = 0.15;
+  if (gold) { run.scrapFrac += v * 0.84 * (1 + MOD("loot")); const add = Math.floor(run.scrapFrac); run.scrapFrac -= add; save.xp += add; bankBumpT = 0.15; return; }
+  run.xp += v * 0.42; xpBumpT = 0.15;
   while (run.xp >= xpNeed(run.lvl)) { run.xp -= xpNeed(run.lvl); run.lvl++; run.picks++; }
 }
 let xpBumpT = 0, bankBumpT = 0, trayT = 0;
@@ -3911,14 +3943,14 @@ function defSpawns(dt) {
   const p = (ph.night ? ph.c - DAY_LEN : ph.c) / DAY_LEN;
   const B = (ph.night ? nightBudget(ph.n) : dayBudget(ph.n)) * strengthMult(), deficit = B * Math.min(1, p / 0.85 + 0.05) - run.phaseSpawned;
   if ((gangT -= dt) > 0 || deficit < 1) return;
-  gangT = ph.night ? 0.45 + Math.random() * 0.8 : 0.7 + Math.random() * 1.1;
+  gangT = ph.night ? 1.0 + Math.random() * 1.0 : 1.5 + Math.random() * 1.2;
   // gangs from random directions: walkers mostly, runners from the first night on, bombers from night 2, brutes now and then
   const r = Math.random(), pBomb = ph.night ? (ph.n >= 2 ? Math.min(0.25, 0.08 + 0.04 * ph.n) : 0) : ph.n >= 3 ? 0.06 : 0, pRun = ph.night ? (ph.n === 1 ? (p > 0.15 ? 0.25 : 0) : 0.32) : ph.n >= 2 ? 0.2 : 0.08;
   const pBrute = ph.night ? (ph.n === 1 ? (p > 0.4 ? 0.03 : 0) : Math.min(0.1, 0.03 + 0.015 * ph.n)) : ph.n >= 2 ? 0.025 : 0;   // brutes count as 10
   const type = r < pBrute ? "brute" : r < pBrute + pBomb ? "bomber" : r < pBrute + pBomb + pRun ? "runner" : "walker";
   if (type === "brute" && deficit < 10) return;
-  const cap = { walker: ph.night ? 6 + k * 24 : 4 + k * 10, runner: 3 + k * 6, bomber: 1 + k * 3, brute: ph.n >= 4 && ph.night ? 2 : 1 }[type];
-  gang(type, Math.max(1, Math.min(Math.round(cap), Math.round(deficit * (0.3 + Math.random() * 0.5) / (type === "brute" ? 10 : 1)))));
+  const cap = { walker: ph.night ? 14 + k * 26 : 9 + k * 12, runner: 4 + k * 6, bomber: 1 + k * 3, brute: ph.n >= 4 && ph.night ? 2 : 1 }[type];
+  gang(type, Math.max(1, Math.min(Math.round(cap), Math.round(deficit * (0.45 + Math.random() * 0.45) / (type === "brute" ? 10 : 1)))));
 }
 function gang(type, n) { const f = anyDir(); for (let i = 0; i < n; i++) spawnAt(type, f); run.phaseSpawned = (run.phaseSpawned || 0) + n * (type === "brute" ? 10 : 1); }   // one direction, a tight bunch
 function updateFronts() {
@@ -3943,11 +3975,11 @@ function clearWorld() {
   for (const e of enemies) { scene.remove(e.model); removeBar(e.bar); e.mark?.remove(); e.mark = null; enemyPools[e.type].push(e); }
   enemies.length = 0; hovered = null; pendingHits.length = 0;
   for (const r of rockets) scene.remove(r.m); rockets.length = 0; for (const j of jets) scene.remove(j.m); jets.length = 0;
-  for (const c of chests) { scene.remove(c.g); c.ptr.remove(); } chests.length = 0;
+  for (const c of chests) { scene.remove(c.g); c.ptr.remove(); } chests.length = 0; run.aim = null; aimRing.visible = false; strikeBtn?.classList.remove("aiming");
   for (const o of orbs) { o.el.remove(); orbPool.push(o.el); } orbs.length = 0;
   for (const el of frontEls) el.remove(); frontEls.length = 0; camPan.set(0, 0, 0); camZoom = 1;
   carry = null; buildSel = -1; buildMode = false; showGhost(); closeMenu();
-  runOver = false; shantyGone = false; player.dead = 0; save.base = 1; applyBaseLevel(); save.baseHp = baseMax(); renderBaseHp(); runEl.hidden = true; cardsEl.hidden = true; picking = 0;
+  runOver = false; shantyGone = false; player.dead = 0; save.base = 1; applyBaseLevel(); save.baseHp = baseMax(); renderBaseHp(); runEl.hidden = true; resEl.hidden = true; cardsEl.hidden = true; picking = 0;
   shanty && (shanty.userData.outline.visible = false);
 }
 const starter = () => BUILDS.find(b => catOf(b.id) === "weapon")?.id || BUILDS[0]?.id || "sentry", starterN = () => starter() === "sentry" ? 3 : 1;
@@ -3973,41 +4005,117 @@ function defGo() {
 }
 // AIRSTRIKE: charged by kills; the camera pulls back, jets come over and bomb every bunch of enemies on the map
 const STRIKE_NEED0 = 80;
+// scorestreaks are aimed: pressing one arms a targeting circle on the ground; click / tap places it, right-click or the button again cancels
+const aimRing = (() => {
+  const g = new THREE.Group(), m = (o) => new THREE.MeshBasicMaterial({ color: 0xff4a2a, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide });
+  const fill = new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), m(0.12)), edge = new THREE.Mesh(new THREE.RingGeometry(0.95, 1, 64).rotateX(-Math.PI / 2), m(0.85));
+  const cross = new THREE.Mesh(new THREE.RingGeometry(0.06, 0.1, 24).rotateX(-Math.PI / 2), m(0.9)); g.add(fill, edge, cross); g.position.y = 0.06; g.visible = false; g.renderOrder = 5; scene.add(g); return g;
+})();
+const STREAKS = { strike: { r: 9, fire: (p) => strikeAt(p) } };
 function airRaid() {
+  if (run.aim) { cancelAim(); return; }
   if (runOver || !run.started || run.strike < run.strikeNeed || run.raidT > 0) return;
-  run.strike = 0; run.strikeNeed = Math.round(run.strikeNeed * 1.3); run.zoomBack = camZoom; camZoom = Math.max(camZoom, 1.6); setBuild(-1); closeMenu();
-  const cl = [];
-  for (const e of enemies) { if (e.dead) continue; let c = cl.find(c => Math.hypot(c.x - e.pos.x, c.z - e.pos.z) < 5); if (!c) cl.push(c = { x: 0, z: 0, n: 0, sx: 0, sz: 0 }); c.n++; c.sx += e.pos.x; c.sz += e.pos.z; c.x = c.sx / c.n; c.z = c.sz / c.n; }
-  const ang = Math.random() * Math.PI * 2, ax = Math.sin(ang), az = Math.cos(ang);   // the jets' heading; strikes sweep along it
-  cl.sort((a, b) => (a.x * ax + a.z * az) - (b.x * ax + b.z * az));
-  const groups = Math.max(1, Math.ceil(cl.length / 5));
-  for (let g = 0; g < groups; g++) { const part = cl.slice(g * 5, g * 5 + 5), mx = part.reduce((a, c) => a + c.x, 0) / (part.length || 1), mz = part.reduce((a, c) => a + c.z, 0) / (part.length || 1); delayed.push({ t: 0.5 + g * 0.3, fn: () => spawnJet(mx, mz, ax, az) }); }
-  cl.forEach((c, i) => delayed.push({ t: 1.0 + i * 0.12, fn: () => airstrike(c) }));
-  run.raidT = 1.0 + cl.length * 0.12 + 1.2;
+  setBuild(-1); closeMenu(); run.aim = "strike"; aimRing.scale.setScalar(STREAKS.strike.r); strikeBtn.classList.add("aiming");
 }
-const chests = []; let chestProto = null;
-function dropChest(n) {
-  if (!chestProto) {
-    const g = new THREE.Group(), wood = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.8 }), gold = new THREE.MeshStandardMaterial({ color: 0xffc83a, emissive: 0xffa000, emissiveIntensity: 0.6, roughness: 0.35, metalness: 0.6 });
-    const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); };
-    add(new THREE.BoxGeometry(1.1, 0.6, 0.75), wood, 0, 0.3, 0); add(new THREE.CylinderGeometry(0.375, 0.375, 1.1, 12, 1, false, 0, Math.PI).rotateZ(Math.PI / 2), wood, 0, 0.6, 0);
-    for (const x of [-0.42, 0, 0.42]) add(new THREE.BoxGeometry(0.08, 0.64, 0.79), gold, x, 0.31, 0);
-    add(new THREE.BoxGeometry(0.18, 0.2, 0.06), gold, 0, 0.58, 0.39);
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex, color: 0xffc040, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false })); glow.scale.set(3.4, 3.4, 1); glow.position.y = 0.6; g.add(glow);
-    chestProto = g;
+function cancelAim() { run.aim = null; aimRing.visible = false; strikeBtn.classList.remove("aiming"); }
+const _gp = new THREE.Vector3();
+function groundAt(cx, cy) { raycaster.setFromCamera(new THREE.Vector2(cx / innerWidth * 2 - 1, -cy / innerHeight * 2 + 1), camera); return raycaster.ray.intersectPlane(floorPlane, _gp) ? _gp.clone() : null; }
+function updateAim(rdt) {
+  if (!run.aim) return;
+  if (runOver || run.lobby) { cancelAim(); return; }
+  const p = touch.on ? null : aimPoint; if (p) aimRing.position.set(p.x, 0.06, p.z); else if (!aimRing.visible) aimRing.position.set(BC.x, 0.06, BC.z);
+  aimRing.visible = true; aimRing.children[1].material.opacity = 0.6 + Math.sin(performance.now() / 120) * 0.3; aimRing.rotation.y += rdt;
+}
+function fireAim(cx, cy) { const p = groundAt(cx, cy), k = run.aim; if (!p) return; cancelAim(); STREAKS[k].fire(p); }
+// AIRSTRIKE: jets come over the marked area and carpet it, with extra bombs on every bunch of enemies inside
+function strikeAt(p) {
+  if (run.strike < run.strikeNeed) return;
+  run.strike = 0; run.strikeNeed = Math.round(run.strikeNeed * 1.3); run.zoomBack = camZoom; camZoom = Math.max(camZoom, 1.35);
+  const R = STREAKS.strike.r, ang = Math.random() * Math.PI * 2, ax = Math.sin(ang), az = Math.cos(ang);
+  delayed.push({ t: 0.3, fn: () => spawnJet(p.x - az * 2.5, p.z + ax * 2.5, ax, az) }); delayed.push({ t: 0.45, fn: () => spawnJet(p.x + az * 2.5, p.z - ax * 2.5, ax, az) });
+  const hits = [];
+  for (let i = 0; i < 12; i++) { const u = (i / 11 - 0.5) * 2 * R * 0.9, v = (i % 2 ? 1 : -1) * (2 + Math.random() * 3); hits.push({ x: p.x + ax * u + az * v, z: p.z + az * u - ax * v, n: 3, u }); }   // the carpet, in two lines along the jets' path
+  const cl = []; for (const e of enemies) { if (e.dead || Math.hypot(e.pos.x - p.x, e.pos.z - p.z) > R) continue; let c = cl.find(c => Math.hypot(c.x - e.pos.x, c.z - e.pos.z) < 4); if (!c) cl.push(c = { x: 0, z: 0, n: 0, sx: 0, sz: 0 }); c.n++; c.sx += e.pos.x; c.sz += e.pos.z; c.x = c.sx / c.n; c.z = c.sz / c.n; }
+  for (const c of cl) hits.push({ ...c, u: (c.x - p.x) * ax + (c.z - p.z) * az });
+  hits.sort((a, b) => a.u - b.u).forEach((c, i) => delayed.push({ t: 0.85 + i * 0.07, fn: () => airstrike(c) }));
+  run.raidT = 0.85 + hits.length * 0.07 + 1.2;
+}
+const chests = []; let crateProto = null;
+// the supply drop: a stencilled wooden crate strapped to a pallet, under a billowing gored canopy on a riser
+function crateTex(top) {
+  const c = document.createElement("canvas"); c.width = c.height = 256; const x = c.getContext("2d");
+  x.fillStyle = "#5a6438"; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2600; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? "20,24,10" : "120,130,80"},${Math.random() * 0.12})`; x.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 6, 1); }   // grain
+  x.fillStyle = "rgba(20,24,12,.55)"; for (let k = 1; k < 5; k++) x.fillRect(0, k * 51 - 1, 256, 3);   // planks
+  x.strokeStyle = "#2e341c"; x.lineWidth = 14; x.strokeRect(7, 7, 242, 242);   // frame
+  if (!top) { x.lineWidth = 12; x.beginPath(); x.moveTo(14, 14); x.lineTo(242, 242); x.stroke(); }   // cross brace
+  x.save(); x.translate(128, 128); x.fillStyle = "rgba(235,232,215,.88)";   // stencil star
+  x.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 22 : 54, a = -Math.PI / 2 + i * Math.PI / 5; x.lineTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath(); x.fill(); x.restore();
+  if (!top) { x.fillStyle = "rgba(235,232,215,.8)"; for (let i = 0; i < 6; i++) { x.save(); x.translate(26 + i * 40, 222); x.transform(1, 0, -0.6, 1, 0, 0); x.fillRect(0, -10, 18, 20); x.restore(); } }   // hazard dashes
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+function makeCrate() {
+  const g = new THREE.Group(), add = (geo, m, x, y, z, p) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; (p || g).add(o); return o; };
+  const side = new THREE.MeshStandardMaterial({ map: crateTex(false), roughness: 0.85 }), top = new THREE.MeshStandardMaterial({ map: crateTex(true), roughness: 0.85 });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x8a6a44, roughness: 0.9 }), steel = new THREE.MeshStandardMaterial({ color: 0x3a3d38, roughness: 0.5, metalness: 0.6 });
+  const strap = new THREE.MeshStandardMaterial({ color: 0xe0a92a, roughness: 0.7 }), red = new THREE.MeshStandardMaterial({ color: 0xff3020, emissive: 0xff2010, emissiveIntensity: 3 });
+  const crate = new THREE.Group(); g.add(crate); const W = 1.5, H = 1.15, P = 0.2;
+  for (const z of [-0.65, 0, 0.65]) add(new THREE.BoxGeometry(1.7, 0.1, 0.22), wood, 0, 0.05, z, crate);   // pallet runners
+  for (let i = 0; i < 6; i++) add(new THREE.BoxGeometry(0.24, 0.06, 1.7), wood, -0.7 + i * 0.28, 0.13, 0, crate);   // pallet deck
+  add(new THREE.BoxGeometry(W, H, W), [side, side, top, side, side, side], 0, P + H / 2, 0, crate);
+  for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {   // steel corner guards and feet
+    add(new THREE.BoxGeometry(0.16, H + 0.04, 0.16), steel, x * W / 2, P + H / 2, z * W / 2, crate);
+    add(new THREE.BoxGeometry(0.22, 0.05, 0.22), steel, x * W / 2, P + H + 0.02, z * W / 2, crate);
   }
-  const g = chestProto.clone(), a = Math.random() * Math.PI * 2, r = 6.5 + Math.random() * 2.5; g.position.set(BC.x + Math.sin(a) * r, 0, BC.z + Math.cos(a) * r); g.rotation.y = a + Math.PI; g.scale.setScalar(1.3); scene.add(g);
-  const ptr = document.createElement("div"); ptr.className = "chestPtr px"; ptr.innerHTML = `<span>TAP</span><i></i>`; barLayer.appendChild(ptr);
-  chests.push({ g, ptr, n, t: 0 });
-  for (let k = 0; k < 14; k++) spawnSprite(g.position.clone().setY(0.6), new THREE.Vector3((Math.random() - 0.5) * 4, 3 + Math.random() * 3, (Math.random() - 0.5) * 4), { color: 0xffd060, size: 0.14, life: 0.8, opacity: 1, additive: true, drag: 1, gravity: 6 });
+  for (const k of [-0.38, 0.38]) {   // two cargo straps over the top and down both sides, with buckles
+    add(new THREE.BoxGeometry(0.13, 0.025, W + 0.04), strap, k, P + H + 0.012, 0, crate);
+    for (const sd of [-1, 1]) { add(new THREE.BoxGeometry(0.13, H + 0.02, 0.025), strap, k, P + H / 2, sd * (W / 2 + 0.012), crate); }
+    add(new THREE.BoxGeometry(0.17, 0.12, 0.04), steel, k, P + H * 0.55, W / 2 + 0.03, crate);
+  }
+  for (const sd of [-1, 1]) add(new THREE.TorusGeometry(0.11, 0.025, 6, 12, Math.PI), steel, sd * (W / 2 + 0.02), P + H * 0.7, 0, crate).rotation.set(0, Math.PI / 2, 0);   // carry handles
+  add(new THREE.CylinderGeometry(0.06, 0.08, 0.1, 10), steel, 0.45, P + H + 0.05, -0.45, crate);
+  const bc = add(new THREE.SphereGeometry(0.08, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), red, 0.45, P + H + 0.1, -0.45, crate); bc.name = "beacon";
+  add(new THREE.CylinderGeometry(0.008, 0.008, 0.6, 4), steel, -0.5, P + H + 0.3, 0.5, crate);
+  // the parachute: 12 gores in two colours, each puffed out between its seams, a vent at the crown, lines down to a riser
+  const chute = new THREE.Group(); chute.name = "chute"; chute.position.y = 6.2; g.add(chute);
+  const cA = new THREE.MeshStandardMaterial({ color: 0xe8e2cc, roughness: 0.95, side: THREE.DoubleSide, transparent: true }), cB = new THREE.MeshStandardMaterial({ color: 0x5f6e3c, roughness: 0.95, side: THREE.DoubleSide, transparent: true });
+  const N = 12, Rc = 3.0;
+  for (let i = 0; i < N; i++) {
+    const geo = new THREE.SphereGeometry(Rc, 6, 10, i * Math.PI * 2 / N, Math.PI * 2 / N, 0.16, 1.22), pos = geo.attributes.position, uv = geo.attributes.uv;
+    for (let v = 0; v < pos.count; v++) { const puff = 1 + 0.07 * Math.sin(Math.PI * ((uv.getX(v) * N) % 1 || 0)) * Math.sin(Math.PI * (1 - uv.getY(v))); pos.setX(v, pos.getX(v) * puff); pos.setZ(v, pos.getZ(v) * puff); pos.setY(v, pos.getY(v) * 0.72); }
+    geo.computeVertexNormals(); add(geo, i % 2 ? cA : cB, 0, 0, 0, chute);
+  }
+  const rimY = Math.cos(0.16 + 1.22) * Rc * 0.72, rimR = Math.sin(0.16 + 1.22) * Rc, riser = new THREE.Vector3(0, -4.4, 0), lineM = new THREE.MeshBasicMaterial({ color: 0x2a2a24, transparent: true });
+  const line = (a, b, r = 0.01) => { const m = a.clone().add(b).multiplyScalar(0.5), l = add(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 4), lineM, m.x, m.y, m.z, chute); l.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); };
+  for (let i = 0; i < N; i++) { const a = i * Math.PI * 2 / N; line(new THREE.Vector3(Math.cos(a) * rimR, rimY, Math.sin(a) * rimR), riser); }
+  for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) line(riser, new THREE.Vector3(x * W / 2, P + H - 6.2, z * W / 2), 0.02);
+  return g;
+}
+// supply drops: a crate under a parachute comes down after every night you survive; click / tap it for cards and scrap
+function dropChest(n) {
+  if (!crateProto) crateProto = makeCrate();
+  const g = crateProto.clone(true); g.traverse(o => { if (o.isMesh && o.material.transparent) o.material = o.material.clone(); });
+  const a = Math.random() * Math.PI * 2, r = 6.5 + Math.random() * 3; g.position.set(BC.x + Math.sin(a) * r, 26, BC.z + Math.cos(a) * r); g.rotation.y = Math.random() * Math.PI; scene.add(g);
+  const ptr = document.createElement("div"); ptr.className = "chestPtr px"; ptr.innerHTML = `<span>${touch.on || MOBILE ? "TAP" : "CLICK"}</span><i></i>`; ptr.hidden = true; barLayer.appendChild(ptr);
+  chests.push({ g, ptr, n, t: 0, landed: false, smoke: 0 });
 }
 function updateChests(rdt) {
   for (const c of chests) {
-    c.t += rdt; c.g.position.y = Math.abs(Math.sin(c.t * 3)) * 0.25; c.g.rotation.z = Math.sin(c.t * 6) * 0.06 * (Math.sin(c.t * 1.3) > 0.6 ? 1 : 0);
-    const [x, y] = toScreen(c.g.position.clone().setY(2.2)); c.ptr.style.transform = `translate(${x}px, ${y}px)`; c.ptr.hidden = runOver || run.lobby;
+    c.t += rdt; const chute = c.g.getObjectByName("chute"), beacon = c.g.getObjectByName("beacon");
+    if (!c.landed) {
+      c.g.position.y = Math.max(0, c.g.position.y - rdt * 5); c.g.rotation.z = Math.sin(c.t * 1.7) * 0.08; c.g.rotation.x = Math.cos(c.t * 1.3) * 0.06;
+      if (c.g.position.y <= 0) { c.landed = true; c.land = 0; c.g.rotation.set(0, c.g.rotation.y, 0); shake = Math.max(shake, 0.12);
+        for (let k = 0; k < 12; k++) spawnSprite(c.g.position.clone().setY(0.1), new THREE.Vector3((Math.random() - 0.5) * 5, 0.5, (Math.random() - 0.5) * 5), { color: 0x8a7a62, size: 0.7, grow: 2, life: 0.8, opacity: 0.4, drag: 2 }); }
+    } else if (chute && chute.visible) {   // the chute sags off to one side and fades
+      c.land += rdt; const k = Math.min(1, c.land / 1.4); chute.scale.y = 1 - k * 0.85; chute.position.set(k * 2.6, 6.2 * (1 - k) + 0.3, 0); chute.rotation.z = -k * 1.2;
+      chute.traverse(o => { if (o.isMesh) o.material.opacity = 1 - Math.max(0, k - 0.5) * 2; }); if (k >= 1) chute.visible = false;
+    }
+    if (beacon) beacon.visible = Math.sin(c.t * 9) > 0;
+    if (c.landed && (c.smoke -= rdt) <= 0) { c.smoke = 0.12; spawnSprite(c.g.position.clone().setY(1), new THREE.Vector3((Math.random() - 0.5) * 0.4, 1.4 + Math.random() * 0.6, (Math.random() - 0.5) * 0.4), { color: 0x7ef06a, size: 0.5, grow: 2.2, life: 1.8, opacity: 0.32, drag: 0.4 }); }
+    const [x, y] = toScreen(c.g.position.clone().setY(c.landed ? 2.3 : c.g.position.y + 1.4)); c.ptr.style.transform = `translate(${x}px, ${y}px)`; c.ptr.hidden = !c.landed || runOver || run.lobby;
   }
 }
-function chestAt(cx, cy) { for (const c of chests) { const [x, y] = toScreen(c.g.position.clone().setY(0.7)); if (Math.hypot(x - cx, y - cy) < 56) return c; } return null; }
+function chestAt(cx, cy) { for (const c of chests) { if (!c.landed) continue; const [x, y] = toScreen(c.g.position.clone().setY(0.6)); if (Math.hypot(x - cx, y - cy) < 56) return c; } return null; }
 function openChest(c, quiet = false) {
   chests.splice(chests.indexOf(c), 1); scene.remove(c.g); c.ptr.remove();
   const got = dropCards(2 + c.n), scrap = 15 + c.n * 10; save.xp += scrap; bankBumpT = 0.3; renderXp();
@@ -4024,7 +4132,7 @@ function openChest(c, quiet = false) {
 }
 function updateStrike(rdt) {
   if (run.raidT > 0 && (run.raidT -= rdt * run.slow) <= 0) camZoom = run.zoomBack ?? 1;
-  const k = Math.min(1, (run.strike || 0) / (run.strikeNeed || STRIKE_NEED0)), ready = k >= 1 && !(run.raidT > 0);
+  const k = Math.min(1, (run.strike || 0) / (run.strikeNeed || STRIKE_NEED0)), ready = k >= 1 && !(run.raidT > 0) && !run.aim;
   strikeFill.style.height = `${k * 100}%`; strikeBtn.classList.toggle("ready", ready && run.started && !runOver);
 }
 function airstrike(c) {
@@ -4050,28 +4158,48 @@ function updateJets(dt) {
     if (j.t > 3) { scene.remove(j.m); jets.splice(i, 1); }
   }
 }
-function defResults(won) {
+// results: counted up and revealed piece by piece; a tap anywhere jumps to the end; PLAY AGAIN is one tap away
+const resEl = document.getElementById("res");
+function defResults() {
   for (const c of [...chests]) openChest(c, true);   // chests left on the field still count
-  const surv = run.t, nights = Math.floor(surv / CYC), cash = Math.round(2 * (run.kills * 0.4 + nights * 20));
-  const best0 = save.def.bestN || 0; save.def.cash += cash; save.def.runs++; save.def.bestN = Math.max(best0, nights);
-  // rewards: track XP (tiers unlock builds and give card packs), a handful of cards for what you've unlocked
-  const xpGain = run.kills + nights * 40 + (won ? 100 : 0), tier0 = META.tier, frac0 = (META.xp % TIER_XP) / TIER_XP, got = [];
+  const surv = run.t, nights = Math.floor(surv / CYC), reached = phaseOf(surv).n, cash = Math.round(1.2 * (run.kills * 0.4 + nights * 20));
+  const best0 = save.def.bestN || 0, newBest = nights > best0 && save.def.runs > 0; save.def.cash += cash; save.def.runs++; save.def.bestN = Math.max(best0, nights);
+  const xpGain = run.kills + nights * 40, tier0 = META.tier, frac0 = (META.xp % TIER_XP) / TIER_XP, got = [];
   META.xp += xpGain;
   while (META.xp >= (META.tier + 1) * TIER_XP) { got.push(claimTier(META.tier)); META.tier++; }
-  const drops = dropCards(3 + nights * 2 + (won ? 4 : 0)); writeSave();
-  runEl.querySelector("h1").textContent = "BASE DESTROYED";
-  runEl.querySelector("h1").style.color = won ? "#7dff6e" : "";
-  document.getElementById("rSub").innerHTML = `Night ${phaseOf(surv).n} · ${fmtT(surv)} · ${run.kills} kills · +${cash} cash`;
-  let earn = runEl.querySelector(".earn"); if (!earn) { earn = document.createElement("div"); earn.className = "earn"; runEl.querySelector(".rbox").insertBefore(earn, document.getElementById("rRespawn")); }
-  const cardTile = (k, n, cls = "") => `<div class="rc ${cls}"><img alt="" src="${ICONS[k] || ""}"><b>${k === "base" ? "BASE" : ALL_BUILDS.find(b => b.id === k)?.name || k}</b><span>${n}</span></div>`;
-  earn.innerHTML = `<div class="rtrack"><span>TIER ${tier0 + 1}</span><div class="tbar"><i style="width:${frac0 * 100}%"></i></div><span>+${xpGain} XP</span></div>` +
-    (got.length ? `<div class="rtier">TIER UP! ${got.map(r => r.unlock ? `<b>NEW: ${ALL_BUILDS.find(b => b.id === r.unlock).name}</b>` : r.cash ? `<b>+${r.cash} CASH</b>` : `<b>+${r.n} CARDS</b>`).join(" · ")}</div>` : "") +
-    `<div class="rcards">${got.filter(r => r.unlock).map(r => cardTile(r.unlock, "UNLOCKED", "new")).join("")}${Object.entries(drops).map(([k, n]) => cardTile(k, `+${n}`)).join("")}</div>`;
-  requestAnimationFrame(() => setTimeout(() => { const bar = earn.querySelector(".tbar i"); if (bar) bar.style.width = `${got.length ? 100 : (META.xp % TIER_XP) / TIER_XP * 100}%`; }, 250));
-  document.getElementById("rRespawn").innerHTML = "CONTINUE ▶";
-  runEl.hidden = false;
+  const drops = dropCards(3 + nights * 2); for (const [k, n] of Object.entries(run.got || {})) drops[k] = (drops[k] || 0) + n; writeSave();
+  const nm = (k) => k === "base" ? "BASE" : ALL_BUILDS.find(b => b.id === k)?.name || k;
+  const tiles = [...got.filter(r => r.unlock).map(r => `<div class="rc new"><img alt="" src="${ICONS[r.unlock] || ""}"><b>${nm(r.unlock)}</b><span>NEW!</span></div>`),
+    ...Object.entries(drops).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<div class="rc"><img alt="" src="${ICONS[k] || ""}"><b>${nm(k)}</b><span>+${n}</span></div>`)];
+  resEl.innerHTML = `<div class="rx pxbox">
+    <div class="rhead"><small>BASE DESTROYED ON</small><div class="rnight">NIGHT <b id="rxN">1</b></div><div class="rbest" hidden>NEW BEST!</div></div>
+    <div class="rstats"><div><span>TIME</span><b>${fmtT(surv)}</b></div><div><span>KILLS</span><b id="rxK">0</b></div><div><span>CASH</span><b class="gold"><i class="coin"></i><em id="rxC">0</em></b></div></div>
+    <div class="rtr"><div class="lbadge"><small>TIER</small><b id="rxT">${tier0 + 1}</b></div><div class="tbar"><i id="rxBar" style="width:${frac0 * 100}%"></i></div><span>+${xpGain} XP</span></div>
+    <div class="rtierup" id="rxUp" hidden></div>
+    <div class="rcards" id="rxCards">${tiles.join("")}</div>
+    <div class="rbtns" id="rxBtns"><button type="button" class="again" id="rxAgain">PLAY AGAIN</button><button type="button" class="lob" id="rxLobby">LOBBY${lobbyBadge() ? `<i class="dot">${lobbyBadge()}</i>` : ""}</button></div>
+  </div>`;
+  resEl.hidden = false;
+  const $ = (id) => document.getElementById(id), steps = []; let at = 250, done = false;
+  const step = (dt, fn) => { at += dt; steps.push(setTimeout(fn, at)); };
+  const count = (el, to, ms, cb) => { const t0 = performance.now(); const f = () => { if (done) { el.textContent = to; return; } const k = Math.min(1, (performance.now() - t0) / ms), v = Math.round(to * (1 - (1 - k) ** 2)); if (el.textContent !== String(v)) { el.textContent = v; cb?.(); } if (k < 1) requestAnimationFrame(f); }; f(); };
+  const pop = (el) => { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); };
+  step(0, () => count($("rxN"), reached, Math.min(1400, reached * 220), () => pop($("rxN"))));
+  step(Math.min(1400, reached * 220) + 150, () => { if (newBest) { $("rxN").closest(".rhead").querySelector(".rbest").hidden = false; } });
+  step(newBest ? 500 : 100, () => { count($("rxK"), run.kills, 700); count($("rxC"), cash, 900); });
+  step(900, () => { $("rxBar").style.width = got.length ? "100%" : `${(META.xp % TIER_XP) / TIER_XP * 100}%`; });
+  if (got.length) step(1150, () => { $("rxT").textContent = META.tier + 1; pop($("rxT").parentElement); const up = $("rxUp"); up.hidden = false; up.innerHTML = `TIER UP! ${got.map(r => r.unlock ? `<b>${nm(r.unlock)} UNLOCKED</b>` : r.cash ? `<b>+${r.cash} CASH</b>` : `<b>+${r.n} CARDS</b>`).join(" · ")}`; const bar = $("rxBar"); bar.style.transition = "none"; bar.style.width = "0%"; void bar.offsetWidth; bar.style.transition = ""; bar.style.width = `${(META.xp % TIER_XP) / TIER_XP * 100}%`; });
+  [...$("rxCards").children].forEach((el, i) => step(i ? 140 : 700, () => el.classList.add("in")));
+  step(400, () => $("rxBtns").classList.add("in"));
+  const finish = () => { if (done) return; done = true; steps.forEach(clearTimeout); $("rxN").textContent = reached; $("rxK").textContent = run.kills; $("rxC").textContent = cash; $("rxT").textContent = META.tier + 1;
+    if (newBest) resEl.querySelector(".rbest").hidden = false; if (got.length) { const up = $("rxUp"); up.hidden = false; up.innerHTML = `TIER UP! ${got.map(r => r.unlock ? `<b>${nm(r.unlock)} UNLOCKED</b>` : r.cash ? `<b>+${r.cash} CASH</b>` : `<b>+${r.n} CARDS</b>`).join(" · ")}`; }
+    $("rxBar").style.width = `${(META.xp % TIER_XP) / TIER_XP * 100}%`; [...$("rxCards").children].forEach(el => el.classList.add("in")); $("rxBtns").classList.add("in"); };
+  resEl.onclick = (e) => {
+    if (e.target.closest("#rxAgain")) { resEl.hidden = true; defReset(); return; }
+    if (e.target.closest("#rxLobby")) { resEl.hidden = true; openLobby(); return; }
+    finish();
+  };
 }
-document.getElementById("rRespawn").addEventListener("click", () => { if (DEF) { runEl.hidden = true; openLobby(); } }, true);
 // ---- progression: the reward track, cards, the lobby and its loadout
 const TIER_XP = 120, CATS = { weapon: ["sentry", "rocket", "flamer", "cannon"], struct: ["wall"], trap: ["spikes", "wire"] }, CAT_NAME = { weapon: "WEAPONS", struct: "STRUCTURES", trap: "TRAPS" };
 const TRACK = [{ unlock: "spikes" }, { n: 4 }, { unlock: "flamer" }, { n: 5 }, { unlock: "wire" }, { n: 6 }, { unlock: "cannon" }, { cash: 150 }];
@@ -4082,7 +4210,7 @@ const CARD_NEED = [2, 4, 6, 10, 15, 20, 30, 40, 50, 70], upCash = (L) => 20 * (L
 const lvlOf = (k) => (META.power[k] || 0) + 1, cardsOf = (k) => META.cards[k] || 0, needOf = (k) => CARD_NEED[META.power[k] || 0] ?? 999;
 function claimTier(i) {
   const r = trackAt(i);
-  if (r.unlock) { META.unlock[r.unlock] = 1; const sl = META.slots[catOf(r.unlock)], free = sl.indexOf(null); if (free >= 0 && !sl.includes(r.unlock)) sl[free] = r.unlock; }
+  if (r.unlock) { META.unlock[r.unlock] = 1; const d = META.deck, free = d.indexOf(null); if (free >= 0 && !d.includes(r.unlock)) d[free] = r.unlock; }
   if (r.cash) save.def.cash += r.cash;
   if (r.n) dropCards(r.n);
   return r;
@@ -4092,16 +4220,17 @@ function dropCards(n) {
   for (let i = 0; i < n; i++) { const k = pool[Math.floor(Math.random() * pool.length)]; out[k] = (out[k] || 0) + 1; META.cards[k] = cardsOf(k) + 1; }
   return out;
 }
-function loadout() { const ids = [...META.slots.weapon, ...META.slots.struct, ...META.slots.trap].filter((k, i, a) => k && META.unlock[k] && a.indexOf(k) === i); return ALL_BUILDS.filter(b => ids.includes(b.id)).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)); }
+function loadout() { const ids = META.deck.filter((k, i, a) => k && META.unlock[k] && a.indexOf(k) === i); return ALL_BUILDS.filter(b => ids.includes(b.id)).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)); }
 const lobbyEl = document.getElementById("lobby"), lPanel = document.getElementById("lPanel"), lPop = document.getElementById("lPop"), lHint = document.getElementById("lHint");
 const nameOf = (k) => k === "base" ? "BASE" : ALL_BUILDS.find(b => b.id === k).name;
 const canUp = (k) => cardsOf(k) >= needOf(k) && save.def.cash >= upCash(lvlOf(k) - 1);
-const equipped = (k) => Object.values(META.slots).some(sl => sl.includes(k));
+const equipped = (k) => META.deck.includes(k);
 let lSel = null, lTarget = null;   // the card whose actions are open; an empty (or swap) slot waiting for a card
 function lCard(k, attrs = "", cls = "") {
   if (!META.unlock[k] && k !== "base") return `<div class="lcard ${catOf(k)} locked" ${attrs}><img alt="" src="${ICONS[k] || ""}"><b>${nameOf(k)}</b><span class="lk">TIER ${unlockTier(k) + 1}</span></div>`;
   const c = cardsOf(k), need = needOf(k);
-  return `<div class="lcard ${catOf(k) || "base"}${canUp(k) ? " up" : ""}${lSel === k ? " sel" : ""} ${cls}" data-card="${k}" ${attrs}><span class="lv">LV ${lvlOf(k)}</span>${equipped(k) && cls !== "inslot" ? `<span class="use">IN USE</span>` : ""}<img alt="" src="${ICONS[k] || ""}"><b>${nameOf(k)}</b><span class="cb"><i style="width:${Math.min(1, c / need) * 100}%"></i><em>${c}/${need}</em></span></div>`;
+  const isNew = k !== "base" && !META.seen?.[k] && !["sentry", "wall", "rocket"].includes(k);
+  return `<div class="lcard ${catOf(k) || "base"}${canUp(k) ? " up" : ""}${lSel === k ? " sel" : ""} ${cls}" data-card="${k}" ${attrs}>${isNew ? `<span class="newb">NEW</span>` : ""}<span class="lv">LV ${lvlOf(k)}</span>${equipped(k) && cls !== "inslot" ? `<span class="use">IN USE</span>` : ""}<img alt="" src="${ICONS[k] || ""}"><b>${nameOf(k)}</b><span class="cb"><i style="width:${Math.min(1, c / need) * 100}%"></i><em>${c}/${need}</em></span></div>`;
 }
 function renderRoad() {
   const frac = (META.xp % TIER_XP) / TIER_XP, glyph = (r) => r.unlock ? `<img alt="" src="${ICONS[r.unlock] || ""}">` : r.cash ? `<span class="coin"></span>` : "▤";
@@ -4109,19 +4238,17 @@ function renderRoad() {
   document.getElementById("lRoad").innerHTML = h;
 }
 function renderLobby() {
+  buildDiorama();
   document.getElementById("lCash").textContent = save.def.cash; document.getElementById("lTier").textContent = META.tier + 1; renderRoad();
   const n = loadout().length;
-  let h = `<div class="lh">LOADOUT<span>${n} BUILD${n === 1 ? "" : "S"} IN YOUR TRAY</span></div>`;
-  for (const cat of ["weapon", "trap", "struct"]) {
-    const owned = CATS[cat].some(k => META.unlock[k] && !META.slots[cat].includes(k));
-    h += `<div class="lrow${lTarget?.cat === cat ? " target" : ""}"><span class="rl">${CAT_NAME[cat]}</span>` + META.slots[cat].map((k, i) => `<div class="lslot">${k ? lCard(k, `data-slot="${cat}:${i}"`, "inslot") : `<div class="lcard empty${owned ? "" : " none"}" data-slot="${cat}:${i}">+<small>${owned ? "ADD" : "EMPTY"}</small></div>`}</div>`).join("") + `</div>`;
-  }
+  const spare = ALL_BUILDS.some(b => META.unlock[b.id] && !equipped(b.id));
+  let h = `<div class="lh">LOADOUT<span>${n} / 8 IN YOUR TRAY</span></div><div class="ldeck${lTarget?.swap ? " target" : ""}">` + META.deck.map((k, i) => `<div class="lslot">${k ? lCard(k, `data-slot="${i}"`, "inslot") : `<div class="lcard empty${spare ? "" : " none"}" data-slot="${i}">+<small>${spare ? "ADD" : "EMPTY"}</small></div>`}</div>`).join("") + `</div>`;
   const coll = ALL_BUILDS.map(b => b.id).filter(k => !equipped(k));
-  h += `<div class="lsep"></div><div class="lh">COLLECTION<span>${coll.length ? "TAP A CARD" : "EVERYTHING IS IN USE"}</span></div><div class="lcoll">` + coll.map(k => lCard(k, "", lTarget && catOf(k) === lTarget.cat && META.unlock[k] ? "pick" : "")).join("") + `</div>`;
+  h += `<div class="lsep"></div><div class="lh">COLLECTION<span>${coll.length ? "TAP A CARD" : "EVERYTHING IS IN USE"}</span></div><div class="lcoll">` + coll.map(k => lCard(k, "", lTarget && !lTarget.swap && META.unlock[k] ? "pick" : "")).join("") + `</div>`;
   lPanel.innerHTML = h;
   document.getElementById("lBase").innerHTML = lCard("base") + `<h3>BASE · LV ${lvlOf("base")}</h3><p>Hit points <b>${baseMax()}</b> (+10% per level)</p><p>Runs <b>${save.def.runs}</b> · wins <b>${save.def.wins}</b> · best <b>${save.def.bestN || 0}</b> night${save.def.bestN === 1 ? "" : "s"}</p>`;
   document.getElementById("lPlaySub").textContent = n ? `BEST: NIGHT ${(save.def.bestN || 0) + 1}` : "EQUIP A BUILD FIRST";
-  lHint.hidden = !lTarget; if (lTarget) lHint.textContent = lTarget.swap ? `TAP A ${CAT_NAME[lTarget.cat].slice(0, -1)} SLOT TO SWAP IN ${nameOf(lTarget.swap)}` : `PICK A CARD FROM YOUR COLLECTION`;
+  lHint.hidden = !lTarget; if (lTarget) lHint.textContent = lTarget.swap ? `PICK A SLOT FOR ${nameOf(lTarget.swap)}` : `PICK A CARD FROM YOUR COLLECTION`;
 }
 function powerLine(k) {
   const L = lvlOf(k) - 1, now = `+${L * 10}%`, nx = `+${L * 10 + 10}%`;
@@ -4129,8 +4256,9 @@ function powerLine(k) {
   return `<p class="st">${what[0].toUpperCase() + what.slice(1)} ${now}${cardsOf(k) >= needOf(k) ? ` → ${nx}` : ""}</p>`;
 }
 function openPop(k, el) {
+  if (!META.seen) META.seen = {}; if (!META.seen[k]) { META.seen[k] = 1; writeSave(); }
   lSel = k; renderLobby();
-  const L = lvlOf(k), need = needOf(k), cost = upCash(L - 1), cat = catOf(k), inSlot = cat && META.slots[cat].includes(k);
+  const L = lvlOf(k), need = needOf(k), cost = upCash(L - 1), cat = k !== "base", inSlot = equipped(k);
   const info = k === "base" ? "Your shack. Level it with base cards to start every run tougher." : STRUCT[k].info[1];
   lPop.innerHTML = `<h3>${nameOf(k)}<span>LV ${L}</span></h3><p>${info}</p>${powerLine(k)}<p>Cards ${cardsOf(k)} / ${need}</p><div class="btns">` +
     (cat ? (inSlot ? `<button type="button" data-act="remove">REMOVE</button>` : `<button type="button" class="go" data-act="use">USE</button>`) : "") +
@@ -4142,7 +4270,7 @@ function openPop(k, el) {
   lPop.style.left = `${x}px`; lPop.style.top = `${y}px`;
 }
 function closePop() { lSel = null; lPop.hidden = true; }
-function equipInto(cat, i, k) { const sl = META.slots[cat], j = sl.indexOf(k); if (j >= 0) sl[j] = sl[i]; sl[i] = k; writeSave(); }
+function equipInto(i, k) { const d = META.deck, j = d.indexOf(k); if (j >= 0) d[j] = d[i]; d[i] = k; writeSave(); }
 function upgradeCard(k) {
   const L = lvlOf(k) - 1, need = needOf(k), cost = upCash(L); if (cardsOf(k) < need || save.def.cash < cost) return false;
   META.cards[k] -= need; save.def.cash -= cost; META.power[k] = L + 1; writeSave(); return true;
@@ -4150,24 +4278,51 @@ function upgradeCard(k) {
 lobbyEl.addEventListener("click", (e) => {
   const act = e.target.closest("[data-act]")?.dataset.act;
   if (act) {
-    const k = lSel, cat = catOf(k);
+    const k = lSel;
     if (act === "up" && upgradeCard(k)) { const el = lobbyEl.querySelector(`[data-card="${k}"]`); el && upgradeFlash(el); renderLobby(); openPop(k); return; }
-    if (act === "remove") { const sl = META.slots[cat]; sl[sl.indexOf(k)] = null; writeSave(); closePop(); renderLobby(); return; }
-    if (act === "use") { const sl = META.slots[cat], free = sl.indexOf(null); closePop(); if (free >= 0) { equipInto(cat, free, k); lTarget = null; } else lTarget = { cat, swap: k }; renderLobby(); return; }
+    if (act === "remove") { META.deck[META.deck.indexOf(k)] = null; writeSave(); closePop(); renderLobby(); return; }
+    if (act === "use") { const free = META.deck.indexOf(null); closePop(); if (free >= 0) { equipInto(free, k); lTarget = null; } else lTarget = { swap: k }; renderLobby(); return; }
     return;
   }
   const slot = e.target.closest("[data-slot]"), card = e.target.closest("[data-card]");
-  if (lTarget && slot) { const [cat, i] = slot.dataset.slot.split(":"); if (cat === lTarget.cat && lTarget.swap) { equipInto(cat, +i, lTarget.swap); lTarget = null; closePop(); renderLobby(); return; } }
-  if (lTarget && card && !slot && !lTarget.swap && catOf(card.dataset.card) === lTarget.cat) { equipInto(lTarget.cat, lTarget.i, card.dataset.card); lTarget = null; closePop(); renderLobby(); return; }
-  if (slot && !card) { const [cat, i] = slot.dataset.slot.split(":"); closePop(); lTarget = CATS[cat].some(k => META.unlock[k] && !META.slots[cat].includes(k)) ? { cat, i: +i } : null; renderLobby(); return; }
+  if (lTarget?.swap && slot) { equipInto(+slot.dataset.slot, lTarget.swap); lTarget = null; closePop(); renderLobby(); return; }
+  if (lTarget && card && !slot && !lTarget.swap && META.unlock[card.dataset.card]) { equipInto(lTarget.i, card.dataset.card); lTarget = null; closePop(); renderLobby(); return; }
+  if (slot && !card) { closePop(); lTarget = ALL_BUILDS.some(b => META.unlock[b.id] && !equipped(b.id)) ? { i: +slot.dataset.slot } : null; renderLobby(); return; }
   if (card) { lTarget = null; if (lSel === card.dataset.card) { closePop(); renderLobby(); } else openPop(card.dataset.card, card); return; }
   if (!e.target.closest(".lpop")) { lTarget = null; closePop(); renderLobby(); }
 });
 function upgradeFlash(el) { el.animate([{ transform: "scale(1)", filter: "brightness(1)" }, { transform: "scale(1.15)", filter: "brightness(2)" }, { transform: "scale(1)", filter: "brightness(1)" }], { duration: 450, easing: "ease-out" }); }
+// the lobby diorama: your loadout set up around the base in one of a few hand-made layouts; the layout follows the loadout
+const DIORAMAS = [
+  { w: [[-7, 7], [-5, 7], [-3, 7], [-1, 7], [1, 7], [3, 7], [5, 7], [10, 5], [10, 3], [10, 1], [10, -1]], t: [[-5, 7, 1], [-1, 7, 1], [3, 7, 1], [10, 3, 1], [10, -1, 1], [-8, -5, 0]], r: [[-6, 10], [-2, 10], [2, 10], [6, 10], [13, 3], [13, -1]] },
+  { w: [[-9, -7], [-7, -7], [-9, -5], [9, -7], [7, -7], [9, -5], [-9, 7], [-7, 7], [-9, 5], [9, 7], [7, 7], [9, 5]], t: [[-9, -7, 1], [9, -7, 1], [-9, 7, 1], [9, 7, 1], [0, -7, 0], [0, 8, 0]], r: [[0, -10], [0, 11], [-12, 0], [13, 0], [-5, 10], [5, 11]] },
+  { w: [[-9, 3], [-9, -3], [3, -9], [-3, -9], [11, -3], [3, 10]], t: [[-8, 0, 0], [0, -8, 0], [8, -6, 0], [-6, -6, 0], [-6, 6, 0], [6, 9, 0]], r: [[-12, 0], [0, -12], [12, -8], [-9, -9], [-9, 9], [8, 12]] },
+  { w: [[-10, -4], [-10, -2], [-10, 0], [-10, 2], [-10, 4], [12, -4], [12, -2], [12, 0], [12, 2], [12, 4]], t: [[-10, -2, 1], [-10, 2, 1], [-7, 0, 0], [12, -2, 1], [12, 2, 1], [9, -5, 0]], r: [[-13, -3], [-13, 1], [-13, 5], [15, -3], [15, 1], [15, 5]] },
+];
+let dioKey = "";
+function buildDiorama(force) {
+  const lo = loadout().map(b => b.id), key = lo.join(",") + "|" + lo.map(k => lvlOf(k)).join(",");
+  if (!force && key === dioKey) return; dioKey = key;
+  for (const s of [...structs()]) removeStruct(s);
+  let h = 0; for (const ch of lo.join(",")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const P = DIORAMAS[h % DIORAMAS.length], wpn = lo.filter(k => catOf(k) === "weapon"), trp = lo.filter(k => catOf(k) === "trap"), hasWall = lo.includes("wall"), lvl = (k, i) => Math.min(MAXLV[k], lvlOf(k) + (i % 3 === 0 ? 1 : 0));
+  let i = 0; const drop = (s) => { s.drop = 0.25 + (i++) * 0.06; s.g.position.y = (s.y || 0) + 12; };
+  if (hasWall) for (const [x, z] of P.w) drop(addStruct("wall", x, z, Math.min(4, lvlOf("wall")), 0));
+  if (wpn.length) P.t.forEach(([x, z, top], j) => { const k = wpn[j % wpn.length], s = addStruct(k, x, z, lvl(k, j), 0, undefined, top && hasWall ? WALL_H : 0); s.yaw0 = s.yaw; drop(s); });
+  if (trp.length) P.r.forEach(([x, z], j) => drop(addStruct(trp[j % trp.length], x, z, Math.min(MAXLV[trp[j % trp.length]], lvlOf(trp[j % trp.length])), 0)));
+}
+function dioramaTick(dt) {
+  const tt = performance.now() / 1000;
+  for (const s of structs()) {
+    if (s.drop !== undefined) { s.drop -= dt; const y = s.y || 0; if (s.drop <= 0) { s.g.position.y = y; s.drop = undefined; for (let k = 0; k < 5; k++) spawnSprite(new THREE.Vector3(s.x, y + 0.1, s.z), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0x8a7a62, size: 0.5, grow: 1.5, life: 0.6, opacity: 0.35, drag: 2 }); } else s.g.position.y = y + Math.min(12, s.drop * s.drop * 60); }
+    if (s.yaw0 !== undefined) s.yaw = s.yaw0 + Math.sin(tt * 0.5 + s.x * 0.7 + s.z) * 0.7;
+  }
+}
 function openLobby() {
-  clearWorld(); run.lobby = true; run.started = false; run.t = 0; camZoom = 0.55; camPan.set(0, 0, 0); lSel = null; lTarget = null;
+  clearWorld(); run.lobby = true; dioKey = ""; run.started = false; run.t = 0; camZoom = 0.55; camPan.set(0, 0, 0); lSel = null; lTarget = null;
   document.body.classList.add("lobby"); lobbyEl.hidden = false; lPop.hidden = true; renderLobby();
 }
+const lobbyBadge = () => [...Object.keys(META.unlock).filter(k => META.unlock[k] && !META.seen?.[k] && !["sentry", "wall", "rocket"].includes(k)), ...[...ALL_BUILDS.map(b => b.id), "base"].filter(k => (META.unlock[k] || k === "base") && canUp(k))].length;
 // the lobby camera frames the base in the free space right of the panel
 const _lc = new THREE.Vector3(), _lr = new THREE.Vector3();
 function lobbyCam(dt) {
@@ -4234,7 +4389,7 @@ function defUpdate(rdt) {
   if (shake > 0) { shake = Math.max(0, shake - rdt); camera.position.add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.6)); }
   const cc = BC.clone().add(camPan); if (!sun.target.position.equals(cc)) { sunMoved = true; sun.position.copy(cc).add(new THREE.Vector3(-6, 14, 9)); sun.target.position.copy(cc); }   // shadows follow the view
   camera.updateMatrixWorld();
-  updateJets(rdt); updateChests(rdt); updateStrike(rdt);
+  updateJets(rdt); updateChests(rdt); updateStrike(rdt); updateAim(rdt);
   for (const l of mLights) l.intensity *= Math.exp(-rdt * 28);
   defLight(nightKAt(run.t) * 0.9);
   // HUD
@@ -4243,9 +4398,10 @@ function defUpdate(rdt) {
   xpFill.style.width = `${run.xp / xpNeed(run.lvl) * 100}%`; xpLv.textContent = `LV ${run.lvl}`;
   xpBumpT -= rdt; xpWrap.classList.toggle("bump", xpBumpT > 0); bankBumpT -= rdt; bankEl.classList.toggle("bump", bankBumpT > 0);
   trayT -= rdt; if (trayT <= 0) { trayT = 0.25; renderTrayState(); }
+  updateUpMarks();
   defBase.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; defBaseNum.textContent = Math.max(0, Math.ceil(save.baseHp));
   // opening guide
-  if (run.lobby) lobbyCam(rdt);
+  if (run.lobby) { lobbyCam(rdt); dioramaTick(rdt); }
   if (!run.started && !runOver && !run.lobby) {
     const c = trayCards.children[0];
     c?.classList.toggle("flash", !buildMode);
@@ -4262,8 +4418,15 @@ function defUpdate(rdt) {
   toastT -= rdt; if (toastT <= 0) toastEl.classList.remove("show");
 }
 // cheap tray refresh (affordability) without rebuilding the buttons
+const upMarks = [];
+function updateUpMarks() {   // a bouncing ▲ over up to three towers you can afford to upgrade right now
+  const can = runOver || !run.started || buildMode || carry || picking ? [] : sentries.filter(t => t.level < MAXLV[t.kind] && save.xp >= upCost(t) && !(t.pack > 0)).sort((a, b) => b.level - a.level).slice(0, 3);
+  while (upMarks.length < can.length) { const el = document.createElement("div"); el.className = "upMark px"; el.textContent = "▲"; barLayer.appendChild(el); upMarks.push(el); }
+  upMarks.forEach((el, i) => { const t = can[i]; el.hidden = !t; if (t) { const [x, y] = toScreen(new THREE.Vector3(t.x, (t.y || 0) + 2.7, t.z)); el.style.transform = `translate(${x}px, ${y}px)`; } });
+}
 function renderTrayState() {
   bankNum.textContent = save.xp;
+  [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], ok = save.xp >= b.cost() && countOf(b.id) < capOf(b.id); if (ok && el.classList.contains("poor") && run.started) { el.classList.remove("ping"); void el.offsetWidth; el.classList.add("ping"); } });
   [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], c = b.cost(); el.classList.toggle("poor", save.xp < c || countOf(b.id) >= capOf(b.id)); el.classList.toggle("sel", buildMode && buildSel === i); el.querySelector(".cost").textContent = run.free[b.id] > 0 ? freeLabel(b.id) : c; el.classList.toggle("free", run.free[b.id] > 0); el.querySelector(".cnt").textContent = `${countOf(b.id)}/${capOf(b.id)}`; });
 }
 
