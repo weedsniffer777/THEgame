@@ -212,6 +212,9 @@ body.def #game { cursor: default; }
 .tcard.sel { transform: translateY(-8px); box-shadow: 0 0 0 3px #e0b04a, 0 0 0 5px #101211, 0 10px 0 #101211; }
 .tcard.poor { opacity: .55; } .tcard.locked { opacity: .35; filter: grayscale(1); } .tcard.locked .cost { color: #9d978a; font-size: 11px; } .tcard.deny { animation: deny .25s; } .tcard.poor .cost { color: #e8584a; }
 .tcard.free .cost { color: #7dffd6; }
+.tcard .qp { position: absolute; left: 50%; top: -34px; transform: translateX(-50%); padding: 5px 10px 4px; font-size: 11px; letter-spacing: .14em; color: #0f1a0d; background: #6fe05a; box-shadow: 0 0 0 2px #101211, 0 4px 0 #101211; cursor: pointer; white-space: nowrap; }
+.tcard .qp:hover { filter: brightness(1.15); } .tcard .qp.mg { background: #7dffd6; } .tcard .qp.off { background: #3a3d3a; color: #7a7f7a; }
+.tcard.poor .qp:not(.off) { opacity: 1; } body.mobile .tcard .qp { top: -28px; font-size: 10px; padding: 4px 7px 3px; }
 .tcard.strike { overflow: hidden; } .tcard.strike .jet { font-size: 38px; line-height: 64px; color: #6a726c; position: relative; } .tcard.strike b { position: relative; }
 .tcard.strike .sfill { position: absolute; inset: 0; display: flex; align-items: flex-end; pointer-events: none; } .tcard.strike .sfill i { display: block; width: 100%; height: 0; background: linear-gradient(0deg, rgba(255, 130, 40, .55), rgba(255, 200, 80, .15)); transition: height .2s; }
 .tcard.strike.ready { animation: sbounce .7s ease-in-out infinite; box-shadow: 0 0 0 3px #ff9a3a, 0 0 0 5px #101211, 0 0 26px 6px rgba(255, 140, 50, .7); } .tcard.strike.aiming { transform: translateY(-8px); box-shadow: 0 0 0 3px #ff4a2a, 0 0 0 5px #101211, 0 0 20px 4px rgba(255, 74, 42, .7); } .tcard.strike.aiming .jet { color: #ff8a6a; }
@@ -325,6 +328,27 @@ body.def #banner { top: calc(104px + env(safe-area-inset-top, 0px)); } body.def.
 .card.rar { --rc: #c9c3b4; box-shadow: 0 0 0 3px var(--rc), 0 0 0 5px #101211, 0 8px 0 #101211; }
 .card.rar:hover { box-shadow: 0 0 0 3px var(--rc), 0 0 0 5px #101211, 0 0 26px 4px var(--rc), 0 14px 0 #101211; }
 .card.rar .ic { color: var(--rc); } .card.rar .rl { font-size: 11px; letter-spacing: .16em; color: var(--rc); }
+.card { position: relative; overflow: hidden; animation: cardIn .5s cubic-bezier(.2, 1.5, .4, 1) backwards; transition: transform .25s, opacity .25s, box-shadow .2s; }
+@keyframes cardIn { from { transform: translateY(60px) rotateY(75deg) scale(.6); opacity: 0; } }
+.card > * { position: relative; } .card .rays, .card .shine, .card .spk { position: absolute; pointer-events: none; }
+.card .rays { left: 50%; top: 92px; width: 300px; height: 300px; margin: -150px 0 0 -150px; background: repeating-conic-gradient(from 0deg, var(--rc) 0 7deg, transparent 7deg 22deg); opacity: 0; animation: spin 9s linear infinite;
+  -webkit-mask: radial-gradient(circle, #000 15%, transparent 62%); mask: radial-gradient(circle, #000 15%, transparent 62%); }
+.card.uncommon .rays { opacity: .1; } .card.rare .rays { opacity: .2; } .card.epic .rays { opacity: .3; } .card.legendary .rays { opacity: .45; animation-duration: 5s; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.card .shine { inset: 0; background: linear-gradient(110deg, transparent 38%, rgba(255, 255, 255, .16) 50%, transparent 62%); transform: translateX(-130%); animation: shine 2.8s ease-in-out infinite; }
+@keyframes shine { 55%, 100% { transform: translateX(130%); } }
+.card .spk { bottom: -6px; width: 3px; height: 3px; background: var(--rc); box-shadow: 0 0 6px 1px var(--rc); animation: spk 2s linear infinite; }
+@keyframes spk { from { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(-230px); opacity: 0; } }
+.card .pips { font-size: 9px; letter-spacing: 2px; color: var(--rc); text-shadow: 0 0 6px var(--rc); } .card .pips i { font-style: normal; color: #3a3d3a; text-shadow: none; }
+.card .ic { width: 78px; height: 78px; background: radial-gradient(circle, color-mix(in srgb, var(--rc) 35%, #1b1d1b), #1b1d1b 72%); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--rc) 50%, transparent); }
+.card .ic img { width: 62px; height: 62px; filter: drop-shadow(0 0 8px var(--rc)) drop-shadow(0 3px 2px rgba(0, 0, 0, .6)); }
+.card .ic em { position: absolute; right: -6px; bottom: -6px; width: 26px; height: 26px; display: grid; place-items: center; font-style: normal; font-size: 15px; color: #101211; background: var(--rc); box-shadow: 0 0 0 2px #101211, 0 0 10px var(--rc); }
+.card .ic:not(:has(img)) em { position: static; width: auto; height: auto; background: none; box-shadow: none; font-size: 38px; color: var(--rc); text-shadow: 0 0 14px var(--rc); }
+.card .val { font-size: 30px; line-height: 1; color: #fff; text-shadow: 0 0 14px var(--rc), 0 2px 0 #000; }
+.card.legendary { animation: cardIn .5s cubic-bezier(.2, 1.5, .4, 1) backwards, legend 1.2s ease-in-out .5s infinite; } @keyframes legend { 50% { box-shadow: 0 0 0 3px var(--rc), 0 0 0 5px #101211, 0 0 34px 8px var(--rc), 0 8px 0 #101211; } }
+.card.picked { transform: scale(1.12) translateY(-10px); box-shadow: 0 0 0 3px #fff, 0 0 0 5px #101211, 0 0 50px 12px var(--rc); z-index: 2; } .card.gone { opacity: 0; transform: translateY(40px) scale(.85); pointer-events: none; }
+.burst { position: fixed; z-index: 12; width: 6px; height: 6px; margin: -3px; pointer-events: none; box-shadow: 0 0 8px 2px currentColor; animation: burst .75s cubic-bezier(.1, .8, .3, 1) forwards; }
+@keyframes burst { to { transform: translate(var(--bx), var(--by)) scale(.2); opacity: 0; } }
 .card.rar.legendary { background: linear-gradient(#2a2412, #1e211e 60%); } .card.rar.epic { background: linear-gradient(#251a2e, #1e211e 60%); }
 #runOver .earn { font-size: 15px; color: #ffd23a; letter-spacing: .08em; } #runOver .earn small { display: block; font-size: 11px; color: #9d978a; margin-top: 4px; }
 body.mobile .tcard { width: 72px; height: 90px; } body.mobile .tcard img { width: 48px; height: 48px; } body.mobile #bank { font-size: 17px; padding: 6px 9px; }
@@ -1003,7 +1027,7 @@ function buildTreeline() {
   for (let gx = -FAR; gx <= FAR; gx += STEP) for (let gz = -FAR; gz <= FAR; gz += STEP) {
     const x = gx + (rndp() - 0.5) * STEP * 0.9, z = gz + (rndp() - 0.5) * STEP * 0.9, d = Math.hypot(x, z), e = clearingR(Math.atan2(z, x));
     const keep = d < e - 1.5 ? 0 : d < e ? 0.3 : d < e + 3 ? 0.8 : d < e + 9 ? 0.93 : 0.8;
-    if (rndp() < keep) spots.push([x, z, d > e + 9]);
+    if (rndp() < keep) spots.push([x, z, d > e + 6]);
   }
   // Split the treeline into 12 m chunks, each merged into one trunk mesh + one foliage mesh.
   // Every chunk has its own bounds, so three.js frustum-culls the ones off camera (and off the
@@ -1012,7 +1036,7 @@ function buildTreeline() {
   const group = new THREE.Group(); group.name = "treeline";
   const CHUNK = 12, chunks = new Map();
   spots.forEach(([x, z, far], i) => {
-    const key = `${Math.floor(x / CHUNK)},${Math.floor(z / CHUNK)}`, v = (far ? farVariants : variants)[i % 3];
+    const key = `${Math.floor(x / CHUNK)},${Math.floor(z / CHUNK)},${far ? 1 : 0}`, v = (far ? farVariants : variants)[i % 3];
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rndp() * Math.PI * 2); const s = 0.8 + rndp() * 0.45;
     // trees on the camera side of the clearing are shorter so they don't hide the play area
     const d = Math.hypot(x, z), front = Math.max(0, (x + z) / (Math.SQRT2 * d)) * THREE.MathUtils.clamp(1 - (d - clearingR(Math.atan2(z, x))) / 22, 0, 1);
@@ -1021,10 +1045,10 @@ function buildTreeline() {
     const c = chunks.get(key) || chunks.set(key, { trunks: [], leaves: [] }).get(key);
     c.trunks.push(v.trunk.clone().applyMatrix4(m)); c.leaves.push(v.foliage.clone().applyMatrix4(m));
   });
-  for (const c of chunks.values()) {
-    const trunks = new THREE.Mesh(mergeGeometries(c.trunks), barkMat), leaves = new THREE.Mesh(mergeGeometries(c.leaves), leafMat);
+  for (const [key, c] of chunks) {
+    const far = key.endsWith(",1"), trunks = new THREE.Mesh(mergeGeometries(c.trunks), barkMat), leaves = new THREE.Mesh(mergeGeometries(c.leaves), leafMat);
     leaves.customDepthMaterial = leafDepth;
-    for (const mesh of [trunks, leaves]) { mesh.castShadow = true; mesh.receiveShadow = true; mesh.geometry.computeBoundingSphere(); group.add(mesh); }
+    for (const mesh of [trunks, leaves]) { mesh.castShadow = !far; mesh.receiveShadow = !far; mesh.geometry.computeBoundingSphere(); group.add(mesh); }
   }
   return group;
 }
@@ -1334,8 +1358,8 @@ function updateBooms(dt) {
       p.m.material.uniforms.uAge.value = Math.min(1, k); p.m.visible = k < 1;
     }
     const rk = Math.min(1, b.t / 0.35); b.ring.scale.setScalar(0.3 + rk * b.radius * 1.2); b.ring.material.opacity = 0.8 * (1 - rk);
-    b.scorch.material.opacity = Math.max(0, 1 - Math.max(0, b.t - 6) / 4);
-    if (!alive && b.t > 10) { scene.remove(b.grp); scene.remove(b.scorch); b.puffs.forEach(p => p.m.material.dispose()); booms.splice(i, 1); }
+    b.scorch.material.opacity = Math.max(0, 1 - Math.max(0, b.t - 3) / 3);
+    if (!alive && b.t > 6) { scene.remove(b.grp); scene.remove(b.scorch); b.puffs.forEach(p => p.m.material.dispose()); booms.splice(i, 1); }
   }
   if (flash.intensity > 8) flash.distance = Math.max(6, flash.distance - dt * 20); else flash.distance = 6;
 }
@@ -1395,11 +1419,11 @@ const hpMul = () => DEF ? 1 + run.t / 360 : 1 + (cycle.day - 1) * 0.07 + investC
 function makeEnemy(type) {
   const T = ENEMY_TYPES[type], model = skeletonClone(playerGltf.scene); model.name = type;
   const m = new THREE.MeshStandardMaterial({ color: T.color, roughness: 0.8, flatShading: true });
-  model.traverse(o => { if (o.isMesh) { o.material = m; o.castShadow = true; } });
+  model.traverse(o => { if (o.isMesh) { o.material = m; o.castShadow = !DEF || type === "brute"; } });
   // red silhouette where cover hides them: the body stamps the stencil where it's visible (drawn after the
   // world), the silhouette fills only hidden pixels, once
   markPlayerStencil(model);
-  const sils = []; model.traverse(o => { if (o.isSkinnedMesh && !o.userData.sil) sils.push(o); });
+  const sils = []; if (!DEF) model.traverse(o => { if (o.isSkinnedMesh && !o.userData.sil) sils.push(o); });
   for (const o of sils) { const sil = new THREE.SkinnedMesh(o.geometry, ENEMY_SIL); sil.bind(o.skeleton, o.bindMatrix); sil.renderOrder = 20; sil.frustumCulled = false; sil.userData.sil = true; o.parent.add(sil); o.userData.silMesh = sil; }
   const mixer = new THREE.AnimationMixer(model), act = (n) => { const a = mixer.clipAction(THREE.AnimationClip.findByName(playerGltf.animations, n)); a.play(); return a; };
   const walk = act(T.clip), idle = act("Idle_Loop"); idle.setEffectiveWeight(0);
@@ -2573,7 +2597,10 @@ const ALL_BUILDS = BUILDS;   // the run's tray (BUILDS) is the loadout picked in
 const lockOf = (b) => DEF ? "" : save.base < b.req ? `BASE LV${b.req}` : b.soon ? "SOON" : "";
 const countOf = (id) => id === "wall" ? walls.length : sentries.filter(t => t.kind === id).length;
 const DEF_CAPS = { sentry: 16, wall: 60, rocket: 6, flamer: 6, cannon: 6, spikes: 20, wire: 30 }, MAXLV = { sentry: 4, rocket: 4, wall: 4, flamer: 4, cannon: 4, spikes: 2, wire: 2 };
-const capOf = (id) => DEF ? DEF_CAPS[id] : CAPS[id]?.[Math.min(save.base, 3)] ?? 0;
+// how many of each you can have, by base level: upgrading the base makes room
+const GUNS_CAP = [0, 4, 5, 6, 7, 8, 9, 10, 12], DEF_CAP_LV = { sentry: [0, 8, 10, 12, 14, 17, 20, 22, 24], rocket: GUNS_CAP, flamer: GUNS_CAP, cannon: GUNS_CAP,
+  wall: [0, 40, 50, 60, 70, 80, 90, 100, 120], spikes: [0, 12, 14, 16, 18, 20, 22, 24, 26], wire: [0, 20, 25, 30, 35, 40, 45, 50, 60] };
+const capOf = (id) => DEF ? DEF_CAP_LV[id][Math.min(save.base, 8)] : CAPS[id]?.[Math.min(save.base, 3)] ?? 0;
 const ICONS = {};
 const weaponSlots = document.getElementById("weaponSlots"), buildSlots = document.getElementById("buildSlots"), buildBar = document.getElementById("buildBar"), buildKey = document.getElementById("buildKey");
 let buildMode = false, buildSel = 0, lastBuildSel = 0, ghost = null, ghostOk = false, carry = null;
@@ -2867,7 +2894,7 @@ const buyPrice = (k) => PRICE[k][0] + PRICE[k][1] * countOf(k);
 // upgrading a turret costs what a merge would eat: one more turret of its level (LV2 = 2 bought, LV3 = 4); walls (which don't merge) use their own prices
 const upCost = (t) => DEF && MERGEABLE.has(t.kind) ? (t.level < MAXLV[t.kind] ? buyPrice(t.kind) * 2 ** (t.level - 1) : 0) : STRUCT[t.kind].up[t.level] || 0;
 function upgradeOne(t) {
-  const D = STRUCT[t.kind], c = upCost(t); if (!c || save.xp < c) return false;
+  const D = STRUCT[t.kind], c = upCost(t); if (!c || save.xp < c) return false; act();
   const frac = t.hp / D.hp[t.level]; save.xp -= c; t.spent += c; t.level++; t.hp = D.hp[t.level] * Math.max(frac, 0.5);
   buildModel(t); upgradeFx(cellsOf(t), new THREE.Vector3(t.x, (t.y || 0) + 1.2, t.z), t.g, `LV ${t.level}!`); return true;
 }
@@ -3695,11 +3722,42 @@ const setZoom = (z) => { camZoom = clamp(z, 0.6, 1.5); };
 renderer.domElement.addEventListener("wheel", (e) => { if (!DEF) return; e.preventDefault(); setZoom(camZoom * Math.exp(e.deltaY * 0.0012)); }, { passive: false });
 
 // ---- tray
+// QUICK PLACE: drop a turret on the best open spot (a ring around the base, spread out, leaning toward where the enemies are);
+// once you're at the cap it becomes QUICK MERGE: two of the same level merge
+function quickSpot(kind) {
+  let best = null, bs = -Infinity; const same = sentries.filter(t => t.kind === kind), want = RANGE_OF[kind] ? Math.min(9, RANGE_OF[kind] * 0.6) : 7;
+  for (let x = -16; x <= 16; x++) for (let z = -16; z <= 16; z++) {
+    const d = baseDist(new THREE.Vector3(x, 0, z))[0]; if (d < 2.5 || d > 14) continue;
+    if (placeHeight(kind, x, z) !== 0) continue;
+    let sp = 99; for (const t of same) sp = Math.min(sp, Math.hypot(t.x - x, t.z - z));
+    let foes = 0; for (const e of enemies) if (!e.dead && Math.hypot(e.pos.x - x, e.pos.z - z) < 16) foes++;
+    const sc = -Math.abs(d - want) * 1.2 + Math.min(sp, 8) * 0.8 + Math.min(foes, 30) * 0.08 + Math.random() * 0.6;
+    if (sc > bs) { bs = sc; best = { x, z }; }
+  }
+  return best;
+}
+const mergePair = (kind) => { const ts = sentries.filter(t => t.kind === kind && t.level < MAXLV[kind] && !(t.pack > 0)).sort((a, b) => a.level - b.level); for (let i = 0; i < ts.length; i++) for (let j = i + 1; j < ts.length; j++) if (ts[i].level === ts[j].level) return [ts[i], ts[j]]; return null; };
+function quickAct(kind) {
+  const b = BUILDS.find(o => o.id === kind); if (!b) return; act();
+  if (countOf(kind) >= capOf(kind)) {
+    const pr = mergePair(kind); if (!pr) { deny(trayCards.querySelector(`[data-q="${kind}"]`)); return; }
+    const [a, c] = Math.hypot(pr[0].x - BC.x, pr[0].z - BC.z) > Math.hypot(pr[1].x - BC.x, pr[1].z - BC.z) ? pr : [pr[1], pr[0]];   // the outer one folds into the inner one
+    for (let k = 0; k < 8; k++) spawnSprite(new THREE.Vector3(a.x, (a.y || 0) + 0.8, a.z), new THREE.Vector3((c.x - a.x) * 2, 2, (c.z - a.z) * 2), { color: 0x7dffd6, size: 0.14, life: 0.5, opacity: 1, additive: true, drag: 1 });
+    removeStruct(a); mergeInto(c, a.spent); saveBuilds(); renderTray(); return;
+  }
+  const c = b.cost(); if (save.xp < c) { deny(trayCards.querySelector(`[data-q="${kind}"]`)); return; }
+  const sp = quickSpot(kind); if (!sp) { deny(trayCards.querySelector(`[data-q="${kind}"]`)); return; }
+  save.xp -= c; if (run.free[kind] > 0 && --run.free[kind] === 0) run.freeTotal[kind] = 0;
+  const t = addStruct(kind, sp.x, sp.z, 1, c, undefined, 0); if (run.started) t.pack = t.packMax = 1.5; saveBuilds();
+  for (let k = 0; k < 6; k++) spawnSprite(new THREE.Vector3(sp.x, 0.2, sp.z), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0xc9a45c, size: 0.4, grow: 2, life: 0.7, opacity: 0.45, drag: 2.5 });
+  renderXp(); if (!run.started && !run.tut) defGo();
+}
 function renderTray() {
   bankNum.textContent = save.xp;
   trayCards.innerHTML = BUILDS.map((b, i) => { const c = b.cost(), n = countOf(b.id), cap = capOf(b.id), free = run.free[b.id] > 0;
     if (locked(i)) return `<button type="button" class="tcard locked" data-i="${i}"><span class="k">${i + 1}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">LOCKED</span></button>`;
-    return `<button type="button" class="tcard${buildSel === i && buildMode ? " sel" : ""}${save.xp < c || n >= cap ? " poor" : ""}${free ? " free" : ""}" data-i="${i}"><span class="k">${i + 1}</span><span class="cnt">${n}/${cap}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">${free ? freeLabel(b.id) : c}</span></button>`; }).join("");
+    const qb = MERGEABLE.has(b.id) && save.def.tut2 ? `<span class="qp" data-q="${b.id}">${n >= cap ? "MERGE" : "AUTO"}</span>` : "";
+    return `<button type="button" class="tcard${buildSel === i && buildMode ? " sel" : ""}${save.xp < c || n >= cap ? " poor" : ""}${free ? " free" : ""}" data-i="${i}">${qb}<span class="k">${i + 1}</span><span class="cnt">${n}/${cap}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">${free ? freeLabel(b.id) : c}</span></button>`; }).join("");
   if (!run.started && !run.events.firstPick) trayCards.children[0]?.classList.add("flash");
 }
 // towers in hand for free (start, supply drops, picked back up): the card reads "left/got" until they run out
@@ -3720,6 +3778,7 @@ function setBuild(i) {
   if (i >= 0) run.events.firstPick = true;
 }
 trayCards.addEventListener("pointerdown", (e) => {
+  const q = e.target.closest("[data-q]"); if (q) { e.preventDefault(); e.stopPropagation(); if (!runOver && !picking && !paused) quickAct(q.dataset.q); return; }
   const c = e.target.closest(".tcard"); if (!c || runOver || picking || paused) return; e.preventDefault();
   const i = +c.dataset.i, again = buildMode && buildSel === i;
   if (!again) { setBuild(i); if (buildSel !== i) return; }
@@ -3808,6 +3867,7 @@ function upgradeStruct(t) {   // free level-up from a card
 function defPlace(keep = false) {
   if (!ghost || !ghost.visible) return false;
   if (!ghostOk) { deny(trayCards.children[buildSel]); return false; }
+  act();
   const x = ghost.position.x, z = ghost.position.z, y = ghost.userData.y || 0, mt = ghostMerge;
   for (let k = 0; k < 4; k++) spawnSprite(ghost.position.clone().setY(y + 0.2), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0xc9a45c, size: 0.4, grow: 2, life: 0.7, opacity: 0.45, drag: 2.5 });
   if (carry) {
@@ -3818,7 +3878,8 @@ function defPlace(keep = false) {
   }
   const b = BUILDS[buildSel], c = b.cost(); save.xp -= c; if (run.free[b.id] > 0 && --run.free[b.id] === 0) run.freeTotal[b.id] = 0;
   if (mt) mergeInto(mt, c); else { run.lastPlaced = addStruct(b.id, x, z, 1, c, undefined, y); if (run.started && b.id !== "wall") run.lastPlaced.pack = run.lastPlaced.packMax = 1.5; }
-  if (!keep && MERGEABLE.has(b.id)) setBuild(-1); renderXp();   // turrets: hand empty again; walls and traps stay in hand for the next one
+  if (!keep && MERGEABLE.has(b.id)) setBuild(-1); renderXp();
+  if (!save.def.tutBox && !touch.on && run.started && countOf(b.id) >= 3) { save.def.tutBox = 1; writeSave(); showBanner("RIGHT-CLICK AND DRAG A BOX TO SELECT MULTIPLE AT ONCE!", 6); }   // turrets: hand empty again; walls and traps stay in hand for the next one
   if (!run.started) {
     if (!save.def.tut2 && !run.tut) { run.tut = "merge"; showBanner(touch.on ? "NOW DRAG A 2ND SENTRY ONTO IT TO MERGE THEM" : "NOW DROP A 2ND SENTRY ONTO IT TO MERGE THEM", 999); }
     else if (run.tut === "merge" && mt) { run.tut = null; save.def.tut2 = 1; defGo(); showBanner("MERGED! A LEVEL 2 SENTRY · HOLD THE BASE!", 3.5); }
@@ -3833,9 +3894,11 @@ function mergeInto(t, spent) {
 
 // ---- kill orbs: a blue (XP) and a yellow (scrap) orb per point burst out of the body, then fly to their counter
 const orbs = [], orbPool = []; let orbRectT = 0, orbTo = [0, 0, 0, 0];
+const FLY_ORBS = false;
 function defOrbs(e, n) {
   run.kills++; run.strike = (run.strike || 0) + (e.type === "brute" ? 10 : 1);
   const [sx, sy] = toScreen(e.pos.clone().setY(1.2)), big = n >= 10, count = big ? Math.ceil(n / 3) : n, val = big ? 3 : 1;
+  if (FLY_ORBS === false) { for (let i = 0; i < count; i++) { addOrb(val, false); addOrb(val, true); } return; }   // straight into the bar and the bank: no flying orbs over the field
   for (let i = 0; i < count; i++) for (const gold of [false, true]) {
     if (orbs.length > 260) { addOrb(val, gold); continue; }
     const el = orbPool.pop() || Object.assign(document.createElement("i"), { className: "orb" }); el.classList.toggle("big", big); el.classList.toggle("gold", gold); orbLayer.appendChild(el);
@@ -3895,15 +3958,29 @@ function dealUpgrades() {
   if (runOver || run.lobby) return;
   const pool = UPGRADES.filter(u => !u.ok || u.ok()).sort(() => Math.random() - 0.5).slice(0, 3);
   offer = pool.map(u => ({ u, r: rollRarity(u.min || 0) }));
-  cardRow.innerHTML = offer.map(({ u, r }, i) => `<button type="button" class="card px rar ${RAR[r].id}" style="--rc:${RAR[r].col}" data-u="${i}"><span class="rl">${RAR[r].name}</span><span class="ic">${u.ic}</span><b>${u.name}</b><small>${u.txt(u.v[r])}</small></button>`).join("");
+  cardRow.innerHTML = offer.map(({ u, r }, i) => {
+    const txt = u.txt(u.v[r]), big = (txt.match(/[+-]?\d+(\.\d+)?%|\+\d+(\.\d+)? m|\+\d+|\d+ (?=random|tower)/) || [""])[0], icon = CARD_ICON[u.id]?.(u.v[r]);
+    const sparks = r >= 2 ? Array.from({ length: 4 + r * 3 }, () => `<i class="spk" style="left:${8 + Math.random() * 84}%;animation-delay:${(Math.random() * 2).toFixed(2)}s;animation-duration:${(1.4 + Math.random() * 1.4).toFixed(2)}s"></i>`).join("") : "";
+    return `<button type="button" class="card px rar ${RAR[r].id}" style="--rc:${RAR[r].col};animation-delay:${i * 0.09}s" data-u="${i}"><span class="rays"></span><span class="shine"></span>${sparks}
+      <span class="rl">${RAR[r].name}</span><span class="pips">${"◆".repeat(r + 1)}<i>${"◆".repeat(4 - r)}</i></span>
+      <span class="ic">${icon ? `<img alt="" src="${icon}">` : ""}<em>${u.ic}</em></span><b>${u.name}</b>${big ? `<span class="val">${big}</span>` : ""}<small>${txt}</small></button>`; }).join("");
   cardLeft.textContent = run.picks > 1 ? `LEVEL ${run.lvl - run.picks + 1} · ${run.picks - 1} MORE AFTER THIS` : `LEVEL ${run.lvl}`;
   cardsEl.querySelector("h2").textContent = "LEVEL UP!"; cardsEl.hidden = false; picking = 1;
 }
+const CARD_ICON = { sdmg: () => ICONS.sentry, srate: () => ICONS.cannon || ICONS.sentry, range: () => ICONS.sentry, rdmg: () => ICONS.rocket, rrad: () => ICONS.rocket, rburst: () => ICONS.rocket,
+  armor: () => ICONS.wall, repair: () => ICONS.base, drop: (v) => ICONS[Object.keys(v).find(k => BUILDS.some(b => b.id === k)) || "sentry"], fieldup: () => ICONS.sentry };
 cardRow.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-u]"); if (!b || !DEF) return;
-  const { u, r } = offer[+b.dataset.u], v = u.v[r];
-  if (u.now) u.now(v); else run.mods[u.id] = (run.mods[u.id] || 0) + v;
-  run.picks--; if (run.picks > 0) dealUpgrades(); else { cardsEl.hidden = true; picking = 0; }
+  const b = e.target.closest("[data-u]"); if (!b || !DEF || cardRow.classList.contains("busy")) return;
+  const { u, r } = offer[+b.dataset.u], v = u.v[r]; act();
+  cardRow.classList.add("busy"); b.classList.add("picked"); for (const o of cardRow.children) if (o !== b) o.classList.add("gone");
+  const rc = b.getBoundingClientRect(), col = RAR[r].col;
+  for (let k = 0; k < 18 + r * 8; k++) { const sp = document.createElement("i"); sp.className = "burst"; const a = Math.random() * Math.PI * 2, d = 80 + Math.random() * 140;
+    sp.style.cssText = `left:${rc.left + rc.width / 2}px;top:${rc.top + rc.height / 2}px;background:${col};--bx:${Math.cos(a) * d}px;--by:${Math.sin(a) * d}px`; document.body.appendChild(sp); setTimeout(() => sp.remove(), 800); }
+  setTimeout(() => {
+    cardRow.classList.remove("busy");
+    if (u.now) u.now(v); else run.mods[u.id] = (run.mods[u.id] || 0) + v;
+    run.picks--; if (run.picks > 0) dealUpgrades(); else { cardsEl.hidden = true; picking = 0; }
+  }, 420);
 });
 
 // ---- the horde: fronts, a ramp, bosses
@@ -3933,11 +4010,19 @@ let spT = { walker: 1, runner: 0, bomber: 0 }, gangT = 0;
 // every day and night sends a set number of enemies, paced out over the phase (a brute counts as 10); days send 60% of the night's count, and they're weaker
 const nightBudget = (n) => 90 + n * 50, dayBudget = (n) => Math.round(nightBudget(n) * 0.6);   // nights 140 / 190 / 240 / ..., days 60% of that
 // the stronger you are (scrap in the bank + what your towers are worth), the more of them come: more, not tougher
+// how many come scales with: what you've built (scrap sitting in the bank counts extra: spend it), how far out you're
+// stopping them (crushing it = more), whether you're actually playing (crushing it while idle = a lot more), and base health (hurting = fewer)
 let strengthT = 0, strengthK = 1;
+const act = () => { run.lastAct = run.t; };
 function strengthMult() {
   if ((strengthT -= 1 / 60) > 0) return strengthK; strengthT = 1;
-  let worth = save.xp; for (const s of structs()) worth += PRICE[s.kind][0] * (MERGEABLE.has(s.kind) ? 2 ** (s.level - 1) : s.level);
-  return (strengthK = clamp(1 + (worth - 150) / 500, 1, 4));
+  let worth = save.xp * 1.6; for (const s of structs()) worth += PRICE[s.kind][0] * (MERGEABLE.has(s.kind) ? 2 ** (s.level - 1) : s.level);
+  let n = 0, sum = 0; for (const e of enemies) if (!e.dead && e.type !== "bomber") { sum += baseDist(e.pos)[0]; n++; }
+  const avgD = n >= 6 ? sum / n : 18, hpK = save.baseHp / baseMax(), idle = run.t - (run.lastAct ?? 0);
+  let want = clamp((avgD - 15) / 18, -0.35, 0.5) - (1 - hpK) * 0.5;   // held far out: more; at the walls: fewer
+  if (avgD > 15 && idle > 30) want += Math.min(0.6, (idle - 30) / 40);   // crushing it without touching anything: too easy
+  run.perf = (run.perf || 0) + (want - (run.perf || 0)) * 0.12;
+  return (strengthK = clamp((1 + Math.max(0, worth - 150) / 450) * (1 + run.perf), 0.7, 5));
 }
 function defSpawns(dt) {
   const t = run.t, k = clamp(t / 600, 0, 1), ph = phaseOf(t);
@@ -3949,8 +4034,9 @@ function defSpawns(dt) {
   if ((gangT -= dt) > 0 || deficit < 1) return;
   gangT = ph.night ? 1.0 + Math.random() * 1.0 : 1.5 + Math.random() * 1.2;
   // gangs from random directions: walkers mostly, runners from the first night on, bombers from night 2, brutes now and then
-  const r = Math.random(), pBomb = ph.night ? (ph.n >= 2 ? Math.min(0.25, 0.08 + 0.04 * ph.n) : 0) : ph.n >= 3 ? 0.06 : 0, pRun = ph.night ? (ph.n === 1 ? (p > 0.15 ? 0.25 : 0) : 0.32) : ph.n >= 2 ? 0.2 : 0.08;
-  const pBrute = ph.night ? (ph.n === 1 ? (p > 0.4 ? 0.03 : 0) : Math.min(0.1, 0.03 + 0.015 * ph.n)) : ph.n >= 2 ? 0.025 : 0;   // brutes count as 10
+  const hard = Math.min(1, (ph.n - 1) / 8 + (strengthK - 1) / 6);   // 0 → 1 over the nights and as the scaler climbs: more of the nasty ones
+  const r = Math.random(), pBomb = ph.night ? (ph.n >= 2 ? 0.08 + 0.17 * hard : 0) : ph.n >= 3 ? 0.04 + 0.08 * hard : 0, pRun = ph.night ? (ph.n === 1 ? (p > 0.15 ? 0.25 : 0) : 0.28 + 0.12 * hard) : ph.n >= 2 ? 0.16 + 0.1 * hard : 0.08;
+  const pBrute = ph.night ? (ph.n === 1 ? (p > 0.4 ? 0.03 : 0) : 0.03 + 0.09 * hard) : ph.n >= 2 ? 0.02 + 0.04 * hard : 0;   // brutes count as 10
   const type = r < pBrute ? "brute" : r < pBrute + pBomb ? "bomber" : r < pBrute + pBomb + pRun ? "runner" : "walker";
   if (type === "brute" && deficit < 10) return;
   const cap = { walker: ph.night ? 14 + k * 26 : 9 + k * 12, runner: 4 + k * 6, bomber: 1 + k * 3, brute: ph.n >= 4 && ph.night ? 2 : 1 }[type];
@@ -3990,7 +4076,7 @@ const starter = () => BUILDS.find(b => catOf(b.id) === "weapon")?.id || BUILDS[0
 function defReset() {
   clearWorld(); run.lobby = false; document.body.classList.remove("lobby"); lobbyEl.hidden = true;
   BUILDS = loadout();
-  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { [starter()]: starterN() }, freeTotal: { [starter()]: starterN() }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, phaseKey: 0, phaseSpawned: 0, strike: 0, strikeNeed: STRIKE_NEED0, raidT: 0, got: {} });
+  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { [starter()]: starterN() }, freeTotal: { [starter()]: starterN() }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, phaseKey: 0, phaseSpawned: 0, lastAct: 0, perf: 0, strike: 0, strikeNeed: STRIKE_NEED0, raidT: 0, got: {} });
   spT = { walker: 1.5, runner: 0, bomber: 0 }; gangT = 2;
   save.xp = 25; save.cards = []; save.builds = [];
   // the opening: a first front, a few walkers already on their way in slow motion, a free sentry to place
@@ -4033,7 +4119,7 @@ function updateAim(rdt) {
 function fireAim(cx, cy) { const p = groundAt(cx, cy), k = run.aim; if (!p) return; cancelAim(); STREAKS[k].fire(p); }
 // AIRSTRIKE: jets come over the marked area and carpet it, with extra bombs on every bunch of enemies inside
 function strikeAt(p) {
-  if (run.strike < run.strikeNeed) return;
+  if (run.strike < run.strikeNeed) return; act();
   run.strike = 0; run.strikeNeed = Math.round(run.strikeNeed * 1.3); run.zoomBack = camZoom; camZoom = Math.max(camZoom, 1.35);
   const R = STREAKS.strike.r, ang = Math.random() * Math.PI * 2, ax = Math.sin(ang), az = Math.cos(ang);
   delayed.push({ t: 0.3, fn: () => spawnJet(p.x - az * 2.5, p.z + ax * 2.5, ax, az) }); delayed.push({ t: 0.45, fn: () => spawnJet(p.x + az * 2.5, p.z - ax * 2.5, ax, az) });
@@ -4099,7 +4185,10 @@ function makeCrate() {
 function dropChest(n) {
   if (!crateProto) crateProto = makeCrate();
   const g = crateProto.clone(true); g.traverse(o => { if (o.isMesh && o.material.transparent) o.material = o.material.clone(); });
-  const a = Math.random() * Math.PI * 2, r = 6.5 + Math.random() * 3; g.position.set(BC.x + Math.sin(a) * r, 26, BC.z + Math.cos(a) * r); g.rotation.y = Math.random() * Math.PI; scene.add(g);
+  let x = 0, z = 0;
+  for (let k = 0; k < 40; k++) { const a = Math.random() * Math.PI * 2, r = 6.5 + Math.random() * (3 + k * 0.3); x = BC.x + Math.sin(a) * r; z = BC.z + Math.cos(a) * r;
+    if (inClearing(x, z, 3) && baseDist(new THREE.Vector3(x, 0, z))[0] > 2 && structs().every(s => Math.max(Math.abs(s.x - x), Math.abs(s.z - z)) > 2.2) && chests.every(c => Math.hypot(c.g.position.x - x, c.g.position.z - z) > 3)) break; }   // open ground only
+  g.position.set(x, 26, z); g.rotation.y = Math.random() * Math.PI; scene.add(g);
   const ptr = document.createElement("div"); ptr.className = "chestPtr px"; ptr.innerHTML = `<span>${touch.on || MOBILE ? "TAP" : "CLICK"}</span><i></i>`; ptr.hidden = true; barLayer.appendChild(ptr);
   chests.push({ g, ptr, n, t: 0, landed: false, smoke: 0 });
 }
@@ -4430,6 +4519,7 @@ function updateUpMarks() {   // a bouncing ▲ over up to three towers you can a
 }
 function renderTrayState() {
   bankNum.textContent = save.xp;
+  for (const q of trayCards.querySelectorAll("[data-q]")) { const k = q.dataset.q, full = countOf(k) >= capOf(k), b = BUILDS.find(o => o.id === k); q.textContent = full ? "MERGE" : "AUTO"; q.classList.toggle("off", full ? !mergePair(k) : save.xp < b.cost()); q.classList.toggle("mg", full); }
   [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], ok = save.xp >= b.cost() && countOf(b.id) < capOf(b.id); if (ok && el.classList.contains("poor") && run.started) { el.classList.remove("ping"); void el.offsetWidth; el.classList.add("ping"); } });
   [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], c = b.cost(); el.classList.toggle("poor", save.xp < c || countOf(b.id) >= capOf(b.id)); el.classList.toggle("sel", buildMode && buildSel === i); el.querySelector(".cost").textContent = run.free[b.id] > 0 ? freeLabel(b.id) : c; el.classList.toggle("free", run.free[b.id] > 0); el.querySelector(".cnt").textContent = `${countOf(b.id)}/${capOf(b.id)}`; });
 }
@@ -4502,6 +4592,6 @@ if (DEF) {   // the player sits this one out
   document.body.classList.add("def"); tut.step = "done"; player.pos.set(0, 0, 500); playerModel.visible = false; blockHands.r.visible = blockHands.l.visible = false;
   defReset();   // straight into a game on load; the lobby comes after a run
 }
-window.__game = { run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
+window.__game = { run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
 requestAnimationFrame(frame);
 </script>
