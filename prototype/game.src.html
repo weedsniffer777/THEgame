@@ -302,7 +302,7 @@ body.mobile #lPlay { font-size: 22px; width: 190px; padding: 9px 0 7px; } body.m
 #res .rbtns button { font-family: inherit; font-weight: 600; border: 0; cursor: pointer; letter-spacing: .16em; }
 #res .again { font-size: 26px; padding: 14px 10px 12px; color: #0f1a0d; background: linear-gradient(180deg, #9cf784, #46b534); box-shadow: 0 0 0 3px #1c4a14, 0 0 0 5px #101211, 0 7px 0 #101211; animation: breathe 1.4s ease-in-out infinite; }
 #res .lob { position: relative; font-size: 15px; padding: 0 18px; color: #e8e2d4; background: #2b2e2b; box-shadow: 0 0 0 3px #101211, 0 6px 0 #101211; }
-.dot { position: absolute; right: -8px; top: -8px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #e8402c; color: #fff; font-style: normal; font-size: 12px; line-height: 20px; letter-spacing: 0; box-shadow: 0 0 0 2px #101211; animation: cbob .5s ease-in-out infinite alternate; }
+.rdot { position: absolute; right: -8px; top: -8px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #e8402c; color: #fff; font-style: normal; font-size: 12px; line-height: 20px; letter-spacing: 0; box-shadow: 0 0 0 2px #101211; animation: cbob .5s ease-in-out infinite alternate; }
 @keyframes breathe { 50% { transform: scale(1.04); filter: brightness(1.1); } }
 #lPlay { animation: breathe 1.4s ease-in-out infinite; }
 .lcard .newb { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); padding: 1px 6px; font-size: 10px; letter-spacing: .12em; color: #fff; background: #e8402c; box-shadow: 0 0 0 2px #101211; animation: cbob .5s ease-in-out infinite alternate; z-index: 1; }
@@ -4181,7 +4181,7 @@ function defResults() {
     <div class="rtr"><div class="lbadge"><small>TIER</small><b id="rxT">${tier0 + 1}</b></div><div class="tbar"><i id="rxBar" style="width:${frac0 * 100}%"></i></div><span>+${xpGain} XP</span></div>
     <div class="rtierup" id="rxUp" hidden></div>
     <div class="rcards" id="rxCards">${tiles.join("")}</div>
-    <div class="rbtns" id="rxBtns"><button type="button" class="again" id="rxAgain">PLAY AGAIN</button><button type="button" class="lob" id="rxLobby">LOBBY${lobbyBadge() ? `<i class="dot">${lobbyBadge()}</i>` : ""}</button></div>
+    <div class="rbtns" id="rxBtns"><button type="button" class="again" id="rxAgain">PLAY AGAIN</button><button type="button" class="lob" id="rxLobby">LOBBY${lobbyBadge() ? `<i class="rdot">${lobbyBadge()}</i>` : ""}</button></div>
   </div>`;
   resEl.hidden = false;
   const $ = (id) => document.getElementById(id), steps = []; let at = 250, done = false;
