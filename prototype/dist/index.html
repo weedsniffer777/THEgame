@@ -216,23 +216,43 @@ body.def #game { cursor: default; }
 .orb { position: absolute; left: 0; top: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #9fd2ff; transform: rotate(45deg); box-shadow: 0 0 8px 3px rgba(60, 150, 255, .8); will-change: transform; }
 .orb.gold { background: #ffd23a; box-shadow: 0 0 8px 3px rgba(255, 200, 60, .8); }
 .orb.big { width: 14px; height: 14px; margin: -7px 0 0 -7px; }
-#meta { position: fixed; inset: 0; z-index: 9; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 14px; padding: calc(18px + env(safe-area-inset-top, 0px)) 16px calc(18px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, rgba(10, 12, 11, .55), rgba(10, 12, 11, .2) 30%, rgba(10, 12, 11, .2) 70%, rgba(10, 12, 11, .7)); overflow-y: auto; }
-#meta .mhead { display: flex; align-items: center; gap: 22px; text-shadow: 0 3px 0 #000; } #meta .mhead b { font-size: 34px; letter-spacing: .2em; color: #f2ede0; }
-#meta .mcash { display: flex; align-items: center; gap: 10px; font-size: 30px; color: #ffd23a; } #meta .coin { width: 18px; height: 18px; background: #ffd23a; transform: rotate(45deg); box-shadow: 0 0 12px 3px rgba(255, 200, 60, .6); }
-#meta .mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; width: min(1000px, 100%); align-content: start; }
-.mt { position: relative; display: grid; justify-items: center; gap: 4px; padding: 8px 8px 10px; border: 0; border-radius: 10px; font-family: inherit; color: #f2ede0; cursor: pointer;
-  background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, .14), rgba(255, 255, 255, .02) 60%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); transition: transform .12s, box-shadow .12s; }
-.mt:hover:not(:disabled) { transform: translateY(-4px); box-shadow: inset 0 0 0 2px #e0b04a, 0 10px 24px rgba(0, 0, 0, .35); }
-.mt img { width: 112px; height: 112px; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .55)); } .mt .big { font-size: 64px; line-height: 112px; height: 112px; text-shadow: 0 6px 12px rgba(0, 0, 0, .5); }
-.mt b { font-size: 13px; letter-spacing: .12em; text-shadow: 0 2px 0 #000; } .mt small { font-size: 11px; color: #c9c3b4; text-shadow: 0 1px 0 #000; }
-.mt .pips { display: flex; gap: 4px; } .mt .pips i { width: 14px; height: 5px; background: rgba(255, 255, 255, .18); } .mt .pips i.on { background: #e0b04a; box-shadow: 0 0 6px rgba(224, 176, 74, .7); }
-.mt .price { font-size: 16px; color: #ffd23a; text-shadow: 0 2px 0 #000; } .mt.poor .price { color: #e8584a; } .mt:disabled { cursor: default; }
-.mt.lock img { filter: grayscale(1) brightness(.5) drop-shadow(0 8px 10px rgba(0, 0, 0, .55)); } .mt.lock .price::before { content: "UNLOCK · "; color: #f2ede0; }
-.mt.maxed .price { color: #7dff6e; }
-#metaGo { font-family: inherit; font-size: 24px; letter-spacing: .16em; padding: 14px 42px; border: 0; border-radius: 8px; color: #0f1a0d; background: #6fe05a; box-shadow: 0 6px 0 #2e6e22, 0 10px 24px rgba(0, 0, 0, .4); cursor: pointer; }
-#metaGo:hover { background: #8cf576; }
-body.mobile .mt img, body.mobile .mt .big { width: 72px; height: 72px; line-height: 72px; font-size: 40px; } body.mobile #meta .mhead b { font-size: 22px; } body.mobile #meta .mcash { font-size: 20px; }
+#lobby { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
+#lobby > * { pointer-events: auto; }
+body.lobby #tray, body.lobby #xpWrap, body.lobby #defTop, body.lobby #banner, body.lobby #hoverTip, body.lobby #smenu, body.lobby #spot, body.lobby #tutPtr { display: none !important; }
+#lobby .ltop { position: absolute; left: 16px; right: 16px; top: calc(48px + env(safe-area-inset-top, 0px)); display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+#lobby .track { display: grid; grid-template-columns: auto 220px; gap: 2px 10px; align-items: center; text-shadow: 0 2px 0 #000; } #lobby .track b { font-size: 20px; color: #e0b04a; }
+.tbar { height: 10px; border-radius: 5px; background: rgba(0, 0, 0, .45); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .15); overflow: hidden; } .tbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #e0b04a, #ffe08a); transition: width 1.2s ease-out; }
+#lobby .track span { grid-column: 1 / -1; font-size: 12px; color: #c9c3b4; } #lobby .track span b { color: #7dffd6; font-size: 12px; }
+#lobby .lcash { display: flex; align-items: center; gap: 10px; font-size: 26px; color: #ffd23a; text-shadow: 0 2px 0 #000; } #lobby .coin { display: inline-block; width: 16px; height: 16px; background: #ffd23a; transform: rotate(45deg); box-shadow: 0 0 12px 3px rgba(255, 200, 60, .6); }
+#lobby .lbase { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); }
+#lobby .lbottom { position: absolute; left: 0; right: 0; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; align-items: flex-end; gap: 22px; flex-wrap: wrap; padding: 0 12px; }
+#lobby .lgroups { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+#lobby .lg h4 { margin: 0 0 4px; font-size: 11px; letter-spacing: .18em; color: #e8e2d4; text-shadow: 0 2px 0 #000; font-weight: 600; } #lobby .ls { display: flex; gap: 6px; }
+.lc { position: relative; width: 88px; height: 116px; border-radius: 10px; display: grid; justify-items: center; align-content: start; padding-top: 6px; cursor: pointer; color: #fff;
+  background: linear-gradient(180deg, #4f74ad, #233452); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .25), 0 4px 0 rgba(0, 0, 0, .35); transition: transform .12s; }
+.lc:hover { transform: translateY(-4px); } .lc.struct { background: linear-gradient(180deg, #8a7444, #3b301c); } .lc.trap { background: linear-gradient(180deg, #a04646, #431a1a); } .lc.base { background: linear-gradient(180deg, #4f8a5a, #1f3a24); width: 104px; height: 132px; }
+.lc img { width: 64px; height: 64px; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .5)); } .lc b { font-size: 10px; letter-spacing: .06em; text-align: center; line-height: 1.05; text-shadow: 0 1px 0 #000; padding: 0 3px; }
+.lc .lv { position: absolute; left: 4px; top: 4px; font-size: 10px; background: rgba(0, 0, 0, .55); border-radius: 6px; padding: 1px 5px; }
+.lc .cb { position: absolute; left: 6px; right: 6px; bottom: 6px; height: 12px; border-radius: 6px; background: rgba(0, 0, 0, .55); overflow: hidden; } .lc .cb i { display: block; height: 100%; background: #4ad16a; } .lc .cb em { position: absolute; inset: 0; font-style: normal; font-size: 9px; line-height: 12px; text-align: center; text-shadow: 0 1px 0 #000; }
+.lc.up { box-shadow: inset 0 0 0 2px #7dff6e, 0 0 16px rgba(125, 255, 110, .55), 0 4px 0 rgba(0, 0, 0, .35); } .lc.up::after { content: "▲"; position: absolute; right: 5px; top: 3px; color: #7dff6e; font-size: 12px; text-shadow: 0 1px 0 #000; }
+.lc.empty { background: rgba(0, 0, 0, .25); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .25); border: 0; font-size: 34px; align-content: center; color: rgba(255, 255, 255, .45); outline: 2px dashed rgba(255, 255, 255, .25); outline-offset: -6px; }
+.lc.locked { filter: grayscale(1); opacity: .5; cursor: default; } .lc .lk { position: absolute; bottom: 6px; font-size: 9px; color: #e0b04a; }
+#lPlay { font-family: inherit; font-weight: 600; font-size: 28px; letter-spacing: .14em; padding: 18px 40px; border: 0; border-radius: 12px; color: #0f1a0d; background: linear-gradient(180deg, #8cf576, #4fc23c); box-shadow: 0 6px 0 #2e6e22, 0 10px 24px rgba(0, 0, 0, .45); cursor: pointer; }
+#lPlay:hover { filter: brightness(1.08); }
+#lobby .lpick { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 16px; border-radius: 14px; background: rgba(12, 14, 13, .72); backdrop-filter: blur(6px); display: grid; gap: 12px; justify-items: center; }
+#lobby .lpick h4 { margin: 0; font-size: 14px; letter-spacing: .18em; color: #e0b04a; } #lobby .lpr { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; } #lobby .pk { display: grid; gap: 6px; justify-items: center; }
+#lobby .pk.on .lc { box-shadow: inset 0 0 0 3px #e0b04a, 0 4px 0 rgba(0, 0, 0, .35); }
+#lobby .lpick button { font-family: inherit; font-weight: 600; font-size: 12px; letter-spacing: .1em; border: 0; border-radius: 8px; padding: 6px 10px; cursor: pointer; background: #4fc23c; color: #0f1a0d; } #lobby .lpick button:disabled { background: #555; color: #999; cursor: default; }
+#lobby .lpb { display: flex; gap: 10px; } #lobby .lpb button { background: #2b2e2b; color: #e8e2d4; }
+#runOver .rtrack { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: 13px; color: #e0b04a; }
+#runOver .rtier { font-size: 14px; color: #7dffd6; letter-spacing: .06em; } #runOver .rtier b { color: #fff; font-weight: 600; }
+#runOver .rcards { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.rc { width: 74px; height: 96px; border-radius: 8px; display: grid; justify-items: center; align-content: start; padding-top: 4px; background: linear-gradient(180deg, #4f74ad, #233452); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .25); animation: flip .5s backwards; }
+.rc:nth-child(2) { animation-delay: .15s; } .rc:nth-child(3) { animation-delay: .3s; } .rc:nth-child(4) { animation-delay: .45s; } .rc:nth-child(5) { animation-delay: .6s; } .rc:nth-child(n+6) { animation-delay: .75s; }
+@keyframes flip { from { transform: rotateY(90deg) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.rc img { width: 52px; height: 52px; } .rc b { font-size: 9px; color: #fff; text-align: center; line-height: 1; } .rc span { font-size: 15px; color: #ffd23a; text-shadow: 0 1px 0 #000; }
+.rc.new { background: linear-gradient(180deg, #e0b04a, #7a5a1a); box-shadow: inset 0 0 0 2px #fff, 0 0 18px rgba(255, 210, 90, .7); } .rc.new span { font-size: 10px; color: #fff; }
+body.mobile .lc { width: 66px; height: 90px; } body.mobile .lc img { width: 44px; height: 44px; } body.mobile #lPlay { font-size: 20px; padding: 12px 24px; } body.mobile #lobby .lgroups { gap: 8px; } body.mobile #lobby .track { grid-template-columns: auto 120px; }
 #marq { left: 0; top: 0; z-index: 4; border: 2px dashed #e0b04a; background: rgba(224, 176, 74, .12); }
 .ptr.front .lbl { background: #ff4a3a; color: #fff; } .ptr.front .arr { border-top-color: #ff4a3a; }
 body.def #spot { z-index: 5; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .38), inset 0 0 30px 10px rgba(0, 0, 0, .38); }
@@ -351,10 +371,11 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
 <div class="hud px" id="defTop"><div id="defTimer">DAY 1 / 5</div><div id="defPhase">NIGHT IN 0:30</div><div class="brow"><span>BASE</span><div class="bbar"><i id="defBase"></i></div><span id="defBaseNum">1000</span></div></div>
 <div class="hud px" id="tray"><div class="pxbox" id="bank"><span class="coin"></span><span id="bankNum">0</span></div><div id="trayCards" style="display:flex;gap:10px"></div></div>
 <div class="hud" id="orbLayer"></div>
-<div class="px" id="meta" hidden>
-  <div class="mhead"><b>WORKSHOP</b><span class="mcash"><i class="coin"></i><span id="metaCash">0</span></span></div>
-  <div class="mgrid" id="metaGrid"></div>
-  <button type="button" id="metaGo">NEXT RUN ▶</button>
+<div class="px" id="lobby" hidden>
+  <div class="ltop"><div class="track"><b id="lTier">TIER 1</b><div class="tbar"><i id="lTierBar"></i></div><span id="lTierNext"></span></div><div class="lcash"><i class="coin"></i><span id="lCash">0</span></div></div>
+  <div class="lbase" id="lBase"></div>
+  <div class="lbottom"><div class="lgroups" id="lGroups"></div><button type="button" id="lPlay">PLAY ▶</button></div>
+  <div class="lpick" id="lPick" hidden></div>
 </div>
 <div class="hud" id="ovh"><div class="wbar own"><i id="ovhHp"></i></div><div class="wbar st"><i id="ovhSt"></i></div></div>
 <div class="hud" id="spot" hidden></div>
@@ -444,7 +465,7 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
     <div class="row">
       <button id="btnAmmo" type="button">+100 scrap</button>
       <button id="btnXpBig" type="button">+1,000,000 scrap</button>
-      <button id="btnCash" type="button">+1,000 workshop cash</button>
+      <button id="btnCash" type="button">+1,000 cash, +500 track XP, +30 cards</button>
       <button id="btnBoom" type="button">Destroy the base</button>
     </div>
   </section>
@@ -503,6 +524,9 @@ const MOD = (id) => run.mods[id] || 0;
 if (!save.def) save.def = { cash: 0, best: 0, runs: 0, wins: 0, tut: 0 };
 // meta progression (kept between runs): unlocked builds, a power level per build, base perks
 if (!save.def.meta) save.def.meta = { unlock: { sentry: 1, wall: 1, rocket: 1 }, power: {}, perk: {} };
+// cards level builds up (Clash style), the reward track unlocks new ones, the loadout picks 3 of each kind per run
+Object.assign(save.def.meta, { cards: save.def.meta.cards || {}, xp: save.def.meta.xp || 0, tier: save.def.meta.tier || 0,
+  slots: save.def.meta.slots || { weapon: ["sentry", "rocket", null], struct: ["wall", null, null], trap: [null, null, null] } });
 const META = save.def.meta, powerOf = (k) => 1 + 0.1 * (META.power[k] || 0), perkOf = (k) => META.perk[k] || 0;
 let ptrOn = false;   // a pointer is over the map (mouse hovering, or a finger down)
 
@@ -2414,7 +2438,7 @@ function updateSentries(dt) {
 // Weapon hotbar (1-5) at the bottom with a small build bar above it; B enlarges the build bar and
 // swaps the number keys to it. "Move" on a structure picks it up into the build hand.
 
-const BUILDS = DEF ? [
+let BUILDS = DEF ? [
   { id: "sentry", name: "SENTRY", req: 1, cost: () => run.free.sentry > 0 ? 0 : buyPrice("sentry") },
   { id: "wall", name: "WALL", req: 1, cost: () => run.free.wall > 0 ? 0 : buyPrice("wall") },
   { id: "rocket", name: "ROCKET LAUNCHER", req: 1, cost: () => run.free.rocket > 0 ? 0 : buyPrice("rocket") },
@@ -2429,6 +2453,7 @@ const BUILDS = DEF ? [
   { id: "wire", name: "BARBED WIRE", req: 2, soon: true }, { id: "spikes", name: "SPIKES", req: 3, soon: true },
   { id: "pump", name: "OIL PUMP", req: 3, soon: true }, { id: "heal", name: "HEAL POOL", req: 4, soon: true },
 ];
+const ALL_BUILDS = BUILDS;   // the run's tray (BUILDS) is the loadout picked in the lobby
 const lockOf = (b) => DEF ? "" : save.base < b.req ? `BASE LV${b.req}` : b.soon ? "SOON" : "";
 const countOf = (id) => id === "wall" ? walls.length : sentries.filter(t => t.kind === id).length;
 const DEF_CAPS = { sentry: 16, wall: 60, rocket: 6, flamer: 6, cannon: 6, spikes: 20, wire: 30 }, MAXLV = { sentry: 4, rocket: 4, wall: 4, flamer: 4, cannon: 4, spikes: 2, wire: 2 };
@@ -3012,7 +3037,7 @@ const BASE_T = { kind: "base" };   // what enemies aim at when they go for the b
 const BASE_HP = [0, 1000, 1800, 2800];
 let runOver = false, picking = 0, baseHitBanner = 0;
 const BASE_BOX = () => boxColliders[0];
-const baseMax = () => Math.round(BASE_HP[Math.min(save.base, BASE_HP.length - 1)] * (1 + 0.3 * card("basehp")) * (DEF ? 1 + 0.1 * perkOf("armor") : 1));
+const baseMax = () => Math.round(BASE_HP[Math.min(save.base, BASE_HP.length - 1)] * (1 + 0.3 * card("basehp")) * (DEF ? powerOf("base") : 1));
 function baseDist(p) { const [x0, x1, z0, z1] = BASE_BOX(); const cx = THREE.MathUtils.clamp(p.x, x0, x1), cz = THREE.MathUtils.clamp(p.z, z0, z1); return [Math.hypot(p.x - cx, p.z - cz), cx, cz]; }
 const baseBarEl = document.getElementById("baseBar"), baseHpEl = document.getElementById("baseHpNum");
 function renderBaseHp() { if (save.baseHp === undefined) save.baseHp = baseMax(); baseBarEl.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; baseHpEl.textContent = Math.max(0, Math.ceil(save.baseHp)); }
@@ -3127,7 +3152,7 @@ document.getElementById("btnResetYes").addEventListener("click", () => {
 });
 document.getElementById("btnAmmo").addEventListener("click", () => { save.xp += 100; renderXp(); writeSave(); });
 document.getElementById("btnBoom").addEventListener("click", () => { if (!runOver) { tut.step = "done"; save.tut = 1; hurtBase(1e9); } });
-document.getElementById("btnCash").addEventListener("click", () => { save.def.cash += 1000; writeSave(); if (!metaEl.hidden) metaTiles(); });
+document.getElementById("btnCash").addEventListener("click", () => { save.def.cash += 1000; META.xp += 500; while (META.xp >= (META.tier + 1) * TIER_XP) { claimTier(META.tier); META.tier++; } dropCards(30); writeSave(); if (!lobbyEl.hidden) renderLobby(); });
 document.getElementById("btnXpBig").addEventListener("click", () => { save.xp += 1000000; renderXp(); writeSave(); });
 const perfEl = document.getElementById("perf");
 
@@ -3560,6 +3585,7 @@ trayCards.addEventListener("pointerdown", (e) => {
   trayDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, again };
 });
 function defKey(k) {
+  if (run.lobby) return;
   if (k === "p") { setPaused(!paused); return; }
   if (paused) { if (k === "escape") setPaused(false); return; }
   if (k === "`") { toggleDev(); return; }
@@ -3585,7 +3611,7 @@ addEventListener("pointermove", (e) => {
   if (trayDrag?.id === e.pointerId && Math.hypot(e.clientX - trayDrag.x, e.clientY - trayDrag.y) > 12) trayDrag.moved = true;
 });
 cv.addEventListener("pointerdown", (e) => {
-  if (!DEF || runOver || picking || paused) return;
+  if (!DEF || runOver || picking || paused || run.lobby) return;
   if (e.pointerType === "touch") {
     enableTouch(); touchPts.set(e.pointerId, [e.clientX, e.clientY]);
     if (touchPts.size === 2) { const [a, b] = [...touchPts.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z: camZoom }; ptrDown = null; ptrOn = false; return; }
@@ -3696,7 +3722,7 @@ const RAR = [
 ];
 const pct = (v) => `${Math.round(v * 100)}%`;
 const hasRockets = () => countOf("rocket") > 0 || run.lvl >= 4;
-const FREE_DROPS = [{ wall: 4 }, { sentry: 1 }, { sentry: 2 }, { rocket: 1 }, { rocket: 2, sentry: 2 }];
+const FREE_DROPS = [{ wall: 4, sentry: 1 }, { sentry: 1 }, { sentry: 2 }, { rocket: 1 }, { rocket: 2, sentry: 2 }];
 const UPGRADES = [
   { id: "sdmg", name: "AP ROUNDS", ic: "✸", v: [0.12, 0.18, 0.27, 0.4, 0.65], txt: (v) => `Sentries deal +${pct(v)} damage` },
   { id: "srate", name: "HOT BARRELS", ic: "»", v: [0.08, 0.12, 0.18, 0.27, 0.45], txt: (v) => `All turrets fire +${pct(v)} faster` },
@@ -3708,8 +3734,8 @@ const UPGRADES = [
   { id: "loot", name: "SCAVENGER", ic: "$", v: [0.15, 0.25, 0.4, 0.6, 1], txt: (v) => `+${pct(v)} scrap from every orb` },
   { id: "repair", name: "PATCH UP", ic: "+", v: [0.15, 0.25, 0.4, 0.6, 1], txt: (v) => `Repair the base and every tower by ${pct(v)}`, now: (v) => {
     save.baseHp = Math.min(baseMax(), save.baseHp + baseMax() * v); renderBaseHp(); for (const s of structs()) s.hp = Math.min(STRUCT[s.kind].hp[s.level], s.hp + STRUCT[s.kind].hp[s.level] * v); } },
-  { id: "drop", name: "SUPPLY DROP", ic: "▼", v: FREE_DROPS, txt: (v) => `Free: ${Object.entries(v).map(([k, n]) => `${n} ${BUILDS.find(b => b.id === k).name.toLowerCase()}${n > 1 ? "s" : ""}`).join(" + ")}`,
-    now: (v) => { for (const [k, n] of Object.entries(v)) addFree(k, n); } },
+  { id: "drop", name: "SUPPLY DROP", ic: "▼", v: FREE_DROPS, ok: () => BUILDS.some(b => b.id === "sentry"), txt: (v) => `Free: ${Object.entries(v).filter(([k]) => BUILDS.some(b => b.id === k)).map(([k, n]) => `${n} ${BUILDS.find(b => b.id === k).name.toLowerCase()}${n > 1 ? "s" : ""}`).join(" + ")}`,
+    now: (v) => { for (const [k, n] of Object.entries(v)) if (BUILDS.some(b => b.id === k)) addFree(k, n); } },
   { id: "fieldup", name: "FIELD UPGRADE", ic: "▲", v: [1, 2, 3, 5, 99], txt: (v) => v > 50 ? "Every tower goes up a level" : `${v} random tower${v > 1 ? "s go" : " goes"} up a level`,
     ok: () => structs().some(t => t.level < MAXLV[t.kind]), now: (v) => { const up = structs().filter(t => t.level < MAXLV[t.kind]).sort(() => Math.random() - 0.5).slice(0, v); for (const t of up) upgradeStruct(t); } },
   { id: "stash", name: "STASH", ic: "▤", v: [30, 50, 80, 130, 250], txt: (v) => `+${v} scrap right now`, now: (v) => { save.xp += v; renderXp(); } },
@@ -3784,7 +3810,7 @@ function updateFronts() {
 }
 
 // ---- run flow
-function defReset() {
+function clearWorld() {
   paint = brush = null; marq.hidden = true; ptrDown = trayDrag = null; carry = null; closeMenu();
   for (const b of booms) { scene.remove(b.grp); scene.remove(b.scorch); b.puffs.forEach(p => p.m.material.dispose()); } booms.length = 0;
   for (const q of particles) { scene.remove(q.obj); if (q.sprite) q.obj.material.dispose(); } particles.length = 0;
@@ -3801,11 +3827,15 @@ function defReset() {
   for (const o of orbs) { o.el.remove(); orbPool.push(o.el); } orbs.length = 0;
   for (const el of frontEls) el.remove(); frontEls.length = 0; camPan.set(0, 0, 0); camZoom = 1;
   carry = null; buildSel = -1; buildMode = false; showGhost(); closeMenu();
-  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { sentry: 3 + perkOf("spare") }, freeTotal: { sentry: 3 + perkOf("spare") }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, final: false, nightN: 0, nightSpawned: 0 });
-  spT = { walker: 1.5, runner: 0, bomber: 0 };
-  runOver = false; shantyGone = false; player.dead = 0; save.xp = 25 + 20 * perkOf("scrap"); save.base = 1;   // the base starts every run at level 1 save.cards = []; save.builds = [];
-  applyBaseLevel(); save.baseHp = baseMax(); renderBaseHp(); runEl.hidden = true; cardsEl.hidden = true; picking = 0;
+  runOver = false; shantyGone = false; player.dead = 0; save.base = 1; applyBaseLevel(); save.baseHp = baseMax(); renderBaseHp(); runEl.hidden = true; cardsEl.hidden = true; picking = 0;
   shanty && (shanty.userData.outline.visible = false);
+}
+function defReset() {
+  clearWorld(); run.lobby = false; document.body.classList.remove("lobby"); lobbyEl.hidden = true;
+  BUILDS = loadout();
+  Object.assign(run, { t: 0, slow: 0.08, started: false, lvl: 1, xp: 0, kills: 0, scrapFrac: 0, free: { sentry: 3 }, freeTotal: { sentry: 3 }, mods: {}, fronts: [], picks: 0, events: {}, tut: null, lastPlaced: null, sinceHit: 0, final: false, nightN: 0, nightSpawned: 0 });
+  spT = { walker: 1.5, runner: 0, bomber: 0 };
+  save.xp = 25; save.cards = []; save.builds = [];
   // the opening: a first front, a few walkers already on their way in slow motion, a free sentry to place
   addFront(Math.random() < 0.5 ? Math.PI * 0.75 : Math.PI * 1.75);   // screen right or left, never from the top
   const f = run.fronts[0];
@@ -3827,48 +3857,85 @@ function defWin() {
 }
 function defResults(won) {
   const surv = Math.min(RUN_LEN, run.t), nights = won ? NIGHTS : Math.floor(Math.max(0, surv - DAY_LEN) / CYC), cash = Math.round(run.kills * 0.4 + nights * 20 + (won ? 150 : 0));
-  save.def.cash += cash; save.def.runs++; if (won) save.def.wins++; save.def.bestN = Math.max(save.def.bestN || 0, nights); writeSave();
+  save.def.cash += cash; save.def.runs++; if (won) save.def.wins++; save.def.bestN = Math.max(save.def.bestN || 0, nights);
+  // rewards: track XP (tiers unlock builds and give card packs), a handful of cards for what you've unlocked
+  const xpGain = run.kills + nights * 40 + (won ? 100 : 0), tier0 = META.tier, frac0 = (META.xp % TIER_XP) / TIER_XP, got = [];
+  META.xp += xpGain;
+  while (META.xp >= (META.tier + 1) * TIER_XP) { got.push(claimTier(META.tier)); META.tier++; }
+  const drops = dropCards(3 + nights * 2 + (won ? 4 : 0)); writeSave();
   runEl.querySelector("h1").textContent = won ? `${NIGHTS} NIGHTS SURVIVED!` : "BASE DESTROYED";
   runEl.querySelector("h1").style.color = won ? "#7dff6e" : "";
-  document.getElementById("rSub").innerHTML = `${won ? "You held through every night" : `Survived ${nights} of ${NIGHTS} nights`} · ${run.kills} kills · reached LV ${run.lvl}<br>Best: ${save.def.bestN} night${save.def.bestN === 1 ? "" : "s"}`;
+  document.getElementById("rSub").innerHTML = `${won ? "You held through every night" : `Survived ${nights} of ${NIGHTS} nights`} · ${run.kills} kills · +${cash} cash`;
   let earn = runEl.querySelector(".earn"); if (!earn) { earn = document.createElement("div"); earn.className = "earn"; runEl.querySelector(".rbox").insertBefore(earn, document.getElementById("rRespawn")); }
-  earn.innerHTML = `+${cash} CASH · ${save.def.cash} total<small>Permanent tower and base upgrades are coming next</small>`;
-  document.getElementById("rRespawn").innerHTML = "TO THE WORKSHOP ▶";
+  const cardTile = (k, n, cls = "") => `<div class="rc ${cls}"><img alt="" src="${ICONS[k] || ""}"><b>${k === "base" ? "BASE" : ALL_BUILDS.find(b => b.id === k)?.name || k}</b><span>${n}</span></div>`;
+  earn.innerHTML = `<div class="rtrack"><span>TIER ${tier0 + 1}</span><div class="tbar"><i style="width:${frac0 * 100}%"></i></div><span>+${xpGain} XP</span></div>` +
+    (got.length ? `<div class="rtier">TIER UP! ${got.map(r => r.unlock ? `<b>NEW: ${ALL_BUILDS.find(b => b.id === r.unlock).name}</b>` : r.cash ? `<b>+${r.cash} CASH</b>` : `<b>+${r.n} CARDS</b>`).join(" · ")}</div>` : "") +
+    `<div class="rcards">${got.filter(r => r.unlock).map(r => cardTile(r.unlock, "UNLOCKED", "new")).join("")}${Object.entries(drops).map(([k, n]) => cardTile(k, `+${n}`)).join("")}</div>`;
+  requestAnimationFrame(() => setTimeout(() => { const bar = earn.querySelector(".tbar i"); if (bar) bar.style.width = `${got.length ? 100 : (META.xp % TIER_XP) / TIER_XP * 100}%`; }, 250));
+  document.getElementById("rRespawn").innerHTML = "CONTINUE ▶";
   runEl.hidden = false;
 }
-document.getElementById("rRespawn").addEventListener("click", () => { if (DEF) { runEl.hidden = true; openMeta(); } }, true);
-// ---- the workshop: unlock builds, power them up, buy base perks; big pictures, light text
-const metaEl = document.getElementById("meta"), metaGrid = document.getElementById("metaGrid");
-const UNLOCK_COST = { flamer: 150, cannon: 220, spikes: 80, wire: 70 };
-const PERKS = [
-  { id: "armor", name: "BASE ARMOUR", txt: "+10% base HP", icon: "base", max: 5, cost: (l) => Math.round(80 * 1.6 ** l) },
-  { id: "scrap", name: "SCAVENGED SCRAP", txt: "+20 scrap at the start", icon: "◆", max: 5, cost: (l) => Math.round(60 * 1.6 ** l) },
-  { id: "spare", name: "SPARE SENTRY", txt: "+1 free sentry at the start", icon: "sentry", max: 3, cost: (l) => Math.round(120 * 2 ** l) },
-];
-const powerCost = (l) => Math.round(50 * 1.7 ** l);
-function metaTiles() {
-  const pips = (l, m) => `<span class="pips">${Array.from({ length: m }, (_, i) => `<i class="${i < l ? "on" : ""}"></i>`).join("")}</span>`;
-  const tile = (key, img, name, sub, lvl, max, price, cls = "") => { const maxed = lvl >= max && !cls.includes("lock"); const poor = !maxed && save.def.cash < price;
-    return `<button type="button" class="mt ${cls}${maxed ? " maxed" : ""}${poor ? " poor" : ""}" data-k="${key}" ${maxed ? "disabled" : ""}>${img}<b>${name}</b><small>${sub}</small>${cls.includes("lock") ? "" : pips(lvl, max)}<span class="price">${maxed ? "MAXED" : price}</span></button>`; };
-  const img = (k) => ICONS[k] ? `<img alt="" src="${ICONS[k]}">` : `<span class="big">${k}</span>`;
-  let h = "";
-  for (const b of BUILDS) {
-    const k = b.id, l = META.power[k] || 0;
-    h += META.unlock[k] ? tile("p:" + k, img(k), b.name, k === "wall" ? `Power: ${l * 10}% tougher` : `Power: +${l * 10}% damage`, l, 5, powerCost(l)) : tile("u:" + k, img(k), b.name, "Locked", 0, 1, UNLOCK_COST[k], "lock");
-  }
-  for (const p of PERKS) { const l = perkOf(p.id); h += tile("k:" + p.id, img(p.icon), p.name, p.txt, l, p.max, p.cost(l)); }
-  metaGrid.innerHTML = h; document.getElementById("metaCash").textContent = save.def.cash;
+document.getElementById("rRespawn").addEventListener("click", () => { if (DEF) { runEl.hidden = true; openLobby(); } }, true);
+// ---- progression: the reward track, cards, the lobby and its loadout
+const TIER_XP = 120, CATS = { weapon: ["sentry", "rocket", "flamer", "cannon"], struct: ["wall"], trap: ["spikes", "wire"] }, CAT_NAME = { weapon: "WEAPONS", struct: "STRUCTURES", trap: "TRAPS" };
+const TRACK = [{ unlock: "spikes" }, { n: 4 }, { unlock: "flamer" }, { n: 5 }, { unlock: "wire" }, { n: 6 }, { unlock: "cannon" }, { cash: 150 }];
+const trackAt = (i) => TRACK[i] || (i % 2 ? { cash: 150 } : { n: 6 + Math.floor(i / 4) });
+const unlockTier = (k) => TRACK.findIndex(r => r.unlock === k);
+const catOf = (k) => Object.keys(CATS).find(c => CATS[c].includes(k));
+const CARD_NEED = [2, 4, 6, 10, 15, 20, 30, 40, 50, 70], upCash = (L) => 20 * (L + 1) ** 2;
+const lvlOf = (k) => (META.power[k] || 0) + 1, cardsOf = (k) => META.cards[k] || 0, needOf = (k) => CARD_NEED[META.power[k] || 0] ?? 999;
+function claimTier(i) {
+  const r = trackAt(i);
+  if (r.unlock) { META.unlock[r.unlock] = 1; const sl = META.slots[catOf(r.unlock)], free = sl.indexOf(null); if (free >= 0 && !sl.includes(r.unlock)) sl[free] = r.unlock; }
+  if (r.cash) save.def.cash += r.cash;
+  if (r.n) dropCards(r.n);
+  return r;
 }
-function openMeta() { metaTiles(); metaEl.hidden = false; }
-metaGrid.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-k]"); if (!b || b.disabled) return; const [t, k] = b.dataset.k.split(":");
-  const price = t === "u" ? UNLOCK_COST[k] : t === "p" ? powerCost(META.power[k] || 0) : PERKS.find(p => p.id === k).cost(perkOf(k));
-  if (save.def.cash < price) { b.animate([{ transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "none" }], { duration: 200 }); return; }
-  save.def.cash -= price;
-  if (t === "u") META.unlock[k] = 1; else if (t === "p") META.power[k] = (META.power[k] || 0) + 1; else META.perk[k] = perkOf(k) + 1;
-  writeSave(); metaTiles(); const nb = metaGrid.querySelector(`[data-k="${b.dataset.k}"], [data-k="p:${k}"]`); nb?.animate([{ transform: "scale(1.12)" }, { transform: "none" }], { duration: 260 });
+function dropCards(n) {
+  const pool = [...Object.keys(META.unlock).filter(k => META.unlock[k]), "base"], out = {};
+  for (let i = 0; i < n; i++) { const k = pool[Math.floor(Math.random() * pool.length)]; out[k] = (out[k] || 0) + 1; META.cards[k] = cardsOf(k) + 1; }
+  return out;
+}
+function loadout() { const ids = [...META.slots.weapon, ...META.slots.struct, ...META.slots.trap].filter((k, i, a) => k && META.unlock[k] && a.indexOf(k) === i); return ALL_BUILDS.filter(b => ids.includes(b.id)).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)); }
+const lobbyEl = document.getElementById("lobby"), lGroups = document.getElementById("lGroups"), lPick = document.getElementById("lPick");
+function cardHtml(k, extra = "") {
+  const L = lvlOf(k), c = cardsOf(k), need = needOf(k), can = c >= need && save.def.cash >= upCash(L - 1);
+  return `<div class="lc ${catOf(k) || "base"}${can ? " up" : ""}" ${extra}><span class="lv">LV ${L}</span><img alt="" src="${ICONS[k] || ""}"><b>${k === "base" ? "BASE" : ALL_BUILDS.find(b => b.id === k).name}</b><span class="cb"><i style="width:${Math.min(1, c / need) * 100}%"></i><em>${c}/${need}</em></span></div>`;
+}
+function renderLobby() {
+  document.getElementById("lCash").textContent = save.def.cash;
+  document.getElementById("lTier").textContent = `TIER ${META.tier + 1}`;
+  document.getElementById("lTierBar").style.width = `${(META.xp % TIER_XP) / TIER_XP * 100}%`;
+  const nx = trackAt(META.tier); document.getElementById("lTierNext").innerHTML = `NEXT: ${nx.unlock ? `<b>${ALL_BUILDS.find(b => b.id === nx.unlock).name}</b>` : nx.cash ? `${nx.cash} CASH` : `${nx.n} CARDS`}`;
+  lGroups.innerHTML = Object.keys(CATS).map(cat => `<div class="lg"><h4>${CAT_NAME[cat]}</h4><div class="ls">${META.slots[cat].map((k, i) => k ? cardHtml(k, `data-slot="${cat}:${i}"`) : `<div class="lc empty" data-slot="${cat}:${i}">+</div>`).join("")}</div></div>`).join("");
+  document.getElementById("lBase").innerHTML = cardHtml("base", `data-up="base"`);
+}
+function openPicker(cat, i) {
+  const cur = META.slots[cat][i];
+  lPick.innerHTML = `<h4>${CAT_NAME[cat]} · SLOT ${i + 1}</h4><div class="lpr">` + CATS[cat].map(k => META.unlock[k]
+      ? `<div class="pk${k === cur ? " on" : ""}">${cardHtml(k, `data-equip="${cat}:${i}:${k}"`)}${cardsOf(k) >= needOf(k) ? `<button type="button" data-up="${k}" ${save.def.cash < upCash(lvlOf(k) - 1) ? "disabled" : ""}>UPGRADE · ${upCash(lvlOf(k) - 1)}</button>` : ""}</div>`
+      : `<div class="pk"><div class="lc locked"><img alt="" src="${ICONS[k] || ""}"><b>${ALL_BUILDS.find(b => b.id === k).name}</b><span class="lk">TRACK TIER ${unlockTier(k) + 1}</span></div></div>`).join("") +
+    `</div><div class="lpb">${cur ? `<button type="button" data-unequip="${cat}:${i}">EMPTY SLOT</button>` : ""}<button type="button" data-close="1">DONE</button></div>`;
+  lPick.hidden = false;
+}
+function upgradeCard(k) {
+  const L = lvlOf(k) - 1, need = needOf(k), cost = upCash(L); if (cardsOf(k) < need || save.def.cash < cost) return false;
+  META.cards[k] -= need; save.def.cash -= cost; META.power[k] = L + 1; writeSave(); return true;
+}
+lobbyEl.addEventListener("click", (e) => {
+  const q = (a) => e.target.closest(`[${a}]`);
+  let el;
+  if ((el = q("data-up"))) { if (upgradeCard(el.dataset.up)) { renderLobby(); const open = !lPick.hidden && lPick.dataset.slot; if (open) { const [c, i] = open.split(":"); openPicker(c, +i); } } return; }
+  if ((el = q("data-equip"))) { const [c, i, k] = el.dataset.equip.split(":"); const sl = META.slots[c], j = sl.indexOf(k); if (j >= 0) sl[j] = sl[+i]; sl[+i] = k; writeSave(); lPick.hidden = true; renderLobby(); return; }
+  if ((el = q("data-unequip"))) { const [c, i] = el.dataset.unequip.split(":"); META.slots[c][+i] = null; writeSave(); lPick.hidden = true; renderLobby(); return; }
+  if ((el = q("data-close"))) { lPick.hidden = true; return; }
+  if ((el = q("data-slot"))) { const [c, i] = el.dataset.slot.split(":"); lPick.dataset.slot = el.dataset.slot; openPicker(c, +i); return; }
 });
-document.getElementById("metaGo").addEventListener("click", () => { metaEl.hidden = true; defReset(); });
+function openLobby() {
+  clearWorld(); run.lobby = true; run.started = false; run.t = 0; camZoom = 0.55; camPan.set(0, 0, 0);
+  document.body.classList.add("lobby"); lobbyEl.hidden = false; lPick.hidden = true; renderLobby();
+}
+document.getElementById("lPlay").addEventListener("click", () => { if (!loadout().length) return; defReset(); });
 const fmtT = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
 
 // ---- per frame
@@ -3939,7 +4006,7 @@ function defUpdate(rdt) {
   trayT -= rdt; if (trayT <= 0) { trayT = 0.25; renderTrayState(); }
   defBase.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; defBaseNum.textContent = Math.max(0, Math.ceil(save.baseHp));
   // opening guide
-  if (!run.started && !runOver) {
+  if (!run.started && !runOver && !run.lobby) {
     const c = trayCards.children[0];
     c?.classList.toggle("flash", !buildMode);
     // the lesson's subject: the sentry card until it's picked, then where it goes (or the sentry to merge onto)
@@ -4025,8 +4092,8 @@ renderBaseHp();
 renderHotbar(); renderXp();
 if (DEF) {   // the player sits this one out
   document.body.classList.add("def"); tut.step = "done"; player.pos.set(0, 0, 500); playerModel.visible = false; blockHands.r.visible = blockHands.l.visible = false;
-  defReset();
+  if (save.def.tut2) openLobby(); else defReset();   // the very first run starts straight away (the lesson); after that, the lobby
 }
-window.__game = { run, defReset, structs, defUpdate, placeHeight, BUILDS, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
+window.__game = { run, defReset, openLobby, defResults, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
 requestAnimationFrame(frame);
 </script>
