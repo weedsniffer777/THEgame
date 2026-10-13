@@ -22,6 +22,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 #game { position: fixed; inset: 0; cursor: none; }
 #reticle { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 6; }
 #reticle .ring { position: absolute; box-sizing: border-box; width: 30px; height: 30px; left: -15px; top: -15px; border: 1.5px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.35); transition: transform .06s; }
+body.lobby #game { cursor: default; } body.lobby #reticle { display: none; }
 #reticle i { position: absolute; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
 #reticle .dot { width: 2px; height: 2px; left: -1px; top: -1px; }
 #reticle .h { width: 7px; height: 2px; top: -1px; }
@@ -185,7 +186,7 @@ body { background: var(--night); color: var(--fg); font-family: var(--body); ove
 /* ---- touch controls */
 #game canvas { touch-action: none; }
 /* ---- defense mode HUD */
-body.def #bars, body.def #brHud, body.def #xpHud, body.def #cycleHud, body.def #ovh, body.def #reticle, body.def #doorPrompt, body.def #doorMarker,
+body.def #bars, body.def #brHud, body.def #xpHud, body.def #cycleHud, body.def #ovh, body.def #doorPrompt, body.def #doorMarker,
 body.def #basePtr, body.def #stickL, body.def #mReload, body.def #deathMsg, body.def #deathFx, body.def #shieldFx, body.def #hurt { display: none !important; }
 body.def #game { cursor: default; }
 #xpWrap { left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); width: min(720px, calc(100vw - 24px)); display: flex; align-items: center; gap: 8px; }
@@ -1073,6 +1074,7 @@ addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 addEventListener("blur", () => { keys.clear(); mouseDown = false; });
 const reticle = document.getElementById("reticle"), reticleRing = document.getElementById("reticleRing");
 renderer.domElement.addEventListener("pointerleave", () => { reticle.hidden = true; });
+renderer.domElement.addEventListener("pointermove", (e) => { if (DEF && e.pointerType !== "touch") { reticle.hidden = false; reticle.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`; } });   // defense: the reticle is the mouse
 renderer.domElement.addEventListener("pointermove", (e) => { if (DEF || e.pointerType === "touch") return; reticle.hidden = false; reticle.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 renderer.domElement.addEventListener("pointerdown", (e) => {
   if (DEF || runOver || picking || e.pointerType === "touch") return;
@@ -1460,7 +1462,7 @@ function killEnemy(e, dir, amt, silent = false, byPlayer = false) {
   if (silent) return;
   sparkFx(at, dir, 14);
   comboT = 2.5; combo++;
-  if (DEF) defOrbs(e, T.xp * 2); else dropXpTotal(e.pos, T.xp + (byPlayer ? T.bonus + card("loot") : 0));   // your own kills are worth more
+  if (DEF) { if (!runOver) defOrbs(e, T.xp * 2); } else dropXpTotal(e.pos, T.xp + (byPlayer ? T.bonus + card("loot") : 0));   // your own kills are worth more
   if (combo >= 3) popNumber(at.clone().setY(2.7), `x${combo} COMBO`, true, "dmg combo");
   kills++; save.kills = kills; writeSave(); killEl.textContent = `${kills} KILLS`;
   popNumber(at.setY(2.1), amt, true); tutEvent("kill", e);
@@ -3842,6 +3844,7 @@ function defOrbs(e, n) {
   }
 }
 function addOrb(v, gold) {
+  if (DEF && runOver) return;   // nothing pays out once the base is gone
   if (gold) { run.scrapFrac += v * 0.84 * (1 + MOD("loot")); const add = Math.floor(run.scrapFrac); run.scrapFrac -= add; save.xp += add; bankBumpT = 0.15; return; }
   run.xp += v * 0.42; xpBumpT = 0.15;
   while (run.xp >= xpNeed(run.lvl)) { run.xp -= xpNeed(run.lvl); run.lvl++; run.picks++; }
@@ -3941,7 +3944,8 @@ function defSpawns(dt) {
   const key = ph.n * 2 + (ph.night ? 1 : 0); if (key !== run.phaseKey) { run.phaseKey = key; run.phaseSpawned = 0; }
   const alive = enemies.reduce((a, e) => a + !e.dead, 0); if (alive > 200) return;
   const p = (ph.night ? ph.c - DAY_LEN : ph.c) / DAY_LEN;
-  const B = (ph.night ? nightBudget(ph.n) : dayBudget(ph.n)) * strengthMult(), deficit = B * Math.min(1, p / 0.85 + 0.05) - run.phaseSpawned;
+  const ease = ph.n === 1 && !ph.night ? THREE.MathUtils.smoothstep(t, 4, 12) : 1;   // the opening seconds are a breather
+  const B = (ph.night ? nightBudget(ph.n) : dayBudget(ph.n)) * strengthMult(), deficit = B * Math.min(1, p / 0.85 + 0.05) * ease - run.phaseSpawned;
   if ((gangT -= dt) > 0 || deficit < 1) return;
   gangT = ph.night ? 1.0 + Math.random() * 1.0 : 1.5 + Math.random() * 1.2;
   // gangs from random directions: walkers mostly, runners from the first night on, bombers from night 2, brutes now and then
@@ -3992,7 +3996,7 @@ function defReset() {
   // the opening: a first front, a few walkers already on their way in slow motion, a free sentry to place
   addFront(Math.random() < 0.5 ? Math.PI * 0.75 : Math.PI * 1.75);   // screen right or left, never from the top
   const f = run.fronts[0];
-  for (let i = 0; i < 9; i++) { const [x, z] = frontPoint(f, 14 + i * 0.9, 0.5); const e = spawnEnemy("walker", x, z); showHulls(e, true); }
+  for (let i = 0, n0 = save.def.tut2 ? 4 : 9; i < n0; i++) { const [x, z] = frontPoint(f, (save.def.tut2 ? 22 : 14) + i * 0.9, 0.5); const e = spawnEnemy("walker", x, z); showHulls(e, true); }
   renderTray(); writeSave();
   if (save.def.tut2) { run.slow = 1; defGo(); for (const e of enemies) showHulls(e, false); return; }
   showBanner(save.def.tut2 ? `YOU HAVE ${starterN()} FREE ${STRUCT[starter()].name}${starterN() > 1 ? "S" : ""} · PLACE ONE TO START` : (touch.on ? "TAP THE SENTRY, THEN TAP THE GROUND" : "PRESS 1 OR CLICK THE SENTRY, THEN CLICK THE GROUND"), 999);
