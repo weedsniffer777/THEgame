@@ -148,6 +148,7 @@ body.lobby #game { cursor: default; } body.lobby #reticle { display: none; }
 #alert img { width: 44px; height: 44px; object-fit: contain; background: radial-gradient(circle, #6a6f66, #33362f 75%); }
 #alert small { display: block; font-size: 10px; letter-spacing: .16em; color: #7dffd6; }
 #alert.in { animation: alertIn .35s ease-out; } @keyframes alertIn { from { transform: translateX(-30px); opacity: 0; } }
+.bang.crim { color: #ff2a4a; }
 .bang { position: absolute; left: 0; top: 0; font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 26px; font-weight: 700; color: #ffd23a; text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000, 0 0 10px #ff2a1a; }
 .dmg.combo { color: #7dffd6; font-size: 15px; }
 .dmg.lvup { color: #7dff6e; font-size: 24px; }
@@ -1306,7 +1307,7 @@ float n3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
              mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z); }`;
 const boomGeo = new THREE.IcosahedronGeometry(1, 3);
 const boomMatBase = new THREE.ShaderMaterial({
-  uniforms: { uAge: { value: 0 }, uSeed: { value: 0 }, uHeat: { value: 1 } }, transparent: true, depthWrite: false,
+  uniforms: { uAge: { value: 0 }, uSeed: { value: 0 }, uHeat: { value: 1 }, uCrim: { value: 0 } }, transparent: true, depthWrite: false,
   vertexShader: BOOM_GLSL + `
 uniform float uAge, uSeed; varying float vN; varying vec3 vNrm;
 void main() {
@@ -1315,25 +1316,28 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position * (0.78 + n * 0.45), 1.0);
 }`,
   fragmentShader: `
-uniform float uAge, uHeat; varying float vN; varying vec3 vNrm;
+uniform float uAge, uHeat, uCrim; varying float vN; varying vec3 vNrm;
 void main() {
   float facing = clamp(vNrm.z, 0.0, 1.0);
   float heat = clamp(uHeat * (1.25 - uAge * 2.2) + (vN - 0.5) * 0.7 + facing * 0.25, 0.0, 1.0);
   vec3 smoke = mix(vec3(0.05, 0.045, 0.04), vec3(0.34, 0.31, 0.28), vN * 0.8 + facing * 0.3);
   vec3 fire = mix(vec3(0.9, 0.22, 0.03), vec3(1.0, 0.92, 0.6), heat * heat);
   vec3 col = mix(smoke, fire * (1.2 + heat), smoothstep(0.12, 0.5, heat));
-  float a = (1.0 - smoothstep(0.55, 1.0, uAge)) * (0.75 + 0.25 * facing);
+  // crimson (bombers, thrown bombs): a red gas instead of smoke, the fire hot pink-red
+  vec3 gas = mix(vec3(0.22, 0.01, 0.05), vec3(0.62, 0.06, 0.16), vN * 0.8 + facing * 0.3), cf = mix(vec3(1.0, 0.04, 0.14), vec3(1.0, 0.62, 0.66), heat * heat);
+  col = mix(col, mix(gas, cf * (1.3 + heat), smoothstep(0.08, 0.45, heat)), uCrim);
+  float a = (1.0 - smoothstep(0.55, 1.0, uAge)) * (0.75 + 0.25 * facing) * (1.0 - uCrim * 0.25);
   gl_FragColor = vec4(col, a);
 }`,
 });
 const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
 const scorchTex = (() => { const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgba(0,0,0,.75)"); g.addColorStop(0.6, "rgba(0,0,0,.45)"); g.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const booms = [];
-function boomFx(pos, radius, small = false) {
+function boomFx(pos, radius, small = false, crimson = false) {
   const grp = new THREE.Group(); grp.position.copy(pos); scene.add(grp);
   const puffs = [];
-  for (let i = 0; i < (small ? 5 : 11); i++) {
-    const m = new THREE.Mesh(boomGeo, boomMatBase.clone()); m.material.uniforms.uSeed.value = Math.random() * 50; m.material.uniforms.uHeat.value = i < 6 ? 1.1 : 0.7;
+  for (let i = 0; i < (crimson ? 6 : small ? 5 : 11); i++) {
+    const m = new THREE.Mesh(boomGeo, boomMatBase.clone()); m.material.uniforms.uSeed.value = Math.random() * 50; m.material.uniforms.uHeat.value = crimson ? 1.25 : i < 6 ? 1.1 : 0.7; m.material.uniforms.uCrim.value = crimson ? 1 : 0;
     const off = new THREE.Vector3((Math.random() - 0.5), Math.random() * 0.6, (Math.random() - 0.5)).multiplyScalar(radius * 0.5);
     m.position.copy(off); m.scale.setScalar(0.01); m.renderOrder = 5; grp.add(m);
     puffs.push({ m, off, size: radius * (0.35 + Math.random() * 0.3) * (i < 6 ? 1 : 0.8), rise: 0.6 + Math.random() * 1.2, life: 1.0 + Math.random() * 0.7, delay: i < 6 ? 0 : Math.random() * 0.15 });
@@ -1342,6 +1346,14 @@ function boomFx(pos, radius, small = false) {
   const scorch = new THREE.Mesh(new THREE.PlaneGeometry(radius * 1.6, radius * 1.6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: scorchTex, transparent: true, depthWrite: false }));
   scorch.position.set(pos.x, 0.015, pos.z); scorch.renderOrder = -7; scene.add(scorch);
   booms.push({ grp, puffs, ring, scorch, t: 0, radius });
+  if (crimson) {   // the gas: slow red clouds that hang and spread, a red flash
+    ring.material.color.setHex(0xff3050);
+    for (let i = 0; i < 9; i++) spawnSprite(pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * radius, Math.random() * 0.6, (Math.random() - 0.5) * radius)), new THREE.Vector3((Math.random() - 0.5) * 2.4, 0.5 + Math.random() * 0.8, (Math.random() - 0.5) * 2.4), { color: Math.random() < 0.5 ? 0xa0142c : 0x6a0a1c, size: radius * 0.7, grow: 2.2, life: 1.8 + Math.random() * 0.8, opacity: 0.38, drag: 1.2 });
+    for (let i = 0; i < 6; i++) spawnSprite(pos.clone(), new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3), { color: 0xff2a4a, size: radius * 0.5, grow: 1.5, life: 0.5, opacity: 0.5, additive: true, drag: 2 });
+    sparkFx(pos, new THREE.Vector3(0, 1, 0), 10);
+    flash.color.setHex(0xff2040); flash.position.copy(pos).setY(pos.y + 1); flash.intensity = 50; flash.distance = radius * 4; setTimeout(() => flash.color.setHex(0xffb45a), 180);
+    shake = Math.max(shake, 0.2); return;
+  }
   sparkFx(pos, new THREE.Vector3(0, 1, 0), small ? 8 : 22);
   for (let i = 0; i < (small ? 3 : 10); i++) spawnSprite(pos.clone().setY(0.2), new THREE.Vector3((Math.random() - 0.5) * 8, 3 + Math.random() * 5, (Math.random() - 0.5) * 8), { color: 0x6a5a44, size: 0.12, life: 0.9, opacity: 0.9, drag: 0.6, gravity: 14 });
   flash.position.copy(pos).setY(pos.y + 1); flash.intensity = small ? 30 : 60; flash.distance = radius * 4;
@@ -1364,8 +1376,8 @@ function updateBooms(dt) {
   if (flash.intensity > 8) flash.distance = Math.max(6, flash.distance - dt * 20); else flash.distance = 6;
 }
 // Damage in a radius with falloff. Player grenades hurt enemies only; bombers hurt everything.
-function explode(pos, radius, dmg, { player: hitsPlayer = false, structures = false, enemies: hitsEnemies = true, byPlayer = false, small = false } = {}) {
-  boomFx(pos, radius, small);
+function explode(pos, radius, dmg, { player: hitsPlayer = false, structures = false, enemies: hitsEnemies = true, byPlayer = false, small = false, crimson = false } = {}) {
+  boomFx(pos, radius, small, crimson);
   if (hitsEnemies) for (const e of [...enemies]) { if (e.dead) continue; const d = Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z); if (d < radius) { const dir = new THREE.Vector3(e.pos.x - pos.x, 0, e.pos.z - pos.z).normalize(); hurtEnemy(e, Math.round(dmg * (1 - 0.6 * d / radius)), dir, 1.2 * (1 - d / radius), byPlayer); } }
   if (structures) for (const s of [...structs()]) { const d = Math.hypot(s.x - pos.x, s.z - pos.z); if (d < radius + 0.4) hurtStruct(s, dmg * 1.6 * (1 - 0.5 * d / (radius + 0.4))); }
   if (structures && !runOver) { const d = baseDist(pos)[0]; if (d < radius) hurtBase(dmg * (DEF ? 0.6 : 2) * (1 - 0.5 * d / radius)); }
@@ -1392,8 +1404,9 @@ function rayCircle(ox, oz, dx, dz, cx, cz, r) {
 // day and with how much you've invested in your base.
 // generous hit volume for your bullets, grenades and the reticle (the body you see is narrower)
 const ENEMY_HIT_R = 0.62;
-const enemies = [], enemyPools = { walker: [], runner: [], bomber: [], brute: [] };
+const enemies = [], enemyPools = { walker: [], runner: [], bomber: [], brute: [], thrower: [] };
 const ENEMY_TYPES = {
+  thrower: { hp: 45, dmg: 30, speed: [1.7, 2.1], color: 0x4a1226, xp: 3, bonus: 3, clip: "Walk_Loop", clipSpeed: 1.3, scale: 1.05, weight: 0, thrower: true, cap: () => 0 },   // stands off and lobs crimson bombs
   brute: { hp: 700, dmg: 60, sdmg: 60, speed: [1.0, 1.2], color: 0x6e1c13, xp: 30, bonus: 0, clip: "Walk_Loop", clipSpeed: 0.9, arms: true, scale: 2.4, weight: 0, cap: () => 0 },
   walker: { hp: 50, dmg: 12, speed: [1.5, 2.1], color: 0xa3241b, xp: 1, bonus: 2, clip: "Walk_Loop", clipSpeed: 1.3, arms: true, weight: 5,
     cap: (day, night) => night ? Math.min(80, 24 + (day - 1) * 12) : Math.min(45, 12 + (day - 1) * 6) },   // fodder: their own fast stream, huge waves
@@ -1446,7 +1459,8 @@ function spawnEnemy(type, px, pz, slow) {
   const night = cycle.t >= DAY_LEN, d = cycle.day - 1, hp = Math.round(T.hp * (type === "walker" ? 1 + (hpMul() - 1) * 0.5 : hpMul()) * (night ? (DEF ? 1.2 : 1.4) : 1));   // night enemies are tougher and faster
   Object.assign(e, { pos: new THREE.Vector3(x, 0, z), vel: new THREE.Vector3(), yaw: Math.atan2(-x, -z), hp, maxHp: hp, dmg: T.dmg * dmgMul() * (night ? 1.15 : 1), dead: false, deadT: 0, flash: 0, atk: 0, lunge: 0, bar: null,
     speed: slow ? 1.3 : (T.speed[0] + Math.random() * (T.speed[1] - T.speed[0]) + d * 0.06) * (night ? 1.2 : 1), seed: Math.random() * 10, hit: false, wallT: null, aggro: null, fuse: 0, coil: 0, seenT: -1, mark: null, quiet: false, raider: type !== "bomber" && Math.random() < 0.35, hitAt: -99, inMelee: false });
-  if (T.bomber) { e.mark = document.createElement("div"); e.mark.className = "bang"; e.mark.textContent = "!"; barLayer.appendChild(e.mark); }
+  if (T.bomber || T.thrower) { e.mark = document.createElement("div"); e.mark.className = T.thrower ? "bang crim" : "bang"; e.mark.textContent = "!"; barLayer.appendChild(e.mark); }
+  e.aim = null; e.aimT = 0.8 + Math.random(); if (e.tele) e.tele.visible = false;
   e.model.rotation.set(0, e.yaw, 0, "YXZ"); e.model.position.copy(e.pos); e.model.scale.setScalar(T.scale || 1); e.model.visible = true;
   e.walk.time = Math.random() * e.walk.getClip().duration; showHulls(e, false); for (const s of e.sils) s.visible = true;
   scene.add(e.model); enemies.push(e);
@@ -1481,14 +1495,14 @@ function killEnemy(e, dir, amt, silent = false, byPlayer = false) {
   if (hovered === e) { showHulls(e, false); hovered = null; }
   const at = e.pos.clone().setY(1.25), T = ENEMY_TYPES[e.type];
   for (const s of e.sils) s.visible = false;   // no see-through outline on corpses
-  e.dead = true; e.deadT = 0; e.yaw = Math.atan2(-dir.x, -dir.z); removeBar(e.bar); e.bar = null; e.mark?.remove(); e.mark = null;   // face the shot, fall away from it
-  if (T.bomber && !silent) { e.quiet = true; explode(e.pos.clone().setY(0.9), 3.0, e.dmg * 0.8, { player: true, structures: true }); }   // shot bombers still go off
+  e.dead = true; e.deadT = 0; e.yaw = Math.atan2(-dir.x, -dir.z); removeBar(e.bar); e.bar = null; e.mark?.remove(); e.mark = null; e.aim = null; if (e.tele) e.tele.visible = false;   // face the shot, fall away from it
+  if (T.bomber && !silent) { e.quiet = true; explode(e.pos.clone().setY(0.9), 3.0, e.dmg * 0.8, { player: true, structures: true, crimson: true }); }   // shot bombers still go off
   if (silent) return;
   sparkFx(at, dir, 14);
   comboT = 2.5; combo++;
   if (DEF) { if (!runOver) defOrbs(e, T.xp * 2); } else dropXpTotal(e.pos, T.xp + (byPlayer ? T.bonus + card("loot") : 0));   // your own kills are worth more
   if (combo >= 3) popNumber(at.clone().setY(2.7), `x${combo} COMBO`, true, "dmg combo");
-  kills++; save.kills = kills; writeSave(); killEl.textContent = `${kills} KILLS`;
+  kills++; save.kills = kills; if (!DEF) writeSave(); killEl.textContent = `${kills} KILLS`;
   popNumber(at.setY(2.1), amt, true); tutEvent("kill", e);
 }
 // floating damage numbers
@@ -1604,7 +1618,7 @@ function ffDir(x, z, gx, gz, out) {
 }
 
 function pickType(night, skip) {
-  const alive = { walker: 0, runner: 0, bomber: 0 }; for (const e of enemies) if (!e.dead) alive[e.type]++;
+  const alive = { walker: 0, runner: 0, bomber: 0, brute: 0, thrower: 0 }; for (const e of enemies) if (!e.dead) alive[e.type]++;
   const opts = Object.entries(ENEMY_TYPES).filter(([k, T]) => k !== skip && alive[k] < T.cap(cycle.day, night));
   let tot = opts.reduce((a, [, T]) => a + T.weight, 0), r = Math.random() * tot;
   for (const [k, T] of opts) { if ((r -= T.weight) <= 0) return k; }
@@ -1652,6 +1666,7 @@ function updateEnemies(dt) {
     else if (!hidden) { gx = tx = player.pos.x; gz = tz = player.pos.z; reach = 1.15; }
     else { const a = e.seed * 2.4; gx = door.x + Math.cos(a) * 2.2; gz = door.z + 1.2 + Math.abs(Math.sin(a)) * 2; tx = door.x; tz = door.z; reach = 0; }
     if (T.bomber && reach) reach = 1.7;
+    if (T.thrower && reach) reach = THROW_R;
     const dx = gx - e.pos.x, dz = gz - e.pos.z, dist = Math.hypot(dx, dz), stop = reach ? dist < reach - 0.2 : dist < 0.5;
     // barbed wire coils: slow and hurt
     let inCoil = false; for (const [ax, az, bx, bz, cr] of WIRE_COILS) if (segDist(e.pos.x, e.pos.z, ax, az, bx, bz)[0] < cr + 0.2) { inCoil = true; break; }
@@ -1669,7 +1684,14 @@ function updateEnemies(dt) {
     let dy = look - e.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); e.yaw += dy * Math.min(1, dt * 6);
     if (T.bomber) {   // fuse: once in reach it lights and goes off, wherever it is
       if (e.fuse > 0 || wallHit || (reach && tdist < reach)) e.fuse += dt;
-      if (e.fuse > 0.9) { e.quiet = true; explode(e.pos.clone().setY(0.9), 3.2, e.dmg, { player: true, structures: true }); killEnemy(e, new THREE.Vector3(0, 0, 1), 0, true); e.quiet = true; continue; }
+      if (e.fuse > 0.9) { e.quiet = true; explode(e.pos.clone().setY(0.9), 3.2, e.dmg, { player: true, structures: true, crimson: true }); killEnemy(e, new THREE.Vector3(0, 0, 1), 0, true); e.quiet = true; continue; }
+    } else if (T.thrower) {   // stand off: aim (flashing, "!", a line to the spot and a ring on it), then lob a crimson bomb
+      e.inMelee = false;
+      if (wallHit || (reach && tdist < reach)) {
+        if (!e.aim) { e.aimT -= dt; if (e.aimT <= 0) e.aim = { p: new THREE.Vector3(tx + (Math.random() - 0.5) * 1.5, 0, tz + (Math.random() - 0.5) * 1.5), t: THROW_WIND }; }
+        else if ((e.aim.t -= dt) <= 0) { lobBomb(e, e.aim.p); e.aim = null; e.aimT = 2.8 + Math.random(); e.lunge = 0.25; }
+      } else if (e.aim) { e.aim = null; e.aimT = 0.5; }
+      showTele(e);
     } else if (wallHit || (reach && tdist < reach)) {   // melee: wind up, then swipe if still in reach
       e.inMelee = true;
       if (e.atk <= 0) e.atk = 0.45; e.atk -= dt;
@@ -1677,7 +1699,7 @@ function updateEnemies(dt) {
     } else { e.atk = 0; e.inMelee = false; }
     e.lunge = Math.max(0, e.lunge - dt); e.flash = Math.max(0, e.flash - dt); e.slowT = Math.max(0, (e.slowT || 0) - dt);
     // attack animation: arms come up and the body leans back on the wind-up, then a forward lunge and downward swipe
-    const wind = !T.bomber && e.inMelee && e.atk > 0 && e.atk < 0.4 ? 1 - e.atk / 0.4 : 0, sw = e.lunge > 0 ? Math.sin(e.lunge / 0.25 * Math.PI) : 0;
+    const wind = T.thrower ? (e.aim ? 1 - e.aim.t / THROW_WIND : 0) : !T.bomber && e.inMelee && e.atk > 0 && e.atk < 0.4 ? 1 - e.atk / 0.4 : 0, sw = e.lunge > 0 ? Math.sin(e.lunge / 0.25 * Math.PI) : 0;
     const spd = e.vel.length(), wk = THREE.MathUtils.clamp(spd / 1.2, 0, 1);
     e.walk.setEffectiveWeight(wk); e.idle.setEffectiveWeight(1 - wk); e.walk.timeScale = THREE.MathUtils.clamp(spd / T.clipSpeed, 0.6, 1.8);
     e.mixer.update(dt);
@@ -1686,7 +1708,8 @@ function updateEnemies(dt) {
     else if (T.bomber) {   // slow yellow pulse that speeds up as it closes in
       const near = 1 - THREE.MathUtils.clamp((tdist - reach) / 10, 0, 1), hz = e.fuse > 0 ? 12 : 0.9 + near * 5;
       e.blink = (e.blink || 0) + dt * hz; e.mat.emissive.copy(BOMB_YELLOW).multiplyScalar(0.15 + 0.85 * (0.5 + 0.5 * Math.sin(e.blink * Math.PI * 2)));
-    } else if (e.burnT > 0) e.mat.emissive.setRGB(1.0, 0.32, 0.04).multiplyScalar(0.55 + 0.35 * Math.sin(now * 23 + e.seed * 7));   // on fire: glowing
+    } else if (T.thrower && e.aim) e.mat.emissive.setRGB(1, 0.06, 0.16).multiplyScalar(0.25 + 0.9 * (0.5 + 0.5 * Math.sin(now * 22)));   // about to throw: flashing crimson
+    else if (e.burnT > 0) e.mat.emissive.setRGB(1.0, 0.32, 0.04).multiplyScalar(0.55 + 0.35 * Math.sin(now * 23 + e.seed * 7));   // on fire: glowing
     else e.mat.emissive.copy(NIGHT_GLOW).multiplyScalar(glow);
     if (e.bar) placeBar(e.bar, e.pos.clone().setY(2.15), e.hp / e.maxHp);
     const onCam = Math.abs(e.pos.x - camera.position.x + CAM_OFFSET.x) < 30 && Math.abs(e.pos.z - camera.position.z + CAM_OFFSET.z) < 30;
@@ -1694,10 +1717,11 @@ function updateEnemies(dt) {
       const [mx, my] = toScreen(e.pos.clone().setY(2.45)), vis = mx > 0 && my > 0 && mx < innerWidth && my < innerHeight;
       if (vis && e.seenT < 0) e.seenT = now;
       const big = e.seenT >= 0 && now - e.seenT < 3;
-      e.mark.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -100%) scale(${big ? 1.6 + Math.sin(now * 10) * 0.15 : 0.9})`; e.mark.hidden = !vis;
+      const hot = T.thrower && e.aim;
+      e.mark.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -100%) scale(${hot ? 1.5 + Math.sin(now * 18) * 0.25 : big ? 1.6 + Math.sin(now * 10) * 0.15 : 0.9})`; e.mark.hidden = !vis || (T.thrower && !hot && !big);
     }
     // walkers reach out for their target
-    if (onCam && !T.bomber && (T.arms || wind || sw)) {   // walkers always reach; everyone swings when attacking
+    if (onCam && !T.bomber && (T.arms || wind || sw)) {   // (a thrower's wind-up raises its arms)   // walkers always reach; everyone swings when attacking
       e.model.updateMatrixWorld(true);
       const c = e.chest.getWorldPosition(new THREE.Vector3()), f = new THREE.Vector3(Math.sin(e.yaw), 0, Math.cos(e.yaw)), l = new THREE.Vector3(Math.cos(e.yaw), 0, -Math.sin(e.yaw));
       const k = T.scale || 1, reachA = ((T.arms ? 0.48 : 0.3) - wind * 0.3 + sw * 0.32) * k, bob = Math.sin(now * 3.3 + e.seed) * 0.04 * k, up = (-0.04 + wind * 0.6 - sw * 0.3) * k;
@@ -2498,7 +2522,7 @@ function spawnTracer(from, to, scale = 1, fade = false) {
 }
 // Turret targeting (within range and sight): anything inside CLOSE_R first, then enemies that are hitting
 // something right now, then bombers, then runners, then the nearest
-const TARGET_PRIO = { bomber: 2, runner: 1 }, CLOSE_R = 4;
+const TARGET_PRIO = { thrower: 2.6, bomber: 2, runner: 1 }, CLOSE_R = 4;   // throwers first, unless something's right on top of the turret
 // distance along a turret's line of fire to the first wall or other turret in the way (Infinity if none).
 // A turret up on a wall fires over ground-level walls and turrets; a structure with shootThrough never blocks.
 function structHitD(ox, oz, dx, dz, maxD, self) {
@@ -3255,7 +3279,7 @@ function startRun(day, picks, fresh = false) {
   const ck = fresh ? [] : (save.ckpt?.[day] || save.ckpt?.[Object.keys(save.ckpt || {}).map(Number).filter(d => d <= day).sort((a, b) => b - a)[0]] || []);
   for (const b of ck) { const s = addStruct(b.t, b.x, b.z, b.lv || 1, b.spent || 0, undefined, b.y || 0); s.hp = STRUCT[s.kind].hp[s.level] * 0.5; }
   if (fresh) save.ckpt = {};
-  for (const e of enemies) { scene.remove(e.model); removeBar(e.bar); e.mark?.remove(); e.mark = null; enemyPools[e.type].push(e); }
+  for (const e of enemies) { scene.remove(e.model); removeBar(e.bar); e.mark?.remove(); e.mark = null; e.aim = null; if (e.tele) e.tele.visible = false; enemyPools[e.type].push(e); }
   enemies.length = 0; hovered = null;
   for (const g of gems) scene.remove(g.m); gems.length = 0;
   pendingHits.length = 0;
@@ -4037,9 +4061,10 @@ function defSpawns(dt) {
   const hard = Math.min(1, (ph.n - 1) / 8 + (strengthK - 1) / 6);   // 0 → 1 over the nights and as the scaler climbs: more of the nasty ones
   const r = Math.random(), pBomb = ph.night ? (ph.n >= 2 ? 0.08 + 0.17 * hard : 0) : ph.n >= 3 ? 0.04 + 0.08 * hard : 0, pRun = ph.night ? (ph.n === 1 ? (p > 0.15 ? 0.25 : 0) : 0.28 + 0.12 * hard) : ph.n >= 2 ? 0.16 + 0.1 * hard : 0.08;
   const pBrute = ph.night ? (ph.n === 1 ? (p > 0.4 ? 0.03 : 0) : 0.03 + 0.09 * hard) : ph.n >= 2 ? 0.02 + 0.04 * hard : 0;   // brutes count as 10
-  const type = r < pBrute ? "brute" : r < pBrute + pBomb ? "bomber" : r < pBrute + pBomb + pRun ? "runner" : "walker";
+  const pThrow = ph.night ? (ph.n >= 2 ? 0.06 + 0.1 * hard : p > 0.5 ? 0.03 : 0) : ph.n >= 3 ? 0.04 * hard : 0, r2 = Math.random();
+  const type = r2 < pThrow ? "thrower" : r < pBrute ? "brute" : r < pBrute + pBomb ? "bomber" : r < pBrute + pBomb + pRun ? "runner" : "walker";
   if (type === "brute" && deficit < 10) return;
-  const cap = { walker: ph.night ? 14 + k * 26 : 9 + k * 12, runner: 4 + k * 6, bomber: 1 + k * 3, brute: ph.n >= 4 && ph.night ? 2 : 1 }[type];
+  const cap = { walker: ph.night ? 14 + k * 26 : 9 + k * 12, runner: 4 + k * 6, bomber: 1 + k * 3, brute: ph.n >= 4 && ph.night ? 2 : 1, thrower: 1 + k * 3 }[type];
   gang(type, Math.max(1, Math.min(Math.round(cap), Math.round(deficit * (0.45 + Math.random() * 0.45) / (type === "brute" ? 10 : 1)))));
 }
 function gang(type, n) { const f = anyDir(); for (let i = 0; i < n; i++) spawnAt(type, f); run.phaseSpawned = (run.phaseSpawned || 0) + n * (type === "brute" ? 10 : 1); }   // one direction, a tight bunch
@@ -4062,10 +4087,10 @@ function clearWorld() {
   shake = 0;
   for (let i = 0; i < FIRE_MAX; i++) fireAge[i * 2] = fireAge[i * 2 + 1]; fireLightK = 0; flash.intensity = 0; bannerEl.hidden = true; hoverTip.hidden = true; spotEl.hidden = true; tutPtr.hidden = true; xpBumpT = bankBumpT = 0;
   for (const s of [...structs()]) removeStruct(s);
-  for (const e of enemies) { scene.remove(e.model); removeBar(e.bar); e.mark?.remove(); e.mark = null; enemyPools[e.type].push(e); }
+  for (const e of enemies) { scene.remove(e.model); removeBar(e.bar); e.mark?.remove(); e.mark = null; e.aim = null; if (e.tele) e.tele.visible = false; enemyPools[e.type].push(e); }
   enemies.length = 0; hovered = null; pendingHits.length = 0;
   for (const r of rockets) scene.remove(r.m); rockets.length = 0; for (const j of jets) scene.remove(j.m); jets.length = 0;
-  for (const c of chests) { scene.remove(c.g); c.ptr.remove(); } chests.length = 0; run.aim = null; aimRing.visible = false; strikeBtn?.classList.remove("aiming");
+  for (const c of chests) { scene.remove(c.g); c.ptr.remove(); } chests.length = 0; for (const l of lobs) scene.remove(l.m); lobs.length = 0; run.aim = null; aimRing.visible = false; strikeBtn?.classList.remove("aiming");
   for (const o of orbs) { o.el.remove(); orbPool.push(o.el); } orbs.length = 0;
   for (const el of frontEls) el.remove(); frontEls.length = 0; camPan.set(0, 0, 0); camZoom = 1;
   carry = null; buildSel = -1; buildMode = false; showGhost(); closeMenu();
@@ -4129,6 +4154,36 @@ function strikeAt(p) {
   for (const c of cl) hits.push({ ...c, u: (c.x - p.x) * ax + (c.z - p.z) * az });
   hits.sort((a, b) => a.u - b.u).forEach((c, i) => delayed.push({ t: 0.85 + i * 0.07, fn: () => airstrike(c) }));
   run.raidT = 0.85 + hits.length * 0.07 + 1.2;
+}
+// throwers: telegraph (a dashed line from the thrower to the spot, a pulsing ring on it), then a lobbed bomb on an arc
+const THROW_R = 12, THROW_WIND = 1.1, lobs = [];
+const teleMat = new THREE.LineDashedMaterial({ color: 0xff2a4a, dashSize: 0.35, gapSize: 0.25, transparent: true, depthWrite: false }), teleRingMat = new THREE.MeshBasicMaterial({ color: 0xff2a4a, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+const teleRingGeo = new THREE.RingGeometry(2.0, 2.25, 40).rotateX(-Math.PI / 2), teleFillGeo = new THREE.CircleGeometry(2.0, 32).rotateX(-Math.PI / 2);
+function showTele(e) {
+  if (!e.aim) { if (e.tele) e.tele.visible = false; return; }
+  if (!e.tele) {
+    const g = new THREE.Group(), line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 13 }, () => new THREE.Vector3())), teleMat);
+    const ring = new THREE.Mesh(teleRingGeo, teleRingMat), fill = new THREE.Mesh(teleFillGeo, new THREE.MeshBasicMaterial({ color: 0xff2a4a, transparent: true, opacity: 0.12, depthWrite: false }));
+    line.frustumCulled = false; g.add(line, ring, fill); g.userData = { line, ring, fill }; scene.add(g); e.tele = g;
+  }
+  const { line, ring, fill } = e.tele.userData, a = e.pos.clone().setY(1.6 * (ENEMY_TYPES[e.type].scale || 1)), b = e.aim.p, k = 1 - e.aim.t / THROW_WIND, pos = line.geometry.attributes.position;
+  for (let i = 0; i <= 12; i++) { const u = i / 12, p = a.clone().lerp(b, u); p.y = a.y * (1 - u) + 0.1 + Math.sin(u * Math.PI) * 4; pos.setXYZ(i, p.x, p.y, p.z); }
+  pos.needsUpdate = true; line.computeLineDistances();
+  ring.position.set(b.x, 0.07, b.z); fill.position.set(b.x, 0.06, b.z); fill.scale.setScalar(Math.max(0.05, k)); teleRingMat.opacity = 0.55 + Math.sin(performance.now() / 70) * 0.35;
+  e.tele.visible = true;
+}
+function lobBomb(e, p) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff2a4a })), from = e.pos.clone().setY(1.7 * (ENEMY_TYPES[e.type].scale || 1));
+  m.add(new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex, color: 0xff2a4a, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }))); m.children[0].scale.set(1.2, 1.2, 1);
+  m.position.copy(from); scene.add(m); lobs.push({ m, from, to: p.clone(), t: 0, dur: 0.6 + from.distanceTo(p) * 0.035, dmg: e.dmg });
+}
+function updateLobs(dt) {
+  for (let i = lobs.length - 1; i >= 0; i--) {
+    const l = lobs[i]; l.t += dt; const u = Math.min(1, l.t / l.dur);
+    l.m.position.copy(l.from).lerp(l.to, u); l.m.position.y = l.from.y * (1 - u) + 0.1 + Math.sin(u * Math.PI) * 4;
+    if (Math.random() < 0.5) spawnSprite(l.m.position.clone(), new THREE.Vector3(), { color: 0x8a1024, size: 0.35, grow: 1.5, life: 0.5, opacity: 0.35, drag: 0 });
+    if (u >= 1) { scene.remove(l.m); lobs.splice(i, 1); if (!runOver || !DEF) explode(l.to.clone().setY(0.4), 2.3, l.dmg, { enemies: false, structures: true, crimson: true }); }
+  }
 }
 const chests = []; let crateProto = null;
 // the supply drop: a stencilled wooden crate strapped to a pallet, under a billowing gored canopy on a riser
@@ -4482,7 +4537,7 @@ function defUpdate(rdt) {
   if (shake > 0) { shake = Math.max(0, shake - rdt); camera.position.add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.6)); }
   const cc = BC.clone().add(camPan); if (!sun.target.position.equals(cc)) { sunMoved = true; sun.position.copy(cc).add(new THREE.Vector3(-6, 14, 9)); sun.target.position.copy(cc); }   // shadows follow the view
   camera.updateMatrixWorld();
-  updateJets(rdt); updateChests(rdt); updateStrike(rdt); updateAim(rdt);
+  updateJets(rdt); updateChests(rdt); updateStrike(rdt); updateAim(rdt); updateLobs(rdt * run.slow);
   for (const l of mLights) l.intensity *= Math.exp(-rdt * 28);
   defLight(nightKAt(run.t) * 0.9);
   // HUD
