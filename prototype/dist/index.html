@@ -3963,8 +3963,9 @@ const wallToUp = () => walls.filter(w => w.level < MAXLV.wall && save.xp >= upCo
 function quickAct(kind) {
   const b = BUILDS.find(o => o.id === kind); if (!b) return; act();
   if (kind === "wall") { const w = wallToUp(); if (!w) { deny(trayCards.querySelector(`[data-q="wall"]`)); return; } upgradeOne(w); saveBuilds(); renderXp(); return; }   // QUICK UPGRADE: the lowest wall, outermost first
-  if (countOf(kind) >= capOf(kind)) {
-    const pr = mergePair(kind); if (!pr) { deny(trayCards.querySelector(`[data-q="${kind}"]`)); return; }
+  if (countOf(kind) >= capOf(kind)) { deny(trayCards.querySelector(`[data-q="${kind}"]`)); return; }
+  if (false) {
+    const pr = mergePair(kind);
     const [a, c] = Math.hypot(pr[0].x - BC.x, pr[0].z - BC.z) > Math.hypot(pr[1].x - BC.x, pr[1].z - BC.z) ? pr : [pr[1], pr[0]];   // the outer one folds into the inner one
     for (let k = 0; k < 8; k++) spawnSprite(new THREE.Vector3(a.x, (a.y || 0) + 0.8, a.z), new THREE.Vector3((c.x - a.x) * 2, 2, (c.z - a.z) * 2), { color: 0x7dffd6, size: 0.14, life: 0.5, opacity: 1, additive: true, drag: 1 });
     removeStruct(a); mergeInto(c, a.spent); saveBuilds(); renderTray(); return;
@@ -3980,7 +3981,7 @@ function renderTray() {
   bankNum.textContent = save.xp;
   trayCards.innerHTML = BUILDS.map((b, i) => { const c = b.cost(), n = countOf(b.id), cap = capOf(b.id), free = run.free[b.id] > 0;
     if (locked(i)) return `<button type="button" class="tcard locked" data-i="${i}"><span class="k">${i + 1}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">LOCKED</span></button>`;
-    const qb = !save.def.tut2 ? "" : MERGEABLE.has(b.id) ? `<span class="qp" data-q="${b.id}">${n >= cap ? "QUICK MERGE" : "QUICK PLACE"}</span>` : b.id === "wall" ? `<span class="qp up" data-q="wall">QUICK UPGRADE</span>` : "";
+    const qb = !save.def.tut2 ? "" : MERGEABLE.has(b.id) ? `<span class="qp" data-q="${b.id}">QUICK PLACE</span>` : b.id === "wall" ? `<span class="qp up" data-q="wall">QUICK UPGRADE</span>` : "";
     return `<button type="button" class="tcard${buildSel === i && buildMode ? " sel" : ""}${save.xp < c || n >= cap ? " poor" : ""}${free ? " free" : ""}" data-i="${i}">${qb}<span class="k">${i + 1}</span><span class="cnt">${n}/${cap}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">${free ? freeLabel(b.id) : c}</span></button>`; }).join("");
   if (!run.started && !run.events.firstPick) trayCards.children[0]?.classList.add("flash");
 }
@@ -4159,32 +4160,12 @@ const hasGuns = () => sentries.length > 0;
 const FREE_DROPS = [{ wall: 4, sentry: 1 }, { sentry: 1 }, { sentry: 2 }, { rocket: 1 }, { rocket: 2, sentry: 2 }];
 const UPGRADES = [
   { id: "sdmg", name: "AP ROUNDS", ic: "✸", v: [0.12, 0.18, 0.27, 0.4, 0.65], txt: (v) => `Sentries deal +${pct(v)} damage`, ok: () => countOf("sentry") > 0 },
-  { id: "srate", name: "HOT BARRELS", ic: "»", v: [0.08, 0.12, 0.18, 0.27, 0.45], txt: (v) => `All turrets fire +${pct(v)} faster`, ok: hasGuns },
-  { id: "range", name: "LONG SIGHTS", ic: "◎", v: [0.6, 1, 1.5, 2.2, 3.5], txt: (v) => `+${v} m range for all turrets`, ok: hasGuns },
-  { id: "rdmg", name: "HE WARHEADS", ic: "✹", v: [0.15, 0.22, 0.33, 0.5, 0.8], txt: (v) => `Rockets deal +${pct(v)} damage`, ok: hasRockets },
   { id: "rrad", name: "BIG BOOM", ic: "◉", v: [0.12, 0.18, 0.27, 0.4, 0.65], txt: (v) => `Rocket blasts +${pct(v)} wider`, ok: hasRockets },
-  { id: "rburst", name: "EXTRA TUBES", ic: "⁘", v: [1, 1, 1, 2, 3], min: 1, txt: (v) => `Rocket bursts fire +${v} rocket${v > 1 ? "s" : ""}`, ok: hasRockets },
-  { id: "armor", name: "FORTIFY", ic: "▣", v: [0.06, 0.1, 0.15, 0.22, 0.35], txt: (v) => `Towers take ${pct(v)} less damage`, ok: () => MOD("armor") < 0.7 && structs().length > 0 },
-  { id: "loot", name: "SCAVENGER", ic: "$", v: [0.15, 0.25, 0.4, 0.6, 1], txt: (v) => `+${pct(v)} scrap from every orb` },
-  { id: "repair", name: "PATCH UP", ic: "+", v: [0.15, 0.25, 0.4, 0.6, 1], txt: (v) => `Repair the base and every tower by ${pct(v)}`, now: (v) => {
-    save.baseHp = Math.min(baseMax(), save.baseHp + baseMax() * v); renderBaseHp(); for (const s of structs()) s.hp = Math.min(STRUCT[s.kind].hp[s.level], s.hp + STRUCT[s.kind].hp[s.level] * v); } },
   { id: "drop", name: "SUPPLY DROP", ic: "▼", v: FREE_DROPS, ok: () => BUILDS.some(b => b.id === "sentry"), txt: (v) => `Free: ${Object.entries(v).filter(([k]) => BUILDS.some(b => b.id === k)).map(([k, n]) => `${n} ${BUILDS.find(b => b.id === k).name.toLowerCase()}${n > 1 ? "s" : ""}`).join(" + ")}`,
     now: (v) => { for (const [k, n] of Object.entries(v)) if (BUILDS.some(b => b.id === k)) addFree(k, n); } },
   { id: "fieldup", name: "FIELD UPGRADE", ic: "▲", v: [1, 2, 3, 5, 99], txt: (v) => v > 50 ? "Every tower goes up a level" : `${v} random tower${v > 1 ? "s go" : " goes"} up a level`,
     ok: () => structs().some(t => t.level < MAXLV[t.kind]), now: (v) => { const up = structs().filter(t => t.level < MAXLV[t.kind]).sort(() => Math.random() - 0.5).slice(0, v); for (const t of up) upgradeStruct(t); } },
-  // perks: new behaviour, not just numbers (icons are little 3D renders)
   { id: "incb", perk: 1, fx: "flame", name: "INCENDIARY ROUNDS", ic: "✹", v: [4, 6, 9, 13, 20], txt: (v) => `Sentry hits set enemies on fire for ${v} damage a second`, ok: () => countOf("sentry") > 0 },
-  { id: "tesla", perk: 1, fx: "bolt", name: "TESLA ROUNDS", ic: "⚡", v: [12, 18, 26, 38, 60], txt: (v) => `Every 8th sentry hit arcs to 3 more enemies for ${v} each`, ok: () => countOf("sentry") > 0 },
-  { id: "pierce", perk: 1, fx: "sabot", name: "ARMOR PIERCING ROUNDS", ic: "➹", v: [0.25, 0.35, 0.5, 0.7, 1], txt: (v) => `${pct(Math.min(1, v))} of sentry rounds punch through into a second enemy`, ok: () => countOf("sentry") > 0 && MOD("pierce") < 1 },
-  { id: "thermo", perk: 1, fx: "boom", name: "THERMOBARIC WARHEADS", ic: "✺", v: [0.2, 0.3, 0.45, 0.65, 1], txt: (v) => `Rocket blasts ${pct(v)} bigger, and they stagger everything caught`, ok: hasRockets },
-  { id: "incr", perk: 1, fx: "flame", name: "INCENDIARY ROCKETS", ic: "✹", v: [6, 9, 13, 19, 30], txt: (v) => `Rocket blasts leave everything burning for ${v} damage a second`, ok: hasRockets },
-  { id: "cluster", perk: 1, fx: "boom", name: "CLUSTER ROCKETS", ic: "⁂", v: [2, 2, 3, 4, 6], min: 1, txt: (v) => `Every rocket scatters ${v} bomblets`, ok: hasRockets },
-  { id: "frag", perk: 1, fx: "boom", name: "FRAG SHELLS", ic: "✷", v: [0.25, 0.35, 0.5, 0.7, 1], txt: (v) => `Cannon shells burst into shrapnel: ${pct(v)} damage in a ring twice as wide`, ok: () => countOf("cannon") > 0 },
-  { id: "napalm", perk: 1, fx: "flame", name: "NAPALM MIX", ic: "✹", v: [0.3, 0.45, 0.65, 0.9, 1.4], txt: (v) => `Flamethrower fires burn ${pct(v)} longer and hotter`, ok: () => countOf("flamer") > 0 },
-  { id: "react", perk: 1, fx: "boom", name: "REACTIVE ARMOR", ic: "⛨", v: [40, 60, 90, 130, 200], txt: (v) => `Walls blast attackers back every 200 damage they take, for ${v} damage`, ok: () => walls.length > 0 },
-  { id: "thorns", perk: 1, fx: "razor", name: "RAZOR PLATING", ic: "✂", v: [6, 9, 13, 19, 30], txt: (v) => `Anything that hits a wall takes ${v} damage back`, ok: () => walls.length > 0 },
-  { id: "ovch", perk: 1, fx: "jet", name: "AIR SUPPORT", ic: "✈", v: [0.2, 0.3, 0.45, 0.65, 1], txt: (v) => `Airstrikes charge ${pct(v)} faster`, ok: () => true },
-  { id: "stash", name: "STASH", ic: "$", v: [30, 50, 80, 130, 250], txt: (v) => `+${v} scrap right now`, now: (v) => { save.xp += v; renderXp(); } },
 ];
 function rollRarity(min = 0) {
   const luck = Math.min(2.5, 1 + run.lvl * 0.06), ws = RAR.map((r, i) => i < min ? 0 : r.w * (i >= 2 ? luck : 1));
@@ -4269,14 +4250,14 @@ function defSpawns(dt) {
   const alive = enemies.reduce((a, e) => a + !e.dead, 0); if (alive > 200) return;
   const p = (ph.night ? ph.c - DAY_LEN : ph.c) / DAY_LEN;
   const ease = ph.n === 1 && !ph.night ? THREE.MathUtils.smoothstep(t, 4, 12) : 1;   // the opening seconds are a breather
-  const B = (ph.night ? nightBudget(ph.n) : dayBudget(ph.n)) * strengthMult(), deficit = B * Math.min(1, p / 0.85 + 0.05) * ease - run.phaseSpawned;
+  const B = (ph.night ? nightBudget(ph.n) : dayBudget(ph.n)) * strengthMult() * (1 + t / 300), deficit = B * Math.min(1, p / 0.85 + 0.05) * ease - run.phaseSpawned;
   if ((gangT -= dt) > 0 || deficit < 1) return;
   gangT = ph.night ? 1.0 + Math.random() * 1.0 : 1.5 + Math.random() * 1.2;
   // gangs from random directions: walkers mostly, runners from the first night on, bombers from night 2, brutes now and then
-  const hard = Math.min(1, (ph.n - 1) / 8 + (strengthK - 1) / 6);   // 0 → 1 over the nights and as the scaler climbs: more of the nasty ones
-  const r = Math.random(), pBomb = ph.night ? (ph.n >= 2 ? 0.08 + 0.17 * hard : 0) : ph.n >= 3 ? 0.04 + 0.08 * hard : 0, pRun = ph.night ? (ph.n === 1 ? (p > 0.15 ? 0.25 : 0) : 0.28 + 0.12 * hard) : ph.n >= 2 ? 0.16 + 0.1 * hard : 0.08;
-  const pBrute = ph.night ? (ph.n === 1 ? (p > 0.4 ? 0.03 : 0) : 0.03 + 0.09 * hard) : ph.n >= 2 ? 0.02 + 0.04 * hard : 0;   // brutes count as 10
-  const pThrow = ph.night ? (ph.n >= 2 ? 0.06 + 0.1 * hard : p > 0.5 ? 0.03 : 0) : ph.n >= 3 ? 0.04 * hard : 0, r2 = Math.random();
+  const hard = Math.min(1, t / 360 + (strengthK - 1) / 5);   // climbs steadily from the first minute: by ~3 min half the gangs can be nasty ones   // 0 → 1 over the nights and as the scaler climbs: more of the nasty ones
+  const r = Math.random(), pBomb = ph.night ? (ph.n >= 2 || p > 0.3 ? 0.06 + 0.2 * hard : 0) : ph.n >= 2 ? 0.04 + 0.1 * hard : 0, pRun = ph.night ? (ph.n === 1 ? (p > 0.15 ? 0.25 : 0) : 0.28 + 0.12 * hard) : ph.n >= 2 ? 0.16 + 0.1 * hard : 0.08;
+  const pBrute = ph.night ? (ph.n === 1 ? (p > 0.4 ? 0.04 : 0) : 0.04 + 0.1 * hard) : ph.n >= 2 ? 0.03 + 0.05 * hard : 0;   // brutes count as 10
+  const pThrow = ph.night ? (ph.n >= 2 || p > 0.4 ? 0.04 + 0.12 * hard : 0) : ph.n >= 2 ? 0.03 + 0.06 * hard : 0, r2 = Math.random();
   const type = r2 < pThrow ? "thrower" : r < pBrute ? "brute" : r < pBrute + pBomb ? "bomber" : r < pBrute + pBomb + pRun ? "runner" : "walker";
   if (type === "brute" && deficit < 10) return;
   const cap = { walker: ph.night ? 14 + k * 26 : 9 + k * 12, runner: 4 + k * 6, bomber: 1 + k * 3, brute: ph.n >= 4 && ph.night ? 2 : 1, thrower: 1 + k * 3 }[type];
@@ -4481,8 +4462,9 @@ function updateChests(rdt) {
 function chestAt(cx, cy) { for (const c of chests) { if (!c.landed) continue; const [x, y] = toScreen(c.g.position.clone().setY(0.6)); if (Math.hypot(x - cx, y - cy) < 56) return c; } return null; }
 function openChest(c, quiet = false) {
   chests.splice(chests.indexOf(c), 1); scene.remove(c.g); c.ptr.remove();
-  const got = dropCards(2 + c.n), scrap = 15 + c.n * 10; save.xp += scrap; bankBumpT = 0.3; renderXp();
-  for (const [k, n] of Object.entries(got)) run.got[k] = (run.got[k] || 0) + n;
+  const got = {}, kinds = BUILDS.map(b => b.id).filter(k => countOf(k) < capOf(k)), scrap = 15 + c.n * 10;   // free parts from your tray, ready to place, plus scrap
+  for (let i = 0; i < 2 + Math.floor(c.n / 2) && kinds.length; i++) { const k = kinds[Math.floor(Math.random() * kinds.length)]; got[k] = (got[k] || 0) + (k === "wall" ? 4 : TRAP_KINDS.has(k) ? 2 : 1); }
+  for (const [k, n] of Object.entries(got)) addFree(k, n); save.xp += scrap; bankBumpT = 0.3; renderXp();
   writeSave(); if (quiet) return;
   const p = c.g.position.clone().setY(0.8); boomFx(p, 1.2, true); shake = Math.max(shake, 0.25);
   for (let k = 0; k < 30; k++) spawnSprite(p.clone(), new THREE.Vector3((Math.random() - 0.5) * 7, 4 + Math.random() * 6, (Math.random() - 0.5) * 7), { color: Math.random() < 0.5 ? 0xffd060 : 0xfff2c0, size: 0.16, life: 1.1, opacity: 1, additive: true, drag: 0.8, gravity: 9 });
@@ -4835,7 +4817,7 @@ function updateUpMarks() {   // a bouncing ▲ over up to three towers you can a
 }
 function renderTrayState() {
   bankNum.textContent = save.xp;
-  for (const q of trayCards.querySelectorAll("[data-q]")) { const k = q.dataset.q; if (k === "wall") { q.classList.toggle("off", !wallToUp()); continue; } const full = countOf(k) >= capOf(k), b = BUILDS.find(o => o.id === k); q.textContent = full ? "QUICK MERGE" : "QUICK PLACE"; q.classList.toggle("off", full ? !mergePair(k) : save.xp < b.cost()); q.classList.toggle("mg", full); }
+  for (const q of trayCards.querySelectorAll("[data-q]")) { const k = q.dataset.q; if (k === "wall") { q.classList.toggle("off", !wallToUp()); continue; } const full = countOf(k) >= capOf(k), b = BUILDS.find(o => o.id === k); q.classList.toggle("off", full || save.xp < b.cost()); }
   [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], ok = save.xp >= b.cost() && countOf(b.id) < capOf(b.id); if (ok && el.classList.contains("poor") && run.started) { el.classList.remove("ping"); void el.offsetWidth; el.classList.add("ping"); } });
   [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], c = b.cost(); el.classList.toggle("poor", save.xp < c || countOf(b.id) >= capOf(b.id)); el.classList.toggle("sel", buildMode && buildSel === i); el.querySelector(".cost").textContent = run.free[b.id] > 0 ? freeLabel(b.id) : c; el.classList.toggle("free", run.free[b.id] > 0); el.querySelector(".cnt").textContent = `${countOf(b.id)}/${capOf(b.id)}`; });
 }
