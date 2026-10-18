@@ -28,7 +28,7 @@ body.lobby #game { cursor: default; } body.lobby #reticle { display: none; }
 #reticle .h { width: 7px; height: 2px; top: -1px; }
 #reticle .v { width: 2px; height: 7px; left: -1px; }
 #reticle .l { left: -11px; } #reticle .r { left: 4px; } #reticle .t { top: -11px; } #reticle .b { top: 4px; }
-#game canvas { display: block; }
+#game canvas { display: block; width: 100% !important; height: 100% !important; }
 .hud { position: fixed; pointer-events: none; z-index: 2; }
 /* Pixel HUD: hard edges, stepped borders, bone-white text on charcoal, rust accent. */
 .px { font-family: "Chakra Petch", "Trebuchet MS", sans-serif; font-weight: 600; }
@@ -61,7 +61,7 @@ body.lobby #game { cursor: default; } body.lobby #reticle { display: none; }
 #runOver .danger { font-size: 12px; padding: 8px; color: #fff; background: #b8361e; } #runOver .danger:hover { background: #d0452a; }
 #cards { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: rgba(8, 10, 9, .72); }
 #cards .cbox { display: grid; gap: 10px; justify-items: center; } #cards h2 { margin: 0; font-size: 30px; font-weight: 400; letter-spacing: .2em; color: #e0b04a; } .cleft { font-size: 12px; letter-spacing: .14em; color: #c9c3b4; }
-.crow { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
+.crow { display: flex; gap: 14px; flex-wrap: nowrap; justify-content: center; padding: 0 16px; }
 .card { width: 170px; min-height: 210px; display: grid; justify-items: center; align-content: start; gap: 8px; padding: 16px 12px; background: #1e211e; color: #e8e2d4; border: 0; cursor: pointer; box-shadow: 0 0 0 3px #2b2e2b, 0 0 0 5px #101211, 0 8px 0 #101211; font-family: inherit; animation: alertIn .3s ease-out backwards; }
 .card:nth-child(2) { animation-delay: .06s; } .card:nth-child(3) { animation-delay: .12s; }
 .card:hover { transform: translateY(-6px); box-shadow: 0 0 0 3px #e0b04a, 0 0 0 5px #101211, 0 14px 0 #101211; }
@@ -214,10 +214,27 @@ body.def #game { cursor: default; }
 .tcard.sel { transform: translateY(-8px); box-shadow: 0 0 0 3px #e0b04a, 0 0 0 5px #101211, 0 10px 0 #101211; }
 .tcard.poor { opacity: .55; } .tcard.locked { opacity: .35; filter: grayscale(1); } .tcard.locked .cost { color: #9d978a; font-size: 11px; } .tcard.deny { animation: deny .25s; } .tcard.poor .cost { color: #e8584a; }
 .tcard.free .cost { color: #7dffd6; }
+.tutFly { position: fixed; left: 0; top: 0; width: 70px; height: 70px; z-index: 7; pointer-events: none; filter: drop-shadow(0 0 10px #7dffd6); }
+#tutPtr.big { transform-origin: 50% 100%; } #tutPtr.big .lbl { font-size: 20px; color: #7dffd6; } #tutPtr.big .arr { transform: scale(1.8); }
+/* portrait phones: smaller everything, the tray wraps to two rows, level-up cards two to a row */
+body.portrait #tray .tcard { width: 58px; height: 76px; padding: 4px 2px; } body.portrait #tray .tcard img { width: 36px; height: 36px; } body.portrait #tray .tcard b { font-size: 8px; letter-spacing: .04em; }
+body.portrait #tray .tcard .cost { font-size: 11px; } body.portrait #tray .tcard .k, body.portrait #tray .tcard .cnt { font-size: 8px; }
+body.portrait #trayCards { flex-wrap: wrap; justify-content: center; row-gap: 30px; gap: 6px !important; max-width: calc(100vw - 150px); } body.portrait #tray { gap: 6px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: calc(100vw - 12px); justify-content: center; }
+body.portrait #tray .tcard .qp { top: -24px; width: 56px; font-size: 7.5px; padding: 2px 1px; } body.portrait #bank { font-size: 15px; padding: 5px 7px; }
+body.portrait #tray .tcard.strike .jet, body.portrait #tray .tcard.strike .jet img { width: 36px; height: 36px; }
+body.portrait #defTop { transform: translateX(-50%) scale(.8); transform-origin: 50% 0; } body.portrait #xpWrap { transform: scale(.8); transform-origin: 0 0; }
+body.portrait #cards .crow { gap: 6px; padding: 0 6px; flex-wrap: nowrap; } body.portrait #cards h2 { font-size: 22px; }
+body.portrait .card { width: calc(33.3vw - 9px); max-width: 170px; min-height: 0; padding: 10px 6px 12px; gap: 5px; } body.portrait .card .ic { width: 62px; height: 62px; } body.portrait .card .ic img, body.portrait .card .ic.fx > img { width: 50px; height: 50px; }
+body.portrait .card b { font-size: 10px; } body.portrait .card .val { font-size: 18px; } body.portrait .card small { font-size: 9px; line-height: 1.25; } body.portrait .card .ptag { font-size: 7px; letter-spacing: .1em; padding: 2px 4px; }
+body.portrait .card .ic { width: 52px; height: 52px; } body.portrait .card .ic img, body.portrait .card .ic.fx > img { width: 42px; height: 42px; } body.portrait .card .rays { top: 70px; }
+body.portrait #lobby .lpanel { left: 8px; right: 8px; width: auto; top: calc(58px + env(safe-area-inset-top, 0px)); bottom: auto; max-height: 50vh; }
+body.portrait #lobby .lside { left: 8px; right: 8px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); grid-template-columns: 1fr auto; align-items: end; } body.portrait #lobby .lbasep { display: none; }
+body.portrait #lPlay { width: 100%; grid-column: 1 / -1; } body.portrait .lcard { height: 86px; } body.portrait .lcard img { width: 40px; height: 40px; } body.portrait .lcard b { font-size: 8px; }
+body.portrait #res .rx { padding: 12px; gap: 9px; } body.portrait #res .rnight b { font-size: 44px; } body.portrait #res .rstats b { font-size: 18px; } body.portrait #res .again { font-size: 20px; }
 .tcard .qp { position: absolute; left: 50%; top: -40px; transform: translateX(-50%); width: 84px; padding: 4px 2px 3px; font-size: 10px; line-height: 1.1; letter-spacing: .1em; text-align: center; white-space: normal !important; color: #0f1a0d; background: #6fe05a; box-shadow: 0 0 0 2px #101211, 0 4px 0 #101211; cursor: pointer; white-space: nowrap; }
 .tcard .qp:hover { filter: brightness(1.15); } .tcard .qp.up { background: #ffd23a; } .tcard .qp.mg { background: #7dffd6; } .tcard .qp.off { background: #3a3d3a; color: #7a7f7a; }
 .tcard.poor .qp:not(.off) { opacity: 1; } body.mobile .tcard .qp { top: -34px; width: 66px; font-size: 9px; padding: 3px 2px 2px; }
-.tcard.strike { overflow: hidden; } .tcard.strike .jet { font-size: 38px; line-height: 64px; color: #6a726c; position: relative; } .tcard.strike b { position: relative; }
+.tcard.strike { overflow: hidden; } .tcard.strike .jet { position: relative; display: block; width: 64px; height: 64px; } .tcard.strike .jet img { width: 64px; height: 64px; opacity: .45; filter: grayscale(1); } .tcard.strike.ready .jet img, .tcard.strike.aiming .jet img { opacity: 1; filter: drop-shadow(0 0 8px #ff9a3a); } .tcard.strike b { position: relative; }
 .tcard.strike .sfill { position: absolute; inset: 0; display: flex; align-items: flex-end; pointer-events: none; } .tcard.strike .sfill i { display: block; width: 100%; height: 0; background: linear-gradient(0deg, rgba(255, 130, 40, .55), rgba(255, 200, 80, .15)); transition: height .2s; }
 .tcard.strike.ready { animation: sbounce .7s ease-in-out infinite; box-shadow: 0 0 0 3px #ff9a3a, 0 0 0 5px #101211, 0 0 26px 6px rgba(255, 140, 50, .7); } .tcard.strike.aiming { transform: translateY(-8px); box-shadow: 0 0 0 3px #ff4a2a, 0 0 0 5px #101211, 0 0 20px 4px rgba(255, 74, 42, .7); } .tcard.strike.aiming .jet { color: #ff8a6a; }
 .tcard.strike.ready .jet { color: #fff2c0; text-shadow: 0 0 12px #ff9a3a; }
@@ -228,10 +245,10 @@ body.def #game { cursor: default; }
 .cfly { position: fixed; z-index: 30; display: grid; justify-items: center; pointer-events: none; margin: -40px 0 0 -36px; width: 72px; animation: cfly 2s cubic-bezier(.2, .9, .3, 1) forwards; }
 .cfly img { width: 60px; height: 60px; filter: drop-shadow(0 0 10px rgba(255, 210, 90, .9)); } .cfly b { font-size: 20px; color: #ffd23a; text-shadow: 0 2px 0 #000; } .cfly .coin { width: 22px; height: 22px; margin: 18px 0 14px; background: #ffd23a; transform: rotate(45deg); box-shadow: 0 0 12px 3px rgba(255, 200, 60, .7); }
 @keyframes cfly { 0% { transform: translate(0, 0) scale(.3); opacity: 0; } 15% { transform: translate(calc(var(--dx) * .6), -90px) scale(1.35); opacity: 1; } 30% { transform: translate(var(--dx), -110px) scale(1); } 80% { transform: translate(var(--dx), -130px) scale(1); opacity: 1; } 100% { transform: translate(var(--dx), -170px) scale(.8); opacity: 0; } }
-body.mobile .tcard.strike .jet { font-size: 28px; line-height: 48px; }
+body.mobile .tcard.strike .jet, body.mobile .tcard.strike .jet img { width: 48px; height: 48px; }
 .tcard.flash { animation: tflash .8s ease-in-out infinite; } @keyframes tflash { 50% { box-shadow: 0 0 0 3px #7dffd6, 0 0 0 5px #101211, 0 0 24px 6px rgba(125, 255, 214, .6); } }
 #orbLayer { inset: 0; z-index: 3; overflow: hidden; }
-.orb { position: absolute; left: 0; top: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #9fd2ff; transform: rotate(45deg); box-shadow: 0 0 8px 3px rgba(60, 150, 255, .8); will-change: transform; }
+.orb { position: absolute; left: 0; top: 0; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; background: #9fd2ff; transform: rotate(45deg); box-shadow: 0 0 8px 3px rgba(60, 150, 255, .8); will-change: transform; }
 .orb.gold { background: #ffd23a; box-shadow: 0 0 8px 3px rgba(255, 200, 60, .8); }
 .orb.big { width: 14px; height: 14px; margin: -7px 0 0 -7px; }
 #lobby { position: fixed; inset: 0; z-index: 8; pointer-events: none; --gold: #e0b04a; }
@@ -246,6 +263,7 @@ body.lobby #tray, body.lobby #xpWrap, body.lobby #defTop, body.lobby #banner, bo
 .road .node { position: relative; flex: none; width: 40px; height: 40px; display: grid; place-items: center; background: #232825; box-shadow: 0 0 0 2px #101211, inset 0 0 0 2px #3a403b; font-size: 18px; color: #c9c3b4; }
 .road .node img { width: 34px; height: 34px; } .road .node.big { width: 46px; height: 46px; box-shadow: 0 0 0 2px #101211, inset 0 0 0 2px #e0b04a, 0 0 16px rgba(224, 176, 74, .5); }
 .road .node em { position: absolute; bottom: -2px; right: 1px; font-style: normal; font-size: 9px; color: #9d978a; text-shadow: 0 1px 0 #000; } .road .node .coin { width: 12px; height: 12px; }
+.cashi { width: 34px; height: 34px; vertical-align: middle; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .5)); } .cashi.sm { width: 18px; height: 18px; } #res .cashi { width: 26px; height: 26px; }
 #lobby .lcash { display: flex; align-items: center; gap: 10px; font-size: 24px; color: #ffd23a; } #lobby .coin { display: inline-block; width: 14px; height: 14px; background: #ffd23a; transform: rotate(45deg); box-shadow: 0 0 8px 2px rgba(255, 200, 60, .6); }
 #lobby .lpanel { position: absolute; left: 16px; top: calc(90px + env(safe-area-inset-top, 0px)); bottom: 16px; width: 452px; padding: 12px 14px 14px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #3a403b transparent; }
 .lh { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 0 8px; font-size: 15px; letter-spacing: .16em; color: var(--gold); } .lh span { font-size: 10px; letter-spacing: .1em; color: #9d978a; }
@@ -463,10 +481,10 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
 <div class="hud" id="barLayer"></div>
 <div class="hud px" id="xpWrap"><span id="xpLv">LV 1</span><div class="xbar"><i id="xpFill"></i></div></div>
 <div class="hud px" id="defTop"><div id="defTimer">0:00</div><div id="defPhase">DAY 1</div><div class="brow"><span>BASE</span><div class="bbar"><i id="defBase"></i></div><span id="defBaseNum">1000</span></div></div>
-<div class="hud px" id="tray"><div class="pxbox" id="bank"><span class="coin"></span><span id="bankNum">0</span></div><div id="trayCards" style="display:flex;gap:10px"></div><button type="button" class="tcard strike" id="strikeBtn"><span class="k">Q</span><span class="sfill"><i id="strikeFill"></i></span><span class="jet">✈</span><b>AIRSTRIKE</b></button></div>
+<div class="hud px" id="tray"><div class="pxbox" id="bank"><span class="coin"></span><span id="bankNum">0</span></div><div id="trayCards" style="display:flex;gap:10px"></div><button type="button" class="tcard strike" id="strikeBtn"><span class="k">Q</span><span class="sfill"><i id="strikeFill"></i></span><span class="jet"><img alt="" id="strikeImg"></span><b>AIRSTRIKE</b></button></div>
 <div class="hud" id="orbLayer"></div>
 <div class="px" id="lobby" hidden>
-  <div class="ltop pxbox"><div class="lbadge"><small>TIER</small><b id="lTier">1</b></div><div class="road" id="lRoad"></div><div class="lcash"><span class="coin"></span><span id="lCash">0</span></div></div>
+  <div class="ltop pxbox"><div class="lbadge" style="display:none"><small>TIER</small><b id="lTier">1</b></div><div class="road" id="lRoad" style="visibility:hidden"></div><div class="lcash"><span class="coin"></span><span id="lCash">0</span></div></div>
   <div class="lpanel pxbox" id="lPanel"></div>
   <div class="lside"><div class="lbasep pxbox" id="lBase"></div><button type="button" id="lPlay">PLAY<small id="lPlaySub"></small></button></div>
   <div class="lpop pxbox" id="lPop" hidden></div>
@@ -853,7 +871,7 @@ const host = document.getElementById("game");
 // a smaller shadow map with plain PCF, redrawn every other frame.
 const MOBILE = matchMedia("(pointer: coarse)").matches;
 const renderer = new THREE.WebGLRenderer({ antialias: !MOBILE, powerPreference: "high-performance" });
-const PR_MAX = MOBILE ? Math.min(devicePixelRatio, 1.5) : Math.min(devicePixelRatio, 2); let prNow = PR_MAX;
+const PR_MAX = MOBILE ? Math.min(devicePixelRatio, 1) : Math.min(devicePixelRatio, 1.5), PR_MIN = MOBILE ? 0.75 : 1; let prNow = PR_MAX;   // phones render at 1x (down to 0.75x when slow)
 renderer.setPixelRatio(prNow);
 renderer.shadowMap.enabled = true;
 renderer.localClippingEnabled = true;   // shack cutaway when inside
@@ -878,7 +896,7 @@ const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
 const CAM_OFFSET = new THREE.Vector3(1, 1.15, 1).normalize().multiplyScalar(40);
 function camFrustum() { const a = innerWidth / innerHeight; camera.left = -curView * a; camera.right = curView * a; camera.top = curView; camera.bottom = -curView; camera.updateProjectionMatrix(); }
 function resize() { renderer.setSize(innerWidth, innerHeight); camFrustum(); }
-addEventListener("resize", resize); resize();
+addEventListener("resize", resize); window.visualViewport?.addEventListener("resize", resize); addEventListener("orientationchange", () => setTimeout(resize, 200)); resize(); setTimeout(resize, 300);   // phones settle their viewport late
 
 // Blank white work platform with a 1 m grid (5 m major lines)
 // Arena: 60 x 60 m of packed dirt inside a fence, pine treeline beyond, 4 lanes (N/E/S/W) through it.
@@ -2994,6 +3012,13 @@ function iconRenderer(straight) {
   const r = new THREE.WebGLRenderer({ alpha: true, antialias: !MOBILE, preserveDrawingBuffer: true, premultipliedAlpha: !straight }); r.setSize(160, 160); return (ICON_R[straight] = r);
 }
 function freeIconRenderers() { for (const k in ICON_R) { ICON_R[k].dispose(); ICON_R[k].forceContextLoss(); delete ICON_R[k]; } }
+function makeCashModel() {   // a banded stack of green notes with a couple loose on top
+  const g = new THREE.Group(), note = new THREE.MeshStandardMaterial({ color: 0x5f9a52, roughness: 0.8 }), dark = new THREE.MeshStandardMaterial({ color: 0x3e6e38, roughness: 0.8 }), band = new THREE.MeshStandardMaterial({ color: 0xe8d8a0, roughness: 0.6 });
+  for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.07, 0.66), i % 2 ? note : dark); b.position.y = i * 0.075; b.rotation.y = (i % 3 - 1) * 0.03; g.add(b); }
+  const bd = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.48, 0.7), band); bd.position.y = 0.19; g.add(bd);
+  for (const [x, z, r] of [[0.15, 0.1, 0.5], [-0.2, -0.05, -0.35]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.03, 0.66), note); b.position.set(x, 0.5 + Math.abs(r) * 0.1, z); b.rotation.set(0.05, r, 0.04); g.add(b); }
+  return g;
+}
 function renderIcon(obj, straight = false) {   // straight: glowing effect shaders (fire, blasts) write straight alpha
   try { return renderIconRaw(obj, straight); } catch (err) { console.warn("icon", err); return ""; }
 }
@@ -3010,7 +3035,7 @@ function renderIconRaw(obj, straight) {
 }
 
 /* ---------- Info menus: structures and the base ---------- */
-const BASE_UP = DEF ? [0, 0, 350, 750, 1300, 2000, 2900, 4000, 5500] : [0, 0, 300, 700];   // scrap to reach each base level (level 3 is the max for now)
+const BASE_UP = DEF ? [0, 0, 600, 1300, 2300, 3600, 5200, 7200, 10000] : [0, 0, 300, 700];   // scrap to reach each base level (level 3 is the max for now)
 const smenu = document.getElementById("smenu"), smTitle = document.getElementById("smTitle"), smLv = document.getElementById("smLv"), smHpRow = document.getElementById("smHpRow"),
   smHp = document.getElementById("smHp"), smHpT = document.getElementById("smHpT"), smInfo = document.getElementById("smInfo"), smUp = document.getElementById("smUp"), smMove = document.getElementById("smMove"), smSell = document.getElementById("smSell");
 let menuTarget = null, menuT = 0;
@@ -3289,6 +3314,9 @@ function placePtr(el, world, label) {
   }
   return on;
 }
+function portraitCheck() { document.body.classList.toggle("portrait", innerHeight > innerWidth * 1.1); }
+addEventListener("resize", portraitCheck); portraitCheck();
+const tutFly = Object.assign(document.createElement("img"), { className: "tutFly", alt: "" }); tutFly.hidden = true; document.body.appendChild(tutFly);
 function spotlight(x, y, w, h = w, round = true) { spotEl.hidden = false; Object.assign(spotEl.style, { left: `${x - w / 2}px`, top: `${y - h / 2}px`, width: `${w}px`, height: `${h}px`, borderRadius: round ? "50%" : "10px" }); }
 
 /* ---------- Tutorial (first run) ---------- */
@@ -3370,10 +3398,10 @@ function updateCycle(dt) {
 // A run lasts until the base falls; then it starts over from day 1 with no guns, scrap, cards or builds.
 // Every night you survive deals 3 upgrade cards to pick 1 from.
 const BASE_T = { kind: "base" };   // what enemies aim at when they go for the base
-const BASE_HP = [0, 1000, 1800, 2600, 3500, 4600, 6000, 7600, 9500];
+const BASE_HP = DEF ? [0, 600, 1050, 1650, 2450, 3450, 4700, 6200, 8000] : [0, 1000, 1800, 2800];
 let runOver = false, picking = 0, baseHitBanner = 0;
 const BASE_BOX = () => boxColliders[0];
-const baseMax = () => Math.round(BASE_HP[Math.min(save.base, BASE_HP.length - 1)] * (1 + 0.3 * card("basehp")) * (DEF ? powerOf("base") : 1));
+const baseMax = () => Math.round(BASE_HP[Math.min(save.base, BASE_HP.length - 1)] * (1 + 0.3 * card("basehp")) * 1);
 function baseDist(p) { const [x0, x1, z0, z1] = BASE_BOX(); const cx = THREE.MathUtils.clamp(p.x, x0, x1), cz = THREE.MathUtils.clamp(p.z, z0, z1); return [Math.hypot(p.x - cx, p.z - cz), cx, cz]; }
 const baseBarEl = document.getElementById("baseBar"), baseHpEl = document.getElementById("baseHpNum");
 function renderBaseHp() { if (save.baseHp === undefined) save.baseHp = baseMax(); baseBarEl.style.width = `${Math.max(0, save.baseHp / baseMax()) * 100}%`; baseHpEl.textContent = Math.max(0, Math.ceil(save.baseHp)); }
@@ -3511,7 +3539,7 @@ document.getElementById("btnResetYes").addEventListener("click", () => {
 });
 document.getElementById("btnAmmo").addEventListener("click", () => { save.xp += 100; renderXp(); writeSave(); });
 document.getElementById("btnBoom").addEventListener("click", () => { if (!runOver) { tut.step = "done"; save.tut = 1; hurtBase(1e9); } });
-document.getElementById("btnCash").addEventListener("click", () => { save.def.cash += 1000; META.xp += 500; while (META.xp >= (META.tier + 1) * TIER_XP) { claimTier(META.tier); META.tier++; } dropCards(30); writeSave(); if (!lobbyEl.hidden) renderLobby(); });
+document.getElementById("btnCash").addEventListener("click", () => { save.def.cash += 1000; dropCards(30, true); writeSave(); if (!lobbyEl.hidden) renderLobby(); });
 document.getElementById("btnXpBig").addEventListener("click", () => { save.xp += 1000000; renderXp(); writeSave(); });
 const perfEl = document.getElementById("perf");
 
@@ -4129,29 +4157,31 @@ function defPlace(keep = false) {
   if (!keep && MERGEABLE.has(b.id)) setBuild(-1); renderXp();
   if (!save.def.tutBox && !touch.on && run.started && countOf(b.id) >= 3) { save.def.tutBox = 1; writeSave(); showBanner("RIGHT-CLICK AND DRAG A BOX TO SELECT MULTIPLE AT ONCE!", 6); }   // turrets: hand empty again; walls and traps stay in hand for the next one
   if (!run.started) {
-    if (!save.def.tut2 && !run.tut) { run.tut = "merge"; showBanner(touch.on ? "NOW DRAG A 2ND SENTRY ONTO IT TO MERGE THEM" : "NOW DROP A 2ND SENTRY ONTO IT TO MERGE THEM", 999); }
-    else if (run.tut === "merge" && mt) { run.tut = null; save.def.tut2 = 1; defGo(); showBanner("MERGED! A LEVEL 2 SENTRY · HOLD THE BASE!", 3.5); }
+    if (!save.def.tut2 && !run.tut) { run.tut = "merge"; showBanner("MERGE THE TURRETS TO UPGRADE!", 999); }
     else if (!run.tut) defGo();
   }
   return true;
 }
 function mergeInto(t, spent) {
+  if (DEF && !save.def.tut2 && !run.started) { run.tut = null; save.def.tut2 = 1; tutFly.hidden = true; defGo(); showBanner("UPGRADED! · HOLD THE BASE!", 3); }   // the lesson's done
   t.level++; t.spent += spent; t.hp = STRUCT[t.kind].hp[t.level]; buildModel(t); saveBuilds();
   upgradeFx(cellsOf(t), new THREE.Vector3(t.x, (t.y || 0) + 1.2, t.z), t.g, `MERGED · LV ${t.level}!`);
 }
 
 // ---- kill orbs: a blue (XP) and a yellow (scrap) orb per point burst out of the body, then fly to their counter
 const orbs = [], orbPool = []; let orbRectT = 0, orbTo = [0, 0, 0, 0];
-const FLY_ORBS = false;
+const FLY_ORBS = true;
 function defOrbs(e, n) {
   run.kills++; run.strike = (run.strike || 0) + (e.type === "brute" ? 10 : 1) * (1 + MOD("charge"));
   const [sx, sy] = toScreen(e.pos.clone().setY(1.2)), big = n >= 10, count = big ? Math.ceil(n / 3) : n, val = big ? 3 : 1;
   if (FLY_ORBS === false) { for (let i = 0; i < count; i++) { addOrb(val, false); addOrb(val, true); } return; }   // straight into the bar and the bank: no flying orbs over the field
-  for (let i = 0; i < count; i++) for (const gold of [false, true]) {
-    if (orbs.length > 260) { addOrb(val, gold); continue; }
+  for (let i = 0; i < count; i++) addOrb(val, false);   // XP goes straight into the bar
+  for (let i = 0; i < Math.min(count, 2); i++) for (const gold of [true]) {   // scrap flies: at most two small orbs a kill, carrying it all
+    const v = i === 0 ? val * (count - Math.min(count, 2) + 1) : val;
+    if (orbs.length > 120) { addOrb(v, gold); continue; }
     const el = orbPool.pop() || Object.assign(document.createElement("i"), { className: "orb" }); el.classList.toggle("big", big); el.classList.toggle("gold", gold); orbLayer.appendChild(el);
     const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 160;
-    orbs.push({ el, x: sx, y: sy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120, t: 0, val, gold });
+    el.style.transform = `translate(${sx}px, ${sy}px) rotate(45deg)`; orbs.push({ el, x: sx, y: sy, vx: Math.cos(a) * sp * 0.6, vy: Math.sin(a) * sp * 0.6 - 80, t: 0, val: v, gold, d0: 0 });
   }
 }
 function addOrb(v, gold) {
@@ -4168,7 +4198,8 @@ function updateOrbs(dt) {
     const o = orbs[i]; o.t += dt; const tx = o.gold ? btx : xtx, ty = o.gold ? bty : xty;
     if (o.t < 0.28) { o.vx *= Math.exp(-dt * 5); o.vy *= Math.exp(-dt * 5); }
     else { const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy) || 1, sp = 500 + (o.t - 0.28) * 2600; o.vx += (dx / d * sp - o.vx) * Math.min(1, dt * 9); o.vy += (dy / d * sp - o.vy) * Math.min(1, dt * 9); if (d < 18) { addOrb(o.val, o.gold); o.el.remove(); orbPool.push(o.el); orbs.splice(i, 1); continue; } }
-    o.x += o.vx * dt; o.y += o.vy * dt; o.el.style.transform = `translate(${o.x}px, ${o.y}px) rotate(45deg)`;
+    o.x += o.vx * dt; o.y += o.vy * dt; const dl = Math.hypot(tx - o.x, ty - o.y); o.d0 = Math.max(o.d0, dl); const sc = 0.45 + 0.55 * Math.min(1, dl / Math.max(60, o.d0));   // shrinks as it nears the counter
+    o.el.style.transform = `translate(${o.x}px, ${o.y}px) rotate(45deg) scale(${sc.toFixed(2)})`;
   }
 }
 
@@ -4213,11 +4244,11 @@ const UPGRADES = [
   { id: "incb2", kind: "unique", tier: 3, req: "incb", name: "IMPROVED INCENDIARY", fx: "flame", ic: "✹", val: 1, txt: () => `Incendiary fires burn twice as long`, ok: () => inDeck("sentry") },
   { id: "napalm", kind: "unique", tier: 4, req: "incb", name: "NAPALM", fx: "flame", ic: "✹", val: 1, txt: () => `Every fire burns twice as hot`, ok: () => inDeck("sentry") || inDeck("flamer") },
   { id: "pierce", kind: "unique", tier: 2, name: "ARMOR PIERCING ROUNDS", fx: "sabot", ic: "➹", val: 0.5, txt: () => `Half of all sentry rounds punch through into a second enemy`, ok: () => inDeck("sentry") },
-  { id: "cluster", kind: "unique", tier: 4, name: "CLUSTER ROCKETS", fx: "boom", ic: "⁂", val: 3, txt: () => `Every rocket scatters 3 bomblets`, ok: () => inDeck("rocket") },
-  { id: "bomblets", kind: "unique", tier: 3, req: "cluster", max: 3, name: "MORE BOMBLETS", fx: "boom", ic: "⁂", val: 2, into: "cluster", txt: () => `+2 bomblets on every cluster rocket`, ok: () => inDeck("rocket") },
-  { id: "frag", kind: "unique", tier: 4, name: "FRAG SHELLS", fx: "boom", ic: "✷", val: 0.5, txt: () => `Cannon shells burst into shrapnel: 50% damage in a ring twice as wide`, ok: () => inDeck("cannon") },
-  { id: "fragx", kind: "unique", tier: 3, req: "frag", max: 3, name: "FRAGMENTATION", fx: "boom", ic: "✷", val: 0.2, txt: () => `More fragments: shrapnel hits harder and reaches further`, ok: () => inDeck("cannon"), now: () => { run.mods.frag = (run.mods.frag || 0) + 0.2; run.mods.fragR = (run.mods.fragR || 0) + 0.7; } },
-  { id: "react", kind: "unique", tier: 2, name: "REACTIVE ARMOR", fx: "boom", ic: "⛨", val: 80, txt: () => `Walls blast attackers back every 200 damage they take (80 damage)`, ok: () => inDeck("wall") },
+  { id: "cluster", kind: "unique", tier: 4, name: "CLUSTER ROCKETS", ic: "⁂", val: 3, txt: () => `Every rocket scatters 3 bomblets`, ok: () => inDeck("rocket") },
+  { id: "bomblets", kind: "unique", tier: 3, req: "cluster", max: 3, name: "MORE BOMBLETS", ic: "⁂", val: 2, into: "cluster", txt: () => `+2 bomblets on every cluster rocket`, ok: () => inDeck("rocket") },
+  { id: "frag", kind: "unique", tier: 4, name: "FRAG SHELLS", ic: "✷", val: 0.5, txt: () => `Cannon shells burst into shrapnel: 50% damage in a ring twice as wide`, ok: () => inDeck("cannon") },
+  { id: "fragx", kind: "unique", tier: 3, req: "frag", max: 3, name: "FRAGMENTATION", ic: "✷", val: 0.2, txt: () => `More fragments: shrapnel hits harder and reaches further`, ok: () => inDeck("cannon"), now: () => { run.mods.frag = (run.mods.frag || 0) + 0.2; run.mods.fragR = (run.mods.fragR || 0) + 0.7; } },
+  { id: "react", kind: "unique", tier: 2, name: "REACTIVE ARMOR", ic: "⛨", val: 80, txt: () => `Walls blast attackers back every 200 damage they take (80 damage)`, ok: () => inDeck("wall") },
   { id: "thorns", kind: "unique", tier: 3, name: "SHARP WALLS", fx: "razor", ic: "✂", val: 20, txt: () => `Anything that hits a wall takes 20 damage back`, ok: () => inDeck("wall") },
   { id: "laststand", kind: "unique", tier: 3, name: "LAST STAND", ic: "♥", val: 1, txt: () => `Below 30% base health, all turrets deal +50% damage`, ok: () => BUILDS.some(b => MERGEABLE.has(b.id)) },
 ];
@@ -4255,7 +4286,7 @@ function dealUpgrades() {
     const sparks = r >= 2 ? Array.from({ length: 4 + r * 3 }, () => `<i class="spk" style="left:${8 + Math.random() * 84}%;animation-delay:${(Math.random() * 2).toFixed(2)}s;animation-duration:${(1.4 + Math.random() * 1.4).toFixed(2)}s"></i>`).join("") : "";
     return `<button type="button" class="card px rar ${RAR[r].id}" style="--rc:${RAR[r].col};animation-delay:${i * 0.09}s" data-u="${i}"><span class="rays"></span><span class="shine"></span>${sparks}
       <span class="rl">${RAR[r].name}</span><span class="pips">${"◆".repeat(r + 1)}<i>${"◆".repeat(4 - r)}</i></span>
-      <span class="ic${fxI ? " fx" : ""}">${fxI ? `<img alt="" src="${fxI}">${icon ? `<em><img alt="" src="${icon}"></em>` : ""}` : `${icon ? `<img alt="" src="${icon}">` : ""}<em>${u.ic}</em>`}</span>${tag ? `<span class="ptag">${tag}</span>` : ""}<b>${u.name}</b>${big ? `<span class="val">${big}</span>` : ""}<small>${txt}</small></button>`; }).join("");
+      <span class="ic${fxI ? " fx" : ""}">${fxI ? `<img alt="" src="${fxI}">${icon ? `<em><img alt="" src="${icon}"></em>` : ""}` : `${icon ? `<img alt="" src="${icon}">` : ""}<em>${u.ic}\uFE0E</em>`}</span>${tag ? `<span class="ptag">${tag}</span>` : ""}<b>${u.name}</b>${big ? `<span class="val">${big}</span>` : ""}<small>${txt}</small></button>`; }).join("");
   cardLeft.textContent = run.picks > 1 ? `LEVEL ${run.lvl - run.picks + 1} · ${run.picks - 1} MORE AFTER THIS` : `LEVEL ${run.lvl}`;
   cardsEl.querySelector("h2").textContent = "LEVEL UP!"; cardsEl.hidden = false; picking = 1;
 }
@@ -4267,8 +4298,8 @@ function takeCard(u, r) {
 }
 const CARD_ICON = { sdmg: () => ICONS.sentry, srate: () => ICONS.sentry, range: () => ICONS.sentry, rrad: () => ICONS.rocket, rlaunch: () => ICONS.rocket, crate: () => ICONS.cannon, cdmg: () => ICONS.cannon,
   armor: () => ICONS.wall, drop: () => ICONS.wall, armory: () => ICONS.sentry, fieldup: () => ICONS.sentry, repair: () => ICONS.base, fdmg: () => ICONS.flamer,
-  incb: () => ICONS.sentry, incb2: () => ICONS.sentry, napalm: () => ICONS.flamer, pierce: () => ICONS.sentry, cluster: () => ICONS.rocket, bomblets: () => ICONS.rocket, frag: () => ICONS.cannon, fragx: () => ICONS.cannon,
-  react: () => ICONS.wall, thorns: () => ICONS.wall, laststand: () => ICONS.base, salvage: () => ICONS.sentry, oc: () => ICONS.sentry };
+  incb: () => ICONS.sentry, incb2: () => ICONS.sentry, napalm: () => ICONS.flamer, pierce: () => ICONS.sentry, cluster: () => ICONS.rocket, bomblets: () => ICONS.rocket, frag: () => ICONS.rocket, fragx: () => ICONS.rocket,
+  react: () => ICONS.rocket, thorns: () => ICONS.wall, laststand: () => ICONS.base, salvage: () => ICONS.sentry, oc: () => ICONS.sentry };
 cardRow.addEventListener("click", (e) => {
   const b = e.target.closest("[data-u]"); if (!b || !DEF || cardRow.classList.contains("busy")) return;
   const { u, r } = offer[+b.dataset.u]; act();
@@ -4369,6 +4400,7 @@ function updateFronts() {
 }
 
 // ---- run flow
+const startBase = () => DEF ? Math.min(4, Math.max(1, lvlOf("base"))) : 1;   // levelling the base card raises the level every run starts at (up to 4)
 function clearWorld() {
   paint = brush = null; marq.hidden = true; ptrDown = trayDrag = null; carry = null; closeMenu();
   for (const b of booms) { scene.remove(b.grp); scene.remove(b.scorch); b.puffs.forEach(p => p.m.material.dispose()); } booms.length = 0;
@@ -4387,8 +4419,8 @@ function clearWorld() {
   for (const o of orbs) { o.el.remove(); orbPool.push(o.el); } orbs.length = 0;
   for (const el of frontEls) el.remove(); frontEls.length = 0; camPan.set(0, 0, 0); camZoom = 1;
   carry = null; buildSel = -1; buildMode = false; showGhost(); closeMenu();
-  runOver = false; shantyGone = false; player.dead = 0; save.base = 1; applyBaseLevel(); save.baseHp = baseMax(); renderBaseHp(); runEl.hidden = true; resEl.hidden = true; cardsEl.hidden = true; picking = 0;
-  shanty && (shanty.userData.outline.visible = false);
+  runOver = false; shantyGone = false; player.dead = 0; save.base = run.lobby ? 1 : startBase(); applyBaseLevel(); save.baseHp = baseMax(); renderBaseHp(); runEl.hidden = true; resEl.hidden = true; cardsEl.hidden = true; picking = 0;
+  shanty && (shanty.userData.outline.visible = false); tutFly.hidden = true; run.tutT = null; tutPtr.classList.remove("big");
 }
 const starter = () => BUILDS.find(b => catOf(b.id) === "weapon")?.id || BUILDS[0]?.id || "sentry", starterN = () => starter() === "sentry" ? 3 : 1;
 function defReset() {
@@ -4403,7 +4435,9 @@ function defReset() {
   for (let i = 0, n0 = save.def.tut2 ? 4 : 9; i < n0; i++) { const [x, z] = frontPoint(f, (save.def.tut2 ? 22 : 14) + i * 0.9, 0.5); const e = spawnEnemy("walker", x, z); showHulls(e, true); }
   renderTray(); writeSave();
   if (save.def.tut2) { run.slow = 1; defGo(); for (const e of enemies) showHulls(e, false); return; }
-  showBanner(save.def.tut2 ? `YOU HAVE ${starterN()} FREE ${STRUCT[starter()].name}${starterN() > 1 ? "S" : ""} · PLACE ONE TO START` : (touch.on ? "TAP THE SENTRY, THEN TAP THE GROUND" : "PRESS 1 OR CLICK THE SENTRY, THEN CLICK THE GROUND"), 999);
+  // first run: one sentry already stands by the base, ready to be merged into
+  const sp = quickSpot("sentry") || { x: 4, z: 6 }; run.tutT = addStruct("sentry", sp.x, sp.z, 1, PRICE.sentry[0]);
+  showBanner("PLACE A TURRET!", 999);
 }
 function defGo() {
   run.started = true; save.def.tut = 1; trayCards.children[0]?.classList.remove("flash");
@@ -4652,17 +4686,15 @@ function defResults() {
   for (const c of [...chests]) openChest(c, true);   // chests left on the field still count
   const surv = run.t, nights = Math.floor(surv / CYC), reached = phaseOf(surv).n, cash = Math.round(1.2 * (run.kills * 0.4 + nights * 20));
   const best0 = save.def.bestN || 0, newBest = nights > best0 && save.def.runs > 0; save.def.cash += cash; save.def.runs++; save.def.bestN = Math.max(best0, nights);
-  const xpGain = run.kills + nights * 40, tier0 = META.tier, frac0 = (META.xp % TIER_XP) / TIER_XP, got = [];
-  META.xp += xpGain;
-  while (META.xp >= (META.tier + 1) * TIER_XP) { got.push(claimTier(META.tier)); META.tier++; }
-  const drops = dropCards(3 + nights * 2); for (const [k, n] of Object.entries(run.got || {})) drops[k] = (drops[k] || 0) + n; writeSave();
+  const xpGain = 0, tier0 = META.tier, frac0 = 0; lastUnlocks = [];
+  const drops = dropCards(3 + nights * 2, true), got = lastUnlocks.map(k => ({ unlock: k })); writeSave();
   const nm = (k) => k === "base" ? "BASE" : ALL_BUILDS.find(b => b.id === k)?.name || k;
   const tiles = [...got.filter(r => r.unlock).map(r => `<div class="rc new"><img alt="" src="${ICONS[r.unlock] || ""}"><b>${nm(r.unlock)}</b><span>NEW!</span></div>`),
     ...Object.entries(drops).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<div class="rc"><img alt="" src="${ICONS[k] || ""}"><b>${nm(k)}</b><span>+${n}</span></div>`)];
   resEl.innerHTML = `<div class="rx pxbox">
     <div class="rhead"><small>BASE DESTROYED ON</small><div class="rnight">NIGHT <b id="rxN">1</b></div><div class="rbest" hidden>NEW BEST!</div></div>
-    <div class="rstats"><div><span>TIME</span><b>${fmtT(surv)}</b></div><div><span>KILLS</span><b id="rxK">0</b></div><div><span>CASH</span><b class="gold"><i class="coin"></i><em id="rxC">0</em></b></div></div>
-    <div class="rtr"><div class="lbadge"><small>TIER</small><b id="rxT">${tier0 + 1}</b></div><div class="tbar"><i id="rxBar" style="width:${frac0 * 100}%"></i></div><span>+${xpGain} XP</span></div>
+    <div class="rstats"><div><span>TIME</span><b>${fmtT(surv)}</b></div><div><span>KILLS</span><b id="rxK">0</b></div><div><span>CASH</span><b class="gold"><img class="cashi" alt="" src="${ICONS.cash}"><em id="rxC">0</em></b></div></div>
+    <div class="rtr" style="display:none"><div class="lbadge"><small>TIER</small><b id="rxT">${tier0 + 1}</b></div><div class="tbar"><i id="rxBar" style="width:${frac0 * 100}%"></i></div><span>+${xpGain} XP</span></div>
     <div class="rtierup" id="rxUp" hidden></div>
     <div class="rcards" id="rxCards">${tiles.join("")}</div>
     <div class="rbtns" id="rxBtns"><button type="button" class="again" id="rxAgain">PLAY AGAIN</button><button type="button" class="lob" id="rxLobby">LOBBY${lobbyBadge() ? `<i class="rdot">${lobbyBadge()}</i>` : ""}</button></div>
@@ -4703,9 +4735,14 @@ function claimTier(i) {
   if (r.n) dropCards(r.n);
   return r;
 }
-function dropCards(n) {
-  const pool = [...Object.keys(META.unlock).filter(k => META.unlock[k]), "base"], out = {};
-  for (let i = 0; i < n; i++) { const k = pool[Math.floor(Math.random() * pool.length)]; out[k] = (out[k] || 0) + 1; META.cards[k] = cardsOf(k) + 1; }
+let lastUnlocks = [];
+function dropCards(n, finds = false) {   // finds: a card can be for something you haven't got yet, which unlocks it
+  const pool = [...Object.keys(META.unlock).filter(k => META.unlock[k]), "base"], out = {}, locked = ALL_BUILDS.map(b => b.id).filter(k => !META.unlock[k]);
+  for (let i = 0; i < n; i++) {
+    let k = pool[Math.floor(Math.random() * pool.length)];
+    if (finds && locked.length && Math.random() < 0.1) { k = locked.splice(Math.floor(Math.random() * locked.length), 1)[0]; META.unlock[k] = 1; lastUnlocks.push(k); pool.push(k); const d = META.deck, fr = d.indexOf(null); if (fr >= 0) d[fr] = k; }
+    out[k] = (out[k] || 0) + 1; META.cards[k] = cardsOf(k) + 1;
+  }
   return out;
 }
 function loadout() { const ids = META.deck.filter((k, i, a) => k && META.unlock[k] && a.indexOf(k) === i); return ALL_BUILDS.filter(b => ids.includes(b.id)).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)); }
@@ -4715,7 +4752,7 @@ const canUp = (k) => cardsOf(k) >= needOf(k) && save.def.cash >= upCash(lvlOf(k)
 const equipped = (k) => META.deck.includes(k);
 let lSel = null, lTarget = null;   // the card whose actions are open; an empty (or swap) slot waiting for a card
 function lCard(k, attrs = "", cls = "") {
-  if (!META.unlock[k] && k !== "base") return `<div class="lcard ${catOf(k)} locked" ${attrs}><img alt="" src="${ICONS[k] || ""}"><b>${nameOf(k)}</b><span class="lk">TIER ${unlockTier(k) + 1}</span></div>`;
+  if (!META.unlock[k] && k !== "base") return `<div class="lcard ${catOf(k)} locked" ${attrs}><img alt="" src="${ICONS[k] || ""}"><b>${nameOf(k)}</b><span class="lk">FIND IN RUNS</span></div>`;
   const c = cardsOf(k), need = needOf(k);
   const isNew = k !== "base" && !META.seen?.[k] && !["sentry", "wall", "rocket"].includes(k);
   return `<div class="lcard ${catOf(k) || "base"}${canUp(k) ? " up" : ""}${lSel === k ? " sel" : ""} ${cls}" data-card="${k}" ${attrs}>${isNew ? `<span class="newb">NEW</span>` : ""}<span class="lv">LV ${lvlOf(k)}</span>${equipped(k) && cls !== "inslot" ? `<span class="use">IN USE</span>` : ""}<img alt="" src="${ICONS[k] || ""}"><b>${nameOf(k)}</b><span class="cb"><i style="width:${Math.min(1, c / need) * 100}%"></i><em>${c}/${need}</em></span></div>`;
@@ -4734,13 +4771,13 @@ function renderLobby() {
   const coll = ALL_BUILDS.map(b => b.id).filter(k => !equipped(k));
   h += `<div class="lsep"></div><div class="lh">COLLECTION<span>${coll.length ? "TAP A CARD" : "EVERYTHING IS IN USE"}</span></div><div class="lcoll">` + coll.map(k => lCard(k, "", lTarget && !lTarget.swap && META.unlock[k] ? "pick" : "")).join("") + `</div>`;
   lPanel.innerHTML = h;
-  document.getElementById("lBase").innerHTML = lCard("base") + `<h3>BASE · LV ${lvlOf("base")}</h3><p>Hit points <b>${baseMax()}</b> (+10% per level)</p><p>Runs <b>${save.def.runs}</b> · wins <b>${save.def.wins}</b> · best <b>${save.def.bestN || 0}</b> night${save.def.bestN === 1 ? "" : "s"}</p>`;
+  document.getElementById("lBase").innerHTML = lCard("base") + `<h3>BASE · LV ${lvlOf("base")}</h3><p>Runs start at base <b>LV ${Math.min(4, lvlOf("base"))}</b> (${BASE_HP[Math.min(4, lvlOf("base"))]} HP)</p><p>Runs <b>${save.def.runs}</b> · wins <b>${save.def.wins}</b> · best <b>${save.def.bestN || 0}</b> night${save.def.bestN === 1 ? "" : "s"}</p>`;
   document.getElementById("lPlaySub").textContent = n ? `BEST: NIGHT ${(save.def.bestN || 0) + 1}` : "EQUIP A BUILD FIRST";
   lHint.hidden = !lTarget; if (lTarget) lHint.textContent = lTarget.swap ? `PICK A SLOT FOR ${nameOf(lTarget.swap)}` : `PICK A CARD FROM YOUR COLLECTION`;
 }
 function powerLine(k) {
   const L = lvlOf(k) - 1, now = `+${L * 10}%`, nx = `+${L * 10 + 10}%`;
-  const what = k === "base" ? "base HP" : k === "wall" ? "damage resisted" : "damage";
+  const what = k === "base" ? "starting base level" : k === "wall" ? "damage resisted" : "damage";
   return `<p class="st">${what[0].toUpperCase() + what.slice(1)} ${now}${cardsOf(k) >= needOf(k) ? ` → ${nx}` : ""}</p>`;
 }
 function openPop(k, el) {
@@ -4750,7 +4787,7 @@ function openPop(k, el) {
   const info = k === "base" ? "Your shack. Level it with base cards to start every run tougher." : STRUCT[k].info[1];
   lPop.innerHTML = `<h3>${nameOf(k)}<span>LV ${L}</span></h3><p>${info}</p>${powerLine(k)}<p>Cards ${cardsOf(k)} / ${need}</p><div class="btns">` +
     (cat ? (inSlot ? `<button type="button" data-act="remove">REMOVE</button>` : `<button type="button" class="go" data-act="use">USE</button>`) : "") +
-    `<button type="button" class="gold" data-act="up" ${canUp(k) ? "" : "disabled"}>UPGRADE<small>${cardsOf(k) < need ? `${need - cardsOf(k)} MORE CARDS` : `◆ ${cost}`}</small></button></div>`;
+    `<button type="button" class="gold" data-act="up" ${canUp(k) ? "" : "disabled"}>UPGRADE<small>${cardsOf(k) < need ? `${need - cardsOf(k)} MORE CARDS` : `<img class="cashi sm" alt="" src="${ICONS.cash}"> ${cost}`}</small></button></div>`;
   lPop.hidden = false;
   const at = lobbyEl.querySelector(`[data-card="${k}"]`) || el, r = at.getBoundingClientRect(), pw = lPop.offsetWidth, ph = lPop.offsetHeight;
   let x = r.right + 14; if (x + pw > innerWidth - 8) x = r.left - pw - 14; if (x < 8) x = Math.min(innerWidth - pw - 8, r.left);
@@ -4896,10 +4933,22 @@ function defUpdate(rdt) {
     c?.classList.toggle("flash", !buildMode);
     // the lesson's subject: the sentry card until it's picked, then where it goes (or the sentry to merge onto)
     const f = run.fronts[0], spot = run.tut === "merge" && run.lastPlaced ? new THREE.Vector3(run.lastPlaced.x, 0.8, run.lastPlaced.z) : new THREE.Vector3(BC.x + Math.sin(f.a) * 10, 0.3, BC.z + Math.cos(f.a) * 10);
-    if (run.tut === "merge" && run.lastPlaced) { tutPtr.hidden = false; placePtr(tutPtr, new THREE.Vector3(run.lastPlaced.x, 2.3, run.lastPlaced.z), buildMode ? (touch.on ? "DROP IT HERE" : "CLICK HERE TO MERGE") : "MERGE ONTO THIS"); }
+    const tT = run.tutT && sentries.includes(run.tutT) ? run.tutT : null, tA = run.lastPlaced && sentries.includes(run.lastPlaced) ? run.lastPlaced : null;
+    tutPtr.classList.toggle("big", run.tut === "merge");
+    if (run.tut === "merge" && tT) {   // a big arrow on the standing turret, a ghost of the new one flying onto it, both in the light
+      tutPtr.hidden = false; placePtr(tutPtr, new THREE.Vector3(tT.x, 2.6, tT.z), "MERGE!");
+      const [bx, by] = toScreen(new THREE.Vector3(tT.x, 0.9, tT.z));
+      if (tA) { const [ax, ay] = toScreen(new THREE.Vector3(tA.x, 0.9, tA.z)), k = (performance.now() % 1500) / 1500, e = k < 0.8 ? k / 0.8 : 1;
+        tutFly.hidden = false; tutFly.src = ICONS.sentry; tutFly.style.transform = `translate(${ax + (bx - ax) * e}px, ${ay + (by - ay) * e - Math.sin(e * Math.PI) * 40}px) translate(-50%, -50%)`; tutFly.style.opacity = k < 0.8 ? 0.9 : 0;
+        spotlight((ax + bx) / 2, (ay + by) / 2, Math.hypot(bx - ax, by - ay) + 200, Math.abs(by - ay) + 200, true); }
+      else { tutFly.hidden = true; spotlight(bx, by, SPOT_D); }
+    } else tutFly.hidden = true;
+    if (run.tut === "merge" && tT) {}
+    else if (run.tut === "merge" && run.lastPlaced) { tutPtr.hidden = false; placePtr(tutPtr, new THREE.Vector3(run.lastPlaced.x, 2.3, run.lastPlaced.z), "MERGE ONTO THIS"); }
     else if (buildMode) { tutPtr.hidden = false; placePtr(tutPtr, spot.clone().setY(0.5), touch.on ? "TAP HERE" : "PLACE IT HERE"); }
     else tutPtr.hidden = true;
     if (save.def.tut2) spotEl.hidden = true;
+    else if (run.tut === "merge" && run.tutT) {}
     else if (!buildMode && c) { const r = c.getBoundingClientRect(); spotlight(r.left + r.width / 2, r.top + r.height / 2, SPOT_D); }
     else { const [sx, sy] = toScreen(spot); spotlight(sx, sy, SPOT_D); }
   }
@@ -4944,8 +4993,8 @@ function frame(now) {
     if (perfTimer > 0.5) {
       const i = renderer.info.render, fps = Math.round(frames / perfTimer), ms = (cpuMs / frames).toFixed(1);
       // phones: too slow two checks in a row -> render fewer pixels (down to 1x)
-      slowChecks = MOBILE && fps < 50 ? slowChecks + 1 : 0;
-      if (slowChecks >= 2 && prWant > 1.01) { prWant = Math.max(1, prWant - 0.15); slowChecks = 0; }
+      slowChecks = fps < 50 ? slowChecks + 1 : 0;
+      if (slowChecks >= 2 && prWant > PR_MIN + 0.01) { prWant = Math.max(PR_MIN, prWant - 0.125); slowChecks = 0; }
       perfHud.innerHTML = `<b>${fps}</b> FPS · <b>${ms}</b> MS · <b>${i.calls}</b> CALLS · <b>${(i.triangles / 1000).toFixed(0)}K</b> TRIS · <b>${prNow.toFixed(2)}</b>X`;
       if (!devPanel.hidden) perfEl.textContent = `${fps} fps · ${i.calls} draw calls · ${i.triangles.toLocaleString()} tris`;
       frames = 0; perfTimer = 0; cpuMs = 0;
@@ -4973,8 +5022,11 @@ for (const [k, mk] of Object.entries(SUPPLY_MODELS)) ICONS[k] = renderIcon(mk())
 ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.rocket = renderIcon(makeRocketModel().g);
 for (const k of ["flamer", "cannon", "spikes", "wire"]) { const m = MODEL_OF[k](1); if (m.spikes) m.spikes.position.y = 0; ICONS[k] = renderIcon(m.g); }   // the spike trap's icon shows it sprung
 if (shantyTemplate) ICONS.base = renderIcon(makeShanty()); ICONS.wall = renderIcon(makeWallModel(1));
+ICONS.cash = renderIcon(makeCashModel());
 for (const [k, mk] of Object.entries(FX_ICONS)) { try { ICONS["fx_" + k] = renderIcon(mk(), k === "flame" || k === "boom"); } catch (err) { console.warn("fx icon", k, err); } }
 freeIconRenderers();
+{ const si = document.getElementById("strikeImg"); if (si && ICONS.fx_jet) si.src = ICONS.fx_jet; }
+for (const el of document.querySelectorAll(".lcash .coin")) el.outerHTML = `<img class="cashi" alt="" src="${ICONS.cash}">`;
 if (!DEF) for (const [l] of interior?.userData.lights || []) shanty.add(l);   // no going inside in defense mode
 applyBaseLevel(); buildBaseFootprint();
 if (!DEF) for (const b of save.builds) if (STRUCT[b.t]) addStruct(b.t, b.x, b.z, b.lv || 1, b.spent ?? (b.t === "sentry" ? 5 : 20), undefined, b.y || 0);
