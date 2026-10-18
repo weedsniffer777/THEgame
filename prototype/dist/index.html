@@ -217,7 +217,9 @@ body.def #game { cursor: default; }
 .tcard.poor { opacity: .55; } .tcard.locked { opacity: .35; filter: grayscale(1); } .tcard.locked .cost { color: #9d978a; font-size: 11px; } .tcard.deny { animation: deny .25s; } .tcard.poor .cost { color: #e8584a; }
 .tcard.free .cost { color: #7dffd6; }
 .tutFly { position: fixed; left: 0; top: 0; width: 70px; height: 70px; z-index: 7; pointer-events: none; filter: drop-shadow(0 0 10px #7dffd6); }
-#tutPtr.big { transform-origin: 50% 100%; } #tutPtr.big .lbl { font-size: 20px; color: #7dffd6; } #tutPtr.big .arr { transform: scale(1.8); }
+#tutPtr.big { z-index: 8; gap: 10px; } #tutPtr.big .lbl { font-size: 26px; letter-spacing: .1em; padding: 8px 16px 6px; color: #0f1a14; background: #7dffd6; box-shadow: 0 0 0 3px #0f1a14, 0 0 28px 6px rgba(125, 255, 214, .7); }
+#tutPtr.big .arr { border-left-width: 22px; border-right-width: 22px; border-top: 30px solid #7dffd6; filter: drop-shadow(0 3px 0 #0f1a14) drop-shadow(0 0 10px rgba(125, 255, 214, .8)); }
+#tutPtr.big.on > * { animation: bob .45s ease-in-out infinite alternate; } body.portrait #tutPtr.big .lbl { font-size: 18px; }
 /* portrait phones: smaller everything, the tray wraps to two rows, level-up cards two to a row */
 body.portrait #tray .tcard { width: 58px; height: 76px; padding: 4px 2px; } body.portrait #tray .tcard img { width: 36px; height: 36px; } body.portrait #tray .tcard b { font-size: 8px; letter-spacing: .04em; }
 body.portrait #tray .tcard .cost { font-size: 11px; } body.portrait #tray .tcard .k, body.portrait #tray .tcard .cnt { font-size: 8px; }
@@ -345,7 +347,9 @@ body.mobile #res .rnight b { font-size: 46px; } body.mobile #res .rx { gap: 9px;
 .rc.new { background: linear-gradient(180deg, #e0b04a, #7a5a1a); box-shadow: inset 0 0 0 2px #fff, 0 0 18px rgba(255, 210, 90, .7); } .rc.new span { font-size: 10px; color: #fff; }
 #marq { left: 0; top: 0; z-index: 4; border: 2px dashed #e0b04a; background: rgba(224, 176, 74, .12); }
 .ptr.front .lbl { background: #ff4a3a; color: #fff; } .ptr.front .arr { border-top-color: #ff4a3a; }
-body.def #spot { z-index: 5; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .38), inset 0 0 30px 10px rgba(0, 0, 0, .38); }
+body.def #spot { z-index: 5; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .68), inset 0 0 30px 10px rgba(0, 0, 0, .3); }
+body.def #spot::after { content: ""; position: absolute; inset: -6px; border-radius: inherit; border: 4px solid #7dffd6; box-shadow: 0 0 24px 6px rgba(125, 255, 214, .7); animation: spotPulse 1s ease-in-out infinite; }
+@keyframes spotPulse { 50% { transform: scale(1.08); opacity: .55; } }
 body.def #banner { top: calc(104px + env(safe-area-inset-top, 0px)); } body.def.mobile #banner { top: calc(84px + env(safe-area-inset-top, 0px)); }
 .card.rar { --rc: #c9c3b4; box-shadow: 0 0 0 3px var(--rc), 0 0 0 5px #101211, 0 8px 0 #101211; }
 .card.rar:hover { box-shadow: 0 0 0 3px var(--rc), 0 0 0 5px #101211, 0 0 26px 4px var(--rc), 0 14px 0 #101211; }
@@ -4166,7 +4170,7 @@ function defPlace(keep = false) {
   if (!keep && MERGEABLE.has(b.id)) setBuild(-1); renderXp();
   if (!save.def.tutBox && !touch.on && run.started && countOf(b.id) >= 3) { save.def.tutBox = 1; writeSave(); showBanner("RIGHT-CLICK AND DRAG A BOX TO SELECT MULTIPLE AT ONCE!", 6); }   // turrets: hand empty again; walls and traps stay in hand for the next one
   if (!run.started) {
-    if (!save.def.tut2 && !run.tut) { run.tut = "merge"; showBanner("MERGE THE TURRETS TO UPGRADE!", 999); }
+    if (!save.def.tut2 && !run.tut) { run.tut = "merge"; bannerEl.hidden = true; }
     else if (!run.tut) defGo();
   }
   return true;
@@ -4446,7 +4450,7 @@ function defReset() {
   if (save.def.tut2) { run.slow = 1; defGo(); for (const e of enemies) showHulls(e, false); return; }
   // first run: one sentry already stands by the base, ready to be merged into
   const sp = quickSpot("sentry") || { x: 4, z: 6 }; run.tutT = addStruct("sentry", sp.x, sp.z, 1, PRICE.sentry[0]);
-  showBanner("PLACE A TURRET!", 999);
+  bannerEl.hidden = true;
 }
 function defGo() {
   run.started = true; save.def.tut = 1; trayCards.children[0]?.classList.remove("flash");
@@ -4953,9 +4957,9 @@ function defUpdate(rdt) {
     // the lesson's subject: the sentry card until it's picked, then where it goes (or the sentry to merge onto)
     const f = run.fronts[0], spot = run.tut === "merge" && run.lastPlaced ? new THREE.Vector3(run.lastPlaced.x, 0.8, run.lastPlaced.z) : new THREE.Vector3(BC.x + Math.sin(f.a) * 10, 0.3, BC.z + Math.cos(f.a) * 10);
     const tT = run.tutT && sentries.includes(run.tutT) ? run.tutT : null, tA = run.lastPlaced && sentries.includes(run.lastPlaced) ? run.lastPlaced : null;
-    tutPtr.classList.toggle("big", run.tut === "merge");
+    tutPtr.classList.toggle("big", !run.started);
     if (run.tut === "merge" && tT) {   // a big arrow on the standing turret, a ghost of the new one flying onto it, both in the light
-      tutPtr.hidden = false; placePtr(tutPtr, new THREE.Vector3(tT.x, 2.6, tT.z), "MERGE!");
+      tutPtr.hidden = false; placePtr(tutPtr, new THREE.Vector3(tT.x, 2.6, tT.z), touch.on ? "DRAG IT ONTO THIS TO MERGE!" : "DRAG IT ONTO THIS TO MERGE!");
       const [bx, by] = toScreen(new THREE.Vector3(tT.x, 0.9, tT.z));
       if (tA) { const [ax, ay] = toScreen(new THREE.Vector3(tA.x, 0.9, tA.z)), k = (performance.now() % 1500) / 1500, e = k < 0.8 ? k / 0.8 : 1;
         tutFly.hidden = false; tutFly.src = ICONS.sentry; tutFly.style.transform = `translate(${ax + (bx - ax) * e}px, ${ay + (by - ay) * e - Math.sin(e * Math.PI) * 40}px) translate(-50%, -50%)`; tutFly.style.opacity = k < 0.8 ? 0.9 : 0;
@@ -4964,8 +4968,11 @@ function defUpdate(rdt) {
     } else tutFly.hidden = true;
     if (run.tut === "merge" && tT) {}
     else if (run.tut === "merge" && run.lastPlaced) { tutPtr.hidden = false; placePtr(tutPtr, new THREE.Vector3(run.lastPlaced.x, 2.3, run.lastPlaced.z), "MERGE ONTO THIS"); }
-    else if (buildMode) { tutPtr.hidden = false; placePtr(tutPtr, spot.clone().setY(0.5), touch.on ? "TAP HERE" : "PLACE IT HERE"); }
-    else tutPtr.hidden = true;
+    else if (buildMode) { tutPtr.hidden = false; tutPtr.classList.add("big"); placePtr(tutPtr, spot.clone().setY(0.5), touch.on ? "TAP HERE TO PLACE IT!" : "CLICK HERE TO PLACE IT!"); }
+    else if (c && !run.tut) {   // step 1: a big arrow down onto the sentry card
+      const r = c.getBoundingClientRect(); tutPtr.hidden = false; tutPtr.classList.add("big", "on"); tutPtr.querySelector(".lbl").textContent = "PLACE A TURRET!"; tutPtr.querySelector(".arr").style.transform = "";
+      tutPtr.style.transform = `translate(${r.left + r.width / 2}px, ${r.top - 14}px) translate(-50%, -100%)`;
+    } else tutPtr.hidden = true;
     if (save.def.tut2) spotEl.hidden = true;
     else if (run.tut === "merge" && run.tutT) {}
     else if (!buildMode && c) { const r = c.getBoundingClientRect(); spotlight(r.left + r.width / 2, r.top + r.height / 2, SPOT_D); }
