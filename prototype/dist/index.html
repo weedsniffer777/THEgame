@@ -2633,13 +2633,13 @@ function makeMortarModel(level = 1) {
 function makeSandbagModel(level = 1) {
   const g = new THREE.Group(); g.name = "sandbag";
   const mat = level >= 7 ? (TM.bagGrey ||= new THREE.MeshStandardMaterial({ color: 0x8e9196, roughness: 0.95 })) : (TM.bag ||= new THREE.MeshStandardMaterial({ color: 0x9a8658, roughness: 1 }));
-  const geo = makeSandbagModel.geo ||= (() => { const b = new THREE.SphereGeometry(0.5, 10, 6); b.scale(0.46, 0.17, 0.27); return b; })();
-  const bag = (x, y, z, ry) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.rotation.y = ry; o.castShadow = o.receiveShadow = true; g.add(o); };
-  const rows = level >= 5 ? 4 : level >= 3 ? 3 : 2;
-  for (let r = 0; r < rows; r++) {
-    const y = 0.09 + r * 0.16, off = r % 2 ? 0.22 : 0;
-    for (let i = 0; i < 4; i++) { const x = -0.66 + i * 0.44 + off; if (x <= 0.88) bag(x, y, 0.62, 0); }
-    for (let i = 0; i < 3; i++) { const z = 0.3 - i * 0.44 - off; bag(-0.85, y, z, Math.PI / 2); bag(0.85, y, z, Math.PI / 2); }
+  const geo = makeSandbagModel.geo ||= (() => { const b = new THREE.SphereGeometry(0.5, 7, 4); b.scale(0.5, 0.2, 0.32); return b; })();
+  const bag = (x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.rotation.y = (Math.random() - 0.5) * 0.15; o.castShadow = o.receiveShadow = true; g.add(o); };
+  // a square pile: full layers of bags laid brick-fashion, each layer a little narrower; more layers at LV3 and LV5
+  const layers = level >= 5 ? 4 : level >= 3 ? 3 : 2;
+  for (let r = 0; r < layers; r++) {
+    const inset = r * 0.14, half = 0.9 - inset, nx = Math.max(2, Math.round((half * 2) / 0.46)), nz = Math.max(2, Math.round((half * 2) / 0.3)), y = 0.1 + r * 0.17;
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) bag(-half + (i + 0.5 + (j % 2 ? 0.25 : -0.25) * (i < nx - 1 ? 1 : 0)) * (half * 2 / nx), y, -half + (j + 0.5) * (half * 2 / nz));
   }
   mergeByMaterial(g);
   return { g };
@@ -2846,7 +2846,7 @@ function updateSentries(dt) {
   }
   const regen = 3 * card("regen"); if (regen) for (const s of structs()) s.hp = Math.min(STRUCT[s.kind].hp[s.level], s.hp + regen * dt);
   for (const s of structs()) {
-    const at = new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 2.45 : 1.9), s.z);
+    const at = new THREE.Vector3(s.x, (s.y || 0) + (s.kind === "wall" ? 2.45 : s.kind === "sandbag" ? 1.2 : 1.9), s.z);
     if (s.pack > 0 && s.packMax) { if (!s.bar) s.bar = worldBar(true); s.bar.el.classList.add("setup"); placeBar(s.bar, at, 1 - s.pack / s.packMax); continue; }   // setting up: the bar charges in yellow
     if (s.packMax) { s.packMax = 0; s.bar?.el.classList.remove("setup"); popNumber(at.clone().setY(at.y + 0.3), "READY", true, "dmg"); if (s.hp >= STRUCT[s.kind].hp[s.level]) { removeBar(s.bar); s.bar = null; } }
     if (s.bar) placeBar(s.bar, at, s.hp / STRUCT[s.kind].hp[s.level]);
@@ -3182,7 +3182,7 @@ function updateHoverTip() {
   hoverTip.hidden = !t; if (!t) return;
   if (t === "base") hoverTip.innerHTML = `<b>BASE</b> <span>LV ${save.base}</span><small>Click to manage</small>`;
   else { const max = STRUCT[t.kind].hp[t.level]; hoverTip.innerHTML = `<b>${STRUCT[t.kind].name}</b> <span>LV ${t.level}</span><div class="bar"><i style="width:${Math.max(0, t.hp / max) * 100}%"></i></div><small>${Math.ceil(t.hp)}/${max} HP</small>${DEF && !onTop(t) ? `<em class="drag">${touch.on ? "HOLD" : "DRAG"} TO MOVE</em>` : ""}`; }
-  const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, (t.y || 0) + (t.kind === "wall" ? 2.2 : 1.8), t.z);
+  const at = t === "base" ? new THREE.Vector3(0, SH.FLOOR + 3.2, SHACK_Z) : new THREE.Vector3(t.x, (t.y || 0) + (t.kind === "wall" ? 2.2 : t.kind === "sandbag" ? 1.1 : 1.8), t.z);
   const [x, y] = toScreen(at); hoverTip.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
 }
 function updateMenu(dt) { updateHoverTip(); if (!menuTarget) return; menuT -= dt; if (menuT <= 0) { menuT = 0.2; renderMenu(); } placeMenu(); }
