@@ -273,7 +273,7 @@ body.lobby #tray, body.lobby #xpWrap, body.lobby #defTop, body.lobby #banner, bo
 .lh { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 0 8px; font-size: 15px; letter-spacing: .16em; color: var(--gold); } .lh span { font-size: 10px; letter-spacing: .1em; color: #9d978a; }
 .lrow { display: grid; grid-template-columns: 22px repeat(3, 1fr); gap: 10px; margin-bottom: 12px; align-items: stretch; }
 .lrow .rl { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 10px; letter-spacing: .22em; color: #9d978a; text-align: center; }
-.ldeck { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; } body.mobile .ldeck { gap: 8px; }
+.ldeck { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; } body.mobile .ldeck { gap: 8px; }
 .ldeck.target .lslot > .lcard, .lrow.target .lslot > .lcard { animation: tflash .8s ease-in-out infinite; }
 .lsep { height: 3px; margin: 6px -14px 12px; background: #101211; box-shadow: 0 1px 0 #2b2e2b; }
 .lcoll { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
@@ -654,7 +654,8 @@ if (!save.def.meta) save.def.meta = { unlock: { sentry: 1, wall: 1, rocket: 1 },
 // cards level builds up (Clash style), the reward track unlocks new ones, the loadout picks 3 of each kind per run
 Object.assign(save.def.meta, { cards: save.def.meta.cards || {}, xp: save.def.meta.xp || 0, tier: save.def.meta.tier || 0,
   slots: save.def.meta.slots || { weapon: ["sentry", "rocket", null], struct: ["wall", null, null], trap: [null, null, null] } });
-if (!save.def.meta.deck) { const sl = save.def.meta.slots, d = [...sl.weapon, ...sl.struct, ...sl.trap].filter(Boolean); save.def.meta.deck = [...d, ...Array(8).fill(null)].slice(0, 8); }   // 8 open slots, 2 rows of 4
+if (!save.def.meta.deck) { const sl = save.def.meta.slots, d = [...sl.weapon, ...sl.struct, ...sl.trap].filter(Boolean); save.def.meta.deck = d; }
+const DECK_N = 5; { const d = save.def.meta.deck.filter(Boolean); save.def.meta.deck = [...d, ...Array(DECK_N).fill(null)].slice(0, DECK_N); }   // 5 open slots
 const META = save.def.meta, powerOf = (k) => 1 + 0.1 * (META.power[k] || 0), perkOf = (k) => META.perk[k] || 0;
 let ptrOn = false;   // a pointer is over the map (mouse hovering, or a finger down)
 
@@ -2175,7 +2176,7 @@ function updateRocketTurret(t, dt) {
 
 
 /* ---------- Flamethrower, cannon, spike trap, barbed wire ---------- */
-const TRAP_KINDS = new Set(["spikes", "wire"]), MERGEABLE = new Set(["sentry", "rocket", "flamer", "cannon"]);
+const TRAP_KINDS = new Set(["spikes", "wire"]), MERGEABLE = new Set(["sentry", "rocket", "flamer", "cannon", "mortar"]);
 let XMATS = null;
 function xMats() {
   if (XMATS) return XMATS; const S = sentryMats();
@@ -2315,7 +2316,8 @@ function makeWireModel(level = 1) {
   mergeByMaterial(g);
   return { g };
 }
-const MODEL_RAW = { sentry: (l) => makeSentryModel(l), rocket: (l) => makeRocketModel(l), flamer: makeFlamerModel, cannon: makeCannonModel, spikes: makeSpikesModel, wire: makeWireModel }, RAW_MAX = { sentry: 4, rocket: 4, flamer: 4, cannon: 4, spikes: 2, wire: 2 };
+const MODEL_RAW = { sentry: (l) => makeSentryModel(l), rocket: (l) => makeRocketModel(l), flamer: makeFlamerModel, cannon: makeCannonModel, mortar: makeMortarModel, sandbag: makeSandbagModel, spikes: makeSpikesModel, wire: makeWireModel },
+  RAW_MAX = { sentry: 4, rocket: 4, flamer: 4, cannon: 4, mortar: 4, sandbag: 8, spikes: 2, wire: 2 };
 const MODEL_OF = Object.fromEntries(Object.keys(MODEL_RAW).map(k => [k, (l = 1) => dressTier(MODEL_RAW[k](Math.min(l, RAW_MAX[k])), k, l)]));
 // Turret levels past 4 keep the LV4 gun and repaint it: LV5 desert sand, LV6 blue, LV7 crimson, LV8 black with gold
 // metalwork. One small status light on the head in the tier's colour. Traps: LV3 blackened steel, LV4 red-hot / high voltage.
@@ -2339,6 +2341,7 @@ function tierParts() {
   return TM;
 }
 function dressTier(m, kind, level) {
+  if (kind === "sandbag") return m;   // sandbags change by their own rule (bags, then grey)
   const T = tierParts();
   if (TRAP_KINDS.has(kind)) {
     if (level < 3) return m; const X = xMats();
@@ -2356,7 +2359,7 @@ function dressTier(m, kind, level) {
   }
   return m;
 }
-const RANGE_OF = { sentry: 10, rocket: 15, flamer: 6, cannon: 20 }, FLAME_RANGE = [0, 6, 7, 8, 9, 9.5, 10, 10.5, 11];
+const RANGE_OF = { sentry: 10, rocket: 15, flamer: 6, cannon: 20, mortar: 24 }, FLAME_RANGE = [0, 6, 7, 8, 9, 9.5, 10, 10.5, 11];
 // ---- their behaviour
 const FLAME = { dps: [0, 55, 70, 90, 115, 145, 180, 220, 270], cone: [0, 0.32, 0.36, 0.4, 0.5, 0.52, 0.55, 0.58, 0.62], burn: [0, 5, 8, 11, 15, 19, 24, 30, 36] }, CANNON = { dmg: [0, 60, 60, 70, 80, 90, 100, 115, 130], rate: 0.85, gap: 0.11 };   // bursts of level + 1 shells
 const FIRE_COLS = [0xffb24a, 0xff6a1a, 0xffe08a, 0xff8a2a];
@@ -2387,6 +2390,31 @@ function updateFlamer(t, dt) {
     if (e.dead) continue; const dx = e.pos.x - t.x, dz = e.pos.z - t.z, d = Math.hypot(dx, dz); if (d > range + 0.5) continue;
     const da = Math.atan2(Math.sin(Math.atan2(dx, dz) - t.yaw), Math.cos(Math.atan2(dx, dz) - t.yaw)); if (Math.abs(da) > cone + 0.3 / Math.max(1, d)) continue;
     shooter = t; hurtEnemy(e, Math.round(dmg), dir, 0.02, false, true); shooter = null; e.burnT = (2.5 + t.level * 0.5) * (1 + MOD("napalm")); e.burnDps = Math.max(e.burnDps || 0, FLAME.burn[t.level] * powerOf("flamer") * (1 + MOD("napalm")));
+  }
+}
+const MORTAR = { rate: [0, 3.4, 3.1, 2.9, 2.7, 2.5, 2.3, 2.1, 1.9], dmg: [0, 70, 85, 100, 120, 145, 175, 210, 250], rad: [0, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0], minR: 6 };
+const shells = [];
+function updateMortar(t, dt) {
+  t.retarget -= dt; if (t.retarget <= 0 || (t.target && (t.target.dead || !enemies.includes(t.target)))) { t.retarget = 0.5; t.target = pickTarget(t, turretRange(t), MORTAR.minR, true); }   // lobs over anything
+  turnTo(t, dt, 2.2);
+  t.recoil = Math.max(0, (t.recoil || 0) - dt * 3); t.tubes.position.y = -t.recoil * 0.12;
+  t.cool -= dt; if (!t.target || t.cool > 0) return;
+  t.cool = MORTAR.rate[t.level] / ocK(); t.recoil = 1; t.g.updateMatrixWorld(true);
+  t.muzzles.forEach((m, i) => delayed.push({ t: i * 0.18, fn: () => {
+    if (!t.target || !sentries.includes(t)) return; t.g.updateMatrixWorld(true);
+    const from = m.tube.localToWorld(m.top.clone()), e = t.target, flight = 1.1 + Math.hypot(e.pos.x - t.x, e.pos.z - t.z) * 0.035;
+    const to = e.pos.clone().addScaledVector(e.vel || new THREE.Vector3(), flight * 0.8).add(new THREE.Vector3((Math.random() - 0.5) * 1.4, 0, (Math.random() - 0.5) * 1.4)).setY(0.3);
+    const sh = new THREE.Mesh(shellGeo, shellMat); sh.position.copy(from); scene.add(sh); shells.push({ m: sh, from, to, t: 0, dur: flight, src: t, lv: t.level });
+    spawnSprite(from.clone(), new THREE.Vector3(0, 2, 0), { color: 0xffc46b, size: 1.2, grow: 0.5, life: 0.08, opacity: 1, additive: true, drag: 0 }); muzzleLight(from, 30, 8);
+    for (let k = 0; k < 3; k++) spawnSprite(from.clone(), new THREE.Vector3((Math.random() - 0.5), 1.5, (Math.random() - 0.5)), { color: 0xd8d4cc, size: 0.5, grow: 2.5, life: 1.0, opacity: 0.4, drag: 2 });
+  } }));
+}
+const shellGeo = new THREE.SphereGeometry(0.11, 8, 6), shellMat = new THREE.MeshBasicMaterial({ color: 0x2a2c2e });
+function updateShells(dt) {
+  for (let i = shells.length - 1; i >= 0; i--) {
+    const s2 = shells[i]; s2.t += dt; const u = Math.min(1, s2.t / s2.dur);
+    s2.m.position.copy(s2.from).lerp(s2.to, u); s2.m.position.y = s2.from.y * (1 - u) + s2.to.y * u + Math.sin(u * Math.PI) * (6 + s2.from.distanceTo(s2.to) * 0.25);
+    if (u >= 1) { scene.remove(s2.m); shells.splice(i, 1); shooter = s2.src; explode(s2.to, MORTAR.rad[s2.lv] * (1 + MOD("rrad") * 0.5), MORTAR.dmg[s2.lv] * powerOf("mortar") * lastK()); shooter = null; }
   }
 }
 function updateCannon(t, dt) {
@@ -2579,6 +2607,43 @@ function wallTierMat(lv) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return (wallTierMats[lv] = new THREE.MeshStandardMaterial({ map: t, roughness: lv === 5 ? 0.95 : 0.5, metalness: lv === 5 ? 0 : 0.6 }));
 }
+// Mortar: a baseplate, a bipod and a tube cocked up at ~60°; LV2 a longer tube and a sight, LV3 twin tubes, LV4 three and an ammo crate
+function makeMortarModel(level = 1) {
+  const M = xMats(), g = new THREE.Group(); g.name = "mortar";
+  xAdd(g, new THREE.CylinderGeometry(0.5, 0.56, 0.08, 16), M.plate, 0, 0.04, 0);
+  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; xAdd(g, new THREE.BoxGeometry(0.06, 0.06, 0.18), M.dark, Math.cos(a) * 0.42, 0.1, Math.sin(a) * 0.42, 0, -a, 0); }
+  const head = new THREE.Group(); head.position.y = 0.12; g.add(head);
+  const n = level >= 4 ? 3 : level >= 3 ? 2 : 1, len = level >= 2 ? 1.25 : 1.0, muzzles = [], tubes = new THREE.Group(); head.add(tubes);
+  xAdd(head, new THREE.CylinderGeometry(0.16, 0.2, 0.12, 12), M.dark, 0, 0.06, -0.12);
+  for (let i = 0; i < n; i++) {
+    const x = (i - (n - 1) / 2) * 0.2, tube = new THREE.Group(); tube.position.set(x, 0.12, -0.12); tube.rotation.x = Math.PI / 6; tubes.add(tube);   // 60° up, leaning toward +z
+    xAdd(tube, new THREE.CylinderGeometry(0.075, 0.085, len, 12), M.gun, 0, len / 2, 0);
+    xAdd(tube, new THREE.CylinderGeometry(0.095, 0.095, 0.06, 12), M.dark, 0, len - 0.03, 0);
+    xAdd(tube, new THREE.CylinderGeometry(0.1, 0.1, 0.08, 12), M.dark, 0, 0.04, 0);
+    muzzles.push({ tube, top: new THREE.Vector3(0, len, 0) });
+  }
+  for (const sd of [-1, 1]) { const leg = xAdd(head, new THREE.CylinderGeometry(0.02, 0.025, 0.62, 6), M.dark, sd * (0.18 + (n - 1) * 0.1), 0.26, 0.22); leg.rotation.z = sd * 0.35; leg.rotation.x = -0.3; }
+  xAdd(head, new THREE.BoxGeometry(0.36 + (n - 1) * 0.2, 0.04, 0.04), M.dark, 0, 0.5, 0.18);
+  if (level >= 2) { xAdd(head, new THREE.BoxGeometry(0.08, 0.12, 0.14), M.dark, 0.2 + (n - 1) * 0.1, 0.52, 0.1); xAdd(head, new THREE.CylinderGeometry(0.03, 0.03, 0.12, 8), M.insul, 0.2 + (n - 1) * 0.1, 0.6, 0.12, Math.PI / 2); }
+  if (level >= 4) { xAdd(g, new THREE.BoxGeometry(0.42, 0.26, 0.28), M.gun, -0.62, 0.13, -0.35); for (let k = 0; k < 3; k++) xAdd(g, new THREE.CylinderGeometry(0.04, 0.04, 0.2, 8), M.brass, -0.74 + k * 0.12, 0.33, -0.35); }
+  mergeByMaterial(g);
+  return { g, head, tubes, muzzles };
+}
+// Sandbags: a low U of bags; more bags on top at LV3 and LV5, grey at LV7+
+function makeSandbagModel(level = 1) {
+  const g = new THREE.Group(); g.name = "sandbag";
+  const mat = level >= 7 ? (TM.bagGrey ||= new THREE.MeshStandardMaterial({ color: 0x8e9196, roughness: 0.95 })) : (TM.bag ||= new THREE.MeshStandardMaterial({ color: 0x9a8658, roughness: 1 }));
+  const geo = makeSandbagModel.geo ||= (() => { const b = new THREE.SphereGeometry(0.5, 10, 6); b.scale(0.46, 0.17, 0.27); return b; })();
+  const bag = (x, y, z, ry) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.rotation.y = ry; o.castShadow = o.receiveShadow = true; g.add(o); };
+  const rows = level >= 5 ? 4 : level >= 3 ? 3 : 2;
+  for (let r = 0; r < rows; r++) {
+    const y = 0.09 + r * 0.16, off = r % 2 ? 0.22 : 0;
+    for (let i = 0; i < 4; i++) { const x = -0.66 + i * 0.44 + off; if (x <= 0.88) bag(x, y, 0.62, 0); }
+    for (let i = 0; i < 3; i++) { const z = 0.3 - i * 0.44 - off; bag(-0.85, y, z, Math.PI / 2); bag(0.85, y, z, Math.PI / 2); }
+  }
+  mergeByMaterial(g);
+  return { g };
+}
 function makeWallModel(level = 1) {
   const g = new THREE.Group(); g.name = "wall";
   for (const [m, geo] of wall2Geometries(Math.min(level, 4))) { const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh); }
@@ -2588,7 +2653,7 @@ function makeWallModel(level = 1) {
 
 /* ---------- Structures: sentries + walls, stats, placement, damage ---------- */
 const sentries = [], walls = [], traps = [];
-const listOf = (k) => k === "wall" ? walls : TRAP_KINDS.has(k) ? traps : sentries;
+const listOf = (k) => k === "wall" || k === "sandbag" ? walls : TRAP_KINDS.has(k) ? traps : sentries;
 const SENTRY = { range: 10, rate: 0.11, dmg: 10 };
 const STRUCT = {
   rocket: { name: "ROCKET LAUNCHER", hp: [0, 300, 500, 700, 950, 1250, 1600, 2000, 2500], up: [0, 150, 220, 300], baseReq: [0, 0, 0, 0], info: ["", "Bursts of 3 homing rockets, 15 m range", "Bigger box and a targeting dome: bursts of 5", "Repainted, fires heavy rockets: bigger blasts", "Twin launchers: bursts of 6 heavy rockets", "LV5 · desert sand paint", "LV6 · blue paint", "LV7 · crimson paint", "LV8 · black and gold"] },
@@ -2597,6 +2662,8 @@ const STRUCT = {
   spikes: { name: "SPIKE TRAP", hp: [0, 400, 700, 1000, 1400], up: [0, 40, 90, 160], baseReq: [0, 0], info: ["", "Stabs whatever steps on it, then resets", "Bladed spearheads: harder and faster", "Hazard-striped frame: faster resets", "Red-hot blades: brutal"] },
   wire: { name: "BARBED WIRE", hp: [0, 300, 500, 750, 1050], up: [0, 35, 80, 140], baseReq: [0, 0], info: ["", "Slows and cuts anything crossing it", "Electrified: far more damage", "A third coil: more voltage", "High voltage: glowing posts, huge damage"] },
   sentry: { name: "SENTRY", hp: [0, 250, 400, 600, 850, 1150, 1500, 1900, 2400], up: [0, 60, 90, 130], baseReq: [0, 0], info: ["", "Six-barrel gun, shoots enemies within 10 m", "Twin barrels: double fire rate", "Heavier guns and a laser targeter: harder hits, faster turning", "A third barrel pod", "LV5 · desert sand paint", "LV6 · blue paint", "LV7 · crimson paint", "LV8 · black and gold"] },
+  mortar: { name: "MORTAR", hp: [0, 260, 420, 620, 880, 1180, 1520, 1920, 2420], up: [0, 0, 0, 0, 0, 0, 0, 0], baseReq: [0, 0, 0, 0], info: ["", "Lobs shells over everything: big blasts, 6-24 m", "A longer tube and a sight: further, harder", "Twin tubes: two shells a volley", "Three tubes and an ammo crate", "LV5 · desert sand paint", "LV6 · blue paint", "LV7 · crimson paint", "LV8 · black and gold"] },
+  sandbag: { name: "SANDBAGS", hp: [0, 300, 380, 480, 600, 740, 900, 1080, 1300], up: [0, 15, 25, 35, 50, 70, 95, 125], baseReq: [0, 0, 0, 0, 0, 0, 0, 0], info: ["", "Low cover: your guns shoot over it, enemies have to go round or through", "Packed tighter", "More bags on top", "Packed tighter", "More bags again", "Packed tighter", "Grey reinforced bags", "Packed tighter"] },
   wall: { name: "WALL", hp: [0, 600, 1000, 1600, 2400, 3400, 4600], up: [0, 30, 60, 100, 160, 240], baseReq: [0, 0, 2], info: ["", "Rusty sheets cobbled together", "The same sheets in a timber frame", "New corrugated steel, welded seams", "Steel plated and bolted", "Steel corner beams, sandbags on top", "Bastion: capped, with firing slits"] },
 };
 const CAPS = { sentry: [0, 5, 8, 10], rocket: [0, 0, 2, 4], wall: [0, 30, 60, 80] };
@@ -2609,7 +2676,7 @@ const turretRange = (t) => (t.kind === "flamer" ? FLAME_RANGE[t.level] : RANGE_O
 const sentryRange = turretRange;
 function buildModel(s) {
   if (s.g) { scene.remove(s.g); }
-  if (s.kind !== "wall") { const m = MODEL_OF[s.kind](s.level); Object.assign(s, m); m.g.scale.setScalar(TRAP_KINDS.has(s.kind) ? 1 : 1.35); if (m.head) m.head.rotation.y = s.yaw; }
+  if (s.kind !== "wall") { const m = MODEL_OF[s.kind](s.level); Object.assign(s, m); m.g.scale.setScalar(TRAP_KINDS.has(s.kind) || s.kind === "sandbag" ? 1 : 1.35); if (m.head) m.head.rotation.y = s.yaw; }
   else s.g = makeWallModel(s.level);
   s.g.position.set(s.x, s.y || 0, s.z); scene.add(s.g); s.hulls = addHulls(s.g);
   if (hovered === s) showHulls(s, true);
@@ -2691,16 +2758,16 @@ const TARGET_PRIO = { thrower: 2.6, bomber: 2, runner: 1 }, CLOSE_R = 4;   // th
 // A turret up on a wall fires over ground-level walls and turrets; a structure with shootThrough never blocks.
 function structHitD(ox, oz, dx, dz, maxD, self) {
   const h = self?.y || 0; let best = Infinity;
-  for (const w of walls) { if (w.shootThrough || (w.y || 0) + WALL_H <= h) continue; const d = rayBox(ox, oz, dx, dz, wallBox(w)); if (d !== null && d < best && d < maxD) best = d; }
+  for (const w of walls) { if (w.shootThrough || w.kind === "sandbag" || (w.y || 0) + WALL_H <= h) continue; const d = rayBox(ox, oz, dx, dz, wallBox(w)); if (d !== null && d < best && d < maxD) best = d; }
   if (self?.kind !== "rocket") for (const o of sentries) { if (o === self || o.shootThrough || (h > 0 && !o.y)) continue; const d = rayCircle(ox, oz, dx, dz, o.x, o.z, 0.55); if (d !== null && d < best && d < maxD) best = d; }
   return best;
 }
-function pickTarget(t, range, minR = 0) {
+function pickTarget(t, range, minR = 0, noLos = false) {
   let best = null, bs = Infinity;
   for (const e of enemies) {
     if (e.dead) continue; const dx = e.pos.x - t.x, dz = e.pos.z - t.z, d = Math.hypot(dx, dz);
     if (d >= range || d <= minR) continue;
-    const sc = d - (TARGET_PRIO[e.type] || 0) * 1000 - (d < CLOSE_R ? 3000 : 0) - (run.t - e.hitAt < 2 ? 2500 : 0); if (sc < bs && losClear(t.x, t.z, dx / d, dz / d, d, t.y || 0) && structHitD(t.x, t.z, dx / d, dz / d, d, t) === Infinity) { bs = sc; best = e; }
+    const sc = d - (TARGET_PRIO[e.type] || 0) * 1000 - (d < CLOSE_R ? 3000 : 0) - (run.t - e.hitAt < 2 ? 2500 : 0); if (sc < bs && (noLos || losClear(t.x, t.z, dx / d, dz / d, d, t.y || 0) && structHitD(t.x, t.z, dx / d, dz / d, d, t) === Infinity)) { bs = sc; best = e; }
   }
   return best;
 }
@@ -2732,12 +2799,13 @@ function updateLaser(t) {
 }
 const LV_DMG = [0, 1, 1, 1.45, 1.6, 1.9, 2.25, 2.65, 3.1], LV_RATE = [0, 1, 1, 0.8, 0.75, 0.7, 0.66, 0.62, 0.58], LV_TURN = [0, 6, 7, 9, 11, 12, 13, 14, 15];   // sentry stats by level
 function updateSentries(dt) {
-  updateRockets(dt); updateTraps(dt);
+  updateRockets(dt); updateTraps(dt); updateShells(dt);
   for (const t of [...sentries]) {
     if (t.pack > 0) { t.pack -= dt; t.target = null; t.burst = 0; continue; }   // just moved: packing up / setting up
     if (t.kind === "rocket") { updateRocketTurret(t, dt); continue; }
     if (t.kind === "flamer") { updateFlamer(t, dt); continue; }
     if (t.kind === "cannon") { updateCannon(t, dt); continue; }
+    if (t.kind === "mortar") { updateMortar(t, dt); continue; }
     t.retarget -= dt;
     if (t.retarget <= 0 || (t.target && (t.target.dead || !enemies.includes(t.target)))) {
       t.retarget = 0.2; t.target = pickTarget(t, sentryRange(t));
@@ -2797,6 +2865,8 @@ let BUILDS = DEF ? [
   { id: "cannon", name: "CANNON", req: 1, cost: () => run.free.cannon > 0 ? 0 : buyPrice("cannon") },
   { id: "spikes", name: "SPIKE TRAP", req: 1, cost: () => run.free.spikes > 0 ? 0 : buyPrice("spikes") },
   { id: "wire", name: "BARBED WIRE", req: 1, cost: () => run.free.wire > 0 ? 0 : buyPrice("wire") },
+  { id: "mortar", name: "MORTAR", req: 1, cost: () => run.free.mortar > 0 ? 0 : buyPrice("mortar") },
+  { id: "sandbag", name: "SANDBAGS", req: 1, cost: () => run.free.sandbag > 0 ? 0 : buyPrice("sandbag") },
 ] : [
   { id: "sentry", name: "SENTRY", req: 1, cost: () => save.firstSentry ? 25 : 5 },
   { id: "wall", name: "WALL", req: 1, cost: () => 20 },
@@ -2806,10 +2876,10 @@ let BUILDS = DEF ? [
 ];
 const ALL_BUILDS = BUILDS;   // the run's tray (BUILDS) is the loadout picked in the lobby
 const lockOf = (b) => DEF ? "" : save.base < b.req ? `BASE LV${b.req}` : b.soon ? "SOON" : "";
-const countOf = (id) => id === "wall" ? walls.length : sentries.filter(t => t.kind === id).length;
-const DEF_CAPS = { sentry: 16, wall: 60, rocket: 6, flamer: 6, cannon: 6, spikes: 20, wire: 30 }, MAXLV = { sentry: 8, rocket: 8, wall: 6, flamer: 8, cannon: 8, spikes: 4, wire: 4 };
+const countOf = (id) => listOf(id).reduce((a, t) => a + (t.kind === id), 0);
+const DEF_CAPS = { sentry: 16, wall: 60, rocket: 6, flamer: 6, cannon: 6, spikes: 20, wire: 30 }, MAXLV = { sentry: 8, rocket: 8, wall: 6, flamer: 8, cannon: 8, mortar: 8, sandbag: 8, spikes: 4, wire: 4 };
 // how many of each you can have, by base level: upgrading the base makes room
-const GUNS_CAP = [0, 4, 5, 6, 7, 8, 9, 10, 12], DEF_CAP_LV = { sentry: [0, 8, 10, 12, 14, 17, 20, 22, 24], rocket: GUNS_CAP, flamer: GUNS_CAP, cannon: GUNS_CAP,
+const GUNS_CAP = [0, 4, 5, 6, 7, 8, 9, 10, 12], DEF_CAP_LV = { sentry: [0, 8, 10, 12, 14, 17, 20, 22, 24], rocket: GUNS_CAP, flamer: GUNS_CAP, cannon: GUNS_CAP, mortar: GUNS_CAP, sandbag: [0, 30, 40, 50, 60, 70, 80, 90, 100],
   wall: [0, 40, 50, 60, 70, 80, 90, 100, 120], spikes: [0, 12, 14, 16, 18, 20, 22, 24, 26], wire: [0, 20, 25, 30, 35, 40, 45, 50, 60] };
 const capOf = (id) => DEF ? DEF_CAP_LV[id][Math.min(save.base, 8)] : CAPS[id]?.[Math.min(save.base, 3)] ?? 0;
 const ICONS = {};
@@ -2854,8 +2924,8 @@ function makeGhosts() {
   const c3 = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9).rotateX(-Math.PI / 2), cellM()); c3.position.y = 0.025; c3.scale.setScalar(1 / 1.35); rk.add(c3);
   rk.userData.marks = [ring2, c3]; ring2.visible = false;
   for (const [k, g] of [["sentry", s], ["wall", w], ["rocket", rk]]) { g.visible = false; scene.add(g); ghosts[k] = g; }
-  for (const k of ["flamer", "cannon", "spikes", "wire"]) {
-    const sc = TRAP_KINDS.has(k) ? 1 : 1.35, gg = tint(MODEL_OF[k](1).g); gg.scale.setScalar(sc);
+  for (const k of ["flamer", "cannon", "mortar", "sandbag", "spikes", "wire"]) {
+    const sc = TRAP_KINDS.has(k) || k === "sandbag" ? 1 : 1.35, gg = tint(MODEL_OF[k](1).g); gg.scale.setScalar(sc);
     const c = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9).rotateX(-Math.PI / 2), cellM()); c.position.y = 0.025; c.scale.setScalar(1 / sc); gg.add(c); gg.userData.marks = [c];
     gg.visible = false; scene.add(gg); ghosts[k] = gg;
   }
@@ -2908,6 +2978,7 @@ function placeHeight(kind, x, z, ignore) {
   if (TRAP_KINDS.has(kind)) return ws.some(over) ? -1 : 0;
   const wo = ws.filter(over);
   if (!wo.length) return playerOn() ? -1 : 0;
+  if (wo.some(w => w.kind === "sandbag") || kind === "sandbag") return -1;   // sandbags: nothing goes on top, and they don't go up on walls
   if (!wo.every(same)) return -1;   // only straight on top of one wall stack
   if (kind === "wall") return DEF ? -1 : wo.length === 1 ? WALL_H : -1;   // defense: no wall on a wall (only turrets go up top); a wall ghost aims at the ground behind
   return wo.length === 1 && !wo[0].y ? WALL_H : -1;
@@ -2975,7 +3046,7 @@ const _topPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), _topHit = new 
 function stackSpot(kind, ignore) {
   for (const h of [WALL_H * 2, WALL_H]) {
     _topPlane.constant = -h; if (!raycaster.ray.intersectPlane(_topPlane, _topHit)) continue;
-    for (const w of walls) if (w !== ignore && (w.y || 0) + WALL_H === h && Math.abs(_topHit.x - w.x) <= 1 && Math.abs(_topHit.z - w.z) <= 1 && placeHeight(kind, w.x, w.z, ignore) === h) return w;
+    for (const w of walls) if (w !== ignore && w.kind === "wall" && (w.y || 0) + WALL_H === h && Math.abs(_topHit.x - w.x) <= 1 && Math.abs(_topHit.z - w.z) <= 1 && placeHeight(kind, w.x, w.z, ignore) === h) return w;
   }
   return null;
 }
@@ -3117,7 +3188,7 @@ function updateHoverTip() {
 function updateMenu(dt) { updateHoverTip(); if (!menuTarget) return; menuT -= dt; if (menuT <= 0) { menuT = 0.2; renderMenu(); } placeMenu(); }
 document.getElementById("smClose").addEventListener("click", closeMenu);
 // the scrap price of a build, ignoring any free stock
-const PRICE = { sentry: [15, 5], rocket: [70, 25], flamer: [55, 20], cannon: [85, 30], wall: [8, 0], spikes: [20, 0], wire: [10, 0] };
+const PRICE = { sentry: [15, 5], rocket: [70, 25], flamer: [55, 20], cannon: [85, 30], mortar: [95, 35], wall: [8, 0], sandbag: [5, 0], spikes: [20, 0], wire: [10, 0] };
 const buyPrice = (k) => Math.round((PRICE[k][0] + PRICE[k][1] * countOf(k)) * (DEF ? run.priceK || 1 : 1));
 // prices follow the horde: the more that's coming (nights, the scaler), the more things cost. Only re-rated right after you
 // buy or upgrade something, so a price never jumps while you're looking at it
@@ -4427,7 +4498,7 @@ function clearWorld() {
   for (const s of [...structs()]) removeStruct(s);
   for (const e of enemies) { scene.remove(e.model); removeBar(e.bar); e.mark?.remove(); e.mark = null; e.aim = null; if (e.tele) e.tele.visible = false; enemyPools[e.type].push(e); }
   enemies.length = 0; hovered = null; pendingHits.length = 0;
-  for (const r of rockets) scene.remove(r.m); rockets.length = 0; for (const j of jets) scene.remove(j.m); jets.length = 0;
+  for (const r of rockets) scene.remove(r.m); rockets.length = 0; for (const s2 of shells) scene.remove(s2.m); shells.length = 0; for (const j of jets) scene.remove(j.m); jets.length = 0;
   for (const c of chests) { scene.remove(c.g); c.ptr.remove(); } chests.length = 0; for (const l of lobs) scene.remove(l.m); lobs.length = 0; run.aim = null; aimRing.visible = false; strikeBtn?.classList.remove("aiming");
   for (const o of orbs) { o.el.remove(); orbPool.push(o.el); } orbs.length = 0;
   for (const el of frontEls) el.remove(); frontEls.length = 0; camPan.set(0, 0, 0); camZoom = 1;
@@ -4607,7 +4678,7 @@ function chestAt(cx, cy) { for (const c of chests) { if (!c.landed) continue; co
 function openChest(c, quiet = false) {
   chests.splice(chests.indexOf(c), 1); scene.remove(c.g); c.ptr.remove();
   const got = {}, kinds = BUILDS.map(b => b.id).filter(k => countOf(k) < capOf(k)), scrap = 15 + c.n * 10;   // free parts from your tray, ready to place, plus scrap
-  for (let i = 0; i < 2 + Math.floor(c.n / 2) && kinds.length; i++) { const k = kinds[Math.floor(Math.random() * kinds.length)]; got[k] = (got[k] || 0) + (k === "wall" ? 4 : TRAP_KINDS.has(k) ? 2 : 1); }
+  for (let i = 0; i < 2 + Math.floor(c.n / 2) && kinds.length; i++) { const k = kinds[Math.floor(Math.random() * kinds.length)]; got[k] = (got[k] || 0) + (k === "wall" || k === "sandbag" ? 4 : TRAP_KINDS.has(k) ? 2 : 1); }
   for (const [k, n] of Object.entries(got)) addFree(k, n); save.xp += scrap; bankBumpT = 0.3; renderXp();
   writeSave(); if (quiet) return;
   const p = c.g.position.clone().setY(0.8); boomFx(p, 1.2, true); shake = Math.max(shake, 0.25);
@@ -4744,7 +4815,7 @@ function defResults() {
   };
 }
 // ---- progression: the reward track, cards, the lobby and its loadout
-const TIER_XP = 120, CATS = { weapon: ["sentry", "rocket", "flamer", "cannon"], struct: ["wall"], trap: ["spikes", "wire"] }, CAT_NAME = { weapon: "WEAPONS", struct: "STRUCTURES", trap: "TRAPS" };
+const TIER_XP = 120, CATS = { weapon: ["sentry", "rocket", "flamer", "cannon", "mortar"], struct: ["wall", "sandbag"], trap: ["spikes", "wire"] }, CAT_NAME = { weapon: "WEAPONS", struct: "STRUCTURES", trap: "TRAPS" };
 const TRACK = [{ unlock: "spikes" }, { n: 4 }, { unlock: "flamer" }, { n: 5 }, { unlock: "wire" }, { n: 6 }, { unlock: "cannon" }, { cash: 150 }];
 const trackAt = (i) => TRACK[i] || (i % 2 ? { cash: 150 } : { n: 6 + Math.floor(i / 4) });
 const unlockTier = (k) => TRACK.findIndex(r => r.unlock === k);
@@ -4790,7 +4861,7 @@ function renderLobby() {
   document.getElementById("lCash").textContent = save.def.cash; document.getElementById("lTier").textContent = META.tier + 1; renderRoad();
   const n = loadout().length;
   const spare = ALL_BUILDS.some(b => META.unlock[b.id] && !equipped(b.id));
-  let h = `<div class="lh">CARDS<span>${n} / 8</span></div><div class="ldeck${lTarget?.swap ? " target" : ""}">` + META.deck.map((k, i) => `<div class="lslot">${k ? lCard(k, `data-slot="${i}"`, "inslot") : `<div class="lcard empty${spare ? "" : " none"}" data-slot="${i}">+<small>${spare ? "ADD" : "EMPTY"}</small></div>`}</div>`).join("") + `</div>`;
+  let h = `<div class="lh">CARDS<span>${n} / ${DECK_N}</span></div><div class="ldeck${lTarget?.swap ? " target" : ""}">` + META.deck.map((k, i) => `<div class="lslot">${k ? lCard(k, `data-slot="${i}"`, "inslot") : `<div class="lcard empty${spare ? "" : " none"}" data-slot="${i}">+<small>${spare ? "ADD" : "EMPTY"}</small></div>`}</div>`).join("") + `</div>`;
   const coll = ALL_BUILDS.map(b => b.id).filter(k => !equipped(k));
   h += `<div class="lsep"></div><div class="lh">COLLECTION<span>${coll.length ? "TAP A CARD" : "EVERYTHING IS IN USE"}</span></div><div class="lcoll">` + coll.map(k => lCard(k, "", lTarget && !lTarget.swap && META.unlock[k] ? "pick" : "")).join("") + `</div>`;
   lPanel.innerHTML = h;
@@ -5046,7 +5117,7 @@ renderAmmo(); renderSaveDump(); killEl.textContent = `${kills} KILLS`;
 for (const id of SLOT_IDS) ICONS[id] = "data:image/png;base64," + GUN_ICON[id]; ICONS.m1911 = ICONS.pistol;
 for (const [k, mk] of Object.entries(SUPPLY_MODELS)) ICONS[k] = renderIcon(mk());
 ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.rocket = renderIcon(makeRocketModel().g);
-for (const k of ["flamer", "cannon", "spikes", "wire"]) { const m = MODEL_OF[k](1); if (m.spikes) m.spikes.position.y = 0; ICONS[k] = renderIcon(m.g); }   // the spike trap's icon shows it sprung
+for (const k of ["flamer", "cannon", "mortar", "sandbag", "spikes", "wire"]) { const m = MODEL_OF[k](k === "sandbag" ? 3 : 1); if (m.spikes) m.spikes.position.y = 0; ICONS[k] = renderIcon(m.g); }   // the spike trap's icon shows it sprung
 if (shantyTemplate) ICONS.base = renderIcon(makeShanty()); ICONS.wall = renderIcon(makeWallModel(1));
 ICONS.cash = renderIcon(makeCashModel());
 for (const [k, mk] of Object.entries(FX_ICONS)) { try { ICONS["fx_" + k] = renderIcon(mk(), k === "flame" || k === "boom"); } catch (err) { console.warn("fx icon", k, err); } }
