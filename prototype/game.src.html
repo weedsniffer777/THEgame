@@ -4235,11 +4235,11 @@ function defPlace(keep = false) {
   if (carry) {
     const s = carry.s; carry = null; buildMode = buildSel >= 0;
     if (mt) { mergeInto(mt, s.spent); showGhost(); renderTray(); return true; }
-    s.x = x; s.z = z; s.y = y; buildModel(s); listOf(s.kind).push(s); structVer++; if (s.kind !== "wall") { s.pack = s.packMax = 2; popNumber(new THREE.Vector3(x, y + 2, z), "SETTING UP", false, "dmg"); }
+    s.x = x; s.z = z; s.y = y; buildModel(s); listOf(s.kind).push(s); structVer++; if (s.kind !== "wall" && s.kind !== "sandbag") { s.pack = s.packMax = 2; popNumber(new THREE.Vector3(x, y + 2, z), "SETTING UP", false, "dmg"); }
     showGhost(); renderTray(); return true;
   }
   const b = BUILDS[buildSel], c = b.cost(); save.xp -= c; if (run.free[b.id] > 0 && --run.free[b.id] === 0) run.freeTotal[b.id] = 0; if (c > 0) reprice();
-  if (mt) mergeInto(mt, c); else { run.lastPlaced = addStruct(b.id, x, z, 1, c, undefined, y); if (run.started && b.id !== "wall") run.lastPlaced.pack = run.lastPlaced.packMax = 1.5; }
+  if (mt) mergeInto(mt, c); else { run.lastPlaced = addStruct(b.id, x, z, 1, c, undefined, y); if (run.started && b.id !== "wall" && b.id !== "sandbag") run.lastPlaced.pack = run.lastPlaced.packMax = 1.5; }
   if (!keep && MERGEABLE.has(b.id)) setBuild(-1); renderXp();
   if (!save.def.tutBox && !touch.on && run.started && countOf(b.id) >= 3) { save.def.tutBox = 1; writeSave(); showBanner("RIGHT-CLICK AND DRAG A BOX TO SELECT MULTIPLE AT ONCE!", 6); }   // turrets: hand empty again; walls and traps stay in hand for the next one
   if (!run.started) {
