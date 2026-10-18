@@ -590,6 +590,11 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
+<script>
+// if startup fails (often only on phones), show why instead of a blank screen
+addEventListener("error", (e) => { if (window.__game) return; const l = document.getElementById("loading"); if (l) { l.style.whiteSpace = "pre-wrap"; l.style.padding = "20px"; l.style.color = "#e8584a"; l.textContent = "Couldn't start: " + (e.message || e.error) + "\n" + (e.filename || "").split("/").pop() + ":" + (e.lineno || ""); } });
+addEventListener("unhandledrejection", (e) => { if (window.__game) return; const l = document.getElementById("loading"); if (l) { l.style.color = "#e8584a"; l.style.padding = "20px"; l.textContent = "Couldn't start: " + (e.reason?.message || e.reason); } });
+</script>
 <script type="module">
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -1055,6 +1060,9 @@ function treeImpostors(list) {
   return m;
 }
 function bakeTreeImpostors() {
+  try { bakeTreeImpostorsRaw(); } catch (err) { console.warn("impostors", err); IMP.done = true; if (IMP.mesh) { IMP.mesh.material.map = IMP.rt.texture; IMP.mesh.material.needsUpdate = true; IMP.mesh.visible = true; } }
+}
+function bakeTreeImpostorsRaw() {
   if (IMP.done || !IMP.rt) return; const { leafMat, barkMat } = pineMaterials(); if (!leafMat.map.image || !barkMat.map.image) return; IMP.done = true;
   const cam = impCamera(), sc = new THREE.Scene(), N = IMP.cells.length;
   sc.add(new THREE.HemisphereLight(0xffffff, 0x8a8a7a, 2.2)); const dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(-6, 14, 9); sc.add(dl);
@@ -2979,8 +2987,18 @@ function cancelCarry() {   // swapped out or closed: it goes back where it was, 
   const { s, from } = carry; carry = null; s.x = from.x; s.z = from.z; s.y = from.y; buildModel(s); listOf(s.kind).push(s); renderBuildBar();
 }
 // Orthographic 3/4 render, framed to the object's projected bounds so nothing is ever cropped.
+// one shared icon renderer per alpha mode (phones only allow a handful of WebGL contexts: one per icon stopped the game starting)
+const ICON_R = {};
+function iconRenderer(straight) {
+  if (ICON_R[straight]) return ICON_R[straight];
+  const r = new THREE.WebGLRenderer({ alpha: true, antialias: !MOBILE, preserveDrawingBuffer: true, premultipliedAlpha: !straight }); r.setSize(160, 160); return (ICON_R[straight] = r);
+}
+function freeIconRenderers() { for (const k in ICON_R) { ICON_R[k].dispose(); ICON_R[k].forceContextLoss(); delete ICON_R[k]; } }
 function renderIcon(obj, straight = false) {   // straight: glowing effect shaders (fire, blasts) write straight alpha
-  const r = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true, premultipliedAlpha: !straight }); r.setSize(160, 160); r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.3;
+  try { return renderIconRaw(obj, straight); } catch (err) { console.warn("icon", err); return ""; }
+}
+function renderIconRaw(obj, straight) {
+  const r = iconRenderer(straight); r.setClearColor(0x000000, 0); r.clear(); r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.3;
   const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x666666, 3.0)); const dl = new THREE.DirectionalLight(0xffffff, 2.8); dl.position.set(2, 3, 2); sc.add(dl); sc.add(obj); obj.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 100);
   cam.position.copy(c).add(new THREE.Vector3(1, 0.7, 1.15).normalize()); cam.lookAt(c); cam.updateMatrixWorld(true);
@@ -2988,7 +3006,7 @@ function renderIcon(obj, straight = false) {   // straight: glowing effect shade
   for (let i = 0; i < 8; i++) { const v = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).applyMatrix4(cam.matrixWorldInverse); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
   const half = Math.max(x1 - x0, y1 - y0) / 2 * 1.06, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
   Object.assign(cam, { left: cx - half, right: cx + half, top: cy + half, bottom: cy - half }); cam.updateProjectionMatrix();
-  r.render(sc, cam); const url = r.domElement.toDataURL(); r.dispose(); r.forceContextLoss(); return url;
+  r.render(sc, cam); const url = r.domElement.toDataURL(); sc.remove(obj); return url;
 }
 
 /* ---------- Info menus: structures and the base ---------- */
@@ -4948,7 +4966,8 @@ for (const [k, mk] of Object.entries(SUPPLY_MODELS)) ICONS[k] = renderIcon(mk())
 ICONS.sentry = renderIcon(makeSentryModel().g); ICONS.rocket = renderIcon(makeRocketModel().g);
 for (const k of ["flamer", "cannon", "spikes", "wire"]) { const m = MODEL_OF[k](1); if (m.spikes) m.spikes.position.y = 0; ICONS[k] = renderIcon(m.g); }   // the spike trap's icon shows it sprung
 if (shantyTemplate) ICONS.base = renderIcon(makeShanty()); ICONS.wall = renderIcon(makeWallModel(1));
-for (const [k, mk] of Object.entries(FX_ICONS)) ICONS["fx_" + k] = renderIcon(mk(), k === "flame" || k === "boom");
+for (const [k, mk] of Object.entries(FX_ICONS)) { try { ICONS["fx_" + k] = renderIcon(mk(), k === "flame" || k === "boom"); } catch (err) { console.warn("fx icon", k, err); } }
+freeIconRenderers();
 if (!DEF) for (const [l] of interior?.userData.lights || []) shanty.add(l);   // no going inside in defense mode
 applyBaseLevel(); buildBaseFootprint();
 if (!DEF) for (const b of save.builds) if (STRUCT[b.t]) addStruct(b.t, b.x, b.z, b.lv || 1, b.spent ?? (b.t === "sentry" ? 5 : 20), undefined, b.y || 0);
