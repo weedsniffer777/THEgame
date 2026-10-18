@@ -1601,7 +1601,7 @@ function killEnemy(e, dir, amt, silent = false, byPlayer = false) {
   comboT = 2.5; combo++;
   if (DEF && !runOver) run.killD = (run.killD ?? 16) * 0.97 + baseDist(e.pos)[0] * 0.03;
   if (DEF) { if (!runOver) defOrbs(e, T.xp * 2); } else dropXpTotal(e.pos, T.xp + (byPlayer ? T.bonus + card("loot") : 0));   // your own kills are worth more
-  if (combo >= 3) popNumber(at.clone().setY(2.7), `x${combo} COMBO`, true, "dmg combo");
+  if (combo >= 3 && !DEF) popNumber(at.clone().setY(2.7), `x${combo} COMBO`, true, "dmg combo");   // no combo pops in defense
   kills++; save.kills = kills; if (!DEF) writeSave(); killEl.textContent = `${kills} KILLS`;
   popNumber(at.setY(2.1), amt, true); tutEvent("kill", e);
 }
