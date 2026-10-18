@@ -4848,7 +4848,7 @@ const canUp = (k) => cardsOf(k) >= needOf(k) && save.def.cash >= upCash(lvlOf(k)
 const equipped = (k) => META.deck.includes(k);
 let lSel = null, lTarget = null;   // the card whose actions are open; an empty (or swap) slot waiting for a card
 function lCard(k, attrs = "", cls = "") {
-  if (!META.unlock[k] && k !== "base") return `<div class="lcard ${catOf(k)} locked" ${attrs}><img alt="" src="${ICONS[k] || ""}"><b>${nameOf(k)}</b><span class="lk">FIND IN RUNS</span></div>`;
+  if (!META.unlock[k] && k !== "base") return `<div class="lcard ${catOf(k)} locked" ${attrs}><img alt="" src="${ICONS[k] || ""}"><b>${nameOf(k)}</b><span class="lk">COMPLETE RUNS<br>TO UNLOCK</span></div>`;
   const c = cardsOf(k), need = needOf(k);
   const isNew = k !== "base" && !META.seen?.[k] && !["sentry", "wall", "rocket"].includes(k);
   return `<div class="lcard ${catOf(k) || "base"}${canUp(k) ? " up" : ""}${lSel === k ? " sel" : ""} ${cls}" data-card="${k}" ${attrs}>${isNew ? `<span class="newb">NEW</span>` : ""}<span class="lv">LV ${lvlOf(k)}</span>${equipped(k) && cls !== "inslot" ? `<span class="use">IN USE</span>` : ""}<img alt="" src="${ICONS[k] || ""}"><b>${nameOf(k)}</b><span class="cb"><i style="width:${Math.min(1, c / need) * 100}%"></i><em>${c}/${need}</em></span></div>`;
