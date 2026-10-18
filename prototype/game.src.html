@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Game Test</title>
 <style>
@@ -29,6 +30,7 @@ body.lobby #game { cursor: default; } body.lobby #reticle { display: none; }
 #reticle .v { width: 2px; height: 7px; left: -1px; }
 #reticle .l { left: -11px; } #reticle .r { left: 4px; } #reticle .t { top: -11px; } #reticle .b { top: 4px; }
 #game canvas { display: block; width: 100% !important; height: 100% !important; }
+#defTop, #xpWrap, #lobby .ltop, #lobby .lpanel, #lobby .lside, #lobby .lpop, #cards .cbox, #res .rx, #pause .pbox, #smenu, #banner, #hoverTip { zoom: var(--ui, 1); }
 .hud { position: fixed; pointer-events: none; z-index: 2; }
 /* Pixel HUD: hard edges, stepped borders, bone-white text on charcoal, rust accent. */
 .px { font-family: "Chakra Petch", "Trebuchet MS", sans-serif; font-weight: 600; }
@@ -895,7 +897,14 @@ const VIEW = 11; let curView = VIEW;
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
 const CAM_OFFSET = new THREE.Vector3(1, 1.15, 1).normalize().multiplyScalar(40);
 function camFrustum() { const a = innerWidth / innerHeight; camera.left = -curView * a; camera.right = curView * a; camera.top = curView; camera.bottom = -curView; camera.updateProjectionMatrix(); }
-function resize() { renderer.setSize(innerWidth, innerHeight); camFrustum(); }
+function resize() { renderer.setSize(innerWidth, innerHeight); camFrustum(); fitUI(); }
+// UI scale: everything sized for ~1150x720 scales down with the window (zoom keeps layout and hit areas right)
+function fitUI() {
+  const k = Math.max(0.5, Math.min(1, innerWidth / 1150, innerHeight / 720)), root = document.documentElement; root.style.setProperty("--ui", k.toFixed(3));
+  const tray = document.getElementById("tray"); if (!tray) return;
+  tray.style.zoom = 1; const w = tray.offsetWidth + 16, h = tray.offsetHeight + 46, kt = Math.max(0.4, Math.min(k * 1.1, 1, (innerWidth - 12) / w, innerHeight * 0.34 / h));
+  tray.style.zoom = kt.toFixed(3);
+}
 addEventListener("resize", resize); window.visualViewport?.addEventListener("resize", resize); addEventListener("orientationchange", () => setTimeout(resize, 200)); resize(); setTimeout(resize, 300);   // phones settle their viewport late
 
 // Blank white work platform with a 1 m grid (5 m major lines)
@@ -4027,7 +4036,7 @@ function quickAct(kind) {
   for (let k = 0; k < 6; k++) spawnSprite(new THREE.Vector3(sp.x, 0.2, sp.z), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0xc9a45c, size: 0.4, grow: 2, life: 0.7, opacity: 0.45, drag: 2.5 });
   renderXp(); if (!run.started && !run.tut) defGo();
 }
-function renderTray() {
+function renderTray() { requestAnimationFrame(fitUI);
   bankNum.textContent = save.xp;
   trayCards.innerHTML = BUILDS.map((b, i) => { const c = b.cost(), n = countOf(b.id), cap = capOf(b.id), free = run.free[b.id] > 0;
     if (locked(i)) return `<button type="button" class="tcard locked" data-i="${i}"><span class="k">${i + 1}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">LOCKED</span></button>`;
@@ -4665,18 +4674,28 @@ const FX_ICONS = (() => {
 })();
 const jets = []; let jetGeo = null;
 function spawnJet(x, z, ax, az) {
-  if (!jetGeo) { const m = new THREE.MeshStandardMaterial({ color: 0x4a5258, roughness: 0.6, metalness: 0.3 }), g = new THREE.Group();
-    const add = (geo, px, py, pz) => { const o = new THREE.Mesh(geo, m); o.position.set(px, py, pz); g.add(o); };
-    add(new THREE.BoxGeometry(0.7, 0.6, 5), 0, 0, 0); add(new THREE.ConeGeometry(0.35, 1.4, 8).rotateX(Math.PI / 2), 0, 0, 3.2); add(new THREE.BoxGeometry(6, 0.12, 1.6), 0, 0, -0.3);
-    add(new THREE.BoxGeometry(2.4, 0.1, 0.9), 0, 0, -2.2); add(new THREE.BoxGeometry(0.1, 1.2, 1), 0, 0.6, -2.2); jetGeo = g; }
+  if (!jetGeo) {   // a Predator-style drone: slim body, bulbous sensor nose, long straight wings, inverted-V tail, pusher prop, a missile under each wing
+    const m = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.55, metalness: 0.25 }), dk = new THREE.MeshStandardMaterial({ color: 0x2a2d30, roughness: 0.4, metalness: 0.5 }), g = new THREE.Group();
+    const add = (geo, mat, px, py, pz, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(px, py, pz); o.rotation.set(rx, ry, rz); g.add(o); return o; };
+    add(new THREE.CylinderGeometry(0.22, 0.4, 4.6, 10), m, 0, 0, 0, Math.PI / 2);                       // body, tapering to the tail
+    add(new THREE.SphereGeometry(0.46, 12, 10), m, 0, 0.12, 2.35).scale.set(1, 0.95, 1.35);               // the bulbous nose
+    add(new THREE.SphereGeometry(0.2, 10, 8), dk, 0, -0.32, 1.95);                                        // sensor ball under the chin
+    add(new THREE.BoxGeometry(10, 0.08, 0.75), m, 0, 0.32, 0.35);                                         // long straight wing
+    for (const sd of [-1, 1]) {
+      add(new THREE.BoxGeometry(0.06, 1.15, 0.7), m, sd * 0.38, -0.3, -2.1, 0, 0, sd * 0.75);              // inverted-V tail
+      add(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 8), dk, sd * 1.8, 0.08, 0.4, Math.PI / 2);         // a missile on each wing
+      add(new THREE.ConeGeometry(0.07, 0.25, 8), dk, sd * 1.8, 0.08, 1.15, Math.PI / 2);
+    }
+    add(new THREE.CylinderGeometry(0.1, 0.12, 0.25, 8), dk, 0, 0, -2.4, Math.PI / 2);
+    add(new THREE.BoxGeometry(0.1, 1.7, 0.05), dk, 0, 0, -2.55).name = "prop";                          // pusher propeller
+    g.scale.setScalar(1.3); jetGeo = g; }
   const j = jetGeo.clone(), dir = new THREE.Vector3(ax, 0, az);
   j.position.set(x, 18, z).addScaledVector(dir, -70); j.lookAt(j.position.clone().add(dir)); scene.add(j);
   jets.push({ m: j, dir, t: 0 });
 }
 function updateJets(dt) {
   for (let i = jets.length - 1; i >= 0; i--) {
-    const j = jets[i]; j.t += dt; j.m.position.addScaledVector(j.dir, 55 * dt);
-    if (Math.random() < 0.6) spawnSprite(j.m.position.clone().addScaledVector(j.dir, -3), new THREE.Vector3(0, 0, 0), { color: 0xdedede, size: 0.6, grow: 2, life: 1.2, opacity: 0.35, drag: 0 });
+    const j = jets[i]; j.t += dt; j.m.position.addScaledVector(j.dir, 45 * dt); const pr = j.m.getObjectByName("prop"); if (pr) pr.rotation.z += dt * 60;
     if (j.t > 3) { scene.remove(j.m); jets.splice(i, 1); }
   }
 }
