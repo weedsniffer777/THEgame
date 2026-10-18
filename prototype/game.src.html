@@ -586,7 +586,7 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
     <div class="row">
       <button id="btnAmmo" type="button">+100 scrap</button>
       <button id="btnXpBig" type="button">+1,000,000 scrap</button>
-      <button id="btnCash" type="button">+1,000 cash, +500 track XP, +30 cards</button>
+      <button id="btnCash" type="button">Unlock everything · 999 cards each · +10,000 cash</button>
       <button id="btnBoom" type="button">Destroy the base</button>
     </div>
   </section>
@@ -3623,7 +3623,9 @@ document.getElementById("btnResetYes").addEventListener("click", () => {
 });
 document.getElementById("btnAmmo").addEventListener("click", () => { save.xp += 100; renderXp(); writeSave(); });
 document.getElementById("btnBoom").addEventListener("click", () => { if (!runOver) { tut.step = "done"; save.tut = 1; hurtBase(1e9); } });
-document.getElementById("btnCash").addEventListener("click", () => { save.def.cash += 1000; dropCards(30, true); writeSave(); if (!lobbyEl.hidden) renderLobby(); });
+document.getElementById("btnCash").addEventListener("click", () => {   // dev: every build unlocked, plenty of cards and cash to level them
+  for (const b of ALL_BUILDS) { META.unlock[b.id] = 1; META.cards[b.id] = Math.max(cardsOf(b.id), 999); META.seen ||= {}; META.seen[b.id] = 1; }
+  META.cards.base = Math.max(cardsOf("base"), 999); save.def.cash += 10000; writeSave(); if (!lobbyEl.hidden) renderLobby(); });
 document.getElementById("btnXpBig").addEventListener("click", () => { save.xp += 1000000; renderXp(); writeSave(); });
 const perfEl = document.getElementById("perf");
 
