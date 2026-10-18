@@ -259,7 +259,7 @@ body.mobile .tcard.strike .jet, body.mobile .tcard.strike .jet img { width: 48px
 #lobby::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8, 10, 9, .78) 0, rgba(8, 10, 9, .55) 38%, rgba(8, 10, 9, 0) 62%), radial-gradient(ellipse at 70% 55%, transparent 40%, rgba(0, 0, 0, .45)); }
 #lobby > * { pointer-events: auto; }
 body.lobby #tray, body.lobby #xpWrap, body.lobby #defTop, body.lobby #banner, body.lobby #hoverTip, body.lobby #smenu, body.lobby #spot, body.lobby #tutPtr, body.lobby #perf, body.lobby #doorMarker { display: none !important; }
-#lobby .ltop { position: absolute; left: 16px; right: 16px; top: calc(14px + env(safe-area-inset-top, 0px)); height: 58px; display: flex; align-items: center; gap: 18px; padding: 0 14px 0 8px; }
+#lobby .ltop { position: absolute; left: auto; right: 16px; top: calc(14px + env(safe-area-inset-top, 0px)); height: 58px; display: flex; align-items: center; gap: 18px; padding: 0 14px 0 8px; }
 .lbadge { width: 50px; height: 46px; display: grid; place-items: center; align-content: center; background: linear-gradient(180deg, #f2c55c, #a8741c); color: #1b1407; box-shadow: 0 0 0 2px #101211, inset 0 -4px 0 rgba(0, 0, 0, .25); }
 .lbadge small { font-size: 9px; letter-spacing: .2em; line-height: 1; } .lbadge b { font-size: 24px; line-height: 1; }
 .road { flex: 1; display: flex; align-items: center; min-width: 0; overflow: hidden; }
@@ -269,7 +269,7 @@ body.lobby #tray, body.lobby #xpWrap, body.lobby #defTop, body.lobby #banner, bo
 .road .node em { position: absolute; bottom: -2px; right: 1px; font-style: normal; font-size: 9px; color: #9d978a; text-shadow: 0 1px 0 #000; } .road .node .coin { width: 12px; height: 12px; }
 .cashi { width: 34px; height: 34px; vertical-align: middle; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .5)); } .cashi.sm { width: 18px; height: 18px; } #res .cashi { width: 26px; height: 26px; }
 #lobby .lcash { display: flex; align-items: center; gap: 10px; font-size: 24px; color: #ffd23a; } #lobby .coin { display: inline-block; width: 14px; height: 14px; background: #ffd23a; transform: rotate(45deg); box-shadow: 0 0 8px 2px rgba(255, 200, 60, .6); }
-#lobby .lpanel { position: absolute; left: 16px; top: calc(90px + env(safe-area-inset-top, 0px)); bottom: 16px; width: 452px; padding: 12px 14px 14px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #3a403b transparent; }
+#lobby .lpanel { position: absolute; left: 16px; top: calc(16px + env(safe-area-inset-top, 0px)); bottom: 16px; width: 452px; padding: 12px 14px 14px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #3a403b transparent; }
 .lh { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 0 8px; font-size: 15px; letter-spacing: .16em; color: var(--gold); } .lh span { font-size: 10px; letter-spacing: .1em; color: #9d978a; }
 .lrow { display: grid; grid-template-columns: 22px repeat(3, 1fr); gap: 10px; margin-bottom: 12px; align-items: stretch; }
 .lrow .rl { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 10px; letter-spacing: .22em; color: #9d978a; text-align: center; }
@@ -305,9 +305,9 @@ body.lobby #tray, body.lobby #xpWrap, body.lobby #defTop, body.lobby #banner, bo
 #lobby .lpop button:disabled { background: #232625; color: #6a726c; cursor: default; } #lobby .lpop button:not(:disabled):hover { filter: brightness(1.12); }
 body.lobby #devBtn { top: calc(84px + env(safe-area-inset-top, 0px)); }
 #lobby .lhint { position: absolute; left: 50%; top: 86px; transform: translateX(-50%); padding: 8px 16px; font-size: 13px; letter-spacing: .12em; color: #7dffd6; }
-body.mobile #lobby .ltop { height: 42px; top: calc(8px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; gap: 10px; } body.mobile .lbadge { width: 38px; height: 34px; } body.mobile .lbadge b { font-size: 17px; }
+body.mobile #lobby .ltop { height: 42px; top: calc(8px + env(safe-area-inset-top, 0px)); left: auto; right: 8px; gap: 10px; } body.mobile .lbadge { width: 38px; height: 34px; } body.mobile .lbadge b { font-size: 17px; }
 body.mobile .road .node { width: 30px; height: 30px; font-size: 13px; } body.mobile .road .node img { width: 26px; height: 26px; } body.mobile .road .node.big { width: 34px; height: 34px; } body.mobile #lobby .lcash { font-size: 18px; }
-body.mobile #lobby .lpanel { top: calc(60px + env(safe-area-inset-top, 0px)); left: 8px; bottom: 8px; width: min(400px, 52vw); padding: 8px 10px; }
+body.mobile #lobby .lpanel { top: calc(8px + env(safe-area-inset-top, 0px)); left: 8px; bottom: 8px; width: min(400px, 52vw); padding: 8px 10px; }
 body.mobile .lcard { height: 92px; padding-top: 12px; } body.mobile .lcard img { width: 44px; height: 44px; } body.mobile .lcard b { font-size: 9px; } body.mobile .lrow { gap: 8px; margin-bottom: 8px; } body.mobile .lcoll { gap: 8px; } body.mobile .lh { font-size: 12px; margin-bottom: 6px; }
 body.mobile #lobby .lside { right: 8px; bottom: 8px; gap: 8px; } body.mobile #lobby .lbasep { grid-template-columns: 70px auto; padding: 6px 10px; } body.mobile #lobby .lbasep .lcard { width: 70px; } body.mobile #lobby .lbasep p { font-size: 10px; }
 body.mobile #lPlay { font-size: 22px; width: 190px; padding: 9px 0 7px; } body.mobile #lobby .lpop { width: 210px; } body.mobile #lobby .lhint { top: 58px; font-size: 11px; }
@@ -490,7 +490,7 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
 <div class="hud px" id="tray"><div class="pxbox" id="bank"><span class="coin"></span><span id="bankNum">0</span></div><div id="trayCards" style="display:flex;gap:10px"></div><button type="button" class="tcard strike" id="strikeBtn"><span class="k">Q</span><span class="sfill"><i id="strikeFill"></i></span><span class="jet"><img alt="" id="strikeImg"></span><b>AIRSTRIKE</b></button></div>
 <div class="hud" id="orbLayer"></div>
 <div class="px" id="lobby" hidden>
-  <div class="ltop pxbox"><div class="lbadge" style="display:none"><small>TIER</small><b id="lTier">1</b></div><div class="road" id="lRoad" style="visibility:hidden"></div><div class="lcash"><span class="coin"></span><span id="lCash">0</span></div></div>
+  <div class="ltop pxbox"><div class="lbadge" style="display:none"><small>TIER</small><b id="lTier">1</b></div><div class="road" id="lRoad" style="display:none"></div><div class="lcash"><span class="coin"></span><span id="lCash">0</span></div></div>
   <div class="lpanel pxbox" id="lPanel"></div>
   <div class="lside"><div class="lbasep pxbox" id="lBase"></div><button type="button" id="lPlay">PLAY<small id="lPlaySub"></small></button></div>
   <div class="lpop pxbox" id="lPop" hidden></div>
@@ -877,7 +877,7 @@ const host = document.getElementById("game");
 // a smaller shadow map with plain PCF, redrawn every other frame.
 const MOBILE = matchMedia("(pointer: coarse)").matches;
 const renderer = new THREE.WebGLRenderer({ antialias: !MOBILE, powerPreference: "high-performance" });
-const PR_MAX = MOBILE ? Math.min(devicePixelRatio, 1) : Math.min(devicePixelRatio, 1.5), PR_MIN = MOBILE ? 0.75 : 1; let prNow = PR_MAX;   // phones render at 1x (down to 0.75x when slow)
+const PR_MAX = MOBILE ? Math.min(devicePixelRatio, 1) : Math.min(devicePixelRatio, 1.25), PR_MIN = MOBILE ? 0.75 : 1; let prNow = PR_MAX;   // phones render at 1x (down to 0.75x when slow)
 renderer.setPixelRatio(prNow);
 renderer.shadowMap.enabled = true;
 renderer.localClippingEnabled = true;   // shack cutaway when inside
@@ -4790,7 +4790,7 @@ function renderLobby() {
   document.getElementById("lCash").textContent = save.def.cash; document.getElementById("lTier").textContent = META.tier + 1; renderRoad();
   const n = loadout().length;
   const spare = ALL_BUILDS.some(b => META.unlock[b.id] && !equipped(b.id));
-  let h = `<div class="lh">LOADOUT<span>${n} / 8 IN YOUR TRAY</span></div><div class="ldeck${lTarget?.swap ? " target" : ""}">` + META.deck.map((k, i) => `<div class="lslot">${k ? lCard(k, `data-slot="${i}"`, "inslot") : `<div class="lcard empty${spare ? "" : " none"}" data-slot="${i}">+<small>${spare ? "ADD" : "EMPTY"}</small></div>`}</div>`).join("") + `</div>`;
+  let h = `<div class="lh">CARDS<span>${n} / 8</span></div><div class="ldeck${lTarget?.swap ? " target" : ""}">` + META.deck.map((k, i) => `<div class="lslot">${k ? lCard(k, `data-slot="${i}"`, "inslot") : `<div class="lcard empty${spare ? "" : " none"}" data-slot="${i}">+<small>${spare ? "ADD" : "EMPTY"}</small></div>`}</div>`).join("") + `</div>`;
   const coll = ALL_BUILDS.map(b => b.id).filter(k => !equipped(k));
   h += `<div class="lsep"></div><div class="lh">COLLECTION<span>${coll.length ? "TAP A CARD" : "EVERYTHING IS IN USE"}</span></div><div class="lcoll">` + coll.map(k => lCard(k, "", lTarget && !lTarget.swap && META.unlock[k] ? "pick" : "")).join("") + `</div>`;
   lPanel.innerHTML = h;
