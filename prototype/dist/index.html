@@ -4307,7 +4307,7 @@ const nightKAt = (t) => { const c = t % CYC; return c >= DAY_LEN ? 1 - THREE.Mat
 const nightStart = (n) => (n - 1) * CYC + DAY_LEN;
 let spT = { walker: 1, runner: 0, bomber: 0 }, gangT = 0;
 // every day and night sends a set number of enemies, paced out over the phase (a brute counts as 10); days send 60% of the night's count, and they're weaker
-const nightBudget = (n) => 90 + n * 50, dayBudget = (n) => Math.round(nightBudget(n) * 0.6);   // nights 140 / 190 / 240 / ..., days 60% of that
+const nightBudget = (n) => 60 + n * 40, dayBudget = (n) => Math.round(nightBudget(n) * 0.55);   // nights 100 / 140 / 180 / ..., days 55% of that (before pacing)   // nights 140 / 190 / 240 / ..., days 60% of that
 // the stronger you are (scrap in the bank + what your towers are worth), the more of them come: more, not tougher
 // how many come scales with: what you've built (scrap sitting in the bank counts extra: spend it), how far out you're
 // stopping them (crushing it = more), whether you're actually playing (crushing it while idle = a lot more), and base health (hurting = fewer)
@@ -4334,26 +4334,33 @@ function strengthMult() {
   run.perf = (run.perf || 0) + (want - (run.perf || 0)) * 0.15;
   return (strengthK = clamp((1 + Math.max(0, worth - 120) / 380) * (1 + run.perf), 0.7, 6));
 }
+// Pacing (aimed at an average-to-good player lasting ~8-15 min):
+//  0-2 min   a warm-up: smaller waves, almost all walkers
+//  2-6 min   the curve bends up; runners, bombers and throwers join
+//  6+ min    keeps climbing; the mix tips toward the nasty ones. Those cost more of the wave's budget, so it gets harder
+//            without more bodies on screen (brute 10, thrower 2.5, bomber 2, runner 1.5, walker 1)
+const SPAWN_W = { walker: 1, runner: 1.5, bomber: 2, thrower: 2.5, brute: 10 };
+const paceK = (t) => 0.7 + 0.3 * Math.min(1, t / 120) + Math.pow(Math.max(0, t - 90) / 480, 1.5);   // 0.7 → 1.0 at 2 min → ~1.6 at 8 min → ~2.6 at 13 min
 function defSpawns(dt) {
   const t = run.t, k = clamp(t / 600, 0, 1), ph = phaseOf(t);
   const key = ph.n * 2 + (ph.night ? 1 : 0); if (key !== run.phaseKey) { run.phaseKey = key; run.phaseSpawned = 0; }
-  const alive = enemies.reduce((a, e) => a + !e.dead, 0); if (alive > 200) return;
+  const alive = enemies.reduce((a, e) => a + !e.dead, 0); if (alive > 180) return;
   const p = (ph.night ? ph.c - DAY_LEN : ph.c) / DAY_LEN;
-  const ease = ph.n === 1 && !ph.night ? THREE.MathUtils.smoothstep(t, 4, 12) : 1;   // the opening seconds are a breather
-  const B = (ph.night ? nightBudget(ph.n) : dayBudget(ph.n)) * strengthMult() * (1 + t / 300), deficit = B * Math.min(1, p / 0.85 + 0.05) * ease - run.phaseSpawned;
+  const ease = ph.n === 1 && !ph.night ? THREE.MathUtils.smoothstep(t, 4, 14) : 1;   // the opening seconds are a breather
+  const sk = t < 120 ? Math.min(strengthMult(), 1 + t / 400) : strengthMult();      // the scaler can't spike the warm-up
+  const B = (ph.night ? nightBudget(ph.n) : dayBudget(ph.n)) * sk * paceK(t), deficit = B * Math.min(1, p / 0.85 + 0.05) * ease - run.phaseSpawned;
   if ((gangT -= dt) > 0 || deficit < 1) return;
   gangT = ph.night ? 1.0 + Math.random() * 1.0 : 1.5 + Math.random() * 1.2;
-  // gangs from random directions: walkers mostly, runners from the first night on, bombers from night 2, brutes now and then
-  const hard = Math.min(1, t / 360 + (strengthK - 1) / 5);   // climbs steadily from the first minute: by ~3 min half the gangs can be nasty ones   // 0 → 1 over the nights and as the scaler climbs: more of the nasty ones
-  const r = Math.random(), pBomb = ph.night ? (ph.n >= 2 || p > 0.3 ? 0.06 + 0.2 * hard : 0) : ph.n >= 2 ? 0.04 + 0.1 * hard : 0, pRun = ph.night ? (ph.n === 1 ? (p > 0.15 ? 0.25 : 0) : 0.28 + 0.12 * hard) : ph.n >= 2 ? 0.16 + 0.1 * hard : 0.08;
-  const pBrute = ph.night ? (ph.n === 1 ? (p > 0.4 ? 0.04 : 0) : 0.04 + 0.1 * hard) : ph.n >= 2 ? 0.03 + 0.05 * hard : 0;   // brutes count as 10
-  const pThrow = ph.night ? (ph.n >= 2 || p > 0.4 ? 0.04 + 0.12 * hard : 0) : ph.n >= 2 ? 0.03 + 0.06 * hard : 0, r2 = Math.random();
-  const type = r2 < pThrow ? "thrower" : r < pBrute ? "brute" : r < pBrute + pBomb ? "bomber" : r < pBrute + pBomb + pRun ? "runner" : "walker";
-  if (type === "brute" && deficit < 10) return;
-  const cap = { walker: ph.night ? 14 + k * 26 : 9 + k * 12, runner: 4 + k * 6, bomber: 1 + k * 3, brute: ph.n >= 4 && ph.night ? 2 : 1, thrower: 1 + k * 3 }[type];
-  gang(type, Math.max(1, Math.min(Math.round(cap), Math.round(deficit * (0.45 + Math.random() * 0.45) / (type === "brute" ? 10 : 1)))));
+  // the mix: "hard" climbs from ~1.5 min to full by ~10 min (sooner if the scaler says you're cruising)
+  const hard = clamp((t - 90) / 510 + (strengthK - 1) / 8, 0, 1), warm = t < 75;
+  const pRun = warm ? (ph.night ? 0.12 : 0.04) : 0.12 + 0.26 * hard, pBomb = warm ? 0 : 0.04 + 0.16 * hard, pThrow = warm ? 0 : 0.03 + 0.15 * hard, pBrute = warm ? 0 : (ph.night ? 0.02 : 0.01) + 0.11 * hard;
+  const r = Math.random(); let type = "walker", acc = 0;
+  for (const [ty, pr] of [["brute", pBrute], ["thrower", pThrow], ["bomber", pBomb], ["runner", pRun]]) { acc += pr; if (r < acc) { type = ty; break; } }
+  if (deficit < SPAWN_W[type]) type = "walker";
+  const cap = { walker: ph.night ? 12 + k * 18 : 8 + k * 10, runner: 4 + k * 8, bomber: 1 + k * 4, brute: ph.n >= 5 && ph.night ? 2 : 1, thrower: 1 + k * 4 }[type];
+  gang(type, Math.max(1, Math.min(Math.round(cap), Math.round(deficit * (0.45 + Math.random() * 0.45) / SPAWN_W[type]))));
 }
-function gang(type, n) { const f = anyDir(); for (let i = 0; i < n; i++) spawnAt(type, f); run.phaseSpawned = (run.phaseSpawned || 0) + n * (type === "brute" ? 10 : 1); }   // one direction, a tight bunch
+function gang(type, n) { const f = anyDir(); for (let i = 0; i < n; i++) spawnAt(type, f); run.phaseSpawned = (run.phaseSpawned || 0) + n * (SPAWN_W[type] || 1); }   // one direction, a tight bunch
 function updateFronts() {
   for (let i = 0; i < frontEls.length; i++) {
     const f = run.fronts[i], el = frontEls[i]; if (!f) { el.hidden = true; continue; }
@@ -4835,7 +4842,7 @@ function defUpdate(rdt) {
     const p0 = phaseOf(run.t); run.t += dt; const p1 = phaseOf(run.t);
     defSpawns(dt);
     if (p1.n > p0.n) { showBanner(`DAY ${p1.n}`, 2.5); dropChest(p0.n); }
-    else if (!p0.night && p1.night) { showBanner(`NIGHT ${p1.n}`, 3, true); for (let i = 1; i < p1.n; i++) gang("brute", 1); }
+    else if (!p0.night && p1.night) { showBanner(`NIGHT ${p1.n}`, 3, true); for (let i = 2; i < p1.n; i++) gang("brute", 1); }   // brutes at nightfall from night 3
     else if (!p1.night && p0.c < DAY_LEN - FADE && p1.c >= DAY_LEN - FADE) showBanner("NIGHT IS COMING · GET READY!", 3, true);
   }
   if (run.picks > 0 && !picking && !runOver) dealUpgrades();
