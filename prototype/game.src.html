@@ -1062,16 +1062,18 @@ function deepMerge(root, skip = () => false) {
   const walk = (o) => { if (o !== root && skip(o)) return; for (const c of o.children) walk(c);
     if (o.isMesh && !o.isSkinnedMesh && !o.isInstancedMesh && !Array.isArray(o.material) && o.visible) {
       let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
-      for (const a of Object.keys(g.attributes)) if (!["position", "normal", "uv"].includes(a)) g.deleteAttribute(a);
-      if (!g.attributes.uv) g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
       if (!g.attributes.normal) g.computeVertexNormals();
+      g.morphAttributes = {};
       const mt = o.material, k = [mt.type, mt.map?.uuid, mt.color?.getHex(), mt.emissive?.getHex(), mt.roughness, mt.metalness, mt.transparent, mt.opacity, mt.side, mt.alphaTest, mt.vertexColors].join("|");   // same look = same draw
       (by.get(k) || by.set(k, { mat: mt, geos: [], cast: false, recv: false, depth: o.customDepthMaterial }).get(k)).geos.push(g);
       const e = by.get(k); e.cast ||= o.castShadow; e.recv ||= o.receiveShadow; dead.push(o);
     } };
   walk(root);
   for (const o of dead) o.parent.remove(o);
-  for (const e of by.values()) { const merged = mergeGeometries(e.geos); if (!merged) continue; const m = new THREE.Mesh(merged, e.mat); m.castShadow = e.cast; m.receiveShadow = e.recv; if (e.depth) m.customDepthMaterial = e.depth; root.add(m); }
+  for (const e of by.values()) {
+    const common = Object.keys(e.geos[0].attributes).filter(a => e.geos.every(g => g.attributes[a] && g.attributes[a].itemSize === e.geos[0].attributes[a].itemSize));   // keep every attribute they all share (vertex colours, uvs...)
+    for (const g of e.geos) for (const a of Object.keys(g.attributes)) if (!common.includes(a)) g.deleteAttribute(a);
+    const merged = mergeGeometries(e.geos); if (!merged) { for (const g of e.geos) { const m = new THREE.Mesh(g, e.mat); m.castShadow = e.cast; m.receiveShadow = e.recv; root.add(m); } continue; } const m = new THREE.Mesh(merged, e.mat); m.castShadow = e.cast; m.receiveShadow = e.recv; if (e.depth) m.customDepthMaterial = e.depth; root.add(m); }
 }
 function makePine(seed) {
   const { leafMat, barkMat } = pineMaterials(), v = buildPineGeos(seed), g = new THREE.Group(); g.name = "pine";
