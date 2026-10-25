@@ -597,7 +597,7 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
   </section>
   <section>
     <h2>Credits</h2>
-    <div class="credit">Player: "Low-Poly Male Body" by <a href="https://sketchfab.com/tidominer" target="_blank" rel="noopener">Tidominer</a>, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (ears removed, rigged). Animations: Universal Animation Library by Quaternius (CC0). M1911 from a Unity Asset Store weapon pack. Shanty, props and effects are built in code.</div>
+    <div class="credit">Player: "Low-Poly Male Body" by <a href="https://sketchfab.com/tidominer" target="_blank" rel="noopener">Tidominer</a>, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (ears removed, rigged). Animations: Universal Animation Library by Quaternius (CC0). M1911 from a Unity Asset Store weapon pack. Shanty, props and effects are built in code. Sounds: Kenney (CC0); level-up jingle by Joth (CC0); "Fighter engine flyby" by <a href="https://opengameart.org/content/fighter-engine-flyby" target="_blank" rel="noopener">dklon</a>, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a> (reversed and pitched for the pass).</div>
   </section>
 </div>
 
@@ -637,7 +637,8 @@ const M1911_B64 = "__M1911_B64__", GUN_SHOTGUN_B64 = "__GUN_ShotGun_B_B64__", GU
 const SHANTY_B64 = "__SHANTY_B64__";
 const TWIG_B64 = "__TWIG_B64__", BARK_B64 = "__BARK_B64__"; // baked by tools/bake.mjs; embedded because the artifact host does not serve .glb
 /* ---------- Sound ---------- */
-// Samples only (sounds/): guns, booms, kills, crates and clicks from Shoot Them Off; placing, merging, upgrades and alerts from Kenney (CC0). No sample, no sound.
+// Samples (sounds/, see CREDITS.md): guns, booms, kills, crates and clicks from Shoot Them Off; placing, merging, upgrades and alerts from Kenney (CC0);
+// level-up jingle by Joth (CC0); drone flyby from "Fighter engine flyby" by dklon (CC-BY 3.0). The flamer's roar is the one synthesised sound.
 // Sounds play from where they happen: quieter and panned when off to the side, silent far off screen. Each sound has a rate limit so 30 turrets make a crackle, not a wall of noise.
 const SFX_B64 = __SFX_JSON__;
 const SND_KEY = "gametest.sound.v1";
@@ -672,6 +673,21 @@ function sndOut(pos, vol, gap, key) {   // a gain node wired to the speakers, or
   return out;
 }
 function sndEnd(src, out) { voices++; src.onended = () => { voices--; out.disconnect(); }; }
+let flameSrc = null, flameGain = null, flameWant = 0;
+function sndFlame(pos) { const [g] = sndSpot(pos); flameWant = Math.min(1, flameWant + g * 0.45); }   // every frame a flamer burns
+function sndFrame() {   // all flamers share one looping roar whose loudness follows how many burn on screen
+  if (!actx || actx.state !== "running") { flameWant = 0; return; }
+  if (!flameSrc && flameWant > 0) {   // brown noise for the rumble, with sparse pops for the crackle
+    const n = actx.sampleRate * 2, buf = actx.createBuffer(1, n, actx.sampleRate), d = buf.getChannelData(0); let b = 0;
+    for (let i = 0; i < n; i++) { b = (b + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = b * 3.5; if (Math.random() < 0.0009) for (let k = 0; k < 40 && i + k < n; k++) d[i + k] += (Math.random() - 0.5) * 0.5 * (1 - k / 40); }
+    flameSrc = actx.createBufferSource(); flameSrc.buffer = buf; flameSrc.loop = true;
+    const lp = actx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1400; lp.Q.value = 0.7;
+    const hp = actx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 70;
+    flameGain = actx.createGain(); flameGain.gain.value = 0; flameSrc.connect(hp); hp.connect(lp); lp.connect(flameGain); flameGain.connect(master); flameSrc.start();
+  }
+  if (flameGain) flameGain.gain.setTargetAtTime(paused || picking ? 0 : flameWant * 0.55, actx.currentTime, flameWant > 0 ? 0.05 : 0.15);
+  flameWant = 0;
+}
 function sfx(name, pos, { vol = 1, rate = 1, gap = 0.04, key = name } = {}) {
   const buf = sndBufs[name]; if (!buf) return; const out = sndOut(pos, vol, gap, key); if (!out) return;
   const s = actx.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate * (0.94 + Math.random() * 0.12); s.connect(out); s.start(); sndEnd(s, out);
@@ -2477,7 +2493,7 @@ function updateFlamer(t, dt) {
   const aligned = turnTo(t, dt, 5 + t.level);
   if (!t.target || !aligned) return;
   t.g.updateMatrixWorld(true);
-  const dir = new THREE.Vector3(Math.sin(t.yaw), 0, Math.cos(t.yaw)), range = turretRange(t), cone = FLAME.cone[t.level];
+  const dir = new THREE.Vector3(Math.sin(t.yaw), 0, Math.cos(t.yaw)), range = turretRange(t), cone = FLAME.cone[t.level]; sndFlame(new THREE.Vector3(t.x, 1, t.z));
   for (const m of t.muzzles) {   // a jet of glowing fire: dense near the nozzle, billowing and rising further out
     const from = t.head.localToWorld(m.clone());
     for (let k = 0; k < 7; k++) {
@@ -4928,6 +4944,7 @@ const FX_ICONS = (() => {
 })();
 const jets = []; let jetGeo = null;
 function spawnJet(x, z, ax, az) {
+  sfx("flyby", null, { vol: 0.8, gap: 1 });
   if (!jetGeo) {   // a Predator-style drone: slim body, bulbous sensor nose, long straight wings, inverted-V tail, pusher prop, a missile under each wing
     const m = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.55, metalness: 0.25 }), dk = new THREE.MeshStandardMaterial({ color: 0x2a2d30, roughness: 0.4, metalness: 0.5 }), g = new THREE.Group();
     const add = (geo, mat, px, py, pz, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(px, py, pz); o.rotation.set(rx, ry, rz); g.add(o); return o; };
@@ -5269,6 +5286,7 @@ function frame(now) {
   const tSec = now / 1000;
   if (viewerEl.hidden) {
     const t0 = performance.now();
+    sndFrame();
     if (!paused && !picking) { (DEF ? defUpdate : update)(dt); if (!tickers) { tickers = []; scene.traverse(o => { if (o.userData.tick) tickers.push(o); }); } for (const o of tickers) o.userData.tick(tSec); }
     if (prWant !== prNow) { prNow = prWant; renderer.setPixelRatio(prNow); }
     if (MOBILE) renderer.shadowMap.needsUpdate = (frameNo++ & 1) === 0 || sunMoved;
