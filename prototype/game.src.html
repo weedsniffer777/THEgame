@@ -597,7 +597,7 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
   </section>
   <section>
     <h2>Credits</h2>
-    <div class="credit">Player: "Low-Poly Male Body" by <a href="https://sketchfab.com/tidominer" target="_blank" rel="noopener">Tidominer</a>, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (ears removed, rigged). Animations: Universal Animation Library by Quaternius (CC0). M1911 from a Unity Asset Store weapon pack. Shanty, props and effects are built in code. Sounds: Kenney (CC0); level-up jingle by Joth (CC0); "Fighter engine flyby" by <a href="https://opengameart.org/content/fighter-engine-flyby" target="_blank" rel="noopener">dklon</a>, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a> (reversed and pitched for the pass).</div>
+    <div class="credit">Player: "Low-Poly Male Body" by <a href="https://sketchfab.com/tidominer" target="_blank" rel="noopener">Tidominer</a>, <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> (ears removed, rigged). Animations: Universal Animation Library by Quaternius (CC0). M1911 from a Unity Asset Store weapon pack. Shanty, props and effects are built in code. Sounds: Kenney (CC0); "Fighter engine flyby" by <a href="https://opengameart.org/content/fighter-engine-flyby" target="_blank" rel="noopener">dklon</a>, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a> (reversed and pitched for the pass).</div>
   </section>
 </div>
 
@@ -638,7 +638,7 @@ const SHANTY_B64 = "__SHANTY_B64__";
 const TWIG_B64 = "__TWIG_B64__", BARK_B64 = "__BARK_B64__"; // baked by tools/bake.mjs; embedded because the artifact host does not serve .glb
 /* ---------- Sound ---------- */
 // Samples (sounds/, see CREDITS.md): guns, booms, kills, crates and clicks from Shoot Them Off; placing, merging, upgrades and alerts from Kenney (CC0);
-// level-up jingle by Joth (CC0); drone flyby from "Fighter engine flyby" by dklon (CC-BY 3.0). The flamer's roar is the one synthesised sound.
+// level-up jingle rendered by tools/jingle.py; drone flyby from "Fighter engine flyby" by dklon (CC-BY 3.0). The flamer's roar is the one synthesised sound.
 // Sounds play from where they happen: quieter and panned when off to the side, silent far off screen. Each sound has a rate limit so 30 turrets make a crackle, not a wall of noise.
 const SFX_B64 = __SFX_JSON__;
 const SND_KEY = "gametest.sound.v1";
