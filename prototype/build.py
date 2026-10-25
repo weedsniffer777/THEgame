@@ -15,6 +15,8 @@ src = (src.replace("__PLAYER_B64__", b64("models/player.glb"))
           .replace("__SHANTY_B64__", b64("models/shanty.glb"))
           .replace("__TWIG_B64__", b64("models/pine_twig.png"))
           .replace("__BARK_B64__", b64("models/pine_bark.jpg")))
+import json   # sound effects: sounds/*.mp3 (Kenney, CC0)
+src = src.replace("__SFX_JSON__", json.dumps({f.stem: b64(f"sounds/{f.name}") for f in sorted((root / "sounds").glob("*.mp3"))}))
 for f in sorted((root / "models/guns").glob("*.glb")):
     src = src.replace(f"__GUN_{f.stem}_B64__", b64(f"models/guns/{f.name}"))
 for f in sorted((root / "models/guns/icons").glob("*.png")):   # shop icons rendered from the full-quality models
