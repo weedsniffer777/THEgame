@@ -215,7 +215,7 @@ body.def #game { cursor: default; }
 .tcard .cnt { position: absolute; right: 6px; top: 3px; font-size: 10px; color: #9d978a; }
 .tcard.sel { transform: translateY(-8px); box-shadow: 0 0 0 3px #e0b04a, 0 0 0 5px #101211, 0 10px 0 #101211; }
 .tcard.poor { opacity: .55; } .tcard.locked { opacity: .35; filter: grayscale(1); } .tcard.locked .cost { color: #9d978a; font-size: 11px; } .tcard.deny { animation: deny .25s; } .tcard.poor .cost { color: #e8584a; }
-.tcard.free .cost { color: #7dffd6; } .tcard .cost.cap { font-size: 11px; letter-spacing: .06em; color: #ffb070 !important; }
+.tcard.free .cost { color: #7dffd6; } .tcard .cost.cap { font-size: 9px; line-height: 1.05; letter-spacing: .04em; white-space: normal; text-align: center; padding: 0 2px; color: #ffb070 !important; }
 .tutFly { position: fixed; left: 0; top: 0; width: 70px; height: 70px; z-index: 7; pointer-events: none; filter: drop-shadow(0 0 10px #7dffd6); }
 #tutPtr.big { z-index: 8; gap: 10px; } #tutPtr.big .lbl { font-size: 26px; letter-spacing: .1em; padding: 8px 16px 6px; color: #0f1a14; background: #7dffd6; box-shadow: 0 0 0 3px #0f1a14, 0 0 28px 6px rgba(125, 255, 214, .7); }
 #tutPtr.big .arr { border-left-width: 22px; border-right-width: 22px; border-top: 30px solid #7dffd6; filter: drop-shadow(0 3px 0 #0f1a14) drop-shadow(0 0 10px rgba(125, 255, 214, .8)); }
@@ -586,6 +586,7 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
     <div class="row">
       <button id="btnAmmo" type="button">+100 scrap</button>
       <button id="btnXpBig" type="button">+1,000,000 scrap</button>
+      <button id="btnSkip" type="button">Skip 5 minutes ahead (with matching scrap and level-ups)</button>
       <button id="btnCash" type="button">Unlock everything · 999 cards each · +10,000 cash</button>
       <button id="btnBoom" type="button">Destroy the base</button>
     </div>
@@ -726,7 +727,7 @@ function makeShanty() {
   // the building (not the yard) gets the cutaway plane: walls are sliced at waist height while inside
   const cut = []; for (const n of SHACK_PARTS) body.getObjectByName(n)?.traverse(o => { if (o.isMesh || o.isLine) cut.push(o); });
   for (const c of g.children) if (c !== body) c.traverse(o => { if (o.isMesh) cut.push(o); });
-  for (const o of cut) { o.material = o.material.clone(); o.material.clippingPlanes = [CUT]; o.material.clipShadows = true; }
+  if (!DEF) for (const o of cut) { o.material = o.material.clone(); o.material.clippingPlanes = [CUT]; o.material.clipShadows = true; }
   g.userData.roof = body.getObjectByName("shack_roof");
   // highlight: two extruded back-face hulls behind the model (white close, black further out)
   const outline = new THREE.Group(); outline.visible = false; outline.name = "outline";
@@ -1056,6 +1057,22 @@ function pineMaterials() {
   };
   return PINE_MATS;
 }
+function deepMerge(root, skip = () => false) {
+  root.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), by = new Map(), dead = [];
+  const walk = (o) => { if (o !== root && skip(o)) return; for (const c of o.children) walk(c);
+    if (o.isMesh && !o.isSkinnedMesh && !o.isInstancedMesh && !Array.isArray(o.material) && o.visible) {
+      let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+      for (const a of Object.keys(g.attributes)) if (!["position", "normal", "uv"].includes(a)) g.deleteAttribute(a);
+      if (!g.attributes.uv) g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+      if (!g.attributes.normal) g.computeVertexNormals();
+      const mt = o.material, k = [mt.type, mt.map?.uuid, mt.color?.getHex(), mt.emissive?.getHex(), mt.roughness, mt.metalness, mt.transparent, mt.opacity, mt.side, mt.alphaTest, mt.vertexColors].join("|");   // same look = same draw
+      (by.get(k) || by.set(k, { mat: mt, geos: [], cast: false, recv: false, depth: o.customDepthMaterial }).get(k)).geos.push(g);
+      const e = by.get(k); e.cast ||= o.castShadow; e.recv ||= o.receiveShadow; dead.push(o);
+    } };
+  walk(root);
+  for (const o of dead) o.parent.remove(o);
+  for (const e of by.values()) { const merged = mergeGeometries(e.geos); if (!merged) continue; const m = new THREE.Mesh(merged, e.mat); m.castShadow = e.cast; m.receiveShadow = e.recv; if (e.depth) m.customDepthMaterial = e.depth; root.add(m); }
+}
 function makePine(seed) {
   const { leafMat, barkMat } = pineMaterials(), v = buildPineGeos(seed), g = new THREE.Group(); g.name = "pine";
   g.add(new THREE.Mesh(v.trunk, barkMat), new THREE.Mesh(v.foliage, leafMat)); return g;
@@ -1157,13 +1174,15 @@ scene.add(buildTreeline()); // enemies will come out of the woods from every sid
 const treeColliders = [];
 {
   const rnd = (() => { let st = 90210; return () => ((st = (st * 16807) % 2147483647) / 2147483647); })();
+  const lone = new THREE.Group(); lone.name = "pines"; scene.add(lone);
   for (let n = 0, tries = 0; n < 7 && tries < 200; tries++) {
     const x = (rnd() - 0.5) * 50, z = (rnd() - 0.5) * 50;
     if (!inClearing(x, z, 5) || Math.hypot(x - BASE_C.x, z - BASE_C.y) < 15 || Math.hypot(x - save.pos[0], z - save.pos[1]) < 8 || treeColliders.some(c => Math.hypot(c.x - x, c.z - z) < 7)) continue;
     const t = makePine(4 + n); t.position.set(x, 0, z); t.rotation.y = rnd() * 6.3; t.scale.setScalar(0.85 + rnd() * 0.35);
     t.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (o.material === pineMaterials().leafMat) o.customDepthMaterial = pineMaterials().leafDepth; } });
-    scene.add(t); treeColliders.push({ x, z, r: 0.35 * t.scale.x }); n++;
+    lone.add(t); treeColliders.push({ x, z, r: 0.35 * t.scale.x }); n++;
   }
+  deepMerge(lone);   // all the lone pines: 2 draw calls
 }
 
 // Axis-aligned box colliders: [minX, maxX, minZ, maxZ]
@@ -1580,7 +1599,7 @@ function makeEnemy(type) {
   const walk = act(T.clip), idle = act("Idle_Loop"); idle.setEffectiveWeight(0);
   const bone = (n) => model.getObjectByName(n);
   const e = { type, model, mat: m, mixer, walk, idle, sils: sils.map(o => o.userData.silMesh), hulls: addHulls(model), chest: bone("spine_03"), arms: { r: ["upperarm_r", "lowerarm_r", "hand_r", "middle_01_r"].map(bone), l: ["upperarm_l", "lowerarm_l", "hand_l", "middle_01_l"].map(bone) } };
-  if (T.bomber) {   // permanent red rim
+  if (T.bomber && !DEF) {   // permanent red rim (defense: they pulse yellow instead, and it cost 3 extra draws each)
     const body = []; model.traverse(o => { if (o.isSkinnedMesh) body.push(o); });
     for (const o of body) { const h = new THREE.SkinnedMesh(o.geometry, BOMB_RED); h.bind(o.skeleton, o.bindMatrix); h.frustumCulled = false; h.renderOrder = -3; o.parent.add(h); }
   }
@@ -2714,7 +2733,13 @@ const onTop = (s) => s.kind === "wall" && !s.y && (walls.some(w => w !== s && w.
 const turretRange = (t) => (t.kind === "flamer" ? FLAME_RANGE[t.level] : RANGE_OF[t.kind] || SENTRY.range) + (t.y ? 3 : 0) + 2 * card("srange") + (t.kind === "sentry" ? MOD("range") : 0);
 const sentryRange = turretRange;
 // draw-call savers: every group's plain-coloured meshes become one vertex-coloured mesh (metal and matte kept apart)
-const VC_MATS = {};
+const VC_MATS = {}, MAP_AVG = new Map();
+function mapAvg(map) {   // the average colour of a texture (linear), cached
+  if (MAP_AVG.has(map.uuid)) return MAP_AVG.get(map.uuid);
+  const img = map.image; if (!img || !(img.width || img.videoWidth)) return null;
+  try { const c = document.createElement("canvas"); c.width = c.height = 8; const x = c.getContext("2d"); x.drawImage(img, 0, 0, 8, 8); const d = x.getImageData(0, 0, 8, 8).data; let r = 0, g = 0, b = 0; for (let i = 0; i < 256; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+    const col = new THREE.Color().setRGB(r / 64 / 255, g / 64 / 255, b / 64 / 255, THREE.SRGBColorSpace); MAP_AVG.set(map.uuid, col); return col; } catch { MAP_AVG.set(map.uuid, null); return null; }
+}
 const vcMat = () => VC_MATS.one ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.3 });
 function collapseModel(m) {
   const keep = new Set(); for (const v of Object.values(m)) for (const o of Array.isArray(v) ? v : [v]) if (o?.isMesh) keep.add(o);
@@ -2723,10 +2748,11 @@ function collapseModel(m) {
     const buckets = [[], []];
     for (const o of [...grp.children]) {
       if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || keep.has(o) || o.children.length) continue;
-      const mt = o.material; if (Array.isArray(mt) || !mt.isMeshStandardMaterial || mt.map || mt.transparent || (mt.emissive?.getHex() && mt.emissiveIntensity > 0.05)) continue;
+      const mt = o.material; if (Array.isArray(mt) || !mt.isMeshStandardMaterial || mt.transparent || (mt.emissive?.getHex() && mt.emissiveIntensity > 0.05)) continue;
+      const tint = mt.map ? mapAvg(mt.map) : null; if (mt.map && !tint) continue;   // textured parts take their texture's average colour (it's tiny at this zoom)
       o.updateMatrix(); let geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); geo.applyMatrix4(o.matrix);
       for (const a of Object.keys(geo.attributes)) if (a !== "position" && a !== "normal") geo.deleteAttribute(a);
-      const n = geo.attributes.position.count, col = new Float32Array(n * 3); for (let i = 0; i < n; i++) { col[i * 3] = mt.color.r; col[i * 3 + 1] = mt.color.g; col[i * 3 + 2] = mt.color.b; }
+      const c = tint ? mt.color.clone().multiply(tint) : mt.color, n = geo.attributes.position.count, col = new Float32Array(n * 3); for (let i = 0; i < n; i++) { col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
       geo.setAttribute("color", new THREE.BufferAttribute(col, 3)); buckets[0].push(geo); grp.remove(o);
     }
     buckets.forEach((geos) => { if (!geos.length) return; const mesh = new THREE.Mesh(mergeGeometries(geos), vcMat()); mesh.castShadow = grp === m.g; /* only the base casts a shadow */ mesh.receiveShadow = true; grp.add(mesh); });
@@ -3719,6 +3745,12 @@ document.getElementById("btnResetYes").addEventListener("click", () => {
 });
 document.getElementById("btnAmmo").addEventListener("click", () => { save.xp += 100; renderXp(); writeSave(); });
 document.getElementById("btnBoom").addEventListener("click", () => { if (!runOver) { tut.step = "done"; save.tut = 1; hurtBase(1e9); } });
+document.getElementById("btnSkip").addEventListener("click", () => {   // dev: benchmark a later point of a run
+  if (!DEF || !run.started || runOver) return;
+  run.t += 300; run.phaseKey = -1; save.xp += 900 + Math.round(run.t * 2); run.picks += 4; run.lvl += 4;
+  for (const e of enemies) if (!e.dead) e.hp = e.maxHp = Math.round(e.maxHp * hpMul());   // the ones already out toughen up too
+  strengthT = 0; renderXp(); showBanner(`+5:00 · ${fmtT(run.t)}`, 2);
+});
 document.getElementById("btnCash").addEventListener("click", () => {   // dev: every build unlocked, plenty of cards and cash to level them
   for (const b of ALL_BUILDS) { META.unlock[b.id] = 1; META.cards[b.id] = Math.max(cardsOf(b.id), 999); META.seen ||= {}; META.seen[b.id] = 1; }
   META.cards.base = Math.max(cardsOf("base"), 999); save.def.cash += 10000; writeSave(); if (!lobbyEl.hidden) renderLobby(); });
@@ -5162,7 +5194,7 @@ function renderTrayState() {
   bankNum.textContent = save.xp;
   for (const q of trayCards.querySelectorAll("[data-q]")) { const k = q.dataset.q; if (!MERGEABLE.has(k)) { q.classList.toggle("off", !toUp(k)); continue; } const full = countOf(k) >= capOf(k), b = BUILDS.find(o => o.id === k); q.classList.toggle("off", full || save.xp < b.cost()); }
   [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], ok = save.xp >= b.cost() && countOf(b.id) < capOf(b.id); if (ok && el.classList.contains("poor") && run.started) { el.classList.remove("ping"); void el.offsetWidth; el.classList.add("ping"); } });
-  [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], c = b.cost(); el.classList.toggle("poor", save.xp < c || countOf(b.id) >= capOf(b.id)); el.classList.toggle("sel", buildMode && buildSel === i); const full = countOf(b.id) >= capOf(b.id), ce = el.querySelector(".cost"); ce.textContent = run.free[b.id] > 0 ? freeLabel(b.id) : full ? (save.base < 8 ? `BASE LV ${save.base + 1}` : "MAX") : c; ce.classList.toggle("cap", full && !(run.free[b.id] > 0)); el.classList.toggle("free", run.free[b.id] > 0); el.querySelector(".cnt").textContent = `${countOf(b.id)}/${capOf(b.id)}`; });
+  [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], c = b.cost(); el.classList.toggle("poor", save.xp < c || countOf(b.id) >= capOf(b.id)); el.classList.toggle("sel", buildMode && buildSel === i); const full = countOf(b.id) >= capOf(b.id), ce = el.querySelector(".cost"); ce.textContent = run.free[b.id] > 0 ? freeLabel(b.id) : full ? (save.base < 8 ? `UPGRADE BASE TO LV ${save.base + 1}` : "MAX") : c; ce.classList.toggle("cap", full && !(run.free[b.id] > 0)); el.classList.toggle("free", run.free[b.id] > 0); el.querySelector(".cnt").textContent = `${countOf(b.id)}/${capOf(b.id)}`; });
 }
 
 // ---- Pause menu (P)
@@ -5204,7 +5236,15 @@ function frame(now) {
 }
 
 await Promise.all([loadPlayer(), loadGuns(), loadShanty().catch(e => { console.error(e); toast("Couldn't load the base model"); })]);
-if (shantyTemplate) { shanty = makeShanty(); shanty.position.set(0, 0, SHACK_Z); scene.add(shanty); shanty.updateMatrixWorld(true); shantyBox = new THREE.Box3().setFromObject(shanty.children[0].getObjectByName("shack") || shanty.children[0]).expandByScalar(0.12); interior = buildInterior(); shanty.add(interior); }
+if (shantyTemplate) { shanty = makeShanty(); shanty.position.set(0, 0, SHACK_Z); scene.add(shanty); shanty.updateMatrixWorld(true);
+  if (DEF) {   // merge the base: each level part on its own (they toggle), then whatever's left
+    const body = shanty.children[0], PARTS = new Set([...SHACK_PARTS, "yard_l1", "yard_l2"]), named = [];
+    body.traverse(o => { if (o !== body && PARTS.has(o.name)) named.push(o); });
+    for (const n of named) deepMerge(n, (o) => o !== n && PARTS.has(o.name));
+    deepMerge(body, (o) => PARTS.has(o.name));
+    for (const n of ["yard_l1", "yard_l2", "yard"]) body.getObjectByName(n)?.traverse(o => { if (o.isMesh) o.castShadow = false; });   // the yard clutter: no shadow pass
+    shanty.updateMatrixWorld(true);
+  } shantyBox = new THREE.Box3().setFromObject(shanty.children[0].getObjectByName("shack") || shanty.children[0]).expandByScalar(0.12); interior = buildInterior(); shanty.add(interior); if (DEF) interior.visible = false; }   // never seen in defense
 document.getElementById("loading").hidden = true;
 pl = makePlayer(); playerModel = pl.model; scene.add(playerModel);
 gunMount = new THREE.Group(); playerModel.add(gunMount);
@@ -5240,6 +5280,6 @@ if (DEF) {   // the player sits this one out
   document.body.classList.add("def"); tut.step = "done"; player.pos.set(0, 0, 500); playerModel.visible = false; blockHands.r.visible = blockHands.l.visible = false;
   defReset();   // straight into a game on load; the lobby comes after a run
 }
-window.__game = { ICONS, setZoom: (z) => { camZoom = z; }, IMP, renderer, MODEL_OF, sentries, run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
+window.__game = { ICONS, scene,  setZoom: (z) => { camZoom = z; }, IMP, renderer, MODEL_OF, sentries, run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, sentries, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
 requestAnimationFrame(frame);
 </script>
