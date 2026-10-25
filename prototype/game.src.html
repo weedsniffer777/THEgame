@@ -637,12 +637,12 @@ const M1911_B64 = "__M1911_B64__", GUN_SHOTGUN_B64 = "__GUN_ShotGun_B_B64__", GU
 const SHANTY_B64 = "__SHANTY_B64__";
 const TWIG_B64 = "__TWIG_B64__", BARK_B64 = "__BARK_B64__"; // baked by tools/bake.mjs; embedded because the artifact host does not serve .glb
 /* ---------- Sound ---------- */
-// Kenney CC0 samples (sounds/) for booms, impacts and UI; gunfire, rockets, mortars, flames, the drone and the night horn are synthesised.
+// Samples only (sounds/): guns, booms, kills, crates and clicks from Shoot Them Off; placing, merging, upgrades and alerts from Kenney (CC0). No sample, no sound.
 // Sounds play from where they happen: quieter and panned when off to the side, silent far off screen. Each sound has a rate limit so 30 turrets make a crackle, not a wall of noise.
 const SFX_B64 = __SFX_JSON__;
 const SND_KEY = "gametest.sound.v1";
 const SND = (() => { try { return Object.assign({ vol: 0.7, mute: false }, JSON.parse(localStorage.getItem(SND_KEY) || "{}")); } catch (e) { return { vol: 0.7, mute: false }; } })();
-let actx = null, master = null, noiseBuf = null, flameSrc = null, flameGain = null, flameWant = 0, voices = 0;
+let actx = null, master = null, voices = 0;
 const sndBufs = {}, sndLast = {};
 function sndSave() { try { localStorage.setItem(SND_KEY, JSON.stringify(SND)); } catch (e) {} }
 function sndApply() { if (master) master.gain.value = SND.mute ? 0 : SND.vol * SND.vol; }
@@ -651,7 +651,6 @@ function sndInit() {   // browsers only allow audio after a tap or key
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
   try { actx = new AC(); } catch (e) { return; }
   master = actx.createGain(); master.connect(actx.destination); sndApply();
-  noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   for (const [k, b] of Object.entries(SFX_B64)) {
     const bin = atob(b), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
     actx.decodeAudioData(u.buffer, (buf) => { sndBufs[k] = buf; }, () => {});
@@ -677,37 +676,6 @@ function sfx(name, pos, { vol = 1, rate = 1, gap = 0.04, key = name } = {}) {
   const buf = sndBufs[name]; if (!buf) return; const out = sndOut(pos, vol, gap, key); if (!out) return;
   const s = actx.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate * (0.94 + Math.random() * 0.12); s.connect(out); s.start(); sndEnd(s, out);
 }
-function sndNoise(out, t, dur, type, f0, f1, q = 1, a = 0.002) {   // a filtered noise burst
-  const s = actx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.8 + Math.random() * 0.4;
-  const f = actx.createBiquadFilter(); f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
-  const g = actx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(f); f.connect(g); g.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02); sndEnd(s, out);
-}
-function sndTone(out, t, dur, type, f0, f1, vol = 1, a = 0.004) {   // a pitch-swept tone
-  const o = actx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
-  const g = actx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); sndEnd(o, out);
-}
-const SYN = {
-  gun(pos, lv = 1) { const o = sndOut(pos, 0.28, 0.045, "gun"); if (!o) return; const t = actx.currentTime; sndNoise(o, t, 0.07 + lv * 0.006, "bandpass", 2600 - lv * 150, 700, 0.9); sndTone(o, t, 0.05, "triangle", 190, 60, 0.7); },
-  cannon(pos) { const o = sndOut(pos, 0.45, 0.07, "cannon"); if (!o) return; const t = actx.currentTime; sndNoise(o, t, 0.2, "lowpass", 2400, 300, 0.7); sndTone(o, t, 0.16, "sine", 140, 45, 1); },
-  rocket(pos) { const o = sndOut(pos, 0.4, 0.06, "rocket"); if (!o) return; const t = actx.currentTime; sndNoise(o, t, 0.45, "bandpass", 500, 2600, 1.4, 0.03); sndTone(o, t, 0.08, "sine", 120, 50, 0.6); },
-  mortar(pos) { const o = sndOut(pos, 0.5, 0.08, "mortar"); if (!o) return; const t = actx.currentTime; sndTone(o, t, 0.22, "sine", 160, 42, 1); sndNoise(o, t, 0.14, "lowpass", 900, 200, 0.7); },
-  drone() { const o = sndOut(null, 0.35, 1, "drone"); if (!o) return; const t = actx.currentTime; sndNoise(o, t, 2.4, "bandpass", 300, 1400, 2, 0.9); sndTone(o, t, 2.4, "sawtooth", 70, 95, 0.08, 1); },
-  horn() { const o = sndOut(null, 0.35, 5, "horn"); if (!o) return; const t = actx.currentTime; for (const f of [98, 147]) { const lp = actx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 600; lp.connect(o); sndTone(lp, t, 2.2, "sawtooth", f, f * 0.97, 0.5, 0.6); } },
-};
-function sndFlame(pos) { const [g] = sndSpot(pos); flameWant = Math.min(1, flameWant + g * 0.5); }   // called every frame a flamer burns
-function sndFrame() {   // the flamers' roar is one looping noise whose loudness follows how many are burning on screen
-  if (!actx || actx.state !== "running") { flameWant = 0; return; }
-  if (!flameSrc && flameWant > 0) {
-    flameSrc = actx.createBufferSource(); flameSrc.buffer = noiseBuf; flameSrc.loop = true;
-    const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 650; flameGain = actx.createGain(); flameGain.gain.value = 0;
-    flameSrc.connect(f); f.connect(flameGain); flameGain.connect(master); flameSrc.start();
-  }
-  if (flameGain) flameGain.gain.setTargetAtTime(flameWant * 0.4, actx.currentTime, 0.06);
-  flameWant = 0;
-}
-
 /* ---------- Save ---------- */
 const SAVE_KEY = "gametest.iso.v1";
 const defaultSave = () => ({ version: 2, guns: ["pistol"], mags: {}, equip: "pistol", kills: 0, pos: [0, 2], xp: 0, builds: [], base: 1, firstSentry: false, tut: 0, stats: {} });
@@ -1567,7 +1535,7 @@ const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true
 const scorchTex = (() => { const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgba(0,0,0,.75)"); g.addColorStop(0.6, "rgba(0,0,0,.45)"); g.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const booms = [];
 function boomFx(pos, radius, small = false, crimson = false) {
-  if (radius >= 5) { sfx("bigboom", pos, { vol: 1, gap: 0.25 }); sfx("boom3", pos, { vol: 0.8, gap: 0.25 }); } else if (small || radius < 2) sfx("boom1", pos, { vol: 0.45, gap: 0.06, key: "boomS" }); else sfx("boom2", pos, { vol: 0.65, gap: 0.08 });
+  if (radius >= 5) sfx("bigboom", pos, { vol: 1, gap: 0.25 }); else if (small || radius < 2) sfx("boom", pos, { vol: 0.4, rate: 1.25, gap: 0.06, key: "boomS" }); else sfx("boom", pos, { vol: 0.7, gap: 0.08 });
   const grp = new THREE.Group(); grp.position.copy(pos); scene.add(grp);
   const puffs = [];
   const busy = booms.length > 12;
@@ -2262,7 +2230,7 @@ const rockets = [], rocketGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.3, 6)
 const rocketBodyMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d8, roughness: 0.5 }), rocketTipMat = new THREE.MeshStandardMaterial({ color: 0xc8402c, roughness: 0.5 });
 function fireRocket(t) {
   t.g.updateMatrixWorld(true);
-  const from = t.box.localToWorld(t.muzzles[t.shot++ % t.muzzles.length].clone()); SYN.rocket(from);
+  const from = t.box.localToWorld(t.muzzles[t.shot++ % t.muzzles.length].clone()); sfx("rocket", from, { vol: 0.5, gap: 0.07 });
   const dir = new THREE.Vector3(0, 0, 1).transformDirection(t.box.matrixWorld);
   const m = new THREE.Group(); m.add(new THREE.Mesh(rocketGeo, rocketBodyMat), new THREE.Mesh(rocketNoseGeo, rocketTipMat)); m.position.copy(from); scene.add(m);
   const aim = t.target.pos.clone().setY(0.9).add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 0, (Math.random() - 0.5) * 1.2));
@@ -2509,7 +2477,7 @@ function updateFlamer(t, dt) {
   const aligned = turnTo(t, dt, 5 + t.level);
   if (!t.target || !aligned) return;
   t.g.updateMatrixWorld(true);
-  const dir = new THREE.Vector3(Math.sin(t.yaw), 0, Math.cos(t.yaw)), range = turretRange(t), cone = FLAME.cone[t.level]; sndFlame(new THREE.Vector3(t.x, 1, t.z));
+  const dir = new THREE.Vector3(Math.sin(t.yaw), 0, Math.cos(t.yaw)), range = turretRange(t), cone = FLAME.cone[t.level];
   for (const m of t.muzzles) {   // a jet of glowing fire: dense near the nozzle, billowing and rising further out
     const from = t.head.localToWorld(m.clone());
     for (let k = 0; k < 7; k++) {
@@ -2540,7 +2508,7 @@ function updateMortar(t, dt) {
     if (!t.target || !sentries.includes(t)) return; t.g.updateMatrixWorld(true);
     const from = m.tube.localToWorld(m.top.clone()), e = t.target, flight = 1.1 + Math.hypot(e.pos.x - t.x, e.pos.z - t.z) * 0.035;
     const to = e.pos.clone().addScaledVector(e.vel || new THREE.Vector3(), flight * 0.8).add(new THREE.Vector3((Math.random() - 0.5) * 1.4, 0, (Math.random() - 0.5) * 1.4)).setY(0.3);
-    const sh = new THREE.Mesh(shellGeo, shellMat); sh.position.copy(from); scene.add(sh); shells.push({ m: sh, from, to, t: 0, dur: flight, src: t, lv: t.level }); SYN.mortar(from);
+    const sh = new THREE.Mesh(shellGeo, shellMat); sh.position.copy(from); scene.add(sh); shells.push({ m: sh, from, to, t: 0, dur: flight, src: t, lv: t.level }); sfx("mortar", from, { vol: 0.5, rate: 0.75, gap: 0.1 });
     spawnSprite(from.clone(), new THREE.Vector3(0, 2, 0), { color: 0xffc46b, size: 1.2, grow: 0.5, life: 0.08, opacity: 1, additive: true, drag: 0 }); muzzleLight(from, 30, 8);
     for (let k = 0; k < 3; k++) spawnSprite(from.clone(), new THREE.Vector3((Math.random() - 0.5), 1.5, (Math.random() - 0.5)), { color: 0xd8d4cc, size: 0.5, grow: 2.5, life: 1.0, opacity: 0.4, drag: 2 });
   } }));
@@ -2569,7 +2537,7 @@ function updateCannon(t, dt) {
   let hit = null; for (const e of enemies) { if (e.dead) continue; const d = rayCircle(t.x, t.z, dir.x, dir.z, e.pos.x, e.pos.z, 0.5 * (ENEMY_TYPES[e.type].scale || 1)); if (d !== null && d < hitD) { hitD = d; hit = e; } }
   const md = Math.hypot(from.x - t.x, from.z - t.z) + 0.4; if (hitD < md) { hitD = md; hit = null; }
   const to = new THREE.Vector3(t.x, 0.9, t.z).addScaledVector(dir, hitD);
-  const flight = from.distanceTo(to) / 150; SYN.cannon(from); spawnBullet(from, to, { scale: 3, len: 3.6, speed: 150, glow: 0xff7a1a, core: 0xfff0b0 });
+  const flight = from.distanceTo(to) / 150; sfx("cannon", from, { vol: 0.5, gap: 0.08 }); spawnBullet(from, to, { scale: 3, len: 3.6, speed: 150, glow: 0xff7a1a, core: 0xfff0b0 });
   spawnSprite(from.clone().addScaledVector(dir, 0.15), dir.clone().multiplyScalar(3), { color: 0xffc46b, size: 1.6, grow: 0.6, life: 0.09, opacity: 1, additive: true, drag: 0 });
   spawnSprite(from.clone().addScaledVector(dir, 0.3), new THREE.Vector3(), { color: 0xff8a2a, size: 3.2, grow: 0.6, life: 0.08, opacity: 0.5, additive: true, drag: 0 }); muzzleLight(from, 45, 11);
   for (let k = 0; k < 3; k++) spawnSprite(from.clone(), dir.clone().multiplyScalar(1.5).add(new THREE.Vector3((Math.random() - 0.5), 0.6, (Math.random() - 0.5))), { color: 0xd8d4cc, size: 0.4, grow: 2.5, life: 0.9, opacity: 0.4, drag: 2 });
@@ -3030,7 +2998,7 @@ function updateSentries(dt) {
       for (const c of treeColliders) { const d = rayCircle(t.x, t.z, dir.x, dir.z, c.x, c.z, c.r); if (d !== null && d < hitD) { hitD = d; hit = null; } }
       { const d = structHitD(t.x, t.z, dir.x, dir.z, hitD, t); if (d < hitD) { hitD = d; hit = null; } }   // stray rounds stop on our own walls
       const to = new THREE.Vector3(t.x, from.y, t.z).addScaledVector(dir, hitD);
-      SYN.gun(from, t.level); spawnBullet(from, to, { scale: t.level >= 3 ? 1.5 : 0.9, len: t.level >= 3 ? 2.2 : 1.6, speed: 120, fade: !hit && hitD >= sentryRange(t) + 2 - 0.01 });
+      sfx("mg", from, { vol: 0.35, gap: 0.05 }); spawnBullet(from, to, { scale: t.level >= 3 ? 1.5 : 0.9, len: t.level >= 3 ? 2.2 : 1.6, speed: 120, fade: !hit && hitD >= sentryRange(t) + 2 - 0.01 });
       spawnSprite(from.clone().addScaledVector(dir, 0.06), dir.clone().multiplyScalar(2), { color: 0xffc46b, size: 0.8, grow: 0.4, life: 0.06, opacity: 1, additive: true, drag: 0 });
       spawnSprite(from.clone().addScaledVector(dir, 0.1), new THREE.Vector3(), { color: 0xff9a3a, size: 1.8, grow: 0.5, life: 0.07, opacity: 0.55, additive: true, drag: 0 }); muzzleLight(from, 22, 7);
       if (t.shot % 3 === 0) spawnCasing(from.clone().addScaledVector(dir, -0.5).add(new THREE.Vector3(0, -0.05, 0)), dir);
@@ -3663,7 +3631,6 @@ function updateCycle(dt) {
   if (tut.step === "done") cycle.t += dt;
   if (cycle.t >= DAY_LEN + NIGHT_LEN) { cycle.t -= DAY_LEN + NIGHT_LEN; cycle.day++; sfx("upgrade", null, { vol: 0.6, rate: 0.8, key: "dawn" }); const bonus = 15 * (cycle.day - 1); save.xp += bonus; renderXp(); writeSave(); showBanner(`SURVIVED NIGHT ${cycle.day - 1} · +${bonus} SCRAP · DAY ${cycle.day}`, 4); takeCheckpoint(cycle.day); if (!runOver) startPicks(1); }
   if (prev < DAY_LEN - FADE && cycle.t >= DAY_LEN - FADE) showBanner("NIGHT IS COMING — GET TO SAFETY!", 4, true);
-  if (prev < DAY_LEN && cycle.t >= DAY_LEN) SYN.horn();
   if (prev < DAY_LEN && cycle.t >= DAY_LEN) showBanner("NIGHT HAS FALLEN · ENEMIES ARE STRONGER AND FASTER!", 4.5, true);
   const night = cycle.t >= DAY_LEN;
   const t = cycle.t, k = night ? 1 - THREE.MathUtils.smoothstep(t, DAY_LEN + NIGHT_LEN - FADE, DAY_LEN + NIGHT_LEN) : THREE.MathUtils.smoothstep(t, DAY_LEN - FADE, DAY_LEN);
@@ -4961,7 +4928,6 @@ const FX_ICONS = (() => {
 })();
 const jets = []; let jetGeo = null;
 function spawnJet(x, z, ax, az) {
-  SYN.drone();
   if (!jetGeo) {   // a Predator-style drone: slim body, bulbous sensor nose, long straight wings, inverted-V tail, pusher prop, a missile under each wing
     const m = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.55, metalness: 0.25 }), dk = new THREE.MeshStandardMaterial({ color: 0x2a2d30, roughness: 0.4, metalness: 0.5 }), g = new THREE.Group();
     const add = (geo, mat, px, py, pz, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(px, py, pz); o.rotation.set(rx, ry, rz); g.add(o); return o; };
@@ -5303,7 +5269,6 @@ function frame(now) {
   const tSec = now / 1000;
   if (viewerEl.hidden) {
     const t0 = performance.now();
-    sndFrame();
     if (!paused && !picking) { (DEF ? defUpdate : update)(dt); if (!tickers) { tickers = []; scene.traverse(o => { if (o.userData.tick) tickers.push(o); }); } for (const o of tickers) o.userData.tick(tSec); }
     if (prWant !== prNow) { prNow = prWant; renderer.setPixelRatio(prNow); }
     if (MOBILE) renderer.shadowMap.needsUpdate = (frameNo++ & 1) === 0 || sunMoved;
