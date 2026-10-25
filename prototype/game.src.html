@@ -215,7 +215,7 @@ body.def #game { cursor: default; }
 .tcard .cnt { position: absolute; right: 6px; top: 3px; font-size: 10px; color: #9d978a; }
 .tcard.sel { transform: translateY(-8px); box-shadow: 0 0 0 3px #e0b04a, 0 0 0 5px #101211, 0 10px 0 #101211; }
 .tcard.poor { opacity: .55; } .tcard.locked { opacity: .35; filter: grayscale(1); } .tcard.locked .cost { color: #9d978a; font-size: 11px; } .tcard.deny { animation: deny .25s; } .tcard.poor .cost { color: #e8584a; }
-.tcard.free .cost { color: #7dffd6; }
+.tcard.free .cost { color: #7dffd6; } .tcard .cost.cap { font-size: 11px; letter-spacing: .06em; color: #ffb070 !important; }
 .tutFly { position: fixed; left: 0; top: 0; width: 70px; height: 70px; z-index: 7; pointer-events: none; filter: drop-shadow(0 0 10px #7dffd6); }
 #tutPtr.big { z-index: 8; gap: 10px; } #tutPtr.big .lbl { font-size: 26px; letter-spacing: .1em; padding: 8px 16px 6px; color: #0f1a14; background: #7dffd6; box-shadow: 0 0 0 3px #0f1a14, 0 0 28px 6px rgba(125, 255, 214, .7); }
 #tutPtr.big .arr { border-left-width: 22px; border-right-width: 22px; border-top: 30px solid #7dffd6; filter: drop-shadow(0 3px 0 #0f1a14) drop-shadow(0 0 10px rgba(125, 255, 214, .8)); }
@@ -1129,7 +1129,7 @@ function buildTreeline() {
   // sun's shadow camera) instead of always drawing the whole ring.
   const variants = [1, 2, 3].map(v => buildPineGeos(v)), farVariants = [1, 2, 3].map(v => buildPineGeos(v, true)), m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
   const group = new THREE.Group(); group.name = "treeline";
-  const CHUNK = 12, chunks = new Map();
+  const CHUNK = 24, chunks = new Map();
   const imp = [];   // far trees: flat cards (2 triangles each) with a picture of the tree taken from the camera's angle
   spots.forEach(([x, z, far], i) => {
     if (far) { const s = 0.8 + rndp() * 0.45, d = Math.hypot(x, z), front = Math.max(0, (x + z) / (Math.SQRT2 * d)) * THREE.MathUtils.clamp(1 - (d - clearingR(Math.atan2(z, x))) / 22, 0, 1);
@@ -1247,16 +1247,53 @@ const softTex = (() => {
 })();
 const particles = [];
 const casingGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.035, 6), casingMat = new THREE.MeshStandardMaterial({ color: 0xc8a046, metalness: 0.8, roughness: 0.35 });
-function spawnSprite(pos, vel, { color = 0xffffff, size = 0.3, grow = 1, life = 0.6, opacity = 0.6, additive = false, drag = 2, gravity = 0 }) {
-  const m = new THREE.SpriteMaterial({ map: softTex, color, transparent: true, opacity, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
-  const s = new THREE.Sprite(m); s.position.copy(pos); s.scale.setScalar(size); scene.add(s);
-  particles.push({ obj: s, vel, life, max: life, size, grow, opacity, drag, gravity, sprite: true });
+// puffs, sparks and dust: two point pools (normal + additive), 2 draw calls for all of them
+const PCAP = MOBILE ? 1500 : 2500;
+function makePartPool(additive) {
+  const geo = new THREE.BufferGeometry(), pos = new Float32Array(PCAP * 3), col = new Float32Array(PCAP * 4), siz = new Float32Array(PCAP);
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage)); geo.setAttribute("aCol", new THREE.BufferAttribute(col, 4).setUsage(THREE.DynamicDrawUsage)); geo.setAttribute("aSize", new THREE.BufferAttribute(siz, 1).setUsage(THREE.DynamicDrawUsage));
+  const mat = new THREE.ShaderMaterial({ uniforms: { uScale: { value: 1 } }, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    vertexShader: `attribute vec4 aCol; attribute float aSize; uniform float uScale; varying vec4 vCol; void main() { vCol = aCol; gl_PointSize = aSize * uScale; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `varying vec4 vCol; void main() { float d = length(gl_PointCoord - 0.5) * 2.0; if (d > 1.0) discard; gl_FragColor = vec4(vCol.rgb, vCol.a * pow(1.0 - d, 1.3)); }` });
+  const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; pts.renderOrder = additive ? 6 : 4; scene.add(pts);
+  return { pts, geo, pos, col, siz, mat, list: [] };
 }
+const PPOOL = [makePartPool(false), makePartPool(true)];
+function spawnSprite(pos, vel, { color = 0xffffff, size = 0.3, grow = 1, life = 0.6, opacity = 0.6, additive = false, drag = 2, gravity = 0 }) {
+  const pl = PPOOL[additive ? 1 : 0]; if (pl.list.length >= PCAP) return;
+  pl.list.push({ x: pos.x, y: pos.y, z: pos.z, vx: vel.x, vy: vel.y, vz: vel.z, life, max: life, size, grow, opacity, drag, gravity, r: (color >> 16 & 255) / 255, g: (color >> 8 & 255) / 255, b: (color & 255) / 255 });
+}
+function updatePartPools(dt) {
+  const k0 = renderer.getPixelRatio() * innerHeight / (2 * curView);
+  for (const pl of PPOOL) {
+    pl.mat.uniforms.uScale.value = k0; let n = 0; const L = pl.list;
+    for (let i = L.length - 1; i >= 0; i--) { const p = L[i]; p.life -= dt; if (p.life <= 0) { L[i] = L[L.length - 1]; L.pop(); } }
+    for (const p of L) {
+      const dr = Math.exp(-p.drag * dt); p.vx *= dr; p.vy = p.vy * dr - p.gravity * dt; p.vz *= dr; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+      const k = 1 - p.life / p.max; pl.pos[n * 3] = p.x; pl.pos[n * 3 + 1] = p.y; pl.pos[n * 3 + 2] = p.z;
+      pl.col[n * 4] = p.r; pl.col[n * 4 + 1] = p.g; pl.col[n * 4 + 2] = p.b; pl.col[n * 4 + 3] = p.opacity * (1 - k); pl.siz[n] = p.size * (1 + p.grow * k); n++;
+    }
+    pl.geo.setDrawRange(0, n); for (const a of ["position", "aCol", "aSize"]) pl.geo.attributes[a].needsUpdate = true;
+  }
+}
+// spent casings: one instanced mesh
+const CCAP = 260, casingInst = new THREE.InstancedMesh(casingGeo, casingMat, CCAP), casings = [], _co = new THREE.Object3D();
+casingInst.count = 0; casingInst.frustumCulled = false; scene.add(casingInst);
 function spawnCasing(pos, dir) {
-  const c = new THREE.Mesh(casingGeo, casingMat); c.position.copy(pos); c.castShadow = true; scene.add(c);
+  if (casings.length >= CCAP) casings.shift();
   const right = new THREE.Vector3(-dir.z, 0, dir.x);
   const vel = right.multiplyScalar(1.6 + Math.random()).add(new THREE.Vector3(0, 2.4 + Math.random(), 0)).addScaledVector(dir, -0.4);
-  particles.push({ obj: c, vel, spin: new THREE.Vector3(Math.random() * 20, Math.random() * 20, Math.random() * 20), life: 2.5, max: 2.5, casing: true });
+  casings.push({ p: pos.clone(), r: new THREE.Euler(), vel, spin: new THREE.Vector3(Math.random() * 20, Math.random() * 20, Math.random() * 20), life: 2.5 });
+}
+function updateCasings(dt) {
+  let n = 0;
+  for (let i = casings.length - 1; i >= 0; i--) if ((casings[i].life -= dt) <= 0) casings.splice(i, 1);
+  for (const c of casings) {
+    c.vel.y -= 14 * dt; c.p.addScaledVector(c.vel, dt); c.r.x += c.spin.x * dt; c.r.y += c.spin.y * dt; c.r.z += c.spin.z * dt;
+    if (c.p.y < 0.012) { c.p.y = 0.012; c.vel.y *= -0.35; c.vel.x *= 0.6; c.vel.z *= 0.6; c.spin.multiplyScalar(0.5); }
+    _co.position.copy(c.p); _co.rotation.copy(c.r); _co.scale.setScalar(c.life < 0.4 ? c.life / 0.4 : 1); _co.updateMatrix(); casingInst.setMatrixAt(n++, _co.matrix);
+  }
+  casingInst.count = n; casingInst.instanceMatrix.needsUpdate = true;
 }
 function muzzleFx(pos, dir) {
   spawnSprite(pos.clone().addScaledVector(dir, 0.08), dir.clone().multiplyScalar(2), { color: 0xffc46b, size: 0.55, grow: 0.4, life: 0.06, opacity: 1, additive: true, drag: 0 });
@@ -1274,6 +1311,7 @@ function impactFx(pos, normal, soft) {
   spawnSprite(pos, normal.clone().multiplyScalar(0.5).add(new THREE.Vector3(0, 0.4, 0)), { color: soft ? 0xd9c79a : 0xbab6ae, size: 0.25, grow: 2, life: 0.7, opacity: 0.4, drag: 2 });
 }
 function updateParticles(dt) {
+  updatePartPools(dt); updateCasings(dt); updateBullets(dt);
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i]; p.life -= dt;
     if (p.life <= 0) { scene.remove(p.obj); if (p.sprite) p.obj.material.dispose(); particles.splice(i, 1); continue; }
@@ -1435,7 +1473,8 @@ const booms = [];
 function boomFx(pos, radius, small = false, crimson = false) {
   const grp = new THREE.Group(); grp.position.copy(pos); scene.add(grp);
   const puffs = [];
-  for (let i = 0; i < (crimson ? 6 : small ? 5 : 11); i++) {
+  const busy = booms.length > 12;
+  for (let i = 0; i < (busy ? 3 : crimson ? 5 : small ? 4 : 8); i++) {
     const m = new THREE.Mesh(boomGeo, boomMatBase.clone()); m.material.uniforms.uSeed.value = Math.random() * 50; m.material.uniforms.uHeat.value = crimson ? 1.25 : i < 6 ? 1.1 : 0.7; m.material.uniforms.uCrim.value = crimson ? 1 : 0;
     const off = new THREE.Vector3((Math.random() - 0.5), Math.random() * 0.6, (Math.random() - 0.5)).multiplyScalar(radius * 0.5);
     m.position.copy(off); m.scale.setScalar(0.01); m.renderOrder = 5; grp.add(m);
@@ -2674,10 +2713,50 @@ const sentryCovers = (t, x, z) => t.x === x && t.z === z;
 const onTop = (s) => s.kind === "wall" && !s.y && (walls.some(w => w !== s && w.y > 0 && w.x === s.x && w.z === s.z) || sentries.some(t => t.y > 0 && sentryCovers(t, s.x, s.z)));
 const turretRange = (t) => (t.kind === "flamer" ? FLAME_RANGE[t.level] : RANGE_OF[t.kind] || SENTRY.range) + (t.y ? 3 : 0) + 2 * card("srange") + (t.kind === "sentry" ? MOD("range") : 0);
 const sentryRange = turretRange;
+// draw-call savers: every group's plain-coloured meshes become one vertex-coloured mesh (metal and matte kept apart)
+const VC_MATS = {};
+const vcMat = () => VC_MATS.one ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.3 });
+function collapseModel(m) {
+  const keep = new Set(); for (const v of Object.values(m)) for (const o of Array.isArray(v) ? v : [v]) if (o?.isMesh) keep.add(o);
+  const groups = []; m.g.traverse(o => { if (o.isGroup || o === m.g) groups.push(o); });
+  for (const grp of groups) {
+    const buckets = [[], []];
+    for (const o of [...grp.children]) {
+      if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || keep.has(o) || o.children.length) continue;
+      const mt = o.material; if (Array.isArray(mt) || !mt.isMeshStandardMaterial || mt.map || mt.transparent || (mt.emissive?.getHex() && mt.emissiveIntensity > 0.05)) continue;
+      o.updateMatrix(); let geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); geo.applyMatrix4(o.matrix);
+      for (const a of Object.keys(geo.attributes)) if (a !== "position" && a !== "normal") geo.deleteAttribute(a);
+      const n = geo.attributes.position.count, col = new Float32Array(n * 3); for (let i = 0; i < n; i++) { col[i * 3] = mt.color.r; col[i * 3 + 1] = mt.color.g; col[i * 3 + 2] = mt.color.b; }
+      geo.setAttribute("color", new THREE.BufferAttribute(col, 3)); buckets[0].push(geo); grp.remove(o);
+    }
+    buckets.forEach((geos) => { if (!geos.length) return; const mesh = new THREE.Mesh(mergeGeometries(geos), vcMat()); mesh.castShadow = grp === m.g; /* only the base casts a shadow */ mesh.receiveShadow = true; grp.add(mesh); });
+  }
+}
+// walls and sandbags: one instanced mesh per (kind, level, part) for all of them; each keeps an empty group for position and its hover outline
+const WBATCH = new Map(), _wm = new THREE.Matrix4();
+function wallBatch(kind, level) {
+  const key = kind + level; if (WBATCH.has(key)) return WBATCH.get(key);
+  const proto = kind === "wall" ? makeWallModel(level) : makeSandbagModel(level).g, parts = []; proto.updateMatrixWorld(true);
+  proto.traverse(o => { if (!o.isMesh) return; const im = new THREE.InstancedMesh(o.geometry.clone().applyMatrix4(o.matrixWorld), o.material, 260); im.count = 0; im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false; scene.add(im); parts.push(im); });
+  const b = { parts, items: [] }; WBATCH.set(key, b); return b;
+}
+function wallSync(s) { if (!s.wb) return; s.g.updateMatrix(); for (const p of s.wb.parts) { p.setMatrixAt(s.wi, s.g.matrix); p.instanceMatrix.needsUpdate = true; } }
+function wallAttach(s) { const b = wallBatch(s.kind, s.level); s.wb = b; s.wi = b.items.length; b.items.push(s); for (const p of b.parts) p.count = b.items.length; wallSync(s); }
+function wallDetach(s) {
+  const b = s.wb; if (!b) return; const i = b.items.indexOf(s), last = b.items.pop();
+  if (last !== s && i >= 0) { b.items[i] = last; last.wi = i; wallSync(last); }
+  for (const p of b.parts) p.count = b.items.length; s.wb = null;
+}
+const hullProxyMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 function buildModel(s) {
   if (s.g) { scene.remove(s.g); }
-  if (s.kind !== "wall") { const m = MODEL_OF[s.kind](s.level); Object.assign(s, m); m.g.scale.setScalar(TRAP_KINDS.has(s.kind) || s.kind === "sandbag" ? 1 : 1.35); if (m.head) m.head.rotation.y = s.yaw; }
-  else s.g = makeWallModel(s.level);
+  if (s.wb) wallDetach(s);
+  if (s.kind === "wall" || s.kind === "sandbag") {
+    const h = s.kind === "wall" ? WALL_H : 0.8, proxy = new THREE.Mesh(new THREE.BoxGeometry(2, h, 2).translate(0, h / 2, 0), hullProxyMat); proxy.visible = false;
+    s.g = new THREE.Group(); s.g.add(proxy); s.g.userData.wall = s; s.g.position.set(s.x, s.y || 0, s.z); scene.add(s.g); wallAttach(s);
+    s.hulls = [proxy, ...addHulls(proxy)]; if (hovered === s) showHulls(s, true); return;
+  }
+  { const m = MODEL_OF[s.kind](s.level); collapseModel(m); Object.assign(s, m); m.g.scale.setScalar(TRAP_KINDS.has(s.kind) ? 1 : 1.35); if (m.head) m.head.rotation.y = s.yaw; }
   s.g.position.set(s.x, s.y || 0, s.z); scene.add(s.g); s.hulls = addHulls(s.g);
   if (hovered === s) showHulls(s, true);
 }
@@ -2692,7 +2771,7 @@ function removeStruct(s) {
   structVer++;
   if (s.beam) { scene.remove(s.beam); s.beam = null; }
   const list = listOf(s.kind), i = list.indexOf(s); if (i >= 0) list.splice(i, 1);
-  scene.remove(s.g); removeBar(s.bar); s.bar = null;
+  scene.remove(s.g); wallDetach(s); removeBar(s.bar); s.bar = null;
   if (hovered === s) { showHulls(s, false); hovered = null; }
   if (menuTarget === s) closeMenu();
 }
@@ -2734,7 +2813,24 @@ function losClear(ox, oz, dx, dz, dist, y = 0) {
   return true;
 }
 // A bullet you can see travel: a short glowing streak flying from the muzzle to where the (hitscan) shot landed.
+const BCAP = 900, bullets = [], _bq = new THREE.Quaternion(), _bz = new THREE.Vector3(0, 0, 1), _bm = new THREE.Matrix4(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3(), _bc = new THREE.Color();
+const bulletInst = [0, 1].map(() => { const m = new THREE.InstancedMesh(beamGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), BCAP); m.count = 0; m.frustumCulled = false; m.setColorAt(0, new THREE.Color()); scene.add(m); return m; });
 function spawnBullet(from, to, { speed = 110, len = 1.6, scale = 1, fade = false, glow = 0xff2414, core = 0xffb0a0 } = {}) {
+  const dist = from.distanceTo(to); if (dist < 0.05) return; if (bullets.length >= BCAP) bullets.shift();
+  bullets.push({ from: from.clone(), dir: to.clone().sub(from).normalize(), dist, len, speed, s: 0, fade, sc: scale, glow: new THREE.Color(glow), core: new THREE.Color(core) });
+}
+function updateBullets(dt) {
+  let n = 0;
+  for (let i = bullets.length - 1; i >= 0; i--) { const t = bullets[i]; t.s += t.speed * dt; if (t.s - t.len >= t.dist) { bullets[i] = bullets[bullets.length - 1]; bullets.pop(); } }
+  for (const t of bullets) {
+    const a = Math.max(0, t.s - t.len), b = Math.min(t.s, t.dist), op = t.fade ? Math.max(0, 1 - a / t.dist) : 1;
+    _bp.copy(t.from).addScaledVector(t.dir, (a + b) / 2); _bq.setFromUnitVectors(_bz, t.dir);
+    [[0.035, t.glow], [0.012, t.core]].forEach(([r, col], k) => { _bs.set(r * t.sc, r * t.sc, Math.max(0.01, b - a)); _bm.compose(_bp, _bq, _bs); bulletInst[k].setMatrixAt(n, _bm); bulletInst[k].setColorAt(n, _bc.copy(col).multiplyScalar(op)); });
+    n++;
+  }
+  for (const m of bulletInst) { m.count = n; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+}
+function spawnBulletOld(from, to, { speed = 110, len = 1.6, scale = 1, fade = false, glow = 0xff2414, core = 0xffb0a0 } = {}) {
   const dist = from.distanceTo(to); if (dist < 0.05) return;
   const line = new THREE.Group();
   for (const [m, r, c] of [[tracerGlow, 0.035 * scale, glow], [tracerCore, 0.012 * scale, core]]) { const o = new THREE.Mesh(beamGeo, m.clone()); o.material.color.setHex(c); o.scale.set(r, r, 1); line.add(o); }
@@ -3224,7 +3320,7 @@ function updateUpFx(dt) {
   for (let i = upFx.length - 1; i >= 0; i--) {
     const u = upFx[i]; u.t += dt; const k = u.t / 0.9;
     u.tiles.material.opacity = 0.9 * Math.max(0, 1 - k) * (0.6 + 0.4 * Math.sin(u.t * 30));
-    if (u.obj) u.obj.scale.setScalar((u.obj.userData.baseScale ??= u.obj.scale.x) * (1 + Math.sin(Math.min(1, u.t / 0.35) * Math.PI) * 0.18));
+    if (u.obj) { u.obj.scale.setScalar((u.obj.userData.baseScale ??= u.obj.scale.x) * (1 + Math.sin(Math.min(1, u.t / 0.35) * Math.PI) * 0.18)); if (u.obj.userData.wall) wallSync(u.obj.userData.wall); }
     if (k >= 1) { scene.remove(u.tiles); u.tiles.dispose(); upFx.splice(i, 1); }
   }
 }
@@ -4095,10 +4191,10 @@ function quickSpot(kind) {
   return best;
 }
 const mergePair = (kind) => { const ts = sentries.filter(t => t.kind === kind && t.level < MAXLV[kind] && !(t.pack > 0)).sort((a, b) => a.level - b.level); for (let i = 0; i < ts.length; i++) for (let j = i + 1; j < ts.length; j++) if (ts[i].level === ts[j].level) return [ts[i], ts[j]]; return null; };
-const wallToUp = () => walls.filter(w => w.level < MAXLV.wall && save.xp >= upCost(w)).sort((a, b) => a.level - b.level || Math.hypot(b.x - BC.x, b.z - BC.z) - Math.hypot(a.x - BC.x, a.z - BC.z))[0];
+const toUp = (k) => listOf(k).filter(w => w.kind === k && w.level < MAXLV[k] && save.xp >= upCost(w)).sort((a, b) => a.level - b.level || Math.hypot(b.x - BC.x, b.z - BC.z) - Math.hypot(a.x - BC.x, a.z - BC.z))[0];
 function quickAct(kind) {
   const b = BUILDS.find(o => o.id === kind); if (!b) return; act();
-  if (kind === "wall") { const w = wallToUp(); if (!w) { deny(trayCards.querySelector(`[data-q="wall"]`)); return; } upgradeOne(w); saveBuilds(); renderXp(); return; }   // QUICK UPGRADE: the lowest wall, outermost first
+  if (!MERGEABLE.has(kind)) { const w = toUp(kind); if (!w) { deny(trayCards.querySelector(`[data-q="${kind}"]`)); return; } upgradeOne(w); saveBuilds(); renderXp(); return; }   // QUICK UPGRADE: the lowest wall, outermost first
   if (countOf(kind) >= capOf(kind)) { deny(trayCards.querySelector(`[data-q="${kind}"]`)); return; }
   if (false) {
     const pr = mergePair(kind);
@@ -4117,7 +4213,7 @@ function renderTray() { requestAnimationFrame(fitUI);
   bankNum.textContent = save.xp;
   trayCards.innerHTML = BUILDS.map((b, i) => { const c = b.cost(), n = countOf(b.id), cap = capOf(b.id), free = run.free[b.id] > 0;
     if (locked(i)) return `<button type="button" class="tcard locked" data-i="${i}"><span class="k">${i + 1}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">LOCKED</span></button>`;
-    const qb = !save.def.tut2 ? "" : MERGEABLE.has(b.id) ? `<span class="qp" data-q="${b.id}">QUICK PLACE</span>` : b.id === "wall" ? `<span class="qp up" data-q="wall">QUICK UPGRADE</span>` : "";
+    const qb = !save.def.tut2 ? "" : MERGEABLE.has(b.id) ? `<span class="qp" data-q="${b.id}">QUICK PLACE</span>` : `<span class="qp up" data-q="${b.id}">QUICK UPGRADE</span>`;
     return `<button type="button" class="tcard${buildSel === i && buildMode ? " sel" : ""}${save.xp < c || n >= cap ? " poor" : ""}${free ? " free" : ""}" data-i="${i}">${qb}<span class="k">${i + 1}</span><span class="cnt">${n}/${cap}</span><img alt="" src="${ICONS[b.id] || ""}"><b>${b.name}</b><span class="cost">${free ? freeLabel(b.id) : c}</span></button>`; }).join("");
   if (!run.started && !run.events.firstPick) trayCards.children[0]?.classList.add("flash");
 }
@@ -4461,7 +4557,7 @@ const paceK = (t) => 0.7 + 0.3 * Math.min(1, t / 120) + Math.pow(Math.max(0, t -
 function defSpawns(dt) {
   const t = run.t, k = clamp(t / 600, 0, 1), ph = phaseOf(t);
   const key = ph.n * 2 + (ph.night ? 1 : 0); if (key !== run.phaseKey) { run.phaseKey = key; run.phaseSpawned = 0; }
-  const alive = enemies.reduce((a, e) => a + !e.dead, 0); if (alive > 180) return;
+  const alive = enemies.reduce((a, e) => a + !e.dead, 0); if (alive > 150) return;
   const p = (ph.night ? ph.c - DAY_LEN : ph.c) / DAY_LEN;
   const ease = ph.n === 1 && !ph.night ? THREE.MathUtils.smoothstep(t, 4, 14) : 1;   // the opening seconds are a breather
   const sk = t < 120 ? Math.min(strengthMult(), 1 + t / 400) : strengthMult();      // the scaler can't spike the warm-up
@@ -4491,6 +4587,7 @@ function clearWorld() {
   paint = brush = null; marq.hidden = true; ptrDown = trayDrag = null; carry = null; closeMenu();
   for (const b of booms) { scene.remove(b.grp); scene.remove(b.scorch); b.puffs.forEach(p => p.m.material.dispose()); } booms.length = 0;
   for (const q of particles) { scene.remove(q.obj); if (q.sprite) q.obj.material.dispose(); } particles.length = 0;
+  for (const pl of PPOOL) pl.list.length = 0; casings.length = 0; bullets.length = 0;
   for (const t of tracers) scene.remove(t.line); tracers.length = 0;
   for (const q of pops) q.el.remove(); pops.length = 0;
   for (const u of upFx) scene.remove(u.tiles); upFx.length = 0;
@@ -4935,7 +5032,7 @@ function buildDiorama(force) {
 function dioramaTick(dt) {
   const tt = performance.now() / 1000;
   for (const s of structs()) {
-    if (s.drop !== undefined) { s.drop -= dt; const y = s.y || 0; if (s.drop <= 0) { s.g.position.y = y; s.drop = undefined; for (let k = 0; k < 5; k++) spawnSprite(new THREE.Vector3(s.x, y + 0.1, s.z), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0x8a7a62, size: 0.5, grow: 1.5, life: 0.6, opacity: 0.35, drag: 2 }); } else s.g.position.y = y + Math.min(12, s.drop * s.drop * 60); }
+    if (s.drop !== undefined) { s.drop -= dt; const y = s.y || 0; if (s.wb) requestAnimationFrame(() => wallSync(s)); if (s.drop <= 0) { s.g.position.y = y; s.drop = undefined; for (let k = 0; k < 5; k++) spawnSprite(new THREE.Vector3(s.x, y + 0.1, s.z), new THREE.Vector3((Math.random() - 0.5) * 3, 0.6, (Math.random() - 0.5) * 3), { color: 0x8a7a62, size: 0.5, grow: 1.5, life: 0.6, opacity: 0.35, drag: 2 }); } else s.g.position.y = y + Math.min(12, s.drop * s.drop * 60); }
     if (s.yaw0 !== undefined) s.yaw = s.yaw0 + Math.sin(tt * 0.5 + s.x * 0.7 + s.z) * 0.7;
   }
 }
@@ -5063,9 +5160,9 @@ function updateUpMarks() {   // a bouncing ▲ over up to three towers you can a
 }
 function renderTrayState() {
   bankNum.textContent = save.xp;
-  for (const q of trayCards.querySelectorAll("[data-q]")) { const k = q.dataset.q; if (k === "wall") { q.classList.toggle("off", !wallToUp()); continue; } const full = countOf(k) >= capOf(k), b = BUILDS.find(o => o.id === k); q.classList.toggle("off", full || save.xp < b.cost()); }
+  for (const q of trayCards.querySelectorAll("[data-q]")) { const k = q.dataset.q; if (!MERGEABLE.has(k)) { q.classList.toggle("off", !toUp(k)); continue; } const full = countOf(k) >= capOf(k), b = BUILDS.find(o => o.id === k); q.classList.toggle("off", full || save.xp < b.cost()); }
   [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], ok = save.xp >= b.cost() && countOf(b.id) < capOf(b.id); if (ok && el.classList.contains("poor") && run.started) { el.classList.remove("ping"); void el.offsetWidth; el.classList.add("ping"); } });
-  [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], c = b.cost(); el.classList.toggle("poor", save.xp < c || countOf(b.id) >= capOf(b.id)); el.classList.toggle("sel", buildMode && buildSel === i); el.querySelector(".cost").textContent = run.free[b.id] > 0 ? freeLabel(b.id) : c; el.classList.toggle("free", run.free[b.id] > 0); el.querySelector(".cnt").textContent = `${countOf(b.id)}/${capOf(b.id)}`; });
+  [...trayCards.children].forEach((el, i) => { if (locked(i)) return; const b = BUILDS[i], c = b.cost(); el.classList.toggle("poor", save.xp < c || countOf(b.id) >= capOf(b.id)); el.classList.toggle("sel", buildMode && buildSel === i); const full = countOf(b.id) >= capOf(b.id), ce = el.querySelector(".cost"); ce.textContent = run.free[b.id] > 0 ? freeLabel(b.id) : full ? (save.base < 8 ? `BASE LV ${save.base + 1}` : "MAX") : c; ce.classList.toggle("cap", full && !(run.free[b.id] > 0)); el.classList.toggle("free", run.free[b.id] > 0); el.querySelector(".cnt").textContent = `${countOf(b.id)}/${capOf(b.id)}`; });
 }
 
 // ---- Pause menu (P)
