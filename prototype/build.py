@@ -44,12 +44,13 @@ def write(path, html):
     path.parent.mkdir(parents=True, exist_ok=True); path.write_text(html)
     print("wrote", path, f"{path.stat().st_size / 1e6:.1f} MB")
 write(out / "index.html", src)   # dev build: dev kit and perf readout on
-# Poki release: a full document (the artifact host adds its own), dev tools off, the SDK loaded first in <head>
-write(out / "poki/index.html", '<!doctype html>\n<html lang="en">\n<head>\n<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>\n<script>window.__RELEASE = true;</script>\n'
-      + src + "\n</html>\n")
-
-# Poki upload: a zip with index.html at its root
+# Release builds, one per platform: a full document (the artifact host adds its own), dev tools off, the platform SDK loaded
+# first in <head>, and a zip with index.html at its root for upload. No ads are called.
 import zipfile
-with zipfile.ZipFile(out / "game-poki.zip", "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
-    z.write(out / "poki/index.html", "index.html")
-print("wrote", out / "game-poki.zip", f"{(out / 'game-poki.zip').stat().st_size / 1e6:.1f} MB")
+SDKS = {"crazygames": "https://sdk.crazygames.com/crazygames-sdk-v3.js", "poki": "https://game-cdn.poki.com/scripts/v2/poki-sdk.js"}
+for plat, url in SDKS.items():
+    write(out / plat / "index.html", f'<!doctype html>\n<html lang="en">\n<head>\n<script src="{url}"></script>\n'
+          f'<script>window.__RELEASE = true; window.__PLATFORM = "{plat}";</script>\n' + src + "\n</html>\n")
+    with zipfile.ZipFile(out / f"game-{plat}.zip", "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+        z.write(out / plat / "index.html", "index.html")
+    print("wrote", out / f"game-{plat}.zip", f"{(out / f'game-{plat}.zip').stat().st_size / 1e6:.1f} MB")

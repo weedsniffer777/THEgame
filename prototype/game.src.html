@@ -696,16 +696,25 @@ function sfx(name, pos, { vol = 1, rate = 1, gap = 0.04, key = name } = {}) {
   const buf = sndBufs[name]; if (!buf) return; const out = sndOut(pos, vol, gap, key); if (!out) return;
   const s = actx.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate * (0.94 + Math.random() * 0.12); s.connect(out); s.start(); sndEnd(s, out);
 }
-/* ---------- Release build + Poki ---------- */
-// build.py sets RELEASE for dist/poki: no dev kit, no perf readout, Poki SDK events. Without the SDK (blocked, or the dev build) every call is a no-op.
-const RELEASE = window.__RELEASE === true;   // set by a tag build.py puts in the Poki build's <head>
+/* ---------- Release build + platform SDK ---------- */
+// build.py sets RELEASE and PLATFORM ("crazygames" / "poki") for dist/<platform>: no dev kit, no perf readout, the platform's
+// loading and gameplay events. No ads are called. Without the SDK (blocked, or the dev build) every call is a no-op.
+const RELEASE = window.__RELEASE === true;   // set by a tag build.py puts in the release builds' <head>
 if (RELEASE) document.body.classList.add("release");
-const POKI = window.PokiSDK || null;
-const pokiReady = POKI ? POKI.init().catch(() => {}) : Promise.resolve();
-function poki(fn) { pokiReady.then(() => { try { POKI?.[fn]?.(); } catch (e) {} }); }
-let pokiInput = false, pokiOn = false;   // gameplayStart waits for the first input, and the two events always alternate
-addEventListener("pointerdown", () => { pokiInput = true; }, true); addEventListener("keydown", () => { pokiInput = true; }, true);
-function pokiSync(on) { on = on && pokiInput; if (on !== pokiOn) { pokiOn = on; poki(on ? "gameplayStart" : "gameplayStop"); } }
+const PSDK = (() => {
+  try {
+    if (window.__PLATFORM === "crazygames" && window.CrazyGames?.SDK) { const s = window.CrazyGames.SDK, g = () => s.game;
+      return { ready: s.init().catch(() => {}), loading: () => g().loadingStart(), loaded: () => g().loadingStop(), start: () => g().gameplayStart(), stop: () => g().gameplayStop() }; }
+    if (window.__PLATFORM === "poki" && window.PokiSDK) { const s = window.PokiSDK;
+      return { ready: s.init().catch(() => {}), loaded: () => s.gameLoadingFinished(), start: () => s.gameplayStart(), stop: () => s.gameplayStop() }; }
+  } catch (e) {}
+  return null;
+})();
+function sdk(fn) { PSDK?.ready.then(() => { try { PSDK[fn]?.(); } catch (e) {} }); }
+sdk("loading");
+let sdkInput = false, sdkOn = false;   // gameplayStart waits for the first input, and the two events always alternate
+addEventListener("pointerdown", () => { sdkInput = true; }, true); addEventListener("keydown", () => { sdkInput = true; }, true);
+function sdkSync(on) { on = on && sdkInput; if (on !== sdkOn) { sdkOn = on; sdk(on ? "start" : "stop"); } }
 // keep arrows, space and the wheel from scrolling the page around the game (the wheel still scrolls our own scrollable panels)
 addEventListener("keydown", (e) => { if (["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", " "].includes(e.key) && !(e.target instanceof HTMLInputElement)) e.preventDefault(); });
 addEventListener("wheel", (e) => {
@@ -5320,7 +5329,7 @@ function frame(now) {
   const tSec = now / 1000;
   if (viewerEl.hidden) {
     const t0 = performance.now();
-    sndFrame(); pokiSync(DEF && !run.lobby && !runOver && !paused && !picking && !document.hidden);
+    sndFrame(); sdkSync(DEF && !run.lobby && !runOver && !paused && !picking && !document.hidden);
     if (!paused && !picking) { (DEF ? defUpdate : update)(dt); if (!tickers) { tickers = []; scene.traverse(o => { if (o.userData.tick) tickers.push(o); }); } for (const o of tickers) o.userData.tick(tSec); }
     if (prWant !== prNow) { prNow = prWant; renderer.setPixelRatio(prNow); }
     if (MOBILE) renderer.shadowMap.needsUpdate = (frameNo++ & 1) === 0 || sunMoved;
@@ -5354,7 +5363,7 @@ if (shantyTemplate) { shanty = makeShanty(); shanty.position.set(0, 0, SHACK_Z);
     for (const n of ["yard_l1", "yard_l2", "yard"]) body.getObjectByName(n)?.traverse(o => { if (o.isMesh) o.castShadow = false; });   // the yard clutter: no shadow pass
     shanty.updateMatrixWorld(true);
   } shantyBox = new THREE.Box3().setFromObject(shanty.children[0].getObjectByName("shack") || shanty.children[0]).expandByScalar(0.12); interior = buildInterior(); shanty.add(interior); if (DEF) interior.visible = false; }   // never seen in defense
-document.getElementById("loading").hidden = true; poki("gameLoadingFinished");
+document.getElementById("loading").hidden = true; sdk("loaded");
 pl = makePlayer(); playerModel = pl.model; scene.add(playerModel);
 gunMount = new THREE.Group(); playerModel.add(gunMount);
 for (const [id, t] of Object.entries(GUN_T)) { const sc = WEAPONS_DEF[id].scale || GUN_SCALE, g = t.g.clone(); g.scale.setScalar(sc); g.position.copy(t.shift).multiplyScalar(sc); g.visible = false; gunMount.add(g); heldGuns[id] = g; }
