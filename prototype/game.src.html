@@ -222,11 +222,15 @@ body.def #game { cursor: default; }
 #tutPtr.big .arr { border-left-width: 22px; border-right-width: 22px; border-top: 30px solid #7dffd6; filter: drop-shadow(0 3px 0 #0f1a14) drop-shadow(0 0 10px rgba(125, 255, 214, .8)); }
 #tutPtr.big.on > * { animation: bob .45s ease-in-out infinite alternate; } body.portrait #tutPtr.big .lbl { font-size: 18px; }
 /* portrait phones: smaller everything, the tray wraps to two rows, level-up cards two to a row */
-body.portrait #tray .tcard { width: 58px; height: 76px; padding: 4px 2px; } body.portrait #tray .tcard img { width: 36px; height: 36px; } body.portrait #tray .tcard b { font-size: 8px; letter-spacing: .04em; }
-body.portrait #tray .tcard .cost { font-size: 11px; } body.portrait #tray .tcard .k, body.portrait #tray .tcard .cnt { font-size: 8px; }
-body.portrait #trayCards { flex-wrap: wrap; justify-content: center; row-gap: 30px; gap: 6px !important; max-width: calc(100vw - 150px); } body.portrait #tray { gap: 6px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: calc(100vw - 12px); justify-content: center; }
-body.portrait #tray .tcard .qp { top: -24px; width: 56px; font-size: 7.5px; padding: 2px 1px; } body.portrait #bank { font-size: 15px; padding: 5px 7px; }
-body.portrait #tray .tcard.strike .jet, body.portrait #tray .tcard.strike .jet img { width: 36px; height: 36px; }
+/* portrait tray: scrap (left) and airstrike (right) on a top row, the build cards below, three to a row, wide and readable */
+body.portrait #tray { flex-wrap: wrap; align-items: center; gap: 8px 6px; width: calc(100vw - 12px); bottom: calc(8px + env(safe-area-inset-bottom, 0px)); justify-content: space-between; }
+body.portrait #bank { order: 0; font-size: 17px; padding: 6px 10px; } body.portrait #tray .tcard.strike { order: 1; width: 64px; height: 64px; padding: 2px; }
+body.portrait #trayCards { order: 2; width: 100%; max-width: none; flex-wrap: wrap; justify-content: center; gap: 30px 6px !important; padding-top: 24px; }
+body.portrait #tray .tcard { width: min(124px, calc((100vw - 36px) / 3)); height: 100px; padding: 5px 3px; } body.portrait #tray .tcard img { width: 42px; height: 42px; }
+body.portrait #tray .tcard b { font-size: 10px; letter-spacing: .04em; } body.portrait #tray .tcard .cost { font-size: 14px; } body.portrait #tray .tcard .cost.cap { font-size: 9.5px; }
+body.portrait #tray .tcard .k, body.portrait #tray .tcard .cnt { font-size: 10px; }
+body.portrait #tray .tcard .qp { top: -25px; width: 100%; font-size: 9px; padding: 3px 2px 2px; }
+body.portrait #tray .tcard.strike .jet, body.portrait #tray .tcard.strike .jet img { width: 46px; height: 46px; } body.portrait #tray .tcard.strike b { font-size: 8px; }
 body.portrait #defTop { transform: translateX(-50%) scale(.8); transform-origin: 50% 0; } body.portrait #xpWrap { transform: scale(.8); transform-origin: 0 0; }
 body.portrait #cards .crow { gap: 6px; padding: 0 6px; flex-wrap: nowrap; } body.portrait #cards h2 { font-size: 22px; }
 body.portrait .card { width: calc(33.3vw - 9px); max-width: 170px; min-height: 0; padding: 10px 6px 12px; gap: 5px; } body.portrait .card .ic { width: 62px; height: 62px; } body.portrait .card .ic img, body.portrait .card .ic.fx > img { width: 50px; height: 50px; }
@@ -984,14 +988,14 @@ function fitUI() {
   const portrait = innerHeight > innerWidth * 1.1;
   const k = portrait ? 1 : Math.max(0.5, Math.min(1, innerWidth / 1150, innerHeight / 720)), root = document.documentElement; root.style.setProperty("--ui", k.toFixed(3));
   const tray = document.getElementById("tray"); if (!tray) return;
-  tray.style.zoom = 1; const w = tray.offsetWidth + 16, h = tray.offsetHeight + 46, kt = Math.max(0.4, Math.min(k * 1.1, 1, (innerWidth - 12) / w, innerHeight * 0.34 / h));
+  tray.style.zoom = 1; const w = tray.offsetWidth + 16, h = tray.offsetHeight + 46, kt = Math.max(0.4, Math.min(k * 1.1, 1, (innerWidth - 12) / w, innerHeight * (portrait ? 0.42 : 0.34) / h));
   tray.style.zoom = kt.toFixed(3);
   for (const el of document.querySelectorAll("#res .rx, #cards .cbox, #pause .pbox")) fitBox(el, k);
 }
 // popups shrink further if they still don't fit (short landscape windows): measured at zoom 1, then scaled to the screen
 function fitBox(el, k) {
   if (!el.offsetParent) return;
-  el.style.zoom = 1; const z = Math.min(k, (innerHeight - 16) / el.scrollHeight, (innerWidth - 16) / el.scrollWidth);
+  el.style.zoom = 1; const z = Math.min(k, (innerHeight - 16) / el.scrollHeight, (innerWidth - 16) / el.offsetWidth);
   el.style.zoom = z.toFixed(3);
 }
 { const ro = new ResizeObserver(() => fitUI()), watch = () => { for (const el of document.querySelectorAll("#res .rx, #cards .cbox, #pause .pbox")) ro.observe(el); };   // they grow as their contents come in
@@ -5382,6 +5386,6 @@ if (DEF) {   // the player sits this one out
   document.body.classList.add("def"); tut.step = "done"; player.pos.set(0, 0, 500); playerModel.visible = false; blockHands.r.visible = blockHands.l.visible = false;
   defReset();   // straight into a game on load; the lobby comes after a run
 }
-window.__game = { dealUpgrades, startPicks, setPaused, ICONS, scene,  setZoom: (z) => { camZoom = z; }, IMP, renderer, MODEL_OF, sentries, run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
+window.__game = { dealUpgrades, setPaused, ICONS, scene,  setZoom: (z) => { camZoom = z; }, IMP, renderer, MODEL_OF, sentries, run, defReset, openLobby, defResults, dropChest, chests, openChest, airRaid, quickAct, structs, defUpdate, placeHeight, get BUILDS() { return BUILDS; }, countOf, capOf, cardRow, upgradeStruct, mergeTarget, mergeInto, get picking() { return picking; }, player, save, MODELS, openViewer, showModel, enemies, cycle, spawnWalker, walls, addStruct, setInside, tut, applyBaseLevel, openMenu, equip, spawnEnemy, boomFx, THREE, hurtBase, startPicks };
 requestAnimationFrame(frame);
 </script>
