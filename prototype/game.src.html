@@ -178,7 +178,6 @@ body.lobby #game { cursor: default; } body.lobby #reticle { display: none; }
 #pause .pbox { padding: 18px 22px; display: grid; gap: 14px; justify-items: center; max-width: calc(100vw - 32px); }
 #pause h1 { margin: 0; font-size: 34px; letter-spacing: .2em; font-weight: 400; color: #e0b04a; }
 #pause .psnd { display: flex; align-items: center; gap: 10px; font-size: 13px; letter-spacing: .1em; color: #c9c3b4; } #pause .psnd input { width: 160px; accent-color: #e0b04a; } #pause .psnd button { font-size: 12px; padding: 6px 10px; min-width: 76px; }
-#pause .pcred { max-width: 520px; font-size: 11px; line-height: 1.5; color: #a9a394; text-align: center; }
 #pause .pbtns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; } #pause button { font-size: 14px; padding: 8px 14px; }
 #barLayer { inset: 0; z-index: 2; overflow: hidden; }
 .wbar { position: absolute; left: 0; top: 0; width: 44px; height: 6px; background: #1a1b1a; box-shadow: 0 0 0 1px #000; }
@@ -236,10 +235,10 @@ body.portrait #cards .crow { gap: 6px; padding: 0 6px; flex-wrap: nowrap; } body
 body.portrait .card { width: calc(33.3vw - 9px); max-width: 170px; min-height: 0; padding: 10px 6px 12px; gap: 5px; } body.portrait .card .ic { width: 62px; height: 62px; } body.portrait .card .ic img, body.portrait .card .ic.fx > img { width: 50px; height: 50px; }
 body.portrait .card b { font-size: 10px; } body.portrait .card .val { font-size: 18px; } body.portrait .card small { font-size: 9px; line-height: 1.25; } body.portrait .card .ptag { font-size: 7px; letter-spacing: .1em; padding: 2px 4px; }
 body.portrait .card .ic { width: 52px; height: 52px; } body.portrait .card .ic img, body.portrait .card .ic.fx > img { width: 42px; height: 42px; } body.portrait .card .rays { top: 70px; }
-body.portrait #lobby .lpanel { left: 8px; right: 8px; width: auto; top: calc(58px + env(safe-area-inset-top, 0px)); bottom: auto; max-height: 50vh; }
-body.portrait #lobby .lside { left: 8px; right: 8px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); grid-template-columns: 1fr auto; align-items: end; } body.portrait #lobby .lbasep { display: none; }
-body.portrait #lPlay { width: 100%; grid-column: 1 / -1; } body.portrait .lcard { height: 86px; } body.portrait .lcard img { width: 40px; height: 40px; } body.portrait .lcard b { font-size: 8px; }
-body.portrait #res .rx { padding: 12px; gap: 9px; } body.portrait #res .rnight b { font-size: 44px; } body.portrait #res .rstats b { font-size: 18px; } body.portrait #res .again { font-size: 20px; }
+html body.portrait #lobby .lpanel { left: 8px; right: 8px; width: auto; top: calc(58px + env(safe-area-inset-top, 0px)); bottom: auto; max-height: 50vh; }
+html body.portrait #lobby .lside { left: 8px; right: 8px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); grid-template-columns: 1fr auto; align-items: end; } html body.portrait #lobby .lbasep { display: none; }
+html body.portrait #lPlay { width: 100%; grid-column: 1 / -1; } html body.portrait .lcard { height: 86px; } html body.portrait .lcard img { width: 40px; height: 40px; } html body.portrait .lcard b { font-size: 8px; }
+html body.portrait #res .rx { padding: 12px; gap: 9px; } html body.portrait #res .rnight b { font-size: 44px; } html body.portrait #res .rstats b { font-size: 18px; } html body.portrait #res .again { font-size: 20px; }
 .tcard .qp { position: absolute; left: 50%; top: -40px; transform: translateX(-50%); width: 84px; padding: 4px 2px 3px; font-size: 10px; line-height: 1.1; letter-spacing: .1em; text-align: center; white-space: normal !important; color: #0f1a0d; background: #6fe05a; box-shadow: 0 0 0 2px #101211, 0 4px 0 #101211; cursor: pointer; white-space: nowrap; }
 .tcard .qp:hover { filter: brightness(1.15); } .tcard .qp.up { background: #ffd23a; } .tcard .qp.mg { background: #7dffd6; } .tcard .qp.off { background: #3a3d3a; color: #7a7f7a; }
 .tcard.poor .qp:not(.off) { opacity: 1; } body.mobile .tcard .qp { top: -34px; width: 66px; font-size: 9px; padding: 3px 2px 2px; }
@@ -294,7 +293,10 @@ body.lobby #tray, body.lobby #xpWrap, body.lobby #defTop, body.lobby #banner, bo
 .lcard.empty:hover { color: #9d978a; } .lcard.empty.none { cursor: default; opacity: .5; transform: none; }
 .lcard.locked { filter: grayscale(1); opacity: .45; } .lcard.locked .lk { position: absolute; left: 0; right: 0; bottom: 8px; font-size: 10px; color: #e0b04a; text-align: center; }
 .lcard.pick { animation: tflash .8s ease-in-out infinite; }
-#lobby .lside { position: absolute; right: 16px; bottom: 16px; display: grid; gap: 14px; justify-items: end; }
+#lobby .lside { position: absolute; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; justify-items: end; }
+#lCredits { font-family: inherit; font-size: 12px; letter-spacing: .14em; color: #d8d2c4; background: rgba(18, 20, 19, .85); box-shadow: 0 0 0 2px #101211; border: 0; padding: 5px 10px 4px; cursor: pointer; } #lCredits:hover { color: #fff; }
+body.portrait #lCredits { grid-column: 1 / -1; justify-self: end; }
+#lobby .lcredbox { position: absolute; right: 16px; bottom: 56px; z-index: 6; box-sizing: border-box; zoom: var(--ui, 1); width: min(420px, calc(100vw - 32px)); padding: 14px 16px; display: grid; gap: 6px; font-size: 12px; line-height: 1.5; color: #c9c3b4; cursor: pointer; } #lobby .lcredbox b { font-weight: 400; letter-spacing: .14em; color: #e0b04a; }
 #lobby .lbasep { display: grid; grid-template-columns: 92px auto; gap: 4px 14px; padding: 12px 14px; align-items: center; }
 #lobby .lbasep .lcard { grid-row: span 3; width: 92px; } #lobby .lbasep h3 { margin: 0; font-size: 16px; letter-spacing: .14em; color: var(--gold); font-weight: 600; }
 #lobby .lbasep p { margin: 0; font-size: 12px; color: #c9c3b4; letter-spacing: .04em; } #lobby .lbasep p b { color: #fff; font-weight: 600; }
@@ -497,7 +499,8 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
 <div class="px" id="lobby" hidden>
   <div class="ltop pxbox"><div class="lbadge" style="display:none"><small>TIER</small><b id="lTier">1</b></div><div class="road" id="lRoad" style="display:none"></div><div class="lcash"><span class="coin"></span><span id="lCash">0</span></div></div>
   <div class="lpanel pxbox" id="lPanel"></div>
-  <div class="lside"><div class="lbasep pxbox" id="lBase"></div><button type="button" id="lPlay">PLAY<small id="lPlaySub"></small></button></div>
+  <div class="lside"><div class="lbasep pxbox" id="lBase"></div><button type="button" id="lPlay">PLAY<small id="lPlaySub"></small></button><button type="button" id="lCredits">CREDITS</button></div>
+  <div class="lcredbox pxbox" id="lCredBox" hidden><b>CREDITS</b>Sound: Kenney (kenney.nl), CC0 · "Fighter engine flyby" by dklon (opengameart.org), CC BY 3.0, reversed and pitched for the pass · gun, explosion and UI sounds from Shoot Them Off.<br>Fonts: Chakra Petch, Pixelify Sans, IBM Plex (SIL Open Font License).<br>Engine: three.js (MIT). Base, turrets, enemies and effects are built in code.</div>
   <div class="lpop pxbox" id="lPop" hidden></div>
   <div class="lhint pxbox" id="lHint" hidden></div>
 </div>
@@ -531,8 +534,7 @@ body.mobile #perfHud { left: 8px; top: calc(18px + env(safe-area-inset-top, 0px)
 <div class="hud px pxbox" id="alert" hidden><img id="alertImg" alt=""><div id="alertTxt"></div></div>
 <div class="px" id="pause" hidden><div class="pbox pxbox"><h1>PAUSED</h1>
   <div class="psnd"><span>SOUND</span><input type="range" id="pVol" min="0" max="100" step="5" aria-label="Volume"><button type="button" id="pMute">MUTE</button></div>
-  <div class="pbtns"><button type="button" id="pResume">RESUME</button><button type="button" id="pRestart">RESTART</button><button type="button" id="pMenu">MENU</button><button type="button" id="pCredits">CREDITS</button></div>
-  <div class="pcred" id="pCred" hidden>Sound: Kenney (kenney.nl), CC0 · "Fighter engine flyby" by dklon (opengameart.org), CC BY 3.0, reversed and pitched for the pass · gun, explosion and UI sounds from Shoot Them Off.<br>Fonts: Chakra Petch, Pixelify Sans, IBM Plex (SIL Open Font License).<br>Engine: three.js (MIT). Base, turrets, enemies and effects are built in code.</div></div></div>
+  <div class="pbtns"><button type="button" id="pResume">RESUME</button><button type="button" id="pRestart">RESTART</button><button type="button" id="pMenu">MENU</button></div></div></div>
 <div class="px" id="res" hidden></div>
 <div class="px" id="runOver" hidden><div class="rbox pxbox">
   <h1>BASE DESTROYED</h1><div class="rsub" id="rSub"></div>
@@ -5298,11 +5300,12 @@ function setPaused(on) { paused = on; pauseEl.hidden = !on; keys.clear(); mouseD
 document.getElementById("pResume").addEventListener("click", () => setPaused(false));
 const pVol = document.getElementById("pVol"), pMute = document.getElementById("pMute");
 function renderSnd() { pVol.value = Math.round(SND.vol * 100); pMute.textContent = SND.mute ? "UNMUTE" : "MUTE"; pVol.style.opacity = SND.mute ? 0.4 : 1; }
+document.getElementById("lCredits").addEventListener("click", () => { const c = document.getElementById("lCredBox"); c.hidden = !c.hidden; });
+document.getElementById("lCredBox").addEventListener("click", (e) => { e.currentTarget.hidden = true; });
 function setMute(on) { SND.mute = on; sndApply(); sndSave(); renderSnd(); }
 pVol.addEventListener("input", () => { SND.vol = pVol.value / 100; SND.mute = false; sndApply(); sndSave(); renderSnd(); });
 pVol.addEventListener("change", () => sfx("click", null, { vol: 1, gap: 0 }));
 pMute.addEventListener("click", () => setMute(!SND.mute));
-document.getElementById("pCredits").addEventListener("click", () => { const c = document.getElementById("pCred"); c.hidden = !c.hidden; });
 addEventListener("keydown", (e) => { if (e.key.toLowerCase() === "m" && !e.repeat && !(e.target instanceof HTMLInputElement)) setMute(!SND.mute); });
 addEventListener("pointerdown", (e) => { if (e.target.closest?.("button, .tcard, [data-q], .lcard")) sfx("click", null, { vol: 0.6, gap: 0.03 }); });
 renderSnd();

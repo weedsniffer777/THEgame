@@ -47,3 +47,9 @@ write(out / "index.html", src)   # dev build: dev kit and perf readout on
 # Poki release: a full document (the artifact host adds its own), dev tools off, the SDK loaded first in <head>
 write(out / "poki/index.html", '<!doctype html>\n<html lang="en">\n<head>\n<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>\n<script>window.__RELEASE = true;</script>\n'
       + src + "\n</html>\n")
+
+# Poki upload: a zip with index.html at its root
+import zipfile
+with zipfile.ZipFile(out / "game-poki.zip", "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+    z.write(out / "poki/index.html", "index.html")
+print("wrote", out / "game-poki.zip", f"{(out / 'game-poki.zip').stat().st_size / 1e6:.1f} MB")
