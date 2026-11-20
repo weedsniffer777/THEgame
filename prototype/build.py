@@ -21,5 +21,29 @@ for f in sorted((root / "models/guns").glob("*.glb")):
     src = src.replace(f"__GUN_{f.stem}_B64__", b64(f"models/guns/{f.name}"))
 for f in sorted((root / "models/guns/icons").glob("*.png")):   # shop icons rendered from the full-quality models
     src = src.replace(f"__GUNICON_{f.stem}__", b64(f"models/guns/icons/{f.name}"))
-(out / "index.html").write_text(src)
-print("wrote", out / "index.html", f"{(out / 'index.html').stat().st_size / 1e6:.1f} MB")
+
+# Fonts: embedded instead of loaded from Google Fonts.
+fonts = (root / "fonts/fonts.css").read_text()
+for f in sorted((root / "fonts").glob("*.woff2")):
+    fonts = fonts.replace(f"__FONT_{f.name}__", "data:font/woff2;base64," + b64(f"fonts/{f.name}"))
+link = src[src.index('<link rel="stylesheet" href="https://fonts.googleapis.com'):]
+link = link[:link.index(">") + 1]
+src = src.replace(link, f"<style>{fonts}</style>")
+
+# three.js: bundled into the game module with esbuild (tools/node_modules; run `npm install` in tools/ once),
+# so the build makes no external requests.
+import re, subprocess
+src = re.sub(r'<script type="importmap">.*?</script>\n', "", src, flags=re.S)
+start = src.index('<script type="module">') + len('<script type="module">'); end = src.index("</script>", start)
+tmp = root / "tools/src"; tmp.mkdir(exist_ok=True); (tmp / "game.js").write_text(src[start:end])
+subprocess.run([str(root / "tools/node_modules/.bin/esbuild"), str(tmp / "game.js"), "--bundle", "--format=esm", "--minify-whitespace", "--minify-syntax",
+                "--target=es2022", "--log-level=warning", f"--outfile={tmp / 'game.bundle.js'}"], check=True)
+src = src[:start] + "\n" + (tmp / "game.bundle.js").read_text().replace("</script", "<\\/script") + src[end:]
+
+def write(path, html):
+    path.parent.mkdir(parents=True, exist_ok=True); path.write_text(html)
+    print("wrote", path, f"{path.stat().st_size / 1e6:.1f} MB")
+write(out / "index.html", src)   # dev build: dev kit and perf readout on
+# Poki release: a full document (the artifact host adds its own), dev tools off, the SDK loaded first in <head>
+write(out / "poki/index.html", '<!doctype html>\n<html lang="en">\n<head>\n<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>\n<script>window.__RELEASE = true;</script>\n'
+      + src + "\n</html>\n")
