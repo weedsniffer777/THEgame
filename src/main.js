@@ -8,6 +8,7 @@ import { loadTerrain } from './world/terrain.js';
 import { loadJet, viewerAnim } from './jet.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
+import { loadEnemy } from './enemy.js';
 import { createArmsHud } from './hudArms.js';
 import { createXray } from './hudXray.js';
 import { isTouch, createTouch } from './touch.js';
@@ -55,7 +56,7 @@ scene.add(clouds.mesh);
 const cloudEl = document.getElementById('cloudfog');
 
 const ac = new Aircraft(F5);
-const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain);
+const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, await loadEnemy('earlyJet'));
 const rig = new CameraRig(camera, CAMERA);
 const prevPos = new THREE.Vector3(), prevQuat = new THREE.Quaternion();
 const drawPos = new THREE.Vector3(), drawQuat = new THREE.Quaternion();

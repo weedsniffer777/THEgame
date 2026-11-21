@@ -301,7 +301,7 @@ class Trails {
 }
 
 // ---------------------------------------------------------------- the weapons
-export async function createWeapons(scene, jet, ac, cfg, terrain) {
+export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = null) {
   const gltf = await loadGltfJson('models/weapons/missiles.gltf.json');
   let src = null;
   gltf.scene.traverse(o => { if (!src && /Sidewinder/i.test(o.name)) src = o; });   // (the loader rewrites spaces in names)
@@ -359,8 +359,11 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
   jet.damage = new Damage(jet.model, scene, terrain, emit);
 
   // ---------------- target drones: copies of the jet circling close to the player, for testing
-  const droneProto = jet.object.clone(true);
-  droneProto.traverse(o => { if (o.isMesh && o.material.color && !o.material.transparent) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.55).add(new THREE.Color(0.35, 0.05, 0.03)); } });
+  let droneProto = enemyProto;
+  if (!droneProto) {   // fallback: a red-tinted copy of the player's jet
+    droneProto = jet.object.clone(true);
+    droneProto.traverse(o => { if (o.isMesh && o.material.color && !o.material.transparent) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.55).add(new THREE.Color(0.35, 0.05, 0.03)); } });
+  }
   const drones = [];
   for (let k = 0; k < cfg.drones; k++) {
     const d = { obj: droneProto.clone(true), alive: true, falling: false, respawn: 0, t: 0, spin: 0, dir: 1, R: 1000, speed: 180,

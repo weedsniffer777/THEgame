@@ -12,7 +12,7 @@ All licensed under [Creative Commons Attribution 4.0](http://creativecommons.org
 
 | Source model | Author | Link | Planned role |
 | --- | --- | --- | --- |
-| "Mig-15" | Vermishel | https://skfb.ly/6YWVt | early enemy |
+| "Mig-15" | Vermishel | https://skfb.ly/6YWVt | first enemy, in game (gear removed, split into parts; repaint pending) |
 | "MIG-21 Fishbed - cold war era fighter - free" | NETRUNNER_pl | https://skfb.ly/6SoVo | common enemy |
 | "MiG 29" | Usman Zia | https://skfb.ly/6XBBu | main enemy fighter |
 | "VPAF Sukhoi Su-57" | Dave Love SketchFab | https://skfb.ly/pLKWt | ace / boss enemy, possible unlock |

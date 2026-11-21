@@ -12,7 +12,8 @@
 - `src/flight/`: atmosphere, flight model (`aircraft.js`), mouse-aim autopilot (`instructor.js`).
 - `src/world/`: CDLOD terrain from a heightmap (mirrors past the map edge) and the shared sky/haze.
 - `src/jet.js`: F-5 model, control surface pivots, gear/doors, afterburner.
-- `src/damage.js`: break-apart damage model shared by every aircraft (parts, hit points, debris, flight effects).
+- `src/damage.js`: break-apart damage model shared by every aircraft (parts, hit points, debris, flight effects); per-type region tables (REGIONS).
+- `src/enemy.js`: enemy aircraft types (first: the early swept-wing jet, gear removed, split into parts).
 - `src/weapons.js`: guns (tracer per round), missiles (6 stations, no reload), seeker/lock, explosions, target drone.
 - `src/hudArms.js`, `src/hudXray.js`: weapon panel and X-ray damage view. `src/touch.js`: touch controls (drag to aim, throttle slider, fire/switch).
 - Dev kit (top-right button): model viewer with every animation, door angles and part breaking.
