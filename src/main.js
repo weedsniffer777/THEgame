@@ -5,7 +5,7 @@ import { instruct } from './flight/instructor.js';
 import { CameraRig } from './camera.js';
 import { createSky, setSun } from './world/sky.js';
 import { loadTerrain } from './world/terrain.js';
-import { loadJet } from './jet.js';
+import { loadJet, viewerAnim } from './jet.js';
 import { createClouds } from './world/clouds.js';
 
 loadTuning();
@@ -163,7 +163,7 @@ function frame(now) {
   jet.object.quaternion.copy(drawQuat);
   jet.animate(ac);
   rig.zoom += ((rig.zooming ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);
-  rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1));
+  if (viewer.on) viewer.place(); else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1));
   sun.position.copy(drawPos).addScaledVector(sunDir, 1000);
   sun.target.position.copy(drawPos);
   sky.position.copy(camera.position);
@@ -176,4 +176,39 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+// --- dev kit: model viewer -------------------------------------------------------------------
+const viewer = {
+  on: false, az: 2.4, el: -0.35, dist: 18, drag: null,
+  place() {
+    const o = jet.object;
+    const d = new THREE.Vector3(Math.sin(this.az) * Math.cos(this.el), Math.sin(this.el), Math.cos(this.az) * Math.cos(this.el)).multiplyScalar(this.dist);
+    camera.position.copy(o.position).add(d.applyQuaternion(o.quaternion));
+    camera.up.set(0, 1, 0).applyQuaternion(o.quaternion);
+    camera.lookAt(o.position);
+    if (camera.fov !== 40) { camera.fov = 40; camera.updateProjectionMatrix(); }
+  },
+};
+function setViewer(on) {
+  viewer.on = on; viewerAnim.active = on;
+  document.body.classList.toggle('viewing', on);
+  if (on) { if (document.pointerLockElement) document.exitPointerLock(); setRunning(false); startEl.classList.remove('show'); }
+  else startEl.classList.add('show');
+}
+canvas.addEventListener('pointerdown', e => { if (viewer.on) { viewer.drag = [e.clientX, e.clientY]; canvas.setPointerCapture(e.pointerId); } });
+canvas.addEventListener('pointermove', e => {
+  if (!viewer.on || !viewer.drag) return;
+  viewer.az -= (e.clientX - viewer.drag[0]) * 0.008;
+  viewer.el = THREE.MathUtils.clamp(viewer.el + (e.clientY - viewer.drag[1]) * 0.008, -1.5, 1.5);
+  viewer.drag = [e.clientX, e.clientY];
+});
+canvas.addEventListener('pointerup', () => { viewer.drag = null; });
+canvas.addEventListener('wheel', e => { if (viewer.on) { viewer.dist = THREE.MathUtils.clamp(viewer.dist * Math.exp(e.deltaY * 0.001), 4, 60); e.preventDefault(); } }, { passive: false });
+const kitBtn = document.getElementById('devkit'), kitMenu = document.getElementById('devmenu');
+kitBtn.addEventListener('click', e => { e.stopPropagation(); kitMenu.hidden = !kitMenu.hidden; });
+document.getElementById('kit-viewer').addEventListener('click', e => {
+  e.stopPropagation(); kitMenu.hidden = true;
+  setViewer(true);
+  import('./dev.js').then(m => m.openViewer(viewerAnim, () => setViewer(false)));
+});
+
 window.__game = { ac, rig, terrain, camera, jet, renderer, scene };

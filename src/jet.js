@@ -148,26 +148,36 @@ function swing(model, names, axis, deg, at) {
 let brakes = [];
 const doors = {};
 function closeUp(model) {
-  swing(model, ['Object001', 'Object025'], 'x', 45, new THREE.Vector3(0, 2.7477, 1.6497));   // canopy shut
+  doors.canopy = swing(model, ['Object001', 'Object025'], 'x', 0, new THREE.Vector3(0, 2.7477, 1.6497));
   doors.nose = swing(model, ['Object032'], 'z', 0);                                             // long nose gear door
   doors.noseTwin = doors.nose.clone();                                                          // the model only has one: mirror it
   doors.noseTwin.position.x = -doors.nose.position.x; doors.noseTwin.scale.x = -1;
   model.add(doors.noseTwin);
   doors.small = swing(model, ['Object033'], 'x', 0, new THREE.Vector3(0, 1.184, 4.013));      // small aft nose door, top-edge hinge
-  doors.outerL = swing(model, ['Object051'], 'z', 0, new THREE.Vector3(-1.97, 1.35, -1.25));  // main gear leg doors
-  doors.outerR = swing(model, ['Object048'], 'z', 0, new THREE.Vector3(1.97, 1.35, -1.25));
+  // main gear legs ride on the same hinge as their leg doors, so the gear slider retracts them together
+  doors.outerL = swing(model, ['Object051', 'Object052'], 'z', 0, new THREE.Vector3(-1.97, 1.35, -1.25));
+  doors.outerR = swing(model, ['Object048', 'Object023'], 'z', 0, new THREE.Vector3(1.97, 1.35, -1.25));
   doors.innerL = swing(model, ['Object050'], 'z', 0); doors.innerR = swing(model, ['Object035'], 'z', 0);   // inner main doors
   brakes = [swing(model, ['Object049'], 'x', 0), swing(model, ['Object030'], 'x', 0)];        // speed brakes
+  doors.legs = ['Object052', 'Object023', 'Object024'].map(n => model.getObjectByName(n));
 }
 
-function setDoors(D, airbrake) {
-  doors.nose.rotation.z = D.noseMain * DEG; doors.noseTwin.rotation.z = -D.noseMain * DEG;
-  doors.small.rotation.x = D.smallNose * DEG;
-  doors.outerL.rotation.z = D.outerMain * DEG; doors.outerR.rotation.z = -D.outerMain * DEG;
-  doors.innerL.rotation.z = -D.innerMain * DEG; doors.innerR.rotation.z = D.innerMain * DEG;
-  for (const b of brakes) b.rotation.x = THREE.MathUtils.lerp(D.speedBrakeClosed, D.speedBrakeOpen, airbrake) * DEG;
+// gear: 0 = up (doors at their closed angles, legs hidden), 1 = down as modelled. canopy: 0 shut, 1 open.
+function setDoors(D, airbrake, gear, canopy) {
+  const g = (closed) => THREE.MathUtils.lerp(closed, 0, gear) * DEG;
+  doors.canopy.rotation.x = THREE.MathUtils.lerp(45, 0, canopy) * DEG;
+  doors.nose.rotation.z = g(D.noseMain); doors.noseTwin.rotation.z = -g(D.noseMain);
+  doors.small.rotation.x = g(D.smallNose);
+  doors.outerL.rotation.z = g(D.outerMain); doors.outerR.rotation.z = -g(D.outerMain);
+  doors.innerL.rotation.z = -g(D.innerMain); doors.innerR.rotation.z = g(D.innerMain);
+  for (const l of doors.legs) l.visible = gear > 0.05;
+  doors.legs[2].visible = gear > 0.6;   // nose leg: no hinge data, shown once the gear is mostly down
+  const sb = THREE.MathUtils.lerp(D.speedBrakeClosed, D.speedBrakeOpen, airbrake);
+  for (const b of brakes) b.rotation.x = THREE.MathUtils.lerp(sb, 0, gear) * DEG;
 }
 
+// the model viewer drives every animation from here instead of the flight model
+export const viewerAnim = { active: false, pitch: 0, roll: 0, yaw: 0, airbrake: 0, engine: 1, aoa: 0, gear: 0, canopy: 0, cycle: false };
 
 export async function loadJet(url, cfg) {
   const gltf = await new GLTFLoader().parseAsync(await packGlb(url), url.slice(0, url.lastIndexOf('/') + 1));
@@ -188,13 +198,22 @@ export async function loadJet(url, cfg) {
 
   return {
     object, model,
-    animate(ac) {
+    animate(acReal) {
+      const V = viewerAnim;
+      if (V.active && V.cycle) {
+        const t = performance.now() / 1000;
+        V.pitch = Math.sin(t * 1.3); V.roll = Math.sin(t * 0.9 + 1); V.yaw = Math.sin(t * 1.1 + 2);
+        V.airbrake = 0.5 + 0.5 * Math.sin(t * 0.5); V.engine = 1.05 + 0.05 * Math.sin(t * 0.7);
+        V.gear = THREE.MathUtils.clamp(0.5 + 0.8 * Math.sin(t * 0.35), 0, 1); V.canopy = THREE.MathUtils.clamp(Math.sin(t * 0.25) * 1.5, 0, 1);
+      }
+      const ac = V.active ? { input: V, engine: V.engine, airbrake: V.airbrake, t: { aoa: V.aoa } } : acReal;
+      const gear = V.active ? V.gear : 0, canopy = V.active ? V.canopy : 0;
       const i = ac.input;
       s.aileronL.rotation.x = -i.roll * 18 * DEG;
       s.aileronR.rotation.x = i.roll * 18 * DEG;
       s.stabL.rotation.x = s.stabR.rotation.x = i.pitch * 14 * DEG;
       s.rudder.rotation.y = i.yaw * 20 * DEG;
-      setDoors(DOORS, ac.airbrake);
+      setDoors(DOORS, ac.airbrake, gear, canopy);
       const ab = THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1);
       const mil = THREE.MathUtils.clamp(ac.engine, 0, 1), t = performance.now() / 1000;
       for (const f of flames) f.update(mil, ab, t);

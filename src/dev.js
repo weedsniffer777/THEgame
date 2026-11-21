@@ -49,3 +49,23 @@ export function toggleDev({ ac, terrain, renderer, spawn }) {
       `stick p ${ac.input.pitch.toFixed(2)} r ${ac.input.roll.toFixed(2)} y ${ac.input.yaw.toFixed(2)}`;
   };
 }
+
+// Model viewer panel: every animation the jet has, plus the door angles, live.
+let vgui;
+export function openViewer(anim, exit) {
+  if (vgui) { vgui.show(); return; }
+  vgui = new GUI({ title: 'model viewer' });
+  vgui.domElement.style.top = '70px';
+  const a = vgui.addFolder('animation');
+  a.add(anim, 'cycle').name('play all');
+  a.add(anim, 'pitch', -1, 1, 0.01); a.add(anim, 'roll', -1, 1, 0.01); a.add(anim, 'yaw', -1, 1, 0.01);
+  a.add(anim, 'airbrake', 0, 1, 0.01).name('speed brakes');
+  a.add(anim, 'engine', 0, 1.1, 0.01).name('engine (>1 = AB)');
+  a.add(anim, 'gear', 0, 1, 0.01).name('gear (0 up, 1 down)');
+  a.add(anim, 'canopy', 0, 1, 0.01).name('canopy open');
+  const d = vgui.addFolder('door angles (closed)');
+  for (const k of Object.keys(TUNABLE.DOORS)) d.add(TUNABLE.DOORS, k, -180, 180, 0.5).onChange(saveTuning);
+  d.add({ copy: () => navigator.clipboard?.writeText(JSON.stringify(TUNABLE.DOORS, null, 1)).catch(() => {}) }, 'copy').name('copy door values');
+  vgui.add({ exit: () => { vgui.hide(); exit(); } }, 'exit').name('exit viewer');
+  for (const c of [...a.controllers]) c.listen();
+}
