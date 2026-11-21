@@ -152,13 +152,17 @@ function closeUp(model) {
   const twin = nose.clone();                                                                    // the model only has one: mirror it
   twin.position.x = -nose.position.x; twin.scale.x = -1; twin.rotation.z = -nose.rotation.z;
   model.add(twin);
-  // small aft nose door: hangs 0.26 m below the belly (y 1.18) at z 3.95-4.05; swings forward on its top edge to close
-  swing(model, ['Object033'], 'x', -90, new THREE.Vector3(0, 1.18, 4.07));
+  // small nose gear door: hangs 0.26 m below the belly (y 1.18) at z 3.95-4.05 with its skin facing forward.
+  // Swinging it back on its top edge turns the skin side down; it then slides forward over the opening (z 4.07-4.33).
+  const small = swing(model, ['Object033'], 'x', 90, new THREE.Vector3(0, 1.18, 4.0));
+  small.position.z += 0.37;
+  small.scale.z = 1.7;   // reach the aft lip of the opening
+  small.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.side = THREE.DoubleSide; } });
   // gear up: the leg doors cover the outer wells
   // (the gear legs themselves stay hidden: once the doors are shut they can't be seen, and they poke through the wing)
   swing(model, ['Object051'], 'z', 104, new THREE.Vector3(-1.97, 1.35, -1.25));
   swing(model, ['Object048'], 'z', -104, new THREE.Vector3(1.97, 1.35, -1.25));
-  swing(model, ['Object050'], 'z', -77); swing(model, ['Object035'], 'z', 77);                // inner main doors
+  swing(model, ['Object050'], 'z', -78.5); swing(model, ['Object035'], 'z', 78.5);                // inner main doors
   // the speed brakes, hinged at their front edge: CLOSED is the swung-up angle, open swings back down
   brakes = [swing(model, ['Object049'], 'x', SB_CLOSED), swing(model, ['Object030'], 'x', SB_CLOSED)];
 }
