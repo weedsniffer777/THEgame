@@ -106,6 +106,10 @@ export const CAMERA = {
   height: 4.2,
   sensitivity: 0.0022,    // rad per pixel
   levelRate: 2.2,         // how fast the camera rolls itself upright
+  closeFactor: 0.68,      // camera distance when slow, as a share of the normal distance
+  closeIAS: 80,           // m/s IAS (~155 kt) at or below which the camera is fully in close
+  farIAS: 200,            // m/s IAS (~390 kt) at or above which it is at the normal distance
+  distSmooth: 0.9,        // s for the distance to settle
   aimDistance: 1200,      // m: the jet points its nose at the spot this far down the aim line
 };
 

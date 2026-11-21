@@ -202,7 +202,7 @@ function frame(now) {
   jet.damage.update(dt);
   ac.damageFx = jet.damage.effects();
   rig.zoom += ((rig.zooming ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);
-  if (viewer.on) viewer.place(); else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1));
+  if (viewer.on) viewer.place(); else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1), ac.t.ias);
   sun.position.copy(drawPos).addScaledVector(sunDir, 1000);
   sun.target.position.copy(drawPos);
   sky.position.copy(camera.position);

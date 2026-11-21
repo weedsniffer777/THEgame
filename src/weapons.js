@@ -76,21 +76,29 @@ class Sprites {
         float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
         void main() {
-          float a;
+          float a; float shade = 1.0;
           if (vStreak > 0.5) {
             float across = abs(vUv.y);
             float core = exp(-across * across * 14.0), glow = exp(-across * across * 2.2);
             float along = vUv.x * 0.5 + 0.5;               // 0 tail .. 1 head
             a = (core * 2.0 + glow * 0.7) * mix(0.1, 1.0, along * along) * smoothstep(1.0, 0.8, along);   // soft tip, no square front
-          } else {
+          } else if (uAdd > 0.5) {
             float r = length(vUv);
             if (r > 1.0) discard;
-            float n = noise(vUv * 3.0 + vSeed * 31.0);
-            float n2 = noise(vUv * 6.0 - vSeed * 17.0);
-            a = smoothstep(1.0, 0.15, r + (n - 0.5) * 0.55 * (1.0 - uAdd) + (n2 - 0.5) * 0.25 * (1.0 - uAdd));
-            a = uAdd > 0.5 ? a * a : a;
+            a = smoothstep(1.0, 0.0, r); a *= a;
+          } else {
+            // smoke and fire puffs: an irregular, lumpy billow rather than a disc. Each puff is turned and stretched
+            // by its own seed; lumps come from layered noise, and the lumps are shaded so the puff reads as volume.
+            float ang = vSeed * 6.2832, cs = cos(ang), sn = sin(ang);
+            vec2 q = mat2(cs, -sn, sn, cs) * vUv * vec2(1.0, 0.8 + 0.4 * fract(vSeed * 7.3));
+            float f1 = noise(q * 1.7 + vSeed * 31.0), f2 = noise(q * 3.6 - vSeed * 13.0), f3 = noise(q * 7.5 + vSeed * 5.0);
+            float lumps = f1 * 0.55 + f2 * 0.3 + f3 * 0.15;
+            float r = length(q) + (lumps - 0.5) * 0.95;
+            if (r > 1.0) discard;
+            a = smoothstep(1.0, 0.3, r);
+            shade = 0.62 + 0.55 * (f2 * 0.6 + f3 * 0.4) + 0.22 * vUv.y;      // lumpy self-shading, lighter on top
           }
-          vec3 col = vCol.rgb;
+          vec3 col = vCol.rgb * shade;
           if (uAdd < 0.5) {                                // smoke: lit and hazed like the rest of the world
             col = applyFog(col, cameraPosition, vWorld);
             gl_FragColor = vec4(col * a * vCol.a, a * vCol.a);
@@ -244,13 +252,13 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
   // smoke and flame are laid down by distance travelled (plus a slow tick when standing still),
   // so fast debris leaves a continuous trail instead of a row of dots
   const lastAt = new WeakMap();
-  const puffSmoke = (p, light) => S.fx.push({ kind: 'smoke', p: p.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2), t: 0, life: 4 + Math.random() * 2, s: 1.8 + Math.random() * 1.4, seed: Math.random(), dark: light ? 0 : 1 });
+  const puffSmoke = (p, light) => S.fx.push({ kind: 'smoke', p: p.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2), t: 0, life: 4 + Math.random() * 2.5, s: 1.6 + Math.random() * 2.0, seed: Math.random(), dark: light ? 0 : 1, spread: 1 });
   const puffFlame = (p, v) => S.fx.push({ kind: 'flame', p: p.clone(), v: v ? v.clone().multiplyScalar(0.15) : new THREE.Vector3(), t: 0, life: 0.35, s: 0.7 + Math.random() * 0.6 });
   const emit = (kind, p, v, key) => {
     if (kind === 'impact') return explode(p, new THREE.Vector3(), 0.6);
     if (kind === 'groundfire') return fires.push({ p: p.clone(), t: 0, life: v ? 25 : 10, big: !!v, tS: 0, tF: 0 });
     const make = kind === 'smoke' ? (q) => puffSmoke(q) : (q) => puffFlame(q, v);
-    const spacing = kind === 'smoke' ? 1.4 : 0.9;
+    const spacing = kind === 'smoke' ? 0.8 : 0.7;
     if (!key) { make(p); return; }
     let st = lastAt.get(key);
     if (!st) { st = { [kind]: { p: p.clone(), t: 0 } }; lastAt.set(key, st); make(p); return; }
@@ -335,6 +343,11 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       const sp = (8 + Math.random() * 22) * scale;
       S.fx.push({ kind: 'ball', p: p.clone().addScaledVector(d, Math.random() * 3 * scale), v: d.multiplyScalar(sp).add(carry), t: -Math.random() * 0.1,
         life: (1.0 + Math.random() * 1.1) * (0.8 + 0.25 * scale), s: (3 + Math.random() * 3.5) * scale, seed: Math.random() });
+    }
+    for (let k = 0; k < Math.round(5 + 4 * scale); k++) {   // soot: black puffs boiling through and around the fire
+      const d = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 0.4, Math.random() * 2 - 1).normalize();
+      S.fx.push({ kind: 'ball', soot: 1, p: p.clone().addScaledVector(d, (2 + Math.random() * 4) * scale), v: d.multiplyScalar((6 + Math.random() * 16) * scale).add(carry), t: -0.05 - Math.random() * 0.25,
+        life: (2.2 + Math.random() * 1.6) * (0.8 + 0.25 * scale), s: (3.5 + Math.random() * 3.5) * scale, seed: Math.random() });
     }
     for (let k = 0; k < 7; k++) {
       const d = new THREE.Vector3(Math.random() - 0.5, 0.3 + Math.random() * 0.5, Math.random() - 0.5).multiplyScalar(6 * scale);
@@ -450,9 +463,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       const tail = tmpB.copy(r.v).normalize().multiplyScalar(-back).add(head);
       const w = Math.max(cfg.tracerWidth, head.distanceTo(cam) * cfg.tracerMinPixels);
       const fade = r.t > cfg.roundLife - 0.4 ? (cfg.roundLife - r.t) / 0.4 : 1;
-      glow.push(head, tail, 1.0, 0.32, 0.14, 1.1 * fade, w);                                       // red-orange streak
-      // a bright glowing head on every round, so tracers read from any angle, including straight from behind
-      glow.push(head, null, 1.0, 0.5, 0.3, 1.25 * fade, Math.max(0.3, head.distanceTo(cam) * cfg.tracerMinPixels * 1.8), 0.5);
+      const dist = head.distanceTo(cam), far = 1 / (1 + dist / 700);           // dimmer with distance
+      glow.push(head, tail, 1.0, 0.3, 0.12, 1.0 * fade * (0.35 + 0.65 * far), w);                  // red-orange streak
+      // a small glowing head on every round, so tracers read from any angle, including straight from behind
+      glow.push(head, null, 1.0, 0.36, 0.16, 0.55 * fade * far, Math.max(0.25, dist * cfg.tracerMinPixels * 1.15), 0.5);
     }
     // muzzle flashes at the gun ports
     for (let k = 0; k < 2; k++) if (S.flash[k] > 0) {
@@ -497,15 +511,16 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       const k = e.t / e.life;
       if (e.kind === 'ball') {
         e.v.y += dt * 9 * k;                                   // hot gas rises as it slows
-        const c = fireRamp(k);
+        const c = e.soot ? SOOT : fireRamp(k);
         const alpha = k < 0.6 ? 0.95 : 0.95 * (1 - (k - 0.6) / 0.4);
         smoke.push(e.p, null, c[0], c[1], c[2], alpha * Math.min(1, e.t * 20), e.s * (0.55 + 1.3 * Math.sqrt(k)), e.seed);
       } else if (e.kind === 'fire') {
         glow.push(e.p, null, 1.0, 0.75, 0.45, 3.5 * (1 - k), e.s * (0.6 + k * 0.6), 0.3);
       } else if (e.kind === 'smoke') {
         if (e.rise) e.v.y += dt * 0.6;
-        const g = e.dark ? 0.1 + 0.07 * e.seed : 0.42 + 0.1 * e.seed;       // dark grey-brown, not pure black
-        smoke.push(e.p, null, g * 1.08, g, g * 0.92, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * (0.6 + k * 1.9), e.seed);
+        const g = e.dark ? 0.055 + 0.06 * e.seed : 0.42 + 0.1 * e.seed;     // dark sooty grey, with some near-black
+        const grow = e.spread ? 0.7 + 2.6 * (1 - Math.exp(-e.t * 1.2)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
+        smoke.push(e.p, null, g * 1.08, g, g * 0.92, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow, e.seed);
       } else if (e.kind === 'flame') {
         glow.push(e.p, null, 1.0, 0.3 + 0.25 * (1 - k), 0.03, 0.75 * (1 - k), e.s * (0.8 + k * 0.8), Math.random());
       } else if (e.kind === 'ember') {
@@ -547,7 +562,8 @@ function closestOnSeg(a, b, p) {
 }
 
 // fire colour over a puff's life: white-yellow, orange, deep red, then brown smoke (emissive values above 1 glow)
-const RAMP = [[0, 2.4, 2.0, 1.1], [0.12, 2.2, 1.05, 0.28], [0.3, 1.4, 0.38, 0.07], [0.5, 0.42, 0.13, 0.05], [0.72, 0.15, 0.12, 0.1], [1, 0.13, 0.12, 0.11]];
+const RAMP = [[0, 2.4, 2.0, 1.1], [0.12, 2.2, 1.05, 0.28], [0.3, 1.4, 0.38, 0.07], [0.48, 0.32, 0.09, 0.03], [0.65, 0.07, 0.06, 0.05], [1, 0.09, 0.085, 0.08]];
+const SOOT = [0.035, 0.03, 0.028];
 function fireRamp(k) {
   for (let i = 1; i < RAMP.length; i++) if (k <= RAMP[i][0]) {
     const a = RAMP[i - 1], b = RAMP[i], t = (k - a[0]) / (b[0] - a[0]);

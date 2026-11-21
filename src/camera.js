@@ -29,14 +29,18 @@ export class CameraRig {
     this.aim.multiply(_q.setFromAxisAngle(X, -dy * s)).normalize();
   }
 
-  update(dt, target, speedFrac) {
+  update(dt, target, speedFrac, ias = 999) {
     const c = this.cfg;
+    // dynamic distance: current framing when fast, the camera eases in closer as the jet slows down
+    const near = 1 - THREE.MathUtils.smoothstep(ias, c.closeIAS, c.farIAS);
+    const want = THREE.MathUtils.lerp(1, c.closeFactor, near);
+    this.distK = this.distK === undefined ? want : this.distK + (want - this.distK) * (1 - Math.exp(-dt / c.distSmooth));
     this.axes();
     const bank = Math.atan2(this.right.y, this.up.y);
     const w = 1 - THREE.MathUtils.smoothstep(Math.abs(this.fwd.y), 0.85, 0.98);
     this.aim.premultiply(_q.setFromAxisAngle(this.fwd, bank * Math.min(1, c.levelRate * dt) * w)).normalize();
     this.axes();
-    this.camera.position.copy(target).addScaledVector(this.up, c.height).addScaledVector(this.fwd, -c.distance);
+    this.camera.position.copy(target).addScaledVector(this.up, c.height * (0.4 + 0.6 * this.distK)).addScaledVector(this.fwd, -c.distance * this.distK);
     this.camera.quaternion.copy(this.aim);
     const fov = THREE.MathUtils.lerp(c.fov + c.speedFov * speedFrac, c.zoomFov, this.zoom);
     if (Math.abs(fov - this.camera.fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
