@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DOORS } from './config.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // The F-5 model with moving control surfaces, gear hidden and afterburner flames.
@@ -145,24 +146,28 @@ function swing(model, names, axis, deg, at) {
 }
 
 let brakes = [];
-const SB_CLOSED = 38, SB_OPEN = 38 - 45;   // speed brakes open 45 deg
+const doors = {};
 function closeUp(model) {
   swing(model, ['Object001', 'Object025'], 'x', 45, new THREE.Vector3(0, 2.7477, 1.6497));   // canopy shut
-  const nose = swing(model, ['Object032'], 'z', 90);                                            // nose gear door
-  const twin = nose.clone();                                                                    // the model only has one: mirror it
-  twin.position.x = -nose.position.x; twin.scale.x = -1; twin.rotation.z = -nose.rotation.z;
-  model.add(twin);
-  // small nose gear door: hinged at its top edge (y 1.184, z 4.013); at -105 deg it lies flush over its opening
-  // (z 4.01-4.27, belly height 1.18). Angle found by sweeping the mesh against the hull.
-  swing(model, ['Object033'], 'x', -105, new THREE.Vector3(0, 1.184, 4.013));
-  // gear up: the leg doors cover the outer wells
-  // (the gear legs themselves stay hidden: once the doors are shut they can't be seen, and they poke through the wing)
-  swing(model, ['Object051'], 'z', 104, new THREE.Vector3(-1.97, 1.35, -1.25));
-  swing(model, ['Object048'], 'z', -104, new THREE.Vector3(1.97, 1.35, -1.25));
-  swing(model, ['Object050'], 'z', -58); swing(model, ['Object035'], 'z', 58);   // outer edge meets the hull (y 1.15) at 58 deg                // inner main doors
-  // the speed brakes, hinged at their front edge: CLOSED is the swung-up angle, open swings back down
-  brakes = [swing(model, ['Object049'], 'x', SB_CLOSED), swing(model, ['Object030'], 'x', SB_CLOSED)];
+  doors.nose = swing(model, ['Object032'], 'z', 0);                                             // long nose gear door
+  doors.noseTwin = doors.nose.clone();                                                          // the model only has one: mirror it
+  doors.noseTwin.position.x = -doors.nose.position.x; doors.noseTwin.scale.x = -1;
+  model.add(doors.noseTwin);
+  doors.small = swing(model, ['Object033'], 'x', 0, new THREE.Vector3(0, 1.184, 4.013));      // small aft nose door, top-edge hinge
+  doors.outerL = swing(model, ['Object051'], 'z', 0, new THREE.Vector3(-1.97, 1.35, -1.25));  // main gear leg doors
+  doors.outerR = swing(model, ['Object048'], 'z', 0, new THREE.Vector3(1.97, 1.35, -1.25));
+  doors.innerL = swing(model, ['Object050'], 'z', 0); doors.innerR = swing(model, ['Object035'], 'z', 0);   // inner main doors
+  brakes = [swing(model, ['Object049'], 'x', 0), swing(model, ['Object030'], 'x', 0)];        // speed brakes
 }
+
+function setDoors(D, airbrake) {
+  doors.nose.rotation.z = D.noseMain * DEG; doors.noseTwin.rotation.z = -D.noseMain * DEG;
+  doors.small.rotation.x = D.smallNose * DEG;
+  doors.outerL.rotation.z = D.outerMain * DEG; doors.outerR.rotation.z = -D.outerMain * DEG;
+  doors.innerL.rotation.z = -D.innerMain * DEG; doors.innerR.rotation.z = D.innerMain * DEG;
+  for (const b of brakes) b.rotation.x = THREE.MathUtils.lerp(D.speedBrakeClosed, D.speedBrakeOpen, airbrake) * DEG;
+}
+
 
 export async function loadJet(url, cfg) {
   const gltf = await new GLTFLoader().parseAsync(await packGlb(url), url.slice(0, url.lastIndexOf('/') + 1));
@@ -189,7 +194,7 @@ export async function loadJet(url, cfg) {
       s.aileronR.rotation.x = i.roll * 18 * DEG;
       s.stabL.rotation.x = s.stabR.rotation.x = i.pitch * 14 * DEG;
       s.rudder.rotation.y = i.yaw * 20 * DEG;
-      for (const b of brakes) b.rotation.x = THREE.MathUtils.lerp(SB_CLOSED, SB_OPEN, ac.airbrake) * DEG;
+      setDoors(DOORS, ac.airbrake);
       const ab = THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1);
       const mil = THREE.MathUtils.clamp(ac.engine, 0, 1), t = performance.now() / 1000;
       for (const f of flames) f.update(mil, ab, t);

@@ -111,8 +111,18 @@ export const WORLD = {
   spawn: { x: -6500, y: 3300, z: 15500, heading: 48, speed: 230 },
 };
 
+// Gear-up door angles (degrees about each door's hinge). Adjustable live in the dev panel.
+export const DOORS = {
+  innerMain: 78.5,        // inner main gear doors (rear pair)
+  outerMain: 104,         // doors on the main gear legs
+  smallNose: -105,        // small door at the back of the nose gear well
+  noseMain: 90,           // long nose gear doors
+  speedBrakeClosed: 38,
+  speedBrakeOpen: -7,     // 45 deg open
+};
+
 const KEY = 'thegame.tune';
-export const TUNABLE = { F5, INSTRUCTOR, CAMERA, WORLD };
+export const TUNABLE = { F5, INSTRUCTOR, CAMERA, WORLD, DOORS };
 
 export function loadTuning() {
   try {

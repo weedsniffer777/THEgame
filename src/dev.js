@@ -17,7 +17,8 @@ export function toggleDev({ ac, terrain, renderer, spawn }) {
     for (const k of Object.keys(group)) {
       if (typeof group[k] !== 'number') continue;
       const v = Math.abs(group[k]) || 1;
-      f.add(group, k, 0, v * 4, v / 200).onChange(() => {
+      const [lo, hi, st] = name === 'DOORS' ? [-180, 180, 0.5] : [group[k] < 0 ? -v * 4 : 0, v * 4, v / 200];
+      f.add(group, k, lo, hi, st).onChange(() => {
         saveTuning();
         if (name === 'WORLD') {
           setSun();
