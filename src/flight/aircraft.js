@@ -73,7 +73,7 @@ export class Aircraft {
       // (about 4.7 G at 100 kt, 6.5 G at 145 kt, all of it from ~230 kt). The extra lift costs extra drag,
       // so slow, tight turns trade airspeed.
       const floorT = Math.min(Math.max((ias - c.gFloorStartIAS) / (c.gFloorFullIAS - c.gFloorStartIAS), 0), 1);
-      const gFloor = c.gFloorMax * Math.sqrt(floorT);
+      const gFloor = c.gFloorMax * Math.pow(floorT, c.gFloorCurve);
       const clFull = this.liftCoef(c.gFloorAoA * DEG);
       const boost = Math.max(1, gFloor * c.mass * G / Math.max(dyn * c.wingArea * clFull, 1));
       this.liftScale = boost;

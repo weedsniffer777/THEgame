@@ -59,8 +59,9 @@ export const F5 = {
   minAuthority: 0.03,
   lowSpeedAuthority: 0.6,  // control/rotation authority floor at low speed (fraction of reference)
   gFloorMax: 9,           // arcade lift: G guaranteed at full AoA once at gFloorFullIAS
-  gFloorStartIAS: 25,     // m/s IAS where the guarantee starts (~50 kt)
+  gFloorStartIAS: 28,     // m/s IAS where the guarantee starts (~55 kt)
   gFloorFullIAS: 120,     // m/s IAS where it reaches gFloorMax (~230 kt)
+  gFloorCurve: 0.65,      // shape of the guarantee below full: ~3.6 G at 100 kt, ~6.7 G at 175 kt
   gFloorAoA: 20,          // deg, the AoA the guarantee is measured at
   turnBoost: 1.3,         // arcade: flight path turns this much harder than the G shown
   boostDrag: 0.22,        // drag per unit of extra lift: what slow tight turns cost in speed
