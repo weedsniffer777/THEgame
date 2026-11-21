@@ -135,7 +135,8 @@ export class Damage {
       const outer = this.parts['wingOuter' + name.slice(-1)];
       if (outer && !outer.broken) { outer.broken = true; this.model.updateMatrixWorld(true); o.attach(outer.obj); }
     }
-    this.fires.push(part.breakAt.clone());
+    const burns = name !== 'nose';                 // a lost nose doesn't burn, on the jet or as a piece
+    if (burns) this.fires.push(part.breakAt.clone());
     const edge = part.breakAt.clone().sub(part.local.elements.length ? new THREE.Vector3().setFromMatrixPosition(part.local) : o.position);   // torn edge, relative to the piece
     o.updateWorldMatrix(true, true);
     this.scene.attach(o);
@@ -144,7 +145,7 @@ export class Damage {
       obj: o, name,
       v: vel.clone().multiplyScalar(0.9).addScaledVector(out, 8 + Math.random() * 10).add(new THREE.Vector3(0, 4 + Math.random() * 6, 0)),
       axis: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(),
-      spin: 2 + Math.random() * 5, t: 0, smokeT: 0, landed: false, edge,
+      spin: 2 + Math.random() * 5, t: 0, smokeT: 0, landed: false, edge, burns,
     });
   }
 
@@ -172,11 +173,11 @@ export class Damage {
         if (d.obj.position.y < ground) {
           d.landed = true; d.obj.position.y = ground + 0.2;             // the piece stays where it fell, burning
           d.obj.traverse(o => { if (o.isMesh && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.25); } });
-          if (/wing|nose/.test(d.name)) this.emit('impact', d.obj.position, d.v);
-          this.emit('groundfire', d.obj.position, null);
+          if (/wing/.test(d.name)) this.emit('impact', d.obj.position, d.v);
+          if (d.burns) this.emit('groundfire', d.obj.position, null);
         }
       }
-      if (d.t < 10 && !d.landed) {
+      if (d.burns && d.t < 10 && !d.landed) {
         const at = d.obj.localToWorld(d.edge.clone());   // the torn edge burns, not the middle of the piece
         this.emit('smoke', at, d.v, d); if (d.t < 5) this.emit('flame', at, d.v, d.obj);
       }
