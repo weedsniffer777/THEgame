@@ -8,7 +8,7 @@ export const SKY = {
   zenith: srgb(78, 150, 228),
   horizon: srgb(184, 216, 240),
   haze: srgb(168, 200, 232),       // light scattered into the view by the air (distant ridges go toward this)
-  sun: srgb(255, 244, 222),
+  sun: srgb(255, 228, 186),
 };
 
 // Shared atmosphere: the sky and the terrain use the same haze so distant mountains melt into the horizon.
@@ -71,7 +71,7 @@ export function createSky() {
         float ang = acos(clamp(c, -1.0, 1.0));
         float disc = 1.0 - smoothstep(1.3, 1.45, degrees(ang));
         // the whole sun side of the sky brightens and pales, as in photos
-        col = mix(col, vec3(1.0, 0.97, 0.92), pow(max(c, 0.0), 4.0) * 0.35);
+        col = mix(col, vec3(1.0, 0.94, 0.84), pow(max(c, 0.0), 4.0) * 0.35);
         col += uSunGlow * (disc * 30.0 + exp(-ang * 22.0) * 2.6 + exp(-ang * 6.0) * 0.45);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>

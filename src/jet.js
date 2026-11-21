@@ -152,6 +152,8 @@ function closeUp(model) {
   const twin = nose.clone();                                                                    // the model only has one: mirror it
   twin.position.x = -nose.position.x; twin.scale.x = -1; twin.rotation.z = -nose.rotation.z;
   model.add(twin);
+  // small aft nose door: hangs 0.26 m below the belly (y 1.18) at z 3.95-4.05; swings forward on its top edge to close
+  swing(model, ['Object033'], 'x', -90, new THREE.Vector3(0, 1.18, 4.07));
   // gear up: the leg doors cover the outer wells
   // (the gear legs themselves stay hidden: once the doors are shut they can't be seen, and they poke through the wing)
   swing(model, ['Object051'], 'z', 104, new THREE.Vector3(-1.97, 1.35, -1.25));
