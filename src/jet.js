@@ -145,24 +145,21 @@ function swing(model, names, axis, deg, at) {
 }
 
 let brakes = [];
-const SB_CLOSED = 38, SB_OPEN = 0;
+const SB_CLOSED = 38, SB_OPEN = 38 - 45;   // speed brakes open 45 deg
 function closeUp(model) {
   swing(model, ['Object001', 'Object025'], 'x', 45, new THREE.Vector3(0, 2.7477, 1.6497));   // canopy shut
   const nose = swing(model, ['Object032'], 'z', 90);                                            // nose gear door
   const twin = nose.clone();                                                                    // the model only has one: mirror it
   twin.position.x = -nose.position.x; twin.scale.x = -1; twin.rotation.z = -nose.rotation.z;
   model.add(twin);
-  // small nose gear door: hangs 0.26 m below the belly (y 1.18) at z 3.95-4.05 with its skin facing forward.
-  // Swinging it back on its top edge turns the skin side down; it then slides forward over the opening (z 4.07-4.33).
-  const small = swing(model, ['Object033'], 'x', 90, new THREE.Vector3(0, 1.18, 4.0));
-  small.position.z += 0.37;
-  small.scale.z = 1.7;   // reach the aft lip of the opening
-  small.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.side = THREE.DoubleSide; } });
+  // small nose gear door: hinged at its top edge (y 1.184, z 4.013); at -105 deg it lies flush over its opening
+  // (z 4.01-4.27, belly height 1.18). Angle found by sweeping the mesh against the hull.
+  swing(model, ['Object033'], 'x', -105, new THREE.Vector3(0, 1.184, 4.013));
   // gear up: the leg doors cover the outer wells
   // (the gear legs themselves stay hidden: once the doors are shut they can't be seen, and they poke through the wing)
   swing(model, ['Object051'], 'z', 104, new THREE.Vector3(-1.97, 1.35, -1.25));
   swing(model, ['Object048'], 'z', -104, new THREE.Vector3(1.97, 1.35, -1.25));
-  swing(model, ['Object050'], 'z', -78.5); swing(model, ['Object035'], 'z', 78.5);                // inner main doors
+  swing(model, ['Object050'], 'z', -58); swing(model, ['Object035'], 'z', 58);   // outer edge meets the hull (y 1.15) at 58 deg                // inner main doors
   // the speed brakes, hinged at their front edge: CLOSED is the swung-up angle, open swings back down
   brakes = [swing(model, ['Object049'], 'x', SB_CLOSED), swing(model, ['Object030'], 'x', SB_CLOSED)];
 }
