@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 
-// X-ray damage view (bottom left): the actual aircraft, rendered top-down once at load, part by part.
+// X-ray damage view (bottom left): the actual aircraft as a glowing see-through wireframe, rendered top-down once at load.
 // Pass 1 paints every part in its own flat id colour (which pixel belongs to which part); pass 2 renders the
 // shape's shading. Each frame the silhouette is tinted per part by health: green, yellow, red, dark when gone.
 const W = 160, H = 200;   // render size (drawn at half size on screen, so edges come out smooth)
 
 function tint(f) {   // health 1 -> 0: green, yellow, red
-  const g = [96, 225, 120], y = [245, 212, 70], r = [240, 70, 55];
+  const g = [70, 255, 140], y = [250, 220, 70], r = [255, 70, 55];
   const [a, b, t] = f > 0.5 ? [y, g, (f - 0.5) * 2] : [r, y, f * 2];
   return a.map((v, i) => v + (b[i] - v) * t);
 }
@@ -52,12 +52,22 @@ export function createXray(root, damage, maxHp, renderer, model) {
   renderer.setRenderTarget(prevTarget); renderer.setClearColor(prevClear, prevAlpha);
   rt.dispose();
 
-  // per pixel: which part (or -1), and how bright (facing up = brighter, plus a little edge darkening)
-  const part = new Int8Array(W * H), lum = new Float32Array(W * H);
+  // per pixel: which part (or -1), and a wireframe-like line strength: outlines, part seams and shape creases
+  const part = new Int8Array(W * H), nz = new Float32Array(W * H), line = new Float32Array(W * H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const src = (y * W + x) * 4, dst = (H - 1 - y) * W + x;   // render targets read bottom-up
     part[dst] = ids[src + 3] > 0 ? Math.round(ids[src] / 12) - 1 : -1;
-    lum[dst] = 0.45 + 0.55 * (shade[src + 2] / 255);
+    nz[dst] = shade[src + 2] / 255; nz[dst] += shade[src] / 2550;
+  }
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x;
+    if (part[i] < 0) continue;
+    let edge = 0, crease = 0;
+    for (const j of [i - 1, i + 1, i - W, i + W]) {
+      if (part[j] !== part[i]) edge = 1;                       // outline or seam between parts
+      crease = Math.max(crease, Math.abs(nz[j] - nz[i]));      // a fold in the surface
+    }
+    line[i] = Math.max(edge, Math.min(1, crease * 9));
   }
 
   const canvas = document.createElement('canvas');
@@ -68,9 +78,9 @@ export function createXray(root, damage, maxHp, renderer, model) {
   let lastKey = '';
   return () => {
     const cols = names.map(n => {
-      if (n === 'body') return [...tint(Math.max(0, damage.bodyHp) / maxHp.body), 230];
+      if (n === 'body') return [...tint(Math.max(0, damage.bodyHp) / maxHp.body), 1];
       const p = damage.parts[n];
-      return p.broken ? [30, 30, 34, 110] : [...tint(p.hp / (maxHp[n] || 1)), 230];
+      return p.broken ? [120, 40, 36, 0.35] : [...tint(p.hp / (maxHp[n] || 1)), 1];   // lost: a faint red ghost
     });
     const key = cols.map(c => c.join()).join('|');
     if (key === lastKey) return;   // only repaint when something changed
@@ -79,8 +89,10 @@ export function createXray(root, damage, maxHp, renderer, model) {
     for (let i = 0; i < W * H; i++) {
       const k = part[i];
       if (k < 0) { d[i * 4 + 3] = 0; continue; }
-      const col = cols[k], l = lum[i];
-      d[i * 4] = col[0] * l; d[i * 4 + 1] = col[1] * l; d[i * 4 + 2] = col[2] * l; d[i * 4 + 3] = col[3];
+      const col = cols[k], L = line[i];
+      const bright = 0.55 + 0.45 * L;                         // lines glow brighter than the see-through fill
+      d[i * 4] = Math.min(255, col[0] * bright + 60 * L); d[i * 4 + 1] = Math.min(255, col[1] * bright + 60 * L); d[i * 4 + 2] = Math.min(255, col[2] * bright + 60 * L);
+      d[i * 4 + 3] = (28 + 227 * L) * col[3];
     }
     ctx.putImageData(img, 0, 0);
   };

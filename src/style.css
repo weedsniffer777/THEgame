@@ -60,7 +60,7 @@ body.viewing #game { cursor: grab; }
 #lead::after { content: ''; position: absolute; left: 6px; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: #fff; }
 #lead.on { border-color: #ff5541; } #lead.on::after { background: #ff5541; }
 /* x-ray damage view */
-#xray { position: absolute; left: 14px; bottom: 50px; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
+#xray { position: absolute; left: 14px; bottom: 50px; opacity: 0.95; filter: drop-shadow(0 0 2px rgba(90,255,150,0.55)) drop-shadow(0 0 1px rgba(0,0,0,0.5)); }
 #xray canvas { display: block; }
 /* plane lost: colour drains, red edges */
 #lost { position: absolute; inset: 0; opacity: 0; transition: opacity 0.6s; background: radial-gradient(ellipse at center, transparent 40%, rgba(150,0,0,0.55) 100%); }
