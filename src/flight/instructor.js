@@ -11,7 +11,7 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 // stick deflection (0..1) that holds a given load factor, from the lift curve at the current dynamic pressure
 function stickFor(ac, g, aoaMax) {
   const f = ac.cfg, dyn = Math.max(ac.t.dyn || 0, 1);
-  const cl = g * f.mass * 9.81 / (dyn * f.wingArea);
+  const cl = g * f.mass * 9.81 / (dyn * f.wingArea * (ac.liftScale || 1));
   const aoa = Math.min(f.clMax * Math.atanh(Math.min(cl / f.clMax, 0.995)) / f.clAlpha, aoaMax * DEG);
   const lock = 1 - f.pitchLock * smooth(f.pitchLockStart, f.pitchLockEnd, ac.t.ias || 0);
   // steady state: control moment = stability moment, i.e. pitchControl * lock * stick = pitchStability * sin(aoa)

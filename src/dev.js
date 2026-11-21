@@ -1,6 +1,6 @@
 // Dev-only tuning panel and flight readout (press ` to toggle). Never shown to players unless toggled.
 import GUI from 'lil-gui';
-import { TUNABLE, saveTuning, clearTuning } from './config.js';
+import { TUNABLE, saveTuning, clearTuning, resetGroup } from './config.js';
 import { setSun } from './world/sky.js';
 
 let gui, readout, fps = 60;
@@ -66,6 +66,7 @@ export function openViewer(anim, exit) {
   const d = vgui.addFolder('door angles (closed)');
   for (const k of Object.keys(TUNABLE.DOORS)) d.add(TUNABLE.DOORS, k, -180, 180, 0.5).onChange(saveTuning);
   d.add({ copy: () => navigator.clipboard?.writeText(JSON.stringify(TUNABLE.DOORS, null, 1)).catch(() => {}) }, 'copy').name('copy door values');
+  d.add({ reset: () => { resetGroup('DOORS'); d.controllers.forEach(c => c.updateDisplay()); } }, 'reset').name('reset to game angles');
   vgui.add({ exit: () => { vgui.hide(); exit(); } }, 'exit').name('exit viewer');
   for (const c of [...a.controllers]) c.listen();
 }

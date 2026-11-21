@@ -39,7 +39,7 @@ export const F5 = {
   pitchDamping: 6.2,
   pitchLockStart: 250,    // IAS m/s where controls start to stiffen
   pitchLockEnd: 400,
-  pitchLock: 0.55,        // fraction of pitch authority lost at pitchLockEnd
+  pitchLock: 0.3,         // fraction of pitch authority lost at pitchLockEnd
 
   // yaw
   yawControl: 1.6,
@@ -57,6 +57,13 @@ export const F5 = {
 
   // low-speed floor so the jet never becomes completely uncontrollable while tumbling
   minAuthority: 0.03,
+  lowSpeedAuthority: 0.6,  // control/rotation authority floor at low speed (fraction of reference)
+  gFloorMax: 9,           // arcade lift: G guaranteed at full AoA once at gFloorFullIAS
+  gFloorStartIAS: 25,     // m/s IAS where the guarantee starts (~50 kt)
+  gFloorFullIAS: 120,     // m/s IAS where it reaches gFloorMax (~230 kt)
+  gFloorAoA: 20,          // deg, the AoA the guarantee is measured at
+  turnBoost: 1.3,         // arcade: flight path turns this much harder than the G shown
+  boostDrag: 0.22,        // drag per unit of extra lift: what slow tight turns cost in speed
   airbrakeDrag: 0.08,     // extra drag coefficient with the speed brakes fully out
   airbrakeRate: 1.5,      // fraction of full travel per second
   afterburner: 'spray',   // 'spray' (this jet) or 'diamonds' (shock diamonds after the first flame)
@@ -113,7 +120,7 @@ export const WORLD = {
 
 // Gear-up door angles (degrees about each door's hinge). Adjustable live in the dev panel.
 export const DOORS = {
-  innerMain: 78.5,        // inner main gear doors (rear pair)
+  innerMain: 69.5,        // inner main gear doors (rear pair)
   outerMain: 104,         // doors on the main gear legs
   smallNose: -105,        // small door at the back of the nose gear well
   noseMain: 90,           // long nose gear doors
@@ -121,22 +128,54 @@ export const DOORS = {
   speedBrakeOpen: -7,     // 45 deg open
 };
 
-const KEY = 'thegame.tune';
-export const TUNABLE = { F5, INSTRUCTOR, CAMERA, WORLD, DOORS };
+// Weapons. Guns: infinite ammo, every round a tracer. Missiles: limited, reload over time.
+export const WEAPONS = {
+  gunRate: 50,            // rounds per second, both guns together
+  muzzleVelocity: 1030,   // m/s
+  gunSpread: 0.0012,      // rad
+  tracerLength: 16,       // m (rounds are ~20 m apart, so this leaves gaps between streaks)
+  tracerWidth: 0.32,      // m (grows with distance so tracers stay visible)
+  roundLife: 3,           // s
+  missiles: 2,
+  missileReload: 15,      // s per missile
+  seekerFov: 24,          // deg, full width of the seeker circle
+  lockTime: 0.8,          // s on target to lock
+  lockRange: 4000,        // m
+  missileThrust: 230,     // m/s² while the motor burns
+  motorTime: 2.6,         // s
+  missileMaxG: 28,
+  missileLife: 14,        // s
+  proximity: 12,          // m
+};
 
+const KEY = 'thegame.tune2';
+export const TUNABLE = { F5, INSTRUCTOR, CAMERA, WORLD, DOORS, WEAPONS };
+// the shipped defaults, so stale saved values can be told apart and reset
+export const DEFAULTS = JSON.parse(JSON.stringify(TUNABLE));
+
+// A saved value is only applied if it was tuned against the same default the code has now;
+// when a default changes in code, the new default wins.
 export function loadTuning() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
-    for (const [group, values] of Object.entries(saved)) {
-      if (TUNABLE[group]) for (const [k, v] of Object.entries(values)) if (typeof TUNABLE[group][k] === typeof v) TUNABLE[group][k] = v;
+    for (const [group, values] of Object.entries(saved.values || {})) {
+      if (!TUNABLE[group]) continue;
+      for (const [k, v] of Object.entries(values)) {
+        if (typeof TUNABLE[group][k] === typeof v && saved.defaults?.[group]?.[k] === DEFAULTS[group][k]) TUNABLE[group][k] = v;
+      }
     }
   } catch { /* storage blocked or bad data: keep defaults */ }
 }
 
 export function saveTuning() {
-  try { localStorage.setItem(KEY, JSON.stringify(TUNABLE)); } catch { /* ignore */ }
+  try { localStorage.setItem(KEY, JSON.stringify({ values: TUNABLE, defaults: DEFAULTS })); } catch { /* ignore */ }
 }
 
 export function clearTuning() {
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+}
+
+export function resetGroup(group) {
+  Object.assign(TUNABLE[group], JSON.parse(JSON.stringify(DEFAULTS[group])));
+  saveTuning();
 }

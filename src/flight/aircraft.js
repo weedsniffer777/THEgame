@@ -18,7 +18,7 @@ export class Aircraft {
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
     this.quat = new THREE.Quaternion();
-    this.p = 0; this.q = 0; this.r = 0; this.wFp = 0;        // roll right, pitch up, yaw right rates (rad/s)
+    this.p = 0; this.q = 0; this.r = 0; this.wFp = 0; this.liftScale = 1;        // roll right, pitch up, yaw right rates (rad/s)
     this.input = { pitch: 0, roll: 0, yaw: 0 };
     this.throttle = 1;                          // 0..1 dry, above 1 = afterburner
     this.airbrake = 0; this.airbrakeCmd = 0;
@@ -69,8 +69,18 @@ export class Aircraft {
       const cl = this.liftCoef(alpha);
       const wave = c.waveDrag * (smooth(c.machCrit, c.machPeak, mach) - 0.35 * smooth(c.machPeak, c.machPeak + 0.6, mach));
       this.airbrake += Math.sign(this.airbrakeCmd - this.airbrake) * Math.min(Math.abs(this.airbrakeCmd - this.airbrake), c.airbrakeRate * dt);
-      const cd = c.cd0 + wave + c.inducedDrag * cl * cl + c.stallDrag * stall + c.airbrakeDrag * this.airbrake;
-      _lift.crossVectors(_right, vdir).normalize().multiplyScalar(dyn * c.wingArea * cl);
+      // arcade lift: below corner speed the wing is allowed a guaranteed share of the G limit at full AoA
+      // (about 4.7 G at 100 kt, 6.5 G at 145 kt, all of it from ~230 kt). The extra lift costs extra drag,
+      // so slow, tight turns trade airspeed.
+      const floorT = Math.min(Math.max((ias - c.gFloorStartIAS) / (c.gFloorFullIAS - c.gFloorStartIAS), 0), 1);
+      const gFloor = c.gFloorMax * Math.sqrt(floorT);
+      const clFull = this.liftCoef(c.gFloorAoA * DEG);
+      const boost = Math.max(1, gFloor * c.mass * G / Math.max(dyn * c.wingArea * clFull, 1));
+      this.liftScale = boost;
+      const clEff = cl * boost;
+      const cd = c.cd0 + wave + c.inducedDrag * cl * cl + c.stallDrag * stall + c.airbrakeDrag * this.airbrake
+        + c.boostDrag * Math.abs(clEff - cl);
+      _lift.crossVectors(_right, vdir).normalize().multiplyScalar(dyn * c.wingArea * clEff);
       _side.set(1, 0, 0).applyQuaternion(this.quat);
       _side.addScaledVector(vdir, -_side.dot(vdir)).normalize().multiplyScalar(-dyn * c.wingArea * c.sideForce * beta);
       _a.add(_lift).add(_side).addScaledVector(vdir, -dyn * c.wingArea * cd);
@@ -84,14 +94,17 @@ export class Aircraft {
     _a.addScaledVector(_fwd, thrust);
     // how fast the flight path itself is turning in the pitch plane: damping only resists rotation beyond this,
     // so a steady hard turn isn't fought by the damper (real pitch damping is tiny at these speeds)
-    this.wFp = V > 1 ? _a.dot(_up) / (c.mass * V) : 0;
+    // arcade turn rate: lift bends the flight path turnBoost times harder than the G it reports
+    this.wFp = V > 1 ? (_a.dot(_up) + (c.turnBoost - 1) * _lift.dot(_up)) / (c.mass * V) : 0;
     _f.copy(_a);
+    if (V > 1) _f.addScaledVector(_lift, c.turnBoost - 1);
     _f.y -= c.mass * G;
     this.vel.addScaledVector(_f, dt / c.mass);
     this.pos.addScaledVector(this.vel, dt);
 
     // rotation
-    const qr = Math.max(dyn / (0.5 * RHO0 * c.refSpeed * c.refSpeed), c.minAuthority);
+    // the tail keeps real authority at low speed (full deflection for flick moves), so rotation never goes mushy
+    const qr = Math.max(dyn / (0.5 * RHO0 * c.refSpeed * c.refSpeed), c.lowSpeedAuthority);
     const sq = Math.sqrt(qr);
     const lockP = 1 - c.pitchLock * smooth(c.pitchLockStart, c.pitchLockEnd, ias);
     const lockR = 1 - c.rollLock * smooth(c.rollLockStart, c.rollLockEnd, ias);

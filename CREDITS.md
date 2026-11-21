@@ -18,6 +18,12 @@ All licensed under [Creative Commons Attribution 4.0](http://creativecommons.org
 | "VPAF Sukhoi Su-57" | Dave Love SketchFab | https://skfb.ly/pLKWt | ace / boss enemy, possible unlock |
 | "Northrop F-5" | dimal965 | https://skfb.ly/o6FzX | starter player jet |
 
+## Weapons models
+
+| Source model | Author | Link | Use |
+| --- | --- | --- | --- |
+| "300 followers - free aircraft missile set" | NETRUNNER_pl | https://sketchfab.com/3d-models/300-followers-free-aircraft-missile-set-2e70bc2ea0824897b2ccaea378809c9e | short-range missile (CC-BY 4.0; the set's text labels are not used) |
+
 ### Pending
 
 - "Free Fighter Jet Collection (low poly)", https://sketchfab.com/3d-models/free-fighter-jet-collection-low-poly-cb5966c988d9403895be89b364c2252f (six player jets). Author and license still to be confirmed from its `license.txt`.

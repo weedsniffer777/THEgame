@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { DOORS } from './config.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // The F-5 model with moving control surfaces, gear hidden and afterburner flames.
 // Model space: +Z nose, +Y up, +X left wing (same as the flight model's body frame).
@@ -114,24 +113,7 @@ function afterburner(kind) {
   };
 }
 
-// The model ships as glTF JSON with its buffer inlined as base64 (the only form the artifact host serves).
-// Repack it into a GLB in memory so loading never fetches a data: URL, which strict page policies block.
-async function packGlb(url) {
-  const json = await (await fetch(url)).json();
-  const bin = Uint8Array.from(atob(json.buffers[0].uri.split(',')[1]), c => c.charCodeAt(0));
-  delete json.buffers[0].uri;
-  let text = new TextEncoder().encode(JSON.stringify(json));
-  const pad = (n) => (n + 3) & ~3;
-  const jl = pad(text.length), bl = pad(bin.length);
-  const out = new Uint8Array(12 + 8 + jl + 8 + bl);
-  const dv = new DataView(out.buffer);
-  dv.setUint32(0, 0x46546c67, true); dv.setUint32(4, 2, true); dv.setUint32(8, out.length, true);
-  dv.setUint32(12, jl, true); dv.setUint32(16, 0x4e4f534a, true);
-  out.fill(0x20, 20, 20 + jl); out.set(text, 20);
-  dv.setUint32(20 + jl, bl, true); dv.setUint32(24 + jl, 0x004e4942, true);
-  out.set(bin, 28 + jl);
-  return out.buffer;
-}
+import { loadGltfJson } from './gltf.js';
 
 // The source model is posed for the ground: canopy open, gear doors open. Close it up for flight.
 function swing(model, names, axis, deg, at) {
@@ -180,7 +162,7 @@ function setDoors(D, airbrake, gear, canopy) {
 export const viewerAnim = { active: false, pitch: 0, roll: 0, yaw: 0, airbrake: 0, engine: 1, aoa: 0, gear: 0, canopy: 0, cycle: false };
 
 export async function loadJet(url, cfg) {
-  const gltf = await new GLTFLoader().parseAsync(await packGlb(url), url.slice(0, url.lastIndexOf('/') + 1));
+  const gltf = await loadGltfJson(url);
   const model = gltf.scene;
   model.updateMatrixWorld(true);
   for (const n of GEAR) { const o = model.getObjectByName(n); if (o) o.visible = false; }
@@ -190,7 +172,13 @@ export async function loadJet(url, cfg) {
     stabL: hinge(model, 'Object053', 'center'), stabR: hinge(model, 'Object054', 'center'),
     rudder: hinge(model, 'Object026', 'front'),
   };
-  model.traverse(o => { if (o.isMesh) { o.castShadow = false; if (o.material.map) o.material.map.anisotropy = 4; } });
+  model.traverse(o => {
+    if (!o.isMesh) return;
+    if (o.material.map) o.material.map.anisotropy = 4;
+    if (o.material.name === 'glass') {   // clear, glossy canopy instead of the source model's teal tint
+      o.material = new THREE.MeshStandardMaterial({ color: 0x0a0c0e, metalness: 0, roughness: 0.03, transparent: true, opacity: 0.28, envMapIntensity: 2.2, depthWrite: false });
+    }
+  });
 
   const flames = NOZZLES.map(p => { const f = afterburner(cfg.afterburner); f.group.position.copy(p); model.add(f.group); return f; });
   model.position.copy(CG).negate();

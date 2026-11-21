@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { F5, INSTRUCTOR, CAMERA, WORLD, loadTuning } from './config.js';
+import { F5, INSTRUCTOR, CAMERA, WORLD, WEAPONS, loadTuning } from './config.js';
 import { Aircraft } from './flight/aircraft.js';
 import { instruct } from './flight/instructor.js';
 import { CameraRig } from './camera.js';
@@ -7,6 +7,7 @@ import { createSky, setSun } from './world/sky.js';
 import { loadTerrain } from './world/terrain.js';
 import { loadJet, viewerAnim } from './jet.js';
 import { createClouds } from './world/clouds.js';
+import { createWeapons } from './weapons.js';
 
 loadTuning();
 const STEP = 1 / 120;
@@ -50,6 +51,7 @@ scene.add(clouds.mesh);
 const cloudEl = document.getElementById('cloudfog');
 
 const ac = new Aircraft(F5);
+const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain);
 const rig = new CameraRig(camera, CAMERA);
 const prevPos = new THREE.Vector3(), prevQuat = new THREE.Quaternion();
 const drawPos = new THREE.Vector3(), drawQuat = new THREE.Quaternion();
@@ -65,9 +67,18 @@ spawn();
 // input
 const keys = new Set();
 let mouseDX = 0, mouseDY = 0, abHold = 0;
-const GAME_KEYS = new Set(['Space', 'KeyZ', 'KeyX', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyB']);
+const GAME_KEYS = new Set(['Space', 'KeyZ', 'KeyX', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyB', 'Digit1', 'Digit2']);
 addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) e.preventDefault(); keys.add(e.code); if (e.code === 'Backquote') import('./dev.js').then(m => m.toggleDev({ ac, terrain, renderer, spawn })); });
 addEventListener('keyup', e => keys.delete(e.code));
+// weapons: 1 guns, 2 missiles; Space or left mouse fires
+addEventListener('keydown', e => {
+  if (e.code === 'Digit1') weapons.select(1);
+  if (e.code === 'Digit2') weapons.select(2);
+  if (e.code === 'Space' && running && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
+});
+addEventListener('keyup', e => { if (e.code === 'Space') weapons.setFiring(false); });
+addEventListener('mousedown', e => { if (e.button === 0 && running && e.target === canvas) weapons.setFiring(true, performance.now() / 1000); });
+addEventListener('mouseup', e => { if (e.button === 0) weapons.setFiring(false); });
 addEventListener('blur', () => keys.clear());
 // With pointer lock the mouse turns the camera directly. Where the page can't lock the pointer
 // (some embedded views), the cursor's distance from the screen centre turns it like a joystick instead.
@@ -107,6 +118,7 @@ function physics(dt) {
   aimPoint.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance);
   instruct(ac, aimPoint, INSTRUCTOR, kb, dt);
   ac.step(dt);
+  weapons.step(dt, performance.now() / 1000);
   if (ac.pos.y < terrain.heightAt(ac.pos.x, ac.pos.z) + 1.5) spawn();
 }
 
@@ -115,6 +127,8 @@ const aimEl = document.getElementById('aim'), noseEl = document.getElementById('
 const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementChild, vig = document.getElementById('vignette');
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
+const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt');
+const pipsEl = document.getElementById('pips'), pipEls = [...pipsEl.children];
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
 function place(el, worldPoint) {
   _p.copy(worldPoint).project(camera);
@@ -128,6 +142,25 @@ function hud() {
   aimEl.style.opacity = manual ? 0.25 : 1;
   place(noseEl, _n.set(0, 0, 1).applyQuaternion(drawQuat).multiplyScalar(D).add(drawPos));
   if (ac.t.speed > 5) place(fpvEl, _n.copy(ac.vel).normalize().multiplyScalar(D).add(drawPos));
+  // weapons HUD
+  const W = weapons.S, msl = W.selected === 2;
+  noseEl.style.visibility = msl ? 'hidden' : '';
+  seekerEl.hidden = lockEl.hidden = !msl;
+  if (msl) {
+    const nosePt = _n.set(0, 0, 1).applyQuaternion(drawQuat).multiplyScalar(D).add(drawPos);
+    place(seekerEl, nosePt);
+    const r = Math.tan(WEAPONS.seekerFov / 2 * Math.PI / 180) / Math.tan(camera.fov / 2 * Math.PI / 180) * innerHeight / 2;
+    seekerEl.style.width = seekerEl.style.height = `${2 * r}px`; seekerEl.style.margin = `${-r}px 0 0 ${-r}px`;
+    const tracking = W.seeker && !W.locked;
+    place(lockEl, W.locked && W.seeker ? W.seeker.obj.position : nosePt);
+    lockEl.className = W.locked ? 'locked' : tracking && (performance.now() % 250 < 125) ? 'flash' : '';
+    seekerEl.className = W.locked ? 'locked' : '';
+  }
+  const dr = weapons.drone;
+  tgtEl.hidden = !dr.alive || !running;
+  if (dr.alive) place(tgtEl, dr.obj.position);
+  pipEls.forEach((p, k) => { p.className = k < W.stock ? 'on' : ''; });
+  pipsEl.classList.toggle('sel', msl);
   aimEl.classList.toggle('stall', ac.t.stall > 0.3);
   thrFill.style.height = `${Math.min(ac.throttle, 1) * 100}%`;
   thrEl.classList.toggle('ab', ac.throttle > 1);
@@ -162,6 +195,7 @@ function frame(now) {
   jet.object.position.copy(drawPos);
   jet.object.quaternion.copy(drawQuat);
   jet.animate(ac);
+  weapons.render(camera, dt, now / 1000, a, drawPos, drawQuat);
   rig.zoom += ((rig.zooming ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);
   if (viewer.on) viewer.place(); else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1));
   sun.position.copy(drawPos).addScaledVector(sunDir, 1000);
