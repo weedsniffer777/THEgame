@@ -130,6 +130,11 @@ export class Damage {
     if (!part || part.broken) return;
     part.broken = true;
     const o = part.obj;
+    // a wing root that goes takes the rest of that wing with it: the outer panel rides along on the same piece
+    if (name.startsWith('wingInner')) {
+      const outer = this.parts['wingOuter' + name.slice(-1)];
+      if (outer && !outer.broken) { outer.broken = true; this.model.updateMatrixWorld(true); o.attach(outer.obj); }
+    }
     this.fires.push(part.breakAt.clone());
     const edge = part.breakAt.clone().sub(part.local.elements.length ? new THREE.Vector3().setFromMatrixPosition(part.local) : o.position);   // torn edge, relative to the piece
     o.updateWorldMatrix(true, true);

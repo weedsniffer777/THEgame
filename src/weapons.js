@@ -605,7 +605,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
 
     // explosions, smoke, fire
     for (const e of S.fx) {
-      e.t += dt; if (e.t < 0) continue;
+      e.t += dt; if (e.t < 0 || e.t >= e.life) continue;   // (a puff past its life would fade to NaN and flash white)
       e.p.addScaledVector(e.v, dt); e.v.multiplyScalar(1 - dt * (e.kind === 'ball' ? (e.burn ? 1.4 : 2.2) : 0.8));
       const k = e.t / e.life;
       if (e.kind === 'ball') {
