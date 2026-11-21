@@ -319,7 +319,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
 
   // missiles on the rails (in the jet's model, which is offset by -CG inside jet.object)
   const onJet = (o) => { for (let p = o.parent; p; p = p.parent) if (p === jet.model) return true; return false; };
-  const railMeshes = RAILS.map(r => { const m = proto.clone(true); m.position.copy(r).add(CG); jet.model.add(m); attachToPart(jet.model, m); return m; });
+  const railMeshes = RAILS.map(r => { const m = proto.clone(true); m.userData.missile = true; m.position.copy(r).add(CG); jet.model.add(m); attachToPart(jet.model, m); return m; });
 
   const S = {
     selected: 1, firing: false,

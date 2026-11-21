@@ -156,7 +156,7 @@ const seekerEl = document.getElementById('seeker'), lockEl = document.getElement
 const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles);
 const leadEl = document.getElementById('lead'), lineEl = document.getElementById('leadline');
 function screenOf(p) { _p.copy(p).project(camera); return _p.z < 1 ? [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight] : null; }
-const xray = createXray(document.getElementById('xray'), jet.damage, { ...PART_HP, body: BODY_HP });
+const xray = createXray(document.getElementById('xray'), jet.damage, { ...PART_HP, body: BODY_HP }, renderer, jet.model);
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
 function place(el, worldPoint) {
   _p.copy(worldPoint).project(camera);
