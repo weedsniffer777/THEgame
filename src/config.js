@@ -16,9 +16,9 @@ export const F5 = {
   ramThrust: 0.3,         // extra thrust per Mach
 
   // lift
-  clAlpha: 4.5,           // lift per radian of angle of attack
-  clMax: 1.5,
-  stallAoA: 22,           // deg
+  clAlpha: 5.0,           // lift per radian of angle of attack
+  clMax: 2.0,            // generous: more G available at low speed than the real jet
+  stallAoA: 24,           // deg
   stallWidth: 6,          // deg over which lift falls away past the stall
   postStallCl: 0.85,      // lift of a flat plate at 45 deg
 
@@ -57,6 +57,9 @@ export const F5 = {
 
   // low-speed floor so the jet never becomes completely uncontrollable while tumbling
   minAuthority: 0.03,
+  airbrakeDrag: 0.08,     // extra drag coefficient with the speed brakes fully out
+  airbrakeRate: 1.5,      // fraction of full travel per second
+  afterburner: 'spray',   // 'spray' (this jet) or 'diamonds' (shock diamonds after the first flame)
 
   // sideslip rolls the jet away from the yaw (dihedral / sweep effect): rudder right rolls right
   dihedral: 2.5,
@@ -64,21 +67,21 @@ export const F5 = {
 
 // The mouse-aim "instructor": flies the jet toward wherever the camera points.
 export const INSTRUCTOR = {
-  pitchGain: 6.0,         // stick per radian of pitch error
-  pitchDamp: 0.45,
+  pitchGain: 5.0,         // stick per radian of pitch error
+  pitchLead: 0.4,         // s: how far ahead the pitch controller looks at the closing error
   yawGain: 3.0,
-  yawDamp: 0.35,
+  yawLead: 0.25,
   rollGain: 3.2,
-  rollDamp: 0.16,
+  rollDamp: 0.3,
   levelGain: 2.0,         // how hard it levels the wings when the target is dead ahead
-  levelAngle: 1.5,        // deg off target below which it only levels the wings
-  bankAngle: 8,           // deg off target above which it fully banks toward the target
+  levelAngle: 3,          // deg off target below which it only levels the wings
+  bankAngle: 14,           // deg off target above which it fully banks toward the target
   pushAngle: 12,          // targets below and closer than this are reached by pushing, not rolling over
-  maxG: 7.33,
+  maxG: 9,                // game limit, between the real jet's 7.33 operating and ~11 ultimate
   maxNegG: 3,
   maxNegAoA: 12,          // deg
-  stickLag: 0.05,         // s for controls to follow a command (smooths jitter)
-  maxAoA: 21,             // deg
+  stickLag: 0.035,         // s for controls to follow a command (smooths jitter)
+  maxAoA: 20,             // deg
 };
 
 export const CAMERA = {
@@ -97,6 +100,8 @@ export const WORLD = {
   sunElevation: 38,
   sunIntensity: 3.6,
   saturation: 1.3,
+  clouds: 60,             // cloud clusters around the player (0 = none)
+  cloudBase: 3700,        // m
   fogDensity: 0.00007,
   fogFalloff: 0.00035,    // 1 / haze scale height
   terrainBrightness: 1.45,

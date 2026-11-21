@@ -14,7 +14,8 @@ function stickFor(ac, g, aoaMax) {
   const cl = g * f.mass * 9.81 / (dyn * f.wingArea);
   const aoa = Math.min(f.clMax * Math.atanh(Math.min(cl / f.clMax, 0.995)) / f.clAlpha, aoaMax * DEG);
   const lock = 1 - f.pitchLock * smooth(f.pitchLockStart, f.pitchLockEnd, ac.t.ias || 0);
-  return aoa / (f.pitchControl * lock / f.pitchStability);
+  // steady state: control moment = stability moment, i.e. pitchControl * lock * stick = pitchStability * sin(aoa)
+  return Math.sin(aoa) * f.pitchStability / (f.pitchControl * lock);
 }
 
 export function instruct(ac, aimPoint, cfg, keys, dt) {
@@ -23,6 +24,7 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
   let pitch, roll, yaw;
 
   if (keys.active) {
+    ac._aim = null;
     // keyboard: full key = right at the limit, never past it
     pitch = keys.pitch > 0 ? keys.pitch * capPos : keys.pitch * capNeg;
     roll = keys.roll; yaw = keys.yaw;
@@ -42,9 +44,17 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     const bank = smooth(cfg.levelAngle * DEG, cfg.bankAngle * DEG, off) * (1 - push);
     const rollErr = level * (1 - bank) + toTarget * bank;
 
-    pitch = cfg.pitchGain * pitchErr - cfg.pitchDamp * (ac.q - (ac.wFp || 0));
-    yaw = clamp(cfg.yawGain * yawErr - cfg.yawDamp * ac.r, -1, 1) * (1 - 0.6 * bank);
-    roll = clamp(cfg.rollGain * rollErr - cfg.rollDamp * ac.p, -1, 1);
+    // PD on the aim error itself: the derivative term sees the nose closing on the target and eases off
+    // before it gets there, so the nose settles instead of bobbing past it
+    const m = ac._aim || (ac._aim = { pe: pitchErr, ye: yawErr, dp: 0, dy: 0 });
+    const lp = 1 - Math.exp(-dt / 0.03);
+    m.dp += ((pitchErr - m.pe) / dt - m.dp) * lp; m.dy += ((yawErr - m.ye) / dt - m.dy) * lp;
+    m.pe = pitchErr; m.ye = yawErr;
+    pitch = cfg.pitchGain * (pitchErr + cfg.pitchLead * m.dp);
+    yaw = clamp(cfg.yawGain * (yawErr + cfg.yawLead * m.dy), -1, 1) * (1 - 0.6 * bank);
+    // near the target the direction to it swings fast as the nose passes, so roll gently there
+    const rollLim = 0.25 + 0.75 * smooth(cfg.levelAngle * DEG, cfg.bankAngle * 2 * DEG, off);
+    roll = clamp(cfg.rollGain * rollErr - cfg.rollDamp * ac.p, -rollLim, rollLim);
     if (keys.yaw) yaw = keys.yaw;
   }
 
@@ -52,6 +62,10 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
   const g = ac.t.g || 1;
   if (g > cfg.maxG) pitch -= (g - cfg.maxG) * 0.15;
   if (g < -cfg.maxNegG) pitch += (-cfg.maxNegG - g) * 0.15;
+  // hard AoA limiter: never let the jet overshoot into the stall
+  const aoa = (ac.t.aoa || 0) * DEG;
+  if (aoa > cfg.maxAoA * DEG) pitch -= (aoa - cfg.maxAoA * DEG) * 6;
+  if (aoa < -cfg.maxNegAoA * DEG) pitch += (-cfg.maxNegAoA * DEG - aoa) * 6;
   pitch = clamp(pitch, -capNeg, capPos);
 
   // stick, aileron and rudder move at a finite speed: no jitter from instant reversals

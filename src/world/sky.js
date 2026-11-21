@@ -36,8 +36,8 @@ export function createSky() {
   const mat = new THREE.ShaderMaterial({
     uniforms: {
       ...fogUniforms,
-      uZenith: { value: new THREE.Color(0.03, 0.14, 0.52) },
-      uHorizon: { value: new THREE.Color(0.3, 0.5, 0.85) },
+      uZenith: { value: new THREE.Color(0.02, 0.1, 0.45) },
+      uHorizon: { value: new THREE.Color(0.34, 0.56, 0.9) },
     },
     vertexShader: /* glsl */`
       varying vec3 vDir;
@@ -56,7 +56,7 @@ export function createSky() {
         vec3 col = mix(uHorizon, uZenith, pow(up, 0.6));
         col = mix(col, fogTint(rd), fogAmount(cameraPosition, rd, 2.0e5));
         float s = dot(rd, uSunDir);
-        col += uSunGlow * (pow(max(s, 0.0), 300.0) * 1.5 + pow(max(s, 0.0), 12.0) * 0.12);
+        col += uSunGlow * (pow(max(s, 0.0), 600.0) * 3.0 + pow(max(s, 0.0), 40.0) * 0.35 + pow(max(s, 0.0), 6.0) * 0.1);
         col += vec3(1.0, 0.95, 0.85) * smoothstep(0.99996, 0.99999, s) * 40.0;
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>

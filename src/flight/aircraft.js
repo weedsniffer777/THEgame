@@ -21,6 +21,7 @@ export class Aircraft {
     this.p = 0; this.q = 0; this.r = 0; this.wFp = 0;        // roll right, pitch up, yaw right rates (rad/s)
     this.input = { pitch: 0, roll: 0, yaw: 0 };
     this.throttle = 1;                          // 0..1 dry, above 1 = afterburner
+    this.airbrake = 0; this.airbrakeCmd = 0;
     this.engine = 1;                            // spooled power, same scale
     this.t = { speed: 0, ias: 0, mach: 0, aoa: 0, beta: 0, g: 1, stall: 0, alt: 0 };
   }
@@ -67,7 +68,8 @@ export class Aircraft {
       const vdir = _v.copy(this.vel).divideScalar(V);
       const cl = this.liftCoef(alpha);
       const wave = c.waveDrag * (smooth(c.machCrit, c.machPeak, mach) - 0.35 * smooth(c.machPeak, c.machPeak + 0.6, mach));
-      const cd = c.cd0 + wave + c.inducedDrag * cl * cl + c.stallDrag * stall;
+      this.airbrake += Math.sign(this.airbrakeCmd - this.airbrake) * Math.min(Math.abs(this.airbrakeCmd - this.airbrake), c.airbrakeRate * dt);
+      const cd = c.cd0 + wave + c.inducedDrag * cl * cl + c.stallDrag * stall + c.airbrakeDrag * this.airbrake;
       _lift.crossVectors(_right, vdir).normalize().multiplyScalar(dyn * c.wingArea * cl);
       _side.set(1, 0, 0).applyQuaternion(this.quat);
       _side.addScaledVector(vdir, -_side.dot(vdir)).normalize().multiplyScalar(-dyn * c.wingArea * c.sideForce * beta);

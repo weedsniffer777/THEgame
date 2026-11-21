@@ -6,6 +6,7 @@ import { CameraRig } from './camera.js';
 import { createSky, setSun } from './world/sky.js';
 import { loadTerrain } from './world/terrain.js';
 import { loadJet } from './jet.js';
+import { createClouds } from './world/clouds.js';
 
 loadTuning();
 const STEP = 1 / 120;
@@ -42,8 +43,11 @@ document.addEventListener('pointerlockchange', () => {
   if (was && !locked) setRunning(false);
 });
 
-const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadJet('models/jets/f5.gltf.json')]);
+const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadJet('models/jets/f5.gltf.json', F5)]);
 scene.add(terrain.group, jet.object);
+const clouds = createClouds(WORLD.clouds, WORLD.cloudBase);
+scene.add(clouds.mesh);
+const cloudEl = document.getElementById('cloudfog');
 
 const ac = new Aircraft(F5);
 const rig = new CameraRig(camera, CAMERA);
@@ -61,7 +65,7 @@ spawn();
 // input
 const keys = new Set();
 let mouseDX = 0, mouseDY = 0, abHold = 0;
-const GAME_KEYS = new Set(['Space', 'ShiftLeft', 'ShiftRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE']);
+const GAME_KEYS = new Set(['Space', 'ShiftLeft', 'ShiftRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyB']);
 addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) e.preventDefault(); keys.add(e.code); if (e.code === 'Backquote') import('./dev.js').then(m => m.toggleDev({ ac, terrain, renderer, spawn })); });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
@@ -93,6 +97,7 @@ function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 
 
 function physics(dt) {
   // throttle: Shift up, Space down; holding Shift at full power lights the afterburner
+  ac.airbrakeCmd = keys.has('KeyB') ? 1 : 0;
   const th = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 1 : 0) - (keys.has('Space') ? 1 : 0);
   if (th > 0 && ac.throttle >= 1) { abHold += dt; if (abHold > 0.25) ac.throttle = 1.1; }
   else { abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 0.6 * dt, 0, 1); }
@@ -129,7 +134,8 @@ function hud() {
   iasEl.textContent = Math.round(ac.t.ias * 1.94384);
   gEl.textContent = ac.t.g.toFixed(1);
   const g = ac.t.g;
-  vig.style.opacity = THREE.MathUtils.clamp((g - 5) / 4, 0, 0.85) + THREE.MathUtils.clamp((-g - 1.5) / 3, 0, 0.6);
+  // effect only, never a real blackout: starts near 8.5 G, heavy by 10 G
+  vig.style.opacity = THREE.MathUtils.clamp((g - 8.5) / 1.5, 0, 0.7) + THREE.MathUtils.clamp((-g - 2.5) / 1, 0, 0.4);
 }
 
 function resize() {
@@ -163,10 +169,11 @@ function frame(now) {
   sky.position.copy(camera.position);
   camera.updateMatrixWorld();
   terrain.update(camera);
+  cloudEl.style.opacity = clouds.update(camera);
   hud();
   renderer.render(scene, camera);
   window.__dev?.(dt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__game = { ac, rig, terrain, camera };
+window.__game = { ac, rig, terrain, camera, jet, renderer, scene };

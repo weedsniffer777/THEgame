@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // The F-5 model with moving control surfaces, gear hidden and afterburner flames.
 // Model space: +Z nose, +Y up, +X left wing (same as the flight model's body frame).
-const GEAR = ['Object023', 'Object052', 'Object024', 'Object032', 'Object033', 'Object049', 'Object050', 'Object051', 'Object030', 'Object048', 'Object035'];
+const GEAR = ['Object055', 'Object057', 'Object023', 'Object052', 'Object024', 'Object032', 'Object033', 'Object049', 'Object050', 'Object051', 'Object030', 'Object048', 'Object035'];
 const CG = new THREE.Vector3(0, 1.9, -0.6);
 const NOZZLES = [new THREE.Vector3(0.33, 1.72, -6.62), new THREE.Vector3(-0.33, 1.72, -6.62)];
 const DEG = Math.PI / 180;
@@ -22,57 +22,94 @@ function hinge(model, name, edge) {
   return pivot;
 }
 
-// Afterburner, built the way most real-time games do it: a few nested additive cone "shells" whose
-// edges fade by view angle (so they read as a soft volume, not a cone), plus a row of shock diamonds.
-const FLAME_VS = `varying float vT; varying vec3 vN; varying vec3 vV;
-  void main(){ vT = clamp(-position.z, 0.0, 1.0); vN = normalize(normalMatrix * normal);
-    vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = -mv.xyz; gl_Position = projectionMatrix * mv; }`;
-const FLAME_FS = `uniform float uPower; uniform float uTime; uniform vec3 uCore; uniform vec3 uTip; uniform float uFade;
-  varying float vT; varying vec3 vN; varying vec3 vV;
-  void main(){
-    float edge = pow(abs(dot(normalize(vN), normalize(vV))), 1.6);
-    float flick = 0.82 + 0.18 * sin(uTime * 63.0 + vT * 31.0) * sin(uTime * 41.0 - vT * 17.0);
-    float i = uPower * pow(1.0 - vT, uFade) * edge * flick;
-    gl_FragColor = vec4(mix(uCore, uTip, smoothstep(0.0, 0.8, vT)) * i, 1.0); }`;
+// Afterburner, done the usual real-time way:
+// - a glowing disc set just inside each nozzle, so looking up the exhaust shows hot metal, not a dark hole
+// - the flame itself as a row of soft camera-facing billboards along the exhaust axis. Each one stretches along
+//   the axis when seen from the side and turns into a round glow when seen from behind, so the plume never
+//   vanishes or shows hard edges from any angle.
+// - optional shock diamonds: smaller, brighter billboards at growing intervals after the first flame.
+const BB_VS = `
+attribute vec4 aInst;   // x: position along the plume (0..1), y: half width (m), z: half length (0..1 of plume), w: 0 flame / 1 diamond
+attribute float aSeed;
+uniform float uLen;
+varying vec2 vUv; varying float vT; varying float vKind; varying float vSeed;
+void main() {
+  bool flame = aInst.w < 0.5;
+  float along = flame ? aInst.x * uLen : aInst.x;
+  vec4 c = modelViewMatrix * vec4(0.0, 0.0, -along, 1.0);
+  vec3 ax = normalize(mat3(modelViewMatrix) * vec3(0.0, 0.0, -1.0));
+  float l = length(ax.xy);
+  vec2 dx = l > 1e-3 ? ax.xy / l : vec2(1.0, 0.0), dy = vec2(-dx.y, dx.x);
+  float w = aInst.y * (flame ? 1.0 + aInst.x * 0.4 : 1.0);
+  float hl = mix(w, max(w, aInst.z * (flame ? uLen : 1.0)), l);
+  c.xy += dx * position.x * hl + dy * position.y * w;
+  vUv = position.xy; vT = aInst.x; vKind = aInst.w; vSeed = aSeed;
+  gl_Position = projectionMatrix * c;
+}`;
+const BB_FS = `
+uniform float uAB; uniform float uTime; uniform vec3 uHot; uniform vec3 uCool; uniform vec3 uDia;
+varying vec2 vUv; varying float vT; varying float vKind; varying float vSeed;
+void main() {
+  float r2 = dot(vUv, vUv);
+  if (r2 > 1.0) discard;
+  float soft = (exp(-r2 * 3.0) - 0.05) / 0.95;
+  float fl = 0.8 + 0.2 * sin(uTime * 53.0 + vSeed * 11.0) * sin(uTime * 37.0 + vSeed * 5.0);
+  vec3 col; float i;
+  if (vKind < 0.5) { col = mix(uHot, uCool, smoothstep(0.0, 0.8, vT)); i = uAB * pow(1.0 - vT, 1.3) * 0.55 * fl; }
+  else { col = uDia; i = uAB * (1.0 - vT * 0.08) * 0.9 * fl; }
+  gl_FragColor = vec4(col * i * soft, 1.0);
+}`;
+const CORE_FS = `
+uniform float uMil; uniform float uAB; varying vec2 vUv;
+void main() {
+  float r = length(vUv - 0.5) * 2.0;
+  vec3 mil = vec3(1.0, 0.32, 0.08) * (0.25 + 1.1 * uMil);
+  vec3 ab = vec3(0.85, 0.75, 1.0) * 3.5;
+  vec3 c = mix(mil, ab, uAB) * (1.0 - 0.6 * r * r);
+  gl_FragColor = vec4(c, 1.0);
+}`;
 
-function flameMat(core, tip, fade) {
-  return new THREE.ShaderMaterial({
-    uniforms: { uPower: { value: 0 }, uTime: { value: 0 }, uCore: { value: new THREE.Color(...core) }, uTip: { value: new THREE.Color(...tip) }, uFade: { value: fade } },
-    vertexShader: FLAME_VS, fragmentShader: FLAME_FS,
-    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
-  });
-}
-
-function afterburner() {
+function afterburner(kind) {
   const g = new THREE.Group();
-  const shells = [[0.3, [1.0, 0.55, 0.25], [0.25, 0.3, 1.0], 1.2], [0.21, [1.0, 0.75, 0.45], [0.5, 0.4, 1.0], 1.6], [0.12, [1.0, 0.95, 0.85], [1.0, 0.6, 0.4], 2.4]]
-    .map(([r, core, tip, fade]) => {
-      const m = new THREE.Mesh(new THREE.ConeGeometry(r, 1, 20, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.5), flameMat(core, tip, fade));
-      g.add(m); return m;
-    });
-  const diamonds = [];
-  const ball = new THREE.SphereGeometry(1, 14, 10);
-  for (let k = 0; k < 5; k++) {
-    const m = new THREE.Mesh(ball, flameMat([1.0, 0.9, 0.75], [1.0, 0.6, 0.5], 0.0));
-    const r = 0.15 * (1 - k * 0.12);
-    m.scale.set(r, r, r * 2.4);
-    m.position.z = -(0.55 + k * 0.62);
-    m.userData.fall = 1 - k * 0.17;
-    g.add(m); diamonds.push(m);
-  }
+  const core = new THREE.Mesh(new THREE.CircleGeometry(0.26, 24).rotateY(Math.PI), new THREE.ShaderMaterial({
+    uniforms: { uMil: { value: 0 }, uAB: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: CORE_FS,
+  }));
+  core.position.z = 0.12;   // recessed into the nozzle
+  g.add(core);
+
+  const diamonds = kind === 'diamonds';
+  const inst = [], seeds = [];
+  const N = diamonds ? 6 : 10;
+  for (let k = 0; k < N; k++) { const t = k / (N - 1); inst.push(t, 0.3, 0.75 / (N - 1), 0); seeds.push(Math.random() * 10); }
+  if (diamonds) for (let k = 0; k < 5; k++) { inst.push(1.1 + k * 0.7 + k * k * 0.05, 0.13 * (1 - k * 0.1), 0.24, 1); seeds.push(Math.random() * 10); }
+  const geo = new THREE.InstancedBufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+  geo.setIndex([0, 1, 2, 0, 2, 3]);
+  geo.setAttribute('aInst', new THREE.InstancedBufferAttribute(new Float32Array(inst), 4));
+  geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(new Float32Array(seeds), 1));
+  geo.instanceCount = seeds.length;
+  const plume = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+    uniforms: {
+      uLen: { value: 1 }, uAB: { value: 0 }, uTime: { value: 0 },
+      uHot: { value: new THREE.Color(1.0, 0.62, 0.36) }, uCool: { value: new THREE.Color(0.45, 0.42, 1.0) },
+      uDia: { value: new THREE.Color(1.0, 0.86, 0.72) },
+    },
+    vertexShader: BB_VS, fragmentShader: BB_FS,
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  plume.frustumCulled = false;
+  g.add(plume);
   return {
     group: g,
     update(mil, ab, t) {
-      shells.forEach((m, k) => {
-        m.material.uniforms.uTime.value = t;
-        m.material.uniforms.uPower.value = (k === 2 ? 0.35 : 0.2) * mil + ab * (k === 2 ? 2.2 : 1.4);
-        m.scale.z = 0.5 + mil * 0.3 + ab * (k === 0 ? 3.6 : k === 1 ? 2.8 : 1.6) * (0.96 + 0.08 * Math.random());
-      });
-      for (const d of diamonds) {
-        d.material.uniforms.uTime.value = t;
-        d.material.uniforms.uPower.value = ab * 1.8 * d.userData.fall;
-        d.visible = ab > 0.02;
-      }
+      core.material.uniforms.uMil.value = mil;
+      core.material.uniforms.uAB.value = ab;
+      const u = plume.material.uniforms;
+      u.uAB.value = ab; u.uTime.value = t;
+      u.uLen.value = (diamonds ? 1.3 : 3.2) * (0.3 + 0.7 * ab) * (0.95 + 0.1 * Math.random());
+      plume.visible = ab > 0.01;
     },
   };
 }
@@ -96,32 +133,60 @@ async function packGlb(url) {
   return out.buffer;
 }
 
-export async function loadJet(url) {
+// The source model is posed for the ground: canopy open, gear doors open. Close it up for flight.
+function swing(model, names, axis, deg, at) {
+  const first = model.getObjectByName(names[0]);
+  const pivot = new THREE.Object3D();
+  if (at) pivot.position.copy(at); else { first.getWorldPosition(pivot.position); model.worldToLocal(pivot.position); }
+  model.add(pivot);
+  model.updateMatrixWorld(true);
+  for (const n of names) { const o = model.getObjectByName(n); o.visible = true; pivot.attach(o); }
+  pivot.rotation[axis] = deg * DEG;
+  return pivot;
+}
+
+let brakes = [];
+function closeUp(model) {
+  swing(model, ['Object001', 'Object025'], 'x', 45, new THREE.Vector3(0, 2.7477, 1.6497));   // canopy shut
+  swing(model, ['Object032'], 'z', 90);                                                         // nose gear door
+  // flush panels over the rest of the main wheel wells; their front parts open as the speed brakes
+  const mat = new THREE.MeshStandardMaterial({ color: 0x7290ad, roughness: 0.6, metalness: 0.2 });
+  brakes = [1, -1].map(side => {
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.03, 1.6).translate(0, 0, -0.8), mat);
+    const hingeAt = new THREE.Object3D();
+    hingeAt.position.set(side * 0.72, 1.06, -0.1);
+    hingeAt.add(panel);
+    model.add(hingeAt);
+    return hingeAt;
+  });
+}
+
+export async function loadJet(url, cfg) {
   const gltf = await new GLTFLoader().parseAsync(await packGlb(url), url.slice(0, url.lastIndexOf('/') + 1));
   const model = gltf.scene;
   model.updateMatrixWorld(true);
   for (const n of GEAR) { const o = model.getObjectByName(n); if (o) o.visible = false; }
+  closeUp(model);
   const s = {
     aileronL: hinge(model, 'Object027', 'front'), aileronR: hinge(model, 'Object056', 'front'),
     stabL: hinge(model, 'Object053', 'center'), stabR: hinge(model, 'Object054', 'center'),
     rudder: hinge(model, 'Object026', 'front'),
-    leL: hinge(model, 'Object057', 'back'), leR: hinge(model, 'Object055', 'back'),
   };
   model.traverse(o => { if (o.isMesh) { o.castShadow = false; if (o.material.map) o.material.map.anisotropy = 4; } });
 
-  const flames = NOZZLES.map(p => { const f = afterburner(); f.group.position.copy(p); model.add(f.group); return f; });
+  const flames = NOZZLES.map(p => { const f = afterburner(cfg.afterburner); f.group.position.copy(p); model.add(f.group); return f; });
   model.position.copy(CG).negate();
   const object = new THREE.Group().add(model);
 
   return {
-    object,
+    object, model,
     animate(ac) {
       const i = ac.input;
       s.aileronL.rotation.x = -i.roll * 18 * DEG;
       s.aileronR.rotation.x = i.roll * 18 * DEG;
       s.stabL.rotation.x = s.stabR.rotation.x = i.pitch * 14 * DEG;
       s.rudder.rotation.y = i.yaw * 20 * DEG;
-      s.leL.rotation.x = s.leR.rotation.x = THREE.MathUtils.clamp(ac.t.aoa / 15, 0, 1) * 20 * DEG;
+      brakes.forEach((b, k) => { b.rotation.x = (k ? 1 : 1) * -ac.airbrake * 50 * DEG; });
       const ab = THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1);
       const mil = THREE.MathUtils.clamp(ac.engine, 0, 1), t = performance.now() / 1000;
       for (const f of flames) f.update(mil, ab, t);
