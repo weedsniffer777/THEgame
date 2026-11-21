@@ -63,20 +63,18 @@ const CORE_FS = `
 uniform float uMil; uniform float uAB; varying vec2 vUv;
 void main() {
   float r = length(vUv - 0.5) * 2.0;
-  vec3 mil = vec3(1.0, 0.32, 0.08) * (0.25 + 1.1 * uMil);
-  vec3 ab = vec3(0.85, 0.75, 1.0) * 3.5;
-  vec3 c = mix(mil, ab, uAB) * (1.0 - 0.6 * r * r);
+  vec3 c = vec3(0.85, 0.75, 1.0) * 3.5 * uAB * (1.0 - 0.6 * r * r);
   gl_FragColor = vec4(c, 1.0);
 }`;
 
 function afterburner(kind) {
   const g = new THREE.Group();
-  const core = new THREE.Mesh(new THREE.CircleGeometry(0.26, 24).rotateY(Math.PI), new THREE.ShaderMaterial({
+  const core = new THREE.Mesh(new THREE.CircleGeometry(0.2, 24).rotateY(Math.PI), new THREE.ShaderMaterial({
     uniforms: { uMil: { value: 0 }, uAB: { value: 0 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: CORE_FS,
   }));
-  core.position.z = 0.12;   // recessed into the nozzle
+  core.position.z = 0.35;   // recessed well inside the nozzle
   g.add(core);
 
   const diamonds = kind === 'diamonds';
@@ -146,19 +144,20 @@ function swing(model, names, axis, deg, at) {
 }
 
 let brakes = [];
+const SB_CLOSED = 38, SB_OPEN = 0;
 function closeUp(model) {
   swing(model, ['Object001', 'Object025'], 'x', 45, new THREE.Vector3(0, 2.7477, 1.6497));   // canopy shut
-  swing(model, ['Object032'], 'z', 90);                                                         // nose gear door
-  // flush panels over the rest of the main wheel wells; their front parts open as the speed brakes
-  const mat = new THREE.MeshStandardMaterial({ color: 0x7290ad, roughness: 0.6, metalness: 0.2 });
-  brakes = [1, -1].map(side => {
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.03, 1.6).translate(0, 0, -0.8), mat);
-    const hingeAt = new THREE.Object3D();
-    hingeAt.position.set(side * 0.72, 1.06, -0.1);
-    hingeAt.add(panel);
-    model.add(hingeAt);
-    return hingeAt;
-  });
+  const nose = swing(model, ['Object032'], 'z', 90);                                            // nose gear door
+  const twin = nose.clone();                                                                    // the model only has one: mirror it
+  twin.position.x = -nose.position.x; twin.scale.x = -1; twin.rotation.z = -nose.rotation.z;
+  model.add(twin);
+  model.getObjectByName('Object033').visible = true;                                            // small aft nose door
+  // main gear folds inward into the wells; its leg door then covers the outer well
+  swing(model, ['Object051', 'Object052'], 'z', 104, new THREE.Vector3(-1.97, 1.35, -1.25));
+  swing(model, ['Object048', 'Object023'], 'z', -104, new THREE.Vector3(1.97, 1.35, -1.25));
+  swing(model, ['Object050'], 'z', -80); swing(model, ['Object035'], 'z', 80);                // inner main doors
+  // the speed brakes, hinged at their front edge: CLOSED is the swung-up angle, open swings back down
+  brakes = [swing(model, ['Object049'], 'x', SB_CLOSED), swing(model, ['Object030'], 'x', SB_CLOSED)];
 }
 
 export async function loadJet(url, cfg) {
@@ -186,7 +185,7 @@ export async function loadJet(url, cfg) {
       s.aileronR.rotation.x = i.roll * 18 * DEG;
       s.stabL.rotation.x = s.stabR.rotation.x = i.pitch * 14 * DEG;
       s.rudder.rotation.y = i.yaw * 20 * DEG;
-      brakes.forEach((b, k) => { b.rotation.x = (k ? 1 : 1) * -ac.airbrake * 50 * DEG; });
+      for (const b of brakes) b.rotation.x = THREE.MathUtils.lerp(SB_CLOSED, SB_OPEN, ac.airbrake) * DEG;
       const ab = THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1);
       const mil = THREE.MathUtils.clamp(ac.engine, 0, 1), t = performance.now() / 1000;
       for (const f of flames) f.update(mil, ab, t);

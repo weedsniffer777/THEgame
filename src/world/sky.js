@@ -4,7 +4,7 @@ import { WORLD } from '../config.js';
 // Shared haze: the sky and the terrain use the same fog so distant mountains melt into the horizon.
 export const fogUniforms = {
   uSunDir: { value: new THREE.Vector3() },
-  uFogColor: { value: new THREE.Color(0.42, 0.58, 0.82) },
+  uFogColor: { value: new THREE.Color(0.36, 0.55, 0.88) },
   uSunGlow: { value: new THREE.Color(1.0, 0.84, 0.6) },
   uFogDensity: { value: WORLD.fogDensity },
   uFogFalloff: { value: WORLD.fogFalloff },
@@ -36,8 +36,8 @@ export function createSky() {
   const mat = new THREE.ShaderMaterial({
     uniforms: {
       ...fogUniforms,
-      uZenith: { value: new THREE.Color(0.02, 0.1, 0.45) },
-      uHorizon: { value: new THREE.Color(0.34, 0.56, 0.9) },
+      uZenith: { value: new THREE.Color(0.015, 0.07, 0.36) },
+      uHorizon: { value: new THREE.Color(0.26, 0.48, 0.86) },
     },
     vertexShader: /* glsl */`
       varying vec3 vDir;

@@ -129,8 +129,13 @@ export class Terrain {
           vec2 size = vec2(uSize);
           vec3 albedo = texture(uColor, g / size).rgb;
           vec3 n = normalize(texture(uNormal, (g + 0.5) / size).xyz * 2.0 - 1.0);
-          float shade = (0.45 + max(dot(n, uSunDir), 0.0)) / (0.45 + max(uSunDir.y, 0.1));
-          vec3 col = albedo * uBright * mix(1.0, shade, uRelief);
+          // warm direct sun + cool sky light, normalised so flat ground keeps the photo's brightness
+          float ndl = max(dot(n, uSunDir), 0.0);
+          vec3 light = vec3(1.0, 0.93, 0.82) * ndl + vec3(0.42, 0.55, 0.8) * (0.55 + 0.45 * n.y);
+          vec3 flat0 = vec3(1.0, 0.93, 0.82) * max(uSunDir.y, 0.1) + vec3(0.42, 0.55, 0.8);
+          vec3 shade = light / dot(flat0, vec3(0.3333));
+          albedo = pow(albedo, vec3(1.12));   // a little more contrast in the photo
+          vec3 col = albedo * uBright * mix(vec3(1.0), shade, uRelief);
           col = max(mix(vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), col, uSat), 0.0);
           col = applyFog(col, cameraPosition, vWorld);
           gl_FragColor = vec4(col, 1.0);
