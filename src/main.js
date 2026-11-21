@@ -102,6 +102,7 @@ function physics(dt) {
 const aimEl = document.getElementById('aim'), noseEl = document.getElementById('nose');
 const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementChild, vig = document.getElementById('vignette');
 const _p = new THREE.Vector3();
+const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
 function place(el, worldPoint) {
   _p.copy(worldPoint).project(camera);
   const vis = _p.z < 1;
@@ -114,6 +115,8 @@ function hud() {
   aimEl.classList.toggle('stall', ac.t.stall > 0.3);
   thrFill.style.height = `${Math.min(ac.throttle, 1) * 100}%`;
   thrEl.classList.toggle('ab', ac.throttle > 1);
+  iasEl.textContent = Math.round(ac.t.ias * 1.94384);
+  gEl.textContent = ac.t.g.toFixed(1);
   const g = ac.t.g;
   vig.style.opacity = THREE.MathUtils.clamp((g - 5) / 4, 0, 0.85) + THREE.MathUtils.clamp((-g - 1.5) / 3, 0, 0.6);
 }

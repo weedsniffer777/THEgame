@@ -17,7 +17,7 @@ export const F5 = {
 
   // lift
   clAlpha: 3.6,           // lift per radian of angle of attack
-  clMax: 1.3,
+  clMax: 1.5,
   stallAoA: 22,           // deg
   stallWidth: 6,          // deg over which lift falls away past the stall
   postStallCl: 0.85,      // lift of a flat plate at 45 deg
@@ -34,9 +34,9 @@ export const F5 = {
   // pitch: control pulls the nose up, stability pulls it back into the airflow.
   // At the reference speed full stick holds about pitchControl / pitchStability radians of AoA.
   refSpeed: 200,          // m/s at sea level where the numbers below are "as written"
-  pitchControl: 7.2,
-  pitchStability: 16,
-  pitchDamping: 4.6,
+  pitchControl: 16,
+  pitchStability: 26,
+  pitchDamping: 6.2,
   pitchLockStart: 250,    // IAS m/s where controls start to stiffen
   pitchLockEnd: 400,
   pitchLock: 0.55,        // fraction of pitch authority lost at pitchLockEnd
@@ -61,8 +61,8 @@ export const F5 = {
 
 // The mouse-aim "instructor": flies the jet toward wherever the camera points.
 export const INSTRUCTOR = {
-  pitchGain: 4.0,         // stick per radian of pitch error
-  pitchDamp: 0.55,
+  pitchGain: 6.0,         // stick per radian of pitch error
+  pitchDamp: 0.45,
   yawGain: 3.0,
   yawDamp: 0.35,
   rollGain: 3.2,
@@ -73,7 +73,7 @@ export const INSTRUCTOR = {
   pushAngle: 12,          // targets below and closer than this are reached by pushing, not rolling over
   pushLimit: 0.35,        // most negative stick it will use
   maxG: 7.3,
-  maxAoA: 19,             // deg
+  maxAoA: 21,             // deg
 };
 
 export const CAMERA = {
