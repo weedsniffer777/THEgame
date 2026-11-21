@@ -100,7 +100,7 @@ addEventListener('mousemove', e => {
 });
 addEventListener('keydown', e => { if (e.code === 'Escape' && !locked) setRunning(false); });
 function cursorSteer(dt) {
-  if (locked || cursorX === null) return;
+  if (locked || cursorX === null || isTouch) return;   // phones fake mouse moves on taps: never steer from those
   const s = Math.min(innerWidth, innerHeight) / 2;
   const dead = (v) => Math.sign(v) * Math.max(Math.abs(v) - 0.06, 0);
   mouseDX += dead((cursorX - innerWidth / 2) / s) * 900 * dt;
@@ -340,8 +340,6 @@ if (isTouch) {
     onFire: (on) => { if (running) weapons.setFiring(on, performance.now() / 1000); },
     onSwitch: () => weapons.select(weapons.S.selected === 1 ? 2 : 1),
   });
-  cursorX = null;
-  addEventListener('mousemove', () => { cursorX = null; }, true);   // emulated mouse events from taps must not steer
 }
 
 window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons };

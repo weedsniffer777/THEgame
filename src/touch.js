@@ -23,6 +23,7 @@ export function createTouch(root, { onLook, onThrottle, onFire, onSwitch, sensit
   });
   const end = e => looks.delete(e.pointerId);
   addEventListener('pointerup', end); addEventListener('pointercancel', end);
+  addEventListener('contextmenu', e => e.preventDefault());   // no long-press menu
 
   // throttle: hold and slide; the top 12% is afterburner
   let thrId = null;
@@ -34,7 +35,7 @@ export function createTouch(root, { onLook, onThrottle, onFire, onSwitch, sensit
     thr.classList.toggle('ab', v > 1);
     onThrottle(v);
   };
-  thr.addEventListener('pointerdown', e => { thrId = e.pointerId; thr.setPointerCapture(e.pointerId); setThr(e.clientY); e.preventDefault(); });
+  thr.addEventListener('pointerdown', e => { thrId = e.pointerId; try { thr.setPointerCapture(e.pointerId); } catch { /* some browsers refuse; moves still arrive */ } setThr(e.clientY); e.preventDefault(); });
   thr.addEventListener('pointermove', e => { if (e.pointerId === thrId) setThr(e.clientY); });
   thr.addEventListener('pointerup', () => { thrId = null; });
   root.hidden = false;
