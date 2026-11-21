@@ -21,6 +21,7 @@ const RAILS = [
 ];
 const G = 9.81;
 const IGNITE = 0.12;   // s after release before the motor lights
+const _q2 = new THREE.Vector3();
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
 
 // ---------------------------------------------------------------- glow / streak sprites (one draw call per blend mode)
@@ -85,7 +86,8 @@ class Sprites {
             float r = length(vUv);
             if (r > 1.0) discard;
             float n = noise(vUv * 3.0 + vSeed * 31.0);
-            a = smoothstep(1.0, 0.0, r + (n - 0.5) * 0.35 * (1.0 - uAdd));
+            float n2 = noise(vUv * 6.0 - vSeed * 17.0);
+            a = smoothstep(1.0, 0.15, r + (n - 0.5) * 0.55 * (1.0 - uAdd) + (n2 - 0.5) * 0.25 * (1.0 - uAdd));
             a = uAdd > 0.5 ? a * a : a;
           }
           vec3 col = vCol.rgb;
@@ -148,7 +150,7 @@ class Trails {
           float puff = smoothstep(1.2, 4.0, age);
           float edgeSoft = mix(0.75, 0.35 + 0.35 * n, puff);
           float body = 1.0 - smoothstep(edgeSoft, 1.0, abs(across));
-          float breakup = mix(1.0, smoothstep(0.25, 0.7, n), smoothstep(2.5, 6.0, age));
+          float breakup = mix(1.0, smoothstep(0.3, 0.75, n), smoothstep(2.0, 5.0, age));
           float a = vInfo.x * body * breakup * smoothstep(6.0, 45.0, length(vWorld - cameraPosition));
           if (a < 0.003) discard;
           float lit = 0.5 + 0.5 * clamp(uSunDir.y * 0.8 + across * 0.35 + (n - 0.5) * 0.6 * puff, 0.0, 1.0);
@@ -168,7 +170,7 @@ class Trails {
     this.list = [];
     this.wind = new THREE.Vector3(3, 0.6, 1.5);   // m/s drift
   }
-  start() { const t = { pts: [], live: true, dist: 0 }; this.list.push(t); return t; }
+  start() { const t = { pts: [], live: true, dist: 0, seed: Math.random() * 100 }; this.list.push(t); return t; }
   add(t, p, now) {
     const last = t.pts[t.pts.length - 1];
     if (last) t.dist += last.p.distanceTo(p);
@@ -185,7 +187,12 @@ class Trails {
       const n = t.pts.length;
       if (n < 2 || v + n * 2 > this.max) continue;
       const base = v;
-      const at = (k, out) => { const p = t.pts[k], age = now - p.t; return out.copy(p.p).addScaledVector(this.wind, age).addScaledVector(p.drift, age); };
+      // with age the trail wanders: slow, smooth meanders along its length that grow as the smoke spreads
+      const at = (k, out) => {
+        const p = t.pts[k], age = now - p.t, m = Math.pow(Math.max(0, age - 0.6), 1.25);
+        return out.copy(p.p).addScaledVector(this.wind, age).addScaledVector(p.drift, age)
+          .add(_q2.set(Math.sin(p.d * 0.045 + t.seed) + 0.5 * Math.sin(p.d * 0.13 + t.seed * 2), 0.6 * Math.sin(p.d * 0.06 + t.seed * 3), Math.cos(p.d * 0.05 + t.seed * 4) + 0.5 * Math.cos(p.d * 0.11 + t.seed)).multiplyScalar(0.9 * m));
+      };
       for (let k = 0; k < n; k++) {
         const p = t.pts[k], age = now - p.t;
         const c = at(k, tmp);
@@ -193,7 +200,7 @@ class Trails {
         _v.subVectors(q1, q0).normalize();
         _w.subVectors(cam, c).normalize();
         const side = _w.cross(_v).normalize();
-        const width = 0.22 + 0.9 * (1 - Math.exp(-age / 0.8)) + 2.6 * Math.max(0, age - 1.2) / (1 + Math.max(0, age - 1.2) * 0.4);   // a tight rope near the missile, billowing later
+        const width = 0.22 + 0.9 * (1 - Math.exp(-age / 0.8)) + 3.6 * Math.max(0, age - 1.2) / (1 + Math.max(0, age - 1.2) * 0.3) + 0.8 * Math.sin(p.d * 0.21 + t.seed) * Math.min(1, Math.max(0, age - 1.5) / 3);   // tight near the missile, billowing and lumpy later
         const fromHead = (n - 1 - k);
         const fade = Math.pow(Math.max(0, 1 - age / LIFE), 1.5) * (age < 1.5 ? 0.85 : 0.85 - 0.45 * Math.min(1, (age - 1.5) / 2.5)) * Math.min(1, fromHead / 2 + 0.4);   // solid near the missile
         P.set([c.x + side.x * width, c.y + side.y * width, c.z + side.z * width], v * 3); A.set([fade, -1, p.d, age], v * 4); v++;
@@ -203,88 +210,6 @@ class Trails {
     }
     this.mesh.geometry.setDrawRange(0, i);
     this.pos.needsUpdate = this.info.needsUpdate = this.index.needsUpdate = true;
-  }
-}
-
-// ---------------------------------------------------------------- volumetric explosions
-// Each explosion is a sphere whose inside is ray-marched through 3D noise: a hot, glowing, billowing core that
-// cools into a lumpy grey smoke ball which rises, swells and thins out. Lit by the sun on the smoke.
-const VOL_VS = `varying vec3 vLocal; void main(){ vLocal = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-const VOL_FS = `
-uniform vec3 uCam; uniform float uAge; uniform float uSeed; uniform vec3 uCentre; uniform float uFade;
-varying vec3 vLocal;
-${FOG_GLSL}
-float h3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
-float n3(vec3 p) {
-  vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(mix(h3(i), h3(i + vec3(1,0,0)), f.x), mix(h3(i + vec3(0,1,0)), h3(i + vec3(1,1,0)), f.x), f.y),
-             mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z);
-}
-float fbm(vec3 p) { return n3(p) * 0.55 + n3(p * 2.1 + 3.1) * 0.3 + n3(p * 4.3 - 1.7) * 0.15; }
-void main() {
-  vec3 ro = uCam, rd = normalize(vLocal - uCam);
-  float b = dot(ro, rd), c = dot(ro, ro) - 1.0, disc = b * b - c;
-  if (disc < 0.0) discard;
-  float sq = sqrt(disc), t0 = max(-b - sq, 0.0), t1 = -b + sq;
-  const int STEPS = 22;
-  float dt = (t1 - t0) / float(STEPS);
-  vec3 col = vec3(0.0); float T = 1.0;
-  float heatAge = clamp(1.0 - uAge * 1.5, 0.0, 1.0);
-  for (int i = 0; i < STEPS; i++) {
-    vec3 p = ro + rd * (t0 + (float(i) + 0.5) * dt);
-    float r = length(p);
-    float n = fbm(p * 2.4 + vec3(uSeed, uSeed * 0.7 - uAge * 1.2, uSeed * 1.3));
-    float d = clamp((0.9 - r) * 2.6 + (n - 0.5) * 2.2, 0.0, 1.0);
-    if (d <= 0.0) continue;
-    float heat = heatAge * smoothstep(0.85, 0.1, r + (n - 0.5) * 0.6);
-    vec3 fire = mix(vec3(1.0, 0.18, 0.0), vec3(1.0, 0.72, 0.12), heat * heat) * heat * 11.0;
-    float lit = clamp(dot(normalize(p + 1e-4), uSunDir) * 0.5 + 0.5, 0.0, 1.0);
-    vec3 smoke = mix(vec3(0.012, 0.011, 0.01), vec3(0.13, 0.12, 0.11), lit * lit) * mix(0.5, 1.0, n);
-    float dens = d * 12.0 * dt;
-    col += T * (fire + smoke * (1.0 - heat)) * dens;
-    T *= exp(-dens * 1.4);
-    if (T < 0.02) break;
-  }
-  float a = (1.0 - T) * uFade;
-  col = applyFog(col / max(1.0 - T, 1e-3), cameraPosition, uCentre) * a;
-  gl_FragColor = vec4(col, a);
-  #include <tonemapping_fragment>
-  #include <colorspace_fragment>
-}`;
-
-class Explosions {
-  constructor(scene) {
-    this.scene = scene; this.list = [];
-    this.geo = new THREE.SphereGeometry(1, 24, 16);
-  }
-  spawn(p, vel, scale) {
-    const mat = new THREE.ShaderMaterial({
-      uniforms: { ...fogUniforms, uCam: { value: new THREE.Vector3() }, uAge: { value: 0 }, uSeed: { value: Math.random() * 50 }, uCentre: { value: new THREE.Vector3() }, uFade: { value: 1 } },
-      vertexShader: VOL_VS, fragmentShader: VOL_FS,
-      transparent: true, depthWrite: false, side: THREE.BackSide,
-      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
-    });
-    const mesh = new THREE.Mesh(this.geo, mat);
-    mesh.renderOrder = 2;
-    this.scene.add(mesh);
-    this.list.push({ mesh, p: p.clone(), v: vel.clone().multiplyScalar(0.25), t: 0, life: 7, s: scale });
-  }
-  update(dt, cam) {
-    for (const e of this.list) {
-      e.t += dt;
-      e.v.multiplyScalar(1 - dt * 1.2); e.v.y += dt * 1.5;          // slows down, smoke rises
-      e.p.addScaledVector(e.v, dt);
-      const k = e.t / e.life;
-      const R = e.s * (5 + 11 * (1 - Math.exp(-e.t * 3.5)) + e.t * 1.6);
-      const m = e.mesh;
-      m.position.copy(e.p); m.scale.setScalar(R); m.updateMatrixWorld();
-      const u = m.material.uniforms;
-      u.uAge.value = k; u.uCentre.value.copy(e.p);
-      u.uFade.value = Math.pow(1 - k, 1.3);
-      u.uCam.value.copy(cam).sub(e.p).divideScalar(R);
-    }
-    for (const e of this.list) if (e.t >= e.life) { this.scene.remove(e.mesh); e.mesh.material.dispose(); }
-    this.list = this.list.filter(e => e.t < e.life);
   }
 }
 
@@ -302,7 +227,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
   proto.add(holder);
   proto.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
 
-  const glow = new Sprites(1500, true), smoke = new Sprites(300, false), trails = new Trails(), booms = new Explosions(scene);
+  const glow = new Sprites(2000, true), smoke = new Sprites(2500, false), trails = new Trails();
   scene.add(glow.mesh, smoke.mesh, trails.mesh);
 
   // missiles on the rails (in the jet's model, which is offset by -CG inside jet.object)
@@ -316,11 +241,31 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
   };
 
   // ---------------- damage: player and drone share the same model and effects
-  const emit = (kind, p, v) => {
-    if (kind === 'smoke') S.fx.push({ kind: 'smoke', p: p.clone(), v: new THREE.Vector3(0, 2, 0), t: 0, life: 3.5, s: 2.2 + Math.random() * 1.5, seed: Math.random(), dark: 1 });
-    else if (kind === 'flame') S.fx.push({ kind: 'flame', p: p.clone(), v: v ? v.clone().multiplyScalar(0.2) : new THREE.Vector3(), t: 0, life: 0.3, s: 0.6 + Math.random() * 0.6 });
-    else if (kind === 'impact') explode(p, new THREE.Vector3(), 0.5);
+  // smoke and flame are laid down by distance travelled (plus a slow tick when standing still),
+  // so fast debris leaves a continuous trail instead of a row of dots
+  const lastAt = new WeakMap();
+  const puffSmoke = (p, light) => S.fx.push({ kind: 'smoke', p: p.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2), t: 0, life: 4 + Math.random() * 2, s: 1.8 + Math.random() * 1.4, seed: Math.random(), dark: light ? 0 : 1 });
+  const puffFlame = (p, v) => S.fx.push({ kind: 'flame', p: p.clone(), v: v ? v.clone().multiplyScalar(0.15) : new THREE.Vector3(), t: 0, life: 0.35, s: 0.7 + Math.random() * 0.6 });
+  const emit = (kind, p, v, key) => {
+    if (kind === 'impact') return explode(p, new THREE.Vector3(), 0.6);
+    if (kind === 'groundfire') return fires.push({ p: p.clone(), t: 0, life: v ? 25 : 10, big: !!v, tS: 0, tF: 0 });
+    const make = kind === 'smoke' ? (q) => puffSmoke(q) : (q) => puffFlame(q, v);
+    const spacing = kind === 'smoke' ? 1.4 : 0.9;
+    if (!key) { make(p); return; }
+    let st = lastAt.get(key);
+    if (!st) { st = { [kind]: { p: p.clone(), t: 0 } }; lastAt.set(key, st); make(p); return; }
+    let e = st[kind];
+    if (!e) { st[kind] = { p: p.clone(), t: 0 }; make(p); return; }
+    const d = e.p.distanceTo(p);
+    if (d >= spacing) {
+      const n = Math.min(Math.floor(d / spacing), 40);
+      for (let k = 1; k <= n; k++) make(e.p.clone().lerp(p, k / n));
+      e.p.copy(p); e.t = 0;
+    } else if ((e.t += 1 / 60) > 0.1) { make(p); e.t = 0; e.p.copy(p); }
   };
+  // things burning on the ground: crash sites and landed debris
+  const fires = [];
+
   jet.damage = new Damage(jet.model, scene, terrain, emit);
 
   // ---------------- target drone: a second copy of the jet flying a wide circle ahead of the player
@@ -346,7 +291,16 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       drone.obj.rotateZ(drone.spin * dt); drone.obj.rotateX(0.4 * dt);
       if ((drone.smokeT = (drone.smokeT || 0) - dt) <= 0) { drone.smokeT = 0.04; const c = drone.obj.getWorldPosition(new THREE.Vector3()); emit('smoke', c, drone.vel); emit('flame', c, drone.vel); }
       if (drone.pos.y < terrain.heightAt(drone.pos.x, drone.pos.z) + 2) {
-        explode(drone.pos, new THREE.Vector3(), 1.8);
+        explode(drone.pos, drone.vel, 2.0);
+        // a charred wreck stays on the ground and burns, with a smoke column drifting downwind
+        const wreck = drone.obj.clone(true);
+        wreck.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); if (o.material.color) o.material.color.multiplyScalar(0.18); } });
+        const g = terrain.heightAt(drone.pos.x, drone.pos.z);
+        wreck.position.set(drone.pos.x, g + 0.6, drone.pos.z);
+        wreck.rotation.set((Math.random() - 0.5) * 0.3, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.5);
+        scene.add(wreck);
+        setTimeout(() => wreck.removeFromParent(), 40000);
+        emit('groundfire', wreck.position, new THREE.Vector3(1, 0, 0));
         drone.alive = false; drone.obj.visible = false; drone.respawn = 5;
       }
       return;
@@ -370,12 +324,26 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
   }
 
   // ---------------- effects
+  // War Thunder-style blast: a short flash, a cluster of irregular fire puffs that roll outward and up and
+  // cool from white-yellow through orange and deep red to brown smoke, lingering smoke, and burning debris.
   function explode(p, vel, scale = 1) {
-    booms.spawn(p, vel, scale);
-    S.fx.push({ kind: 'fire', p: p.clone(), v: vel.clone().multiplyScalar(0.3), t: 0, life: 0.3, s: 16 * scale });   // the initial flash
-    for (let k = 0; k < 16; k++) {                       // burning debris: bright streaks arcing out and falling
-      const d = new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.8 - 0.2, Math.random() - 0.5).normalize().multiplyScalar((40 + Math.random() * 70) * scale);
-      S.fx.push({ kind: 'ember', p: p.clone(), v: d.add(vel.clone().multiplyScalar(0.4)), t: 0, life: 1.2 + Math.random() * 1.5, s: 0.5 + Math.random() * 0.5, smokeAt: 0 });
+    const carry = vel.clone().multiplyScalar(0.25);
+    S.fx.push({ kind: 'fire', p: p.clone(), v: carry.clone(), t: 0, life: 0.18, s: 18 * scale });
+    const n = Math.round(9 + 7 * scale);
+    for (let k = 0; k < n; k++) {
+      const d = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 0.6, Math.random() * 2 - 1).normalize();
+      const sp = (8 + Math.random() * 22) * scale;
+      S.fx.push({ kind: 'ball', p: p.clone().addScaledVector(d, Math.random() * 3 * scale), v: d.multiplyScalar(sp).add(carry), t: -Math.random() * 0.1,
+        life: (1.0 + Math.random() * 1.1) * (0.8 + 0.25 * scale), s: (3 + Math.random() * 3.5) * scale, seed: Math.random() });
+    }
+    for (let k = 0; k < 7; k++) {
+      const d = new THREE.Vector3(Math.random() - 0.5, 0.3 + Math.random() * 0.5, Math.random() - 0.5).multiplyScalar(6 * scale);
+      S.fx.push({ kind: 'smoke', p: p.clone().addScaledVector(d, 1), v: d.add(carry).add(new THREE.Vector3(0, 3, 0)), t: -0.35 - Math.random() * 0.6,
+        life: 7 + Math.random() * 4, s: (6 + Math.random() * 5) * scale, seed: Math.random(), dark: 1, rise: 1 });
+    }
+    for (let k = 0; k < Math.round(10 * scale) + 4; k++) {
+      const d = new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.8 - 0.15, Math.random() - 0.5).normalize().multiplyScalar((35 + Math.random() * 60) * scale);
+      S.fx.push({ kind: 'ember', p: p.clone(), v: d.add(carry), t: 0, life: 1.2 + Math.random() * 1.6, s: 0.45 + Math.random() * 0.4 });
     }
   }
   function spark(p) { S.fx.push({ kind: 'spark', p: p.clone(), v: new THREE.Vector3(), t: 0, life: 0.12, s: 2.5 }); }
@@ -506,31 +474,51 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
         glow.push(tailP, null, 1.0, 0.62, 0.3, 0.9, 0.6 + Math.random() * 0.3, Math.random());
       }
     }
-    // explosions, smoke, sparks
+    // ground fires: flames licking up and a smoke column drifting downwind
+    for (const f of fires) {
+      f.t += dt;
+      const k = f.t / f.life, big = f.big ? 1 : 0.55, power = Math.min(1, (1 - k) * 2.5);
+      if ((f.tF -= dt) <= 0) {
+        f.tF = 0.06 / big;
+        const off = new THREE.Vector3((Math.random() - 0.5) * 7 * big, 0, (Math.random() - 0.5) * 7 * big);
+        S.fx.push({ kind: 'ball', p: f.p.clone().add(off), v: new THREE.Vector3(1.5, 5 + Math.random() * 5, 1), t: 0, life: 0.9 + Math.random() * 0.6, s: (1.6 + Math.random() * 1.8) * big * (0.4 + 0.6 * power), seed: Math.random(), ground: 1 });
+      }
+      if ((f.tS -= dt) <= 0) {
+        f.tS = 0.14 / big;
+        S.fx.push({ kind: 'smoke', p: f.p.clone().add(new THREE.Vector3(0, 4 * big, 0)), v: new THREE.Vector3(3 + Math.random() * 2, 7 + Math.random() * 4, 1.5 + Math.random()), t: 0, life: 9 + Math.random() * 4, s: (3 + Math.random() * 2.5) * big, seed: Math.random(), dark: 1, rise: 1 });
+      }
+    }
+    for (let i = fires.length - 1; i >= 0; i--) if (fires[i].t > fires[i].life) fires.splice(i, 1);
+
+    // explosions, smoke, fire
     for (const e of S.fx) {
       e.t += dt; if (e.t < 0) continue;
-      e.p.addScaledVector(e.v, dt); e.v.multiplyScalar(1 - dt * 0.8);
+      e.p.addScaledVector(e.v, dt); e.v.multiplyScalar(1 - dt * (e.kind === 'ball' ? 2.2 : 0.8));
       const k = e.t / e.life;
-      if (e.kind === 'fire') {
-        glow.push(e.p, null, 1.0, 0.55 + 0.3 * (1 - k), 0.2, 3.0 * (1 - k) * (1 - k), e.s * (0.4 + k * 0.9), 0.3);
-        glow.push(e.p, null, 1.0, 0.9, 0.7, 4.0 * Math.max(0, 1 - k * 3), e.s * 0.5, 0.7);
+      if (e.kind === 'ball') {
+        e.v.y += dt * 9 * k;                                   // hot gas rises as it slows
+        const c = fireRamp(k);
+        const alpha = k < 0.6 ? 0.95 : 0.95 * (1 - (k - 0.6) / 0.4);
+        smoke.push(e.p, null, c[0], c[1], c[2], alpha * Math.min(1, e.t * 20), e.s * (0.55 + 1.3 * Math.sqrt(k)), e.seed);
+      } else if (e.kind === 'fire') {
+        glow.push(e.p, null, 1.0, 0.75, 0.45, 3.5 * (1 - k), e.s * (0.6 + k * 0.6), 0.3);
       } else if (e.kind === 'smoke') {
-        const g = e.dark ? 0.02 + 0.03 * e.seed : 0.16 + 0.1 * e.seed;
-        smoke.push(e.p, null, g, g, g * 1.05, 0.85 * Math.min(1, e.t * 4) * (1 - k), e.s * (0.6 + k * 1.6), e.seed);
+        if (e.rise) e.v.y += dt * 0.6;
+        const g = e.dark ? 0.1 + 0.07 * e.seed : 0.42 + 0.1 * e.seed;       // dark grey-brown, not pure black
+        smoke.push(e.p, null, g * 1.08, g, g * 0.92, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * (0.6 + k * 1.9), e.seed);
       } else if (e.kind === 'flame') {
         glow.push(e.p, null, 1.0, 0.3 + 0.25 * (1 - k), 0.03, 0.75 * (1 - k), e.s * (0.8 + k * 0.8), Math.random());
       } else if (e.kind === 'ember') {
         e.v.y -= G * dt;
         const tail = tmpB.copy(e.v).multiplyScalar(-0.06).add(e.p);
         glow.push(e.p, tail, 1.0, 0.45 + 0.3 * (1 - k), 0.08, 2.2 * (1 - k * 0.7), e.s * 0.6);
-        if ((e.smokeAt -= dt) <= 0) { e.smokeAt = 0.07; S.fx.push({ kind: 'smoke', p: e.p.clone(), v: new THREE.Vector3(0, 1, 0), t: 0, life: 2.5, s: 2.5 + k * 3, seed: Math.random(), dark: 1 }); }
+        emit('smoke', e.p, e.v, e);
       } else glow.push(e.p, null, 1.0, 0.85, 0.55, 3.0 * (1 - k), e.s, 0.5);
     }
     S.fx = S.fx.filter(e => e.t < e.life);
     // drone afterburner glow so it reads at a distance
     glow.end(); smoke.end();
     trails.update(now, cam);
-    booms.update(dt, cam);
   }
 
   return {
@@ -556,4 +544,14 @@ function closestOnSeg(a, b, p) {
   const ab = new THREE.Vector3().subVectors(b, a);
   const t = THREE.MathUtils.clamp(new THREE.Vector3().subVectors(p, a).dot(ab) / Math.max(ab.lengthSq(), 1e-9), 0, 1);
   return a.clone().addScaledVector(ab, t);
+}
+
+// fire colour over a puff's life: white-yellow, orange, deep red, then brown smoke (emissive values above 1 glow)
+const RAMP = [[0, 2.4, 2.0, 1.1], [0.12, 2.2, 1.05, 0.28], [0.3, 1.4, 0.38, 0.07], [0.5, 0.42, 0.13, 0.05], [0.72, 0.15, 0.12, 0.1], [1, 0.13, 0.12, 0.11]];
+function fireRamp(k) {
+  for (let i = 1; i < RAMP.length; i++) if (k <= RAMP[i][0]) {
+    const a = RAMP[i - 1], b = RAMP[i], t = (k - a[0]) / (b[0] - a[0]);
+    return [a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t];
+  }
+  return RAMP[RAMP.length - 1].slice(1);
 }

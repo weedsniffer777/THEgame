@@ -163,22 +163,24 @@ export class Damage {
         d.v.y -= 9.81 * dt; d.v.multiplyScalar(1 - 0.25 * dt);
         d.obj.position.addScaledVector(d.v, dt);
         d.obj.rotateOnWorldAxis(d.axis, d.spin * dt);
-        if (d.obj.position.y < this.terrain.heightAt(d.obj.position.x, d.obj.position.z)) { d.landed = true; d.obj.visible = false; if (/wing|nose/.test(d.name)) this.emit('impact', d.obj.position, d.v); }
+        const ground = this.terrain.heightAt(d.obj.position.x, d.obj.position.z);
+        if (d.obj.position.y < ground) {
+          d.landed = true; d.obj.position.y = ground + 0.2;             // the piece stays where it fell, burning
+          d.obj.traverse(o => { if (o.isMesh && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.25); } });
+          if (/wing|nose/.test(d.name)) this.emit('impact', d.obj.position, d.v);
+          this.emit('groundfire', d.obj.position, null);
+        }
       }
-      if ((d.smokeT -= dt) <= 0 && d.t < 8 && !d.landed) {
-        d.smokeT = 0.05;
+      if (d.t < 10 && !d.landed) {
         const at = d.obj.localToWorld(d.edge.clone());   // the torn edge burns, not the middle of the piece
-        this.emit('smoke', at, d.v); if (d.t < 4) this.emit('flame', at, d.v);
+        this.emit('smoke', at, d.v, d); if (d.t < 5) this.emit('flame', at, d.v, d.obj);
       }
     }
-    this.debris = this.debris.filter(d => { if (d.t > 14) { d.obj.removeFromParent(); return false; } return true; });
+    this.debris = this.debris.filter(d => { if (d.t > 40) { d.obj.removeFromParent(); return false; } return true; });
     // break points on the airframe keep burning
-    if (this.fires.length && (this.smokeT -= dt) <= 0) {
-      this.smokeT = 0.05;
-      for (const f of this.fires) {
-        const w = this.model.localToWorld(f.clone());
-        this.emit('smoke', w, null); this.emit('flame', w, null);
-      }
+    for (const f of this.fires) {
+      const w = this.model.localToWorld(f.clone());
+      this.emit('smoke', w, null, f); this.emit('flame', w, null, f);
     }
   }
 }
