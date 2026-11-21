@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // Third-person aim camera: the mouse turns the camera, the instructor turns the jet to follow it.
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
-const _q = new THREE.Quaternion(), _a = new THREE.Vector3(), _m = new THREE.Matrix4(), _o = new THREE.Vector3();
+const _q = new THREE.Quaternion(), _a = new THREE.Vector3();
 const FLIP = new THREE.Quaternion().setFromAxisAngle(Y, Math.PI);
 
 export class CameraRig {
@@ -27,13 +27,6 @@ export class CameraRig {
     if (Math.abs(this.up.y) > 0.2) _a.set(0, Math.sign(this.up.y), 0); else _a.copy(this.up);
     this.aim.premultiply(_q.setFromAxisAngle(_a, -dx * s));
     this.aim.multiply(_q.setFromAxisAngle(X, -dy * s)).normalize();
-  }
-
-  // keyboard flying: the camera follows the nose so mouse aim takes over again without a jump
-  follow(dir) {
-    this.axes();
-    _m.lookAt(_o, dir, Math.abs(this.up.dot(dir)) > 0.99 ? this.right.clone().cross(dir) : this.up);
-    this.aim.setFromRotationMatrix(_m);
   }
 
   update(dt, target, speedFrac) {

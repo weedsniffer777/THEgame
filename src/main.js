@@ -145,7 +145,7 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1); last = now;
   if (running) {
     cursorSteer(dt);
-    if (manual) rig.follow(_n.set(0, 0, 1).applyQuaternion(ac.quat)); else rig.look(mouseDX, mouseDY);
+    rig.look(mouseDX, mouseDY);
     acc += dt;
     while (acc >= STEP) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }
   }
