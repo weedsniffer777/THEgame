@@ -11,7 +11,10 @@
 - `src/config.js`: every tunable number (flight model, mouse-aim instructor, camera, world).
 - `src/flight/`: atmosphere, flight model (`aircraft.js`), mouse-aim autopilot (`instructor.js`).
 - `src/world/`: CDLOD terrain from a heightmap (mirrors past the map edge) and the shared sky/haze.
-- `src/jet.js`: F-5 model, control surface pivots, afterburner.
+- `src/jet.js`: F-5 model, control surface pivots, gear/doors, afterburner.
+- `src/damage.js`: break-apart damage model shared by every aircraft (parts, hit points, debris, flight effects).
+- `src/weapons.js`: guns (tracer per round), missiles (6 stations, no reload), seeker/lock, explosions, target drone.
+- Dev kit (top-right button): model viewer with every animation, door angles and part breaking.
 - `tools/terrain/`: swisstopo download and build scripts. Raw tiles live in `terrain-raw/` (git-ignored); built files in `public/terrain/<area>/`.
 
 ## Run

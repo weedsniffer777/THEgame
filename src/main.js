@@ -61,6 +61,7 @@ function spawn() {
   ac.reset(new THREE.Vector3(s.x, s.y, s.z), s.heading, s.speed);
   rig.reset(ac.quat);
   prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
+  if (typeof weapons !== 'undefined') { weapons.rearm(); jet.damage.repair(); }
 }
 spawn();
 
@@ -198,6 +199,8 @@ function frame(now) {
   jet.object.quaternion.copy(drawQuat);
   jet.animate(ac);
   weapons.render(camera, dt, now / 1000, a, drawPos, drawQuat);
+  jet.damage.update(dt);
+  ac.damageFx = jet.damage.effects();
   rig.zoom += ((rig.zooming ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);
   if (viewer.on) viewer.place(); else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1));
   sun.position.copy(drawPos).addScaledVector(sunDir, 1000);
@@ -244,7 +247,7 @@ kitBtn.addEventListener('click', e => { e.stopPropagation(); kitMenu.hidden = !k
 document.getElementById('kit-viewer').addEventListener('click', e => {
   e.stopPropagation(); kitMenu.hidden = true;
   setViewer(true);
-  import('./dev.js').then(m => m.openViewer(viewerAnim, () => setViewer(false)));
+  import('./dev.js').then(m => m.openViewer(viewerAnim, () => setViewer(false), jet.damage));
 });
 
 window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons };

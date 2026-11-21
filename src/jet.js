@@ -114,6 +114,7 @@ function afterburner(kind) {
 }
 
 import { loadGltfJson } from './gltf.js';
+import { splitAirframe } from './damage.js';
 
 // The source model is posed for the ground: canopy open, gear doors open. Close it up for flight.
 function swing(model, names, axis, deg, at) {
@@ -172,6 +173,7 @@ export async function loadJet(url, cfg) {
     stabL: hinge(model, 'Object053', 'center'), stabR: hinge(model, 'Object054', 'center'),
     rudder: hinge(model, 'Object026', 'front'),
   };
+  splitAirframe(model, s);
   model.traverse(o => {
     if (!o.isMesh) return;
     if (o.material.map) o.material.map.anisotropy = 4;

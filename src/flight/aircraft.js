@@ -109,9 +109,13 @@ export class Aircraft {
     const lockP = 1 - c.pitchLock * smooth(c.pitchLockStart, c.pitchLockEnd, ias);
     const lockR = 1 - c.rollLock * smooth(c.rollLockStart, c.rollLockEnd, ias);
     const inp = this.input;
-    const qdot = qr * (c.pitchControl * lockP * inp.pitch - c.pitchStability * Math.sin(alpha)) - c.pitchDamping * sq * (this.q - this.wFp);
-    const rdot = qr * (c.yawControl * inp.yaw - c.yawStability * Math.sin(beta)) - c.yawDamping * sq * this.r;
-    const pTarget = c.rollRate * DEG * inp.roll * smooth(0, c.rollFullIAS, ias) * lockR * (1 - c.stallRoll * stall);
+    const pm = this.damageFx ? this.damageFx.pitchMul : 1, ym = this.damageFx ? this.damageFx.yawMul : 1, wob = this.damageFx ? this.damageFx.wobble : 0;
+    this.time = (this.time || 0) + dt;
+    const qdot = qr * (c.pitchControl * lockP * pm * inp.pitch - c.pitchStability * Math.sin(alpha) + wob * 0.3 * Math.sin(this.time * 0.9)) - c.pitchDamping * sq * (this.q - this.wFp);
+    const rdot = qr * (c.yawControl * ym * inp.yaw - c.yawStability * ym * Math.sin(beta) + wob * 0.5 * Math.sin(this.time * 0.7)) - c.yawDamping * sq * this.r;
+    const D = this.damageFx;
+    let pTarget = c.rollRate * DEG * inp.roll * smooth(0, c.rollFullIAS, ias) * lockR * (1 - c.stallRoll * stall);
+    if (D) pTarget = pTarget * D.rollMul + D.rollBias * smooth(0, c.rollFullIAS, ias);
     const pdot = (pTarget - this.p) / (c.rollResponse / Math.min(Math.max(sq, 0.35), 2));
     this.q += qdot * dt; this.r += rdot * dt; this.p += (pdot + qr * c.dihedral * Math.sin(beta)) * dt;
     _w.set(-this.q, -this.r, this.p);

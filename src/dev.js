@@ -52,7 +52,7 @@ export function toggleDev({ ac, terrain, renderer, spawn }) {
 
 // Model viewer panel: every animation the jet has, plus the door angles, live.
 let vgui;
-export function openViewer(anim, exit) {
+export function openViewer(anim, exit, damage) {
   if (vgui) { vgui.show(); return; }
   vgui = new GUI({ title: 'model viewer' });
   vgui.domElement.style.top = '70px';
@@ -67,6 +67,9 @@ export function openViewer(anim, exit) {
   for (const k of Object.keys(TUNABLE.DOORS)) d.add(TUNABLE.DOORS, k, -180, 180, 0.5).onChange(saveTuning);
   d.add({ copy: () => navigator.clipboard?.writeText(JSON.stringify(TUNABLE.DOORS, null, 1)).catch(() => {}) }, 'copy').name('copy door values');
   d.add({ reset: () => { resetGroup('DOORS'); d.controllers.forEach(c => c.updateDisplay()); } }, 'reset').name('reset to game angles');
+  const dm = vgui.addFolder('damage (break off)');
+  for (const name of Object.keys(damage.parts)) dm.add({ go: () => damage.breakPart(name, new (damage.model.position.constructor)()) }, 'go').name(name);
+  dm.add({ repair: () => damage.repair() }, 'repair').name('repair all');
   vgui.add({ exit: () => { vgui.hide(); exit(); } }, 'exit').name('exit viewer');
   for (const c of [...a.controllers]) c.listen();
 }

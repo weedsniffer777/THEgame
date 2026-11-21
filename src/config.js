@@ -87,7 +87,10 @@ export const INSTRUCTOR = {
   maxG: 9,                // game limit, between the real jet's 7.33 operating and ~11 ultimate
   maxNegG: 3,
   maxNegAoA: 12,          // deg
-  stickLag: 0.035,         // s for controls to follow a command (smooths jitter)
+  pitchLag: 0.07,         // s for each control to follow its command (smoothness)
+  rollLag: 0.06,
+  yawLag: 0.1,
+  aimSmooth: 0.06,        // s low-pass on the mouse aim the autopilot chases         // s for controls to follow a command (smooths jitter)
   maxAoA: 20,             // deg
 };
 
@@ -133,11 +136,11 @@ export const WEAPONS = {
   gunRate: 50,            // rounds per second, both guns together
   muzzleVelocity: 1030,   // m/s
   gunSpread: 0.0012,      // rad
-  tracerLength: 16,       // m (rounds are ~20 m apart, so this leaves gaps between streaks)
-  tracerWidth: 0.32,      // m (grows with distance so tracers stay visible)
+  tracerLength: 24,       // m
+  tracerWidth: 0.2,       // m, close up
+  tracerMinPixels: 0.0026, // keeps far tracers at least ~2-3 px wide
   roundLife: 3,           // s
-  missiles: 2,
-  missileReload: 15,      // s per missile
+  missiles: 6,            // one per station: 2 wingtips + 4 pylons, no reload
   seekerFov: 24,          // deg, full width of the seeker circle
   lockTime: 0.8,          // s on target to lock
   lockRange: 4000,        // m

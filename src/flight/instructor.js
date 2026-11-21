@@ -29,7 +29,11 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     pitch = keys.pitch > 0 ? keys.pitch * capPos : keys.pitch * capNeg;
     roll = keys.roll; yaw = keys.yaw;
   } else {
-    _t.subVectors(aimPoint, ac.pos).normalize().applyQuaternion(_qi.copy(ac.quat).invert());
+    // the aim the autopilot chases is low-passed, so mouse jitter never reaches the controls
+    const want = _r.subVectors(aimPoint, ac.pos).normalize();
+    if (!ac._aimDir) ac._aimDir = want.clone();
+    ac._aimDir.lerp(want, 1 - Math.exp(-dt / cfg.aimSmooth)).normalize();
+    _t.copy(ac._aimDir).applyQuaternion(_qi.copy(ac.quat).invert());
     const off = Math.acos(clamp(_t.z, -1, 1));
     const pitchErr = Math.atan2(_t.y, _t.z);
     const yawErr = Math.atan2(-_t.x, _t.z);
@@ -51,6 +55,9 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     m.dp += ((pitchErr - m.pe) / dt - m.dp) * lp; m.dy += ((yawErr - m.ye) / dt - m.dy) * lp;
     m.pe = pitchErr; m.ye = yawErr;
     pitch = cfg.pitchGain * (pitchErr + cfg.pitchLead * m.dp);
+    // no ballooning: while the lift vector still points away from the target, roll first and hold the pull back
+    const aligned = Math.max(Math.cos(rollErr), 0);
+    if (pitch > 0) pitch *= 1 - bank * (1 - aligned * aligned);
     yaw = clamp(cfg.yawGain * (yawErr + cfg.yawLead * m.dy), -1, 1) * (1 - 0.6 * bank);
     // near the target the direction to it swings fast as the nose passes, so roll gently there
     const rollLim = 0.25 + 0.75 * smooth(cfg.levelAngle * DEG, cfg.bankAngle * 2 * DEG, off);
@@ -68,9 +75,8 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
   if (aoa < -cfg.maxNegAoA * DEG) pitch += (-cfg.maxNegAoA * DEG - aoa) * 6;
   pitch = clamp(pitch, -capNeg, capPos);
 
-  // stick, aileron and rudder move at a finite speed: no jitter from instant reversals
-  const k = 1 - Math.exp(-dt / cfg.stickLag);
-  ac.input.pitch += (pitch - ac.input.pitch) * k;
-  ac.input.roll += (roll - ac.input.roll) * k;
-  ac.input.yaw += (yaw - ac.input.yaw) * k;
+  // stick, aileron and rudder move at a finite speed: smooth, no jitter from instant reversals
+  ac.input.pitch += (pitch - ac.input.pitch) * (1 - Math.exp(-dt / cfg.pitchLag));
+  ac.input.roll += (roll - ac.input.roll) * (1 - Math.exp(-dt / cfg.rollLag));
+  ac.input.yaw += (yaw - ac.input.yaw) * (1 - Math.exp(-dt / cfg.yawLag));
 }
