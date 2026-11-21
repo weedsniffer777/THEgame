@@ -27,6 +27,20 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 const envScene = new THREE.Scene(); envScene.add(createSky());
 scene.environment = pmrem.fromScene(envScene, 0, 1, 2000).texture;
 
+// start screen works while the world is still loading; the game begins as soon as both are ready
+const startEl = document.getElementById('start');
+let ready = false, wantStart = params.has('autostart'), running = false, locked = false;
+function setRunning(on) { wantStart = on; running = on && ready; startEl.classList.toggle('show', !running); }
+startEl.addEventListener('click', () => {
+  try { const lock = canvas.requestPointerLock?.(); lock?.catch?.(() => {}); } catch { /* no pointer lock here */ }
+  setRunning(true);
+});
+document.addEventListener('pointerlockchange', () => {
+  const was = locked;
+  locked = !!document.pointerLockElement;
+  if (was && !locked) setRunning(false);
+});
+
 const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadJet('models/jets/f5.gltf.json')]);
 scene.add(terrain.group, jet.object);
 
@@ -45,13 +59,14 @@ spawn();
 
 // input
 const keys = new Set();
-let running = false, mouseDX = 0, mouseDY = 0, abHold = 0;
-addEventListener('keydown', e => { keys.add(e.code); if (e.code === 'Backquote') import('./dev.js').then(m => m.toggleDev({ ac, terrain, renderer, spawn })); });
+let mouseDX = 0, mouseDY = 0, abHold = 0;
+const GAME_KEYS = new Set(['Space', 'ShiftLeft', 'ShiftRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE']);
+addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) e.preventDefault(); keys.add(e.code); if (e.code === 'Backquote') import('./dev.js').then(m => m.toggleDev({ ac, terrain, renderer, spawn })); });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 // With pointer lock the mouse turns the camera directly. Where the page can't lock the pointer
 // (some embedded views), the cursor's distance from the screen centre turns it like a joystick instead.
-let locked = false, cursorX = null, cursorY = null;
+let cursorX = null, cursorY = null;
 addEventListener('mousemove', e => {
   cursorX = e.clientX; cursorY = e.clientY;
   if (running && locked) { mouseDX += e.movementX; mouseDY += e.movementY; }
@@ -67,28 +82,18 @@ function cursorSteer(dt) {
 addEventListener('mousedown', e => { if (e.button === 2) rig.zooming = true; });
 addEventListener('mouseup', e => { if (e.button === 2) rig.zooming = false; });
 addEventListener('contextmenu', e => e.preventDefault());
-const startEl = document.getElementById('start');
-function setRunning(on) { running = on; startEl.classList.toggle('show', !on); }
-startEl.addEventListener('click', () => {
-  const lock = canvas.requestPointerLock?.();
-  if (lock?.catch) lock.catch(() => {});
-  setRunning(true);
-});
-document.addEventListener('pointerlockchange', () => {
-  const was = locked;
-  locked = !!document.pointerLockElement;
-  if (was && !locked) setRunning(false);
-});
-if (params.has('autostart')) setRunning(true);
+ready = true;
+startEl.classList.remove('loading');
+setRunning(wantStart);
 
 function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0); }
 
 function physics(dt) {
-  // throttle: W/S, holding W at full power lights the afterburner
-  const th = axis('KeyS', 'KeyW');
+  // throttle: Shift up, Space down; holding Shift at full power lights the afterburner
+  const th = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 1 : 0) - (keys.has('Space') ? 1 : 0);
   if (th > 0 && ac.throttle >= 1) { abHold += dt; if (abHold > 0.25) ac.throttle = 1.1; }
   else { abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 0.6 * dt, 0, 1); }
-  instruct(ac, rig.fwd, INSTRUCTOR, { roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE'), pitch: 0 });
+  instruct(ac, rig.fwd, INSTRUCTOR, { roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE'), pitch: axis('KeyW', 'KeyS') });
   ac.step(dt);
   if (ac.pos.y < terrain.heightAt(ac.pos.x, ac.pos.z) + 1.5) spawn();
 }

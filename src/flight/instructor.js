@@ -39,7 +39,7 @@ export function instruct(ac, aimDir, cfg, override) {
 
   if (override.roll) roll = override.roll;
   if (override.yaw) yaw = override.yaw;
-  if (override.pitch) pitch = override.pitch;
+  if (override.pitch) pitch = override.pitch > 0 ? Math.min(override.pitch, cap) : Math.max(override.pitch, -0.6);
   ac.input.pitch = pitch; ac.input.roll = roll; ac.input.yaw = yaw;
   return off;
 }
