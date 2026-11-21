@@ -5,7 +5,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // Model space: +Z nose, +Y up, +X left wing (same as the flight model's body frame).
 const GEAR = ['Object055', 'Object057', 'Object023', 'Object052', 'Object024', 'Object032', 'Object033', 'Object049', 'Object050', 'Object051', 'Object030', 'Object048', 'Object035'];
 const CG = new THREE.Vector3(0, 1.9, -0.6);
-const NOZZLES = [new THREE.Vector3(0.33, 1.72, -6.62), new THREE.Vector3(-0.33, 1.72, -6.62)];
+// exhaust exits, measured from the model: centre, at the nozzle lip (opening radius 0.215 m, 0.20 m deeper inside)
+const NOZZLES = [new THREE.Vector3(0.285, 1.628, -6.659), new THREE.Vector3(-0.285, 1.628, -6.659)];
 const DEG = Math.PI / 180;
 
 function hinge(model, name, edge) {
@@ -63,18 +64,18 @@ const CORE_FS = `
 uniform float uMil; uniform float uAB; varying vec2 vUv;
 void main() {
   float r = length(vUv - 0.5) * 2.0;
-  vec3 c = vec3(0.85, 0.75, 1.0) * 3.5 * uAB * (1.0 - 0.6 * r * r);
+  vec3 c = mix(vec3(1.0, 0.85, 1.0) * 1.6, vec3(0.55, 0.42, 1.0) * 0.9, r * r) * uAB;
   gl_FragColor = vec4(c, 1.0);
 }`;
 
 function afterburner(kind) {
   const g = new THREE.Group();
-  const core = new THREE.Mesh(new THREE.CircleGeometry(0.2, 24).rotateY(Math.PI), new THREE.ShaderMaterial({
+  const core = new THREE.Mesh(new THREE.CircleGeometry(0.198, 32).rotateY(Math.PI), new THREE.ShaderMaterial({
     uniforms: { uMil: { value: 0 }, uAB: { value: 0 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: CORE_FS,
   }));
-  core.position.z = 0.35;   // recessed well inside the nozzle
+  core.position.z = 0.3;    // recessed inside the nozzle, where it is 0.20 m wide
   g.add(core);
 
   const diamonds = kind === 'diamonds';
@@ -151,10 +152,10 @@ function closeUp(model) {
   const twin = nose.clone();                                                                    // the model only has one: mirror it
   twin.position.x = -nose.position.x; twin.scale.x = -1; twin.rotation.z = -nose.rotation.z;
   model.add(twin);
-  model.getObjectByName('Object033').visible = true;                                            // small aft nose door
-  // main gear folds inward into the wells; its leg door then covers the outer well
-  swing(model, ['Object051', 'Object052'], 'z', 104, new THREE.Vector3(-1.97, 1.35, -1.25));
-  swing(model, ['Object048', 'Object023'], 'z', -104, new THREE.Vector3(1.97, 1.35, -1.25));
+  // gear up: the leg doors cover the outer wells
+  // (the gear legs themselves stay hidden: once the doors are shut they can't be seen, and they poke through the wing)
+  swing(model, ['Object051'], 'z', 104, new THREE.Vector3(-1.97, 1.35, -1.25));
+  swing(model, ['Object048'], 'z', -104, new THREE.Vector3(1.97, 1.35, -1.25));
   swing(model, ['Object050'], 'z', -80); swing(model, ['Object035'], 'z', 80);                // inner main doors
   // the speed brakes, hinged at their front edge: CLOSED is the swung-up angle, open swings back down
   brakes = [swing(model, ['Object049'], 'x', SB_CLOSED), swing(model, ['Object030'], 'x', SB_CLOSED)];

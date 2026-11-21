@@ -102,9 +102,9 @@ export const WORLD = {
   saturation: 1.5,
   clouds: 0,              // cloud clusters around the player (0 = none)
   cloudBase: 3700,        // m
-  fogDensity: 0.00005,
-  fogFalloff: 0.00035,    // 1 / haze scale height
-  terrainBrightness: 1.25,
+  fogDensity: 0.00009,
+  fogFalloff: 0.00028,    // 1 / haze scale height
+  terrainBrightness: 1.1,
   terrainRelief: 0.85,    // how much our sun shading is added on top of the photo
   terrainDetail: 900,     // m: radius of full-detail terrain (lower = faster)
   pixelRatio: 1.5,        // render resolution cap

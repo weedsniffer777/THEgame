@@ -15,7 +15,7 @@ const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, WORLD.pixelRatio));
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = THREE.NeutralToneMapping;   // keeps hues and saturation, so the picked sky colours stay true
 renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, 2, 160000);
@@ -24,7 +24,7 @@ const sky = createSky();
 scene.add(sky);
 const sunDir = setSun();
 const sun = new THREE.DirectionalLight(0xfff1dc, WORLD.sunIntensity);
-scene.add(sun, sun.target, new THREE.HemisphereLight(0x9cc0ff, 0x6a5a44, 0.8));
+scene.add(sun, sun.target, new THREE.HemisphereLight(0x9cc8f0, 0x5a5444, 0.9));
 const pmrem = new THREE.PMREMGenerator(renderer);
 const envScene = new THREE.Scene(); envScene.add(createSky());
 scene.environment = pmrem.fromScene(envScene, 0, 1, 2000).texture;
@@ -65,7 +65,7 @@ spawn();
 // input
 const keys = new Set();
 let mouseDX = 0, mouseDY = 0, abHold = 0;
-const GAME_KEYS = new Set(['Space', 'ShiftLeft', 'ShiftRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyB']);
+const GAME_KEYS = new Set(['Space', 'KeyZ', 'KeyX', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyB']);
 addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) e.preventDefault(); keys.add(e.code); if (e.code === 'Backquote') import('./dev.js').then(m => m.toggleDev({ ac, terrain, renderer, spawn })); });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
@@ -96,9 +96,9 @@ let manual = false;
 function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0); }
 
 function physics(dt) {
-  // throttle: Shift up, Space down; holding Shift at full power lights the afterburner
+  // throttle: X up, Z down; holding X at full power lights the afterburner (Space stays free for guns)
   ac.airbrakeCmd = keys.has('KeyB') ? 1 : 0;
-  const th = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 1 : 0) - (keys.has('Space') ? 1 : 0);
+  const th = axis('KeyZ', 'KeyX');
   if (th > 0 && ac.throttle >= 1) { abHold += dt; if (abHold > 0.25) ac.throttle = 1.1; }
   else { abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 0.6 * dt, 0, 1); }
   const kb = { pitch: axis('KeyW', 'KeyS'), roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE') };
