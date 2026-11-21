@@ -1,5 +1,0 @@
-{
-  "private": true,
-  "description": "Build tooling: three is bundled into the release build so it makes no external requests",
-  "dependencies": { "three": "0.160.0", "esbuild": "0.24.0" }
-}
