@@ -129,6 +129,71 @@ class Sprites {
   }
 }
 
+// ---------------------------------------------------------------- tracers
+// Drawn in screen space: each round is a capsule a fixed number of pixels wide, from its tail to its head.
+// That keeps every tracer the same crisp shape from any angle; seen end-on it is simply a short round dot.
+// Hot core, soft red halo, a slightly brighter head; thinner and dimmer with distance.
+class Tracers {
+  constructor(max = 600) {
+    const g = new THREE.InstancedBufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+    g.setIndex([0, 1, 2, 0, 2, 3]);
+    this.head = new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage);
+    this.tail = new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage);
+    this.amp = new THREE.InstancedBufferAttribute(new Float32Array(max * 2), 2).setUsage(THREE.DynamicDrawUsage);   // brightness, width px
+    g.setAttribute('aHead', this.head); g.setAttribute('aTail', this.tail); g.setAttribute('aAmp', this.amp);
+    this.max = max; this.n = 0;
+    this.uniforms = { uRes: { value: new THREE.Vector2(1, 1) } };
+    this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
+      uniforms: this.uniforms,
+      vertexShader: /* glsl */`
+        attribute vec3 aHead; attribute vec3 aTail; attribute vec2 aAmp;
+        uniform vec2 uRes;
+        varying vec2 vPix; varying vec2 vA; varying vec2 vB; varying float vW; varying float vI;
+        void main() {
+          vec4 h = projectionMatrix * viewMatrix * vec4(aHead, 1.0);
+          vec4 t = projectionMatrix * viewMatrix * vec4(aTail, 1.0);
+          if (t.w < 0.5) t = mix(h, t, clamp((h.w - 0.5) / max(h.w - t.w, 1e-4), 0.0, 1.0));   // keep the tail in front of the camera
+          vec2 hs = h.xy / h.w * uRes * 0.5, ts = t.xy / t.w * uRes * 0.5;
+          vec2 d = hs - ts; float l = length(d);
+          vec2 dir = l > 1e-3 ? d / l : vec2(1.0, 0.0), side = vec2(-dir.y, dir.x);
+          float w = aAmp.y;
+          float f = position.x * 0.5 + 0.5;
+          vec2 p = mix(ts - dir * w, hs + dir * w, f) + side * position.y * w;
+          vec4 c = mix(t, h, clamp(f, 0.0, 1.0));
+          gl_Position = vec4(p / (uRes * 0.5) * c.w, c.z, c.w);
+          vPix = p; vA = ts; vB = hs; vW = w; vI = aAmp.x;
+          if (h.w < 0.5) gl_Position = vec4(0.0, 0.0, -2.0, 1.0);       // head behind the camera: skip
+        }`,
+      fragmentShader: /* glsl */`
+        varying vec2 vPix; varying vec2 vA; varying vec2 vB; varying float vW; varying float vI;
+        void main() {
+          vec2 ab = vB - vA; float l2 = max(dot(ab, ab), 1e-4);
+          float s = clamp(dot(vPix - vA, ab) / l2, 0.0, 1.0);
+          float d = length(vPix - (vA + ab * s)) / vW;                    // 0 on the centre line, 1 at the edge
+          if (d > 1.0) discard;
+          float core = smoothstep(0.38, 0.0, d), halo = (1.0 - d) * (1.0 - d);
+          float along = 0.35 + 0.65 * s;                                  // brighter toward the head
+          vec3 col = vec3(1.0, 0.86, 0.62) * core * 1.6 + vec3(1.0, 0.22, 0.08) * halo * 0.9;
+          gl_FragColor = vec4(col * vI * along, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 4;
+  }
+  begin(renderer) { this.n = 0; renderer.getDrawingBufferSize(this.uniforms.uRes.value); }
+  push(head, tail, intensity, widthPx) {
+    if (this.n >= this.max) return;
+    const k = this.n++;
+    this.head.array.set([head.x, head.y, head.z], k * 3); this.tail.array.set([tail.x, tail.y, tail.z], k * 3);
+    this.amp.array.set([intensity, widthPx], k * 2);
+  }
+  end() { this.mesh.geometry.instanceCount = this.n; this.head.needsUpdate = this.tail.needsUpdate = this.amp.needsUpdate = true; }
+}
+
 // ---------------------------------------------------------------- missile smoke ribbons
 // One continuous ribbon per missile. It starts as a tight, dense line right behind the motor, then billows:
 // it widens, drifts on the wind and breaks up with noise along its length, lit brighter on the sun side.
@@ -184,6 +249,12 @@ class Trails {
     if (last) t.dist += last.p.distanceTo(p);
     t.pts.push({ p: p.clone(), t: now, d: t.dist, drift: new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.4, Math.random() - 0.5).multiplyScalar(1.2) });
   }
+  // where trail point k is now: it drifts on the wind and, with age, wanders in slow smooth meanders
+  pointAt(t, k, now, out) {
+    const p = t.pts[k], age = now - p.t, m = Math.pow(Math.max(0, age - 0.6), 1.25);
+    return out.copy(p.p).addScaledVector(this.wind, age).addScaledVector(p.drift, age)
+      .add(_q2.set(Math.sin(p.d * 0.045 + t.seed) + 0.5 * Math.sin(p.d * 0.13 + t.seed * 2), 0.6 * Math.sin(p.d * 0.06 + t.seed * 3), Math.cos(p.d * 0.05 + t.seed * 4) + 0.5 * Math.cos(p.d * 0.11 + t.seed)).multiplyScalar(0.9 * m));
+  }
   update(now, cam) {
     const LIFE = 10;
     let v = 0, i = 0;
@@ -195,12 +266,7 @@ class Trails {
       const n = t.pts.length;
       if (n < 2 || v + n * 2 > this.max) continue;
       const base = v;
-      // with age the trail wanders: slow, smooth meanders along its length that grow as the smoke spreads
-      const at = (k, out) => {
-        const p = t.pts[k], age = now - p.t, m = Math.pow(Math.max(0, age - 0.6), 1.25);
-        return out.copy(p.p).addScaledVector(this.wind, age).addScaledVector(p.drift, age)
-          .add(_q2.set(Math.sin(p.d * 0.045 + t.seed) + 0.5 * Math.sin(p.d * 0.13 + t.seed * 2), 0.6 * Math.sin(p.d * 0.06 + t.seed * 3), Math.cos(p.d * 0.05 + t.seed * 4) + 0.5 * Math.cos(p.d * 0.11 + t.seed)).multiplyScalar(0.9 * m));
-      };
+      const at = (k, out) => this.pointAt(t, k, now, out);
       for (let k = 0; k < n; k++) {
         const p = t.pts[k], age = now - p.t;
         const c = at(k, tmp);
@@ -210,7 +276,8 @@ class Trails {
         const side = _w.cross(_v).normalize();
         const width = 0.22 + 0.9 * (1 - Math.exp(-age / 0.8)) + 3.6 * Math.max(0, age - 1.2) / (1 + Math.max(0, age - 1.2) * 0.3) + 0.8 * Math.sin(p.d * 0.21 + t.seed) * Math.min(1, Math.max(0, age - 1.5) / 3);   // tight near the missile, billowing and lumpy later
         const fromHead = (n - 1 - k);
-        const fade = Math.pow(Math.max(0, 1 - age / LIFE), 1.5) * (age < 1.5 ? 0.85 : 0.85 - 0.45 * Math.min(1, (age - 1.5) / 2.5)) * Math.min(1, fromHead / 2 + 0.4);   // solid near the missile
+        const fade = Math.pow(Math.max(0, 1 - age / LIFE), 1.5) * (age < 1.5 ? 0.85 : 0.85 - 0.45 * Math.min(1, (age - 1.5) / 2.5)) * Math.min(1, fromHead / 2 + 0.4)
+          * (1 - 0.85 * THREE.MathUtils.smoothstep(age, 1.8, 4.5));   // solid near the missile; the old end gives way to cloud puffs
         P.set([c.x + side.x * width, c.y + side.y * width, c.z + side.z * width], v * 3); A.set([fade, -1, p.d, age], v * 4); v++;
         P.set([c.x - side.x * width, c.y - side.y * width, c.z - side.z * width], v * 3); A.set([fade, 1, p.d, age], v * 4); v++;
         if (k < n - 1) { const a0 = base + k * 2; I.set([a0, a0 + 1, a0 + 2, a0 + 1, a0 + 3, a0 + 2], i); i += 6; }
@@ -235,8 +302,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
   proto.add(holder);
   proto.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
 
-  const glow = new Sprites(2000, true), smoke = new Sprites(2500, false), trails = new Trails();
-  scene.add(glow.mesh, smoke.mesh, trails.mesh);
+  const glow = new Sprites(2000, true), smoke = new Sprites(2500, false), trails = new Trails(), tracers = new Tracers();
+  scene.add(glow.mesh, smoke.mesh, trails.mesh, tracers.mesh);
 
   // missiles on the rails (in the jet's model, which is offset by -CG inside jet.object)
   const railMeshes = RAILS.map(r => { const m = proto.clone(true); m.position.copy(r).add(CG); jet.model.add(m); attachToPart(jet.model, m); return m; });
@@ -276,59 +343,69 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
 
   jet.damage = new Damage(jet.model, scene, terrain, emit);
 
-  // ---------------- target drone: a second copy of the jet flying a wide circle ahead of the player
-  const drone = { obj: jet.object.clone(true), alive: true, falling: false, respawn: 0, t: 0, spin: 0, pos: new THREE.Vector3(), vel: new THREE.Vector3(), centre: new THREE.Vector3() };
-  drone.obj.traverse(o => { if (o.isMesh && o.material.color && !o.material.transparent) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.55).add(new THREE.Color(0.35, 0.05, 0.03)); } });
-  scene.add(drone.obj);
-  drone.model = drone.obj.children[0];
-  drone.dmg = new Damage(drone.model, scene, terrain, emit);
-  function placeDrone() {
-    drone.dmg.repair();
-    const f = _v.set(0, 0, 1).applyQuaternion(ac.quat).setY(0).normalize();
-    drone.centre.copy(ac.pos).addScaledVector(f, 3200); drone.centre.y = Math.max(ac.pos.y, terrain.heightAt(drone.centre.x, drone.centre.z) + 900);
-    drone.alive = true; drone.falling = false; drone.obj.visible = true; drone.t = Math.random() * 6;
+  // ---------------- target drones: copies of the jet circling close to the player, for testing
+  const droneProto = jet.object.clone(true);
+  droneProto.traverse(o => { if (o.isMesh && o.material.color && !o.material.transparent) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.55).add(new THREE.Color(0.35, 0.05, 0.03)); } });
+  const drones = [];
+  for (let k = 0; k < cfg.drones; k++) {
+    const d = { obj: droneProto.clone(true), alive: true, falling: false, respawn: 0, t: 0, spin: 0, dir: 1, R: 1000, speed: 180,
+      pos: new THREE.Vector3(), vel: new THREE.Vector3(), centre: new THREE.Vector3() };
+    scene.add(d.obj);
+    d.model = d.obj.children[0];
+    d.dmg = new Damage(d.model, scene, terrain, emit);
+    drones.push(d);
+    placeDrone(d, k);
   }
-  placeDrone();
-  function flyDrone(dt) {
-    drone.dmg.update(dt);
-    if (!drone.alive) { if ((drone.respawn -= dt) <= 0) placeDrone(); return; }
-    if (drone.falling) {                      // killed: falls burning, tumbling, and blows up on the ground
-      drone.vel.y -= 9.81 * dt; drone.vel.multiplyScalar(1 - 0.05 * dt);
-      drone.pos.addScaledVector(drone.vel, dt);
-      drone.obj.position.copy(drone.pos);
-      drone.obj.rotateZ(drone.spin * dt); drone.obj.rotateX(0.4 * dt);
-      if ((drone.smokeT = (drone.smokeT || 0) - dt) <= 0) { drone.smokeT = 0.04; const c = drone.obj.getWorldPosition(new THREE.Vector3()); emit('smoke', c, drone.vel); emit('flame', c, drone.vel); }
-      if (drone.pos.y < terrain.heightAt(drone.pos.x, drone.pos.z) + 2) {
-        explode(drone.pos, drone.vel, 2.0);
+  function placeDrone(d, k = Math.random() * 8) {
+    d.dmg.repair();
+    // a circle somewhere around the player, 0.8 to 2.6 km away, at a similar height
+    const a = (k / Math.max(cfg.drones, 1)) * Math.PI * 2 + Math.random() * 0.6;
+    const r = 800 + Math.random() * 1800;
+    d.R = 500 + Math.random() * 900; d.speed = 140 + Math.random() * 80; d.dir = Math.random() < 0.5 ? -1 : 1;
+    d.centre.set(ac.pos.x + Math.cos(a) * r, 0, ac.pos.z + Math.sin(a) * r);
+    d.centre.y = Math.max(ac.pos.y + (Math.random() - 0.5) * 600, terrain.heightAt(d.centre.x, d.centre.z) + 700);
+    d.alive = true; d.falling = false; d.obj.visible = true; d.t = Math.random() * Math.PI * 2;
+    d.pos.set(Math.cos(d.t) * d.R, 0, Math.sin(d.t) * d.R).add(d.centre);
+  }
+  function flyDrone(d, dt) {
+    d.dmg.update(dt);
+    if (!d.alive) { if ((d.respawn -= dt) <= 0) placeDrone(d); return; }
+    if (d.falling) {                          // killed: falls burning, tumbling, and blows up on the ground
+      d.vel.y -= 9.81 * dt; d.vel.multiplyScalar(1 - 0.05 * dt);
+      d.pos.addScaledVector(d.vel, dt);
+      d.obj.position.copy(d.pos);
+      d.obj.rotateZ(d.spin * dt); d.obj.rotateX(0.4 * dt);
+      emit('smoke', d.pos, d.vel, d); emit('flame', d.pos, d.vel, d.obj);
+      if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 2) {
+        explode(d.pos, d.vel, 2.0);
         // a charred wreck stays on the ground and burns, with a smoke column drifting downwind
-        const wreck = drone.obj.clone(true);
+        const wreck = d.obj.clone(true);
         wreck.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); if (o.material.color) o.material.color.multiplyScalar(0.18); } });
-        const g = terrain.heightAt(drone.pos.x, drone.pos.z);
-        wreck.position.set(drone.pos.x, g + 0.6, drone.pos.z);
+        const g = terrain.heightAt(d.pos.x, d.pos.z);
+        wreck.position.set(d.pos.x, g + 0.6, d.pos.z);
         wreck.rotation.set((Math.random() - 0.5) * 0.3, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.5);
         scene.add(wreck);
         setTimeout(() => wreck.removeFromParent(), 40000);
         emit('groundfire', wreck.position, new THREE.Vector3(1, 0, 0));
-        drone.alive = false; drone.obj.visible = false; drone.respawn = 5;
+        d.alive = false; d.obj.visible = false; d.respawn = 4;
       }
       return;
     }
-    const R = 1700, w = 190 / R;
-    drone.t += dt * w;
-    const p = new THREE.Vector3(Math.cos(drone.t) * R, Math.sin(drone.t * 0.5) * 120, Math.sin(drone.t) * R).add(drone.centre);
-    drone.vel.subVectors(p, drone.pos).divideScalar(Math.max(dt, 1e-3));
-    drone.pos.copy(p);
-    const fwd = new THREE.Vector3(-Math.sin(drone.t), 0, Math.cos(drone.t)).normalize();
-    const fx = drone.dmg.effects();
-    const wobble = fx.wobble * 0.25 * Math.sin(drone.t * 9) + fx.rollBias * 0.6;   // damaged: rocks and leans toward the missing tip
+    d.t += dt * d.speed / d.R * d.dir;
+    const p = new THREE.Vector3(Math.cos(d.t) * d.R, Math.sin(d.t * 0.5) * 120, Math.sin(d.t) * d.R).add(d.centre);
+    d.vel.subVectors(p, d.pos).divideScalar(Math.max(dt, 1e-3));
+    d.pos.copy(p);
+    const fwd = new THREE.Vector3(-Math.sin(d.t) * d.dir, 0, Math.cos(d.t) * d.dir).normalize();
+    const fx = d.dmg.effects();
+    const wobble = fx.wobble * 0.25 * Math.sin(d.t * 9) + fx.rollBias * 0.6;   // damaged: rocks and leans toward the missing tip
     _m.lookAt(new THREE.Vector3(), fwd.clone().negate(), new THREE.Vector3(0, 1, 0));
-    drone.obj.quaternion.setFromRotationMatrix(_m).multiply(_q.setFromAxisAngle(_v.set(0, 0, 1), -0.5 + wobble));
-    drone.obj.position.copy(drone.pos);
+    d.obj.quaternion.setFromRotationMatrix(_m).multiply(_q.setFromAxisAngle(_v.set(0, 0, 1), -0.5 * d.dir + wobble));
+    d.obj.position.copy(d.pos);
   }
-  function killDrone() {
-    if (drone.falling) return;
-    drone.falling = true; drone.spin = (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 2);
-    S.fx.push({ kind: 'fire', p: drone.pos.clone(), v: drone.vel.clone().multiplyScalar(0.3), t: 0, life: 0.3, s: 12 });
+  function killDrone(d) {
+    if (d.falling) return;
+    d.falling = true; d.spin = (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 2);
+    S.fx.push({ kind: 'fire', p: d.pos.clone(), v: d.vel.clone().multiplyScalar(0.3), t: 0, life: 0.3, s: 12 });
   }
 
   // ---------------- effects
@@ -363,7 +440,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
 
   // ---------------- per physics step
   function step(dt, now) {
-    flyDrone(dt);
+    for (const d of drones) flyDrone(d, dt);
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);   // own vector: _v/_w are reused below
     // guns
     S.flash[0] = Math.max(0, S.flash[0] - dt); S.flash[1] = Math.max(0, S.flash[1] - dt);
@@ -384,23 +461,31 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       r.v.y -= G * dt;
       r.p.addScaledVector(r.v, dt);
       r.t += dt;
-      if (drone.alive && !drone.falling && segDist(r.prev, r.p, drone.pos) < 7) {
-        r.t = 1e9; const at = closestOnSeg(r.prev, r.p, drone.pos); spark(at);
-        drone.dmg.hit(at, drone.vel);
-        if (drone.dmg.dead) killDrone();
+      for (const d of drones) if (d.alive && !d.falling && segDist(r.prev, r.p, d.pos) < 7) {
+        r.t = 1e9; const at = closestOnSeg(r.prev, r.p, d.pos); spark(at);
+        d.dmg.hit(at, d.vel);
+        if (d.dmg.dead) killDrone(d);
+        break;
       }
       else if (r.p.y < terrain.heightAt(r.p.x, r.p.z)) { r.t = 1e9; }
     }
     S.rounds = S.rounds.filter(r => r.t < cfg.roundLife);
 
     // seeker and lock
-    S.seeker = null;
-    if (S.selected === 2 && drone.alive && !drone.falling && S.stock > 0) {
-      const to = _w.subVectors(drone.pos, ac.pos), d = to.length();
-      const ang = Math.acos(THREE.MathUtils.clamp(to.dot(fwd) / d, -1, 1)) * 180 / Math.PI;
+    if (S.selected !== 2) S.seeker = null;
+    if (S.selected === 2 && S.stock > 0) {
       const half = cfg.seekerFov / 2;
-      if (d < cfg.lockRange && ang < (S.locked ? half * 1.4 : half)) { S.seeker = drone; S.lock = Math.min(S.lock + dt, cfg.lockTime); }
-      else S.lock = Math.max(0, S.lock - dt * 3);
+      let best = null, bestAng = 1e9;
+      for (const d of drones) {
+        if (!d.alive || d.falling) continue;
+        const to = _w.subVectors(d.pos, ac.pos), dist = to.length();
+        const ang = Math.acos(THREE.MathUtils.clamp(to.dot(fwd) / dist, -1, 1)) * 180 / Math.PI;
+        const lim = S.locked && d === S.seeker ? half * 1.4 : half;
+        if (dist < cfg.lockRange && ang < lim && ang < bestAng) { best = d; bestAng = ang; }
+      }
+      if (best && best !== S.seeker) S.lock = 0;
+      if (best) { S.seeker = best; S.lock = Math.min(S.lock + dt, cfg.lockTime); }
+      else { S.lock = Math.max(0, S.lock - dt * 3); if (S.lock <= 0) S.seeker = null; }
     } else S.lock = 0;
     S.locked = S.lock >= cfg.lockTime;
 
@@ -429,7 +514,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
           // the blast tears off what was closest to it, then the jet goes down
           const near = Object.keys(m.target.dmg.parts).sort((a, b) => m.target.dmg.parts[a].obj.getWorldPosition(_v).distanceTo(m.p) - m.target.dmg.parts[b].obj.getWorldPosition(_w).distanceTo(m.p));
           near.slice(0, 2).forEach(n => m.target.dmg.breakPart(n, m.target.vel));
-          killDrone();
+          killDrone(m.target);
         }
       } else if (speed > 1) m.dir.copy(m.v).normalize();
       m.p.addScaledVector(m.v, dt);
@@ -453,21 +538,22 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
 
   // ---------------- per frame: draw effects
   const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3();
-  function render(camera, dt, now, alpha, drawPos, drawQuat) {
+  function render(camera, dt, now, alpha, drawPos, drawQuat, renderer) {
     glow.begin(); smoke.begin();
     const cam = camera.position;
-    // tracers: a long streak behind each round, a little wider with distance so far tracers stay visible
+    // tracers
+    tracers.begin(renderer);
+    const px = renderer.getPixelRatio();
     for (const r of S.rounds) {
       const head = tmpA.copy(r.prev).lerp(r.p, alpha);
       const back = Math.min(cfg.tracerLength, head.distanceTo(r.start));
       const tail = tmpB.copy(r.v).normalize().multiplyScalar(-back).add(head);
-      const w = Math.max(cfg.tracerWidth, head.distanceTo(cam) * cfg.tracerMinPixels);
+      const dist = head.distanceTo(cam);
       const fade = r.t > cfg.roundLife - 0.4 ? (cfg.roundLife - r.t) / 0.4 : 1;
-      const dist = head.distanceTo(cam), far = 1 / (1 + dist / 700);           // dimmer with distance
-      glow.push(head, tail, 1.0, 0.3, 0.12, 1.0 * fade * (0.35 + 0.65 * far), w);                  // red-orange streak
-      // a small glowing head on every round, so tracers read from any angle, including straight from behind
-      glow.push(head, null, 1.0, 0.36, 0.16, 0.55 * fade * far, Math.max(0.25, dist * cfg.tracerMinPixels * 1.15), 0.5);
+      const width = THREE.MathUtils.clamp(cfg.tracerWidthPx * 120 / Math.max(dist, 1), cfg.tracerMinPx, cfg.tracerWidthPx) * px;
+      tracers.push(head, tail, fade * (0.45 + 0.55 / (1 + dist / 900)), width);
     }
+    tracers.end();
     // muzzle flashes at the gun ports
     for (let k = 0; k < 2; k++) if (S.flash[k] > 0) {
       // small and quick: a short forward spit of flame and a little glow at the port, flickering shot to shot
@@ -534,10 +620,23 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
     // drone afterburner glow so it reads at a distance
     glow.end(); smoke.end();
     trails.update(now, cam);
+    // the old end of each missile trail turns into billowing cloud: lumpy, self-shaded puffs along the path
+    for (const t of trails.list) {
+      let lastD = -1e9;
+      for (let k = 0; k < t.pts.length; k++) {
+        const p = t.pts[k], age = now - p.t;
+        if (age < 1.4 || p.d - lastD < 5) continue;
+        lastD = p.d;
+        const grow = 1.5 + 4.5 * (1 - Math.exp(-(age - 1.4) / 2.2));
+        const op = THREE.MathUtils.smoothstep(age, 1.4, 3.2) * Math.pow(Math.max(0, 1 - age / 10), 1.3) * 0.75;
+        const tone = 0.62 + 0.18 * Math.sin(p.d * 0.37 + t.seed);
+        smoke.push(trails.pointAt(t, k, now, tmpA), null, tone, tone, tone * 0.98, op, grow * (0.85 + 0.3 * Math.sin(p.d * 0.9 + t.seed)), (p.d * 0.0137 + t.seed) % 1);
+      }
+    }
   }
 
   return {
-    S, drone,
+    S, drones,
     setFiring(on, now) {
       if (on && !S.firing && S.selected === 2) fireMissile(now);
       S.firing = on;

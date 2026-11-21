@@ -131,7 +131,7 @@ const aimEl = document.getElementById('aim'), noseEl = document.getElementById('
 const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementChild, vig = document.getElementById('vignette');
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
-const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt');
+const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [];
 const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles);
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
 function place(el, worldPoint) {
@@ -160,9 +160,11 @@ function hud() {
     lockEl.className = W.locked ? 'locked' : tracking && (performance.now() % 250 < 125) ? 'flash' : '';
     seekerEl.className = W.locked ? 'locked' : '';
   }
-  const dr = weapons.drone;
-  tgtEl.hidden = !dr.alive || !running;
-  if (dr.alive) place(tgtEl, dr.obj.position);
+  weapons.drones.forEach((d, k) => {
+    const el = tgtEls[k] || (tgtEls[k] = tgtEl.cloneNode(), tgtEl.parentNode.appendChild(tgtEls[k]), tgtEls[k]);
+    el.hidden = !d.alive || d.falling || !running;
+    if (!el.hidden) place(el, d.obj.position);
+  });
   armsHud(W.selected, W.stock, msl && W.locked);
   aimEl.classList.toggle('stall', ac.t.stall > 0.3);
   thrFill.style.height = `${Math.min(ac.throttle, 1) * 100}%`;
@@ -198,7 +200,7 @@ function frame(now) {
   jet.object.position.copy(drawPos);
   jet.object.quaternion.copy(drawQuat);
   jet.animate(ac);
-  weapons.render(camera, dt, now / 1000, a, drawPos, drawQuat);
+  weapons.render(camera, dt, now / 1000, a, drawPos, drawQuat, renderer);
   jet.damage.update(dt);
   ac.damageFx = jet.damage.effects();
   rig.zoom += ((rig.zooming ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);

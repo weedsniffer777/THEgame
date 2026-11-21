@@ -145,8 +145,8 @@ export const WEAPONS = {
   muzzleVelocity: 1030,   // m/s
   gunSpread: 0.0012,      // rad
   tracerLength: 24,       // m
-  tracerWidth: 0.2,       // m, close up
-  tracerMinPixels: 0.0032, // keeps far tracers at least a few px wide
+  tracerWidthPx: 5,       // px half-width of a tracer up close
+  tracerMinPx: 2,         // px half-width far away
   roundLife: 3,           // s
   missiles: 6,            // one per station: 2 wingtips + 4 pylons, no reload
   seekerFov: 24,          // deg, full width of the seeker circle
@@ -157,6 +157,7 @@ export const WEAPONS = {
   missileMaxG: 28,
   missileLife: 14,        // s
   proximity: 12,          // m
+  drones: 8,              // test targets circling near the player
 };
 
 const KEY = 'thegame.tune2';
