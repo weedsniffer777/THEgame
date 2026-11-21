@@ -158,7 +158,7 @@ function closeUp(model) {
   // (the gear legs themselves stay hidden: once the doors are shut they can't be seen, and they poke through the wing)
   swing(model, ['Object051'], 'z', 104, new THREE.Vector3(-1.97, 1.35, -1.25));
   swing(model, ['Object048'], 'z', -104, new THREE.Vector3(1.97, 1.35, -1.25));
-  swing(model, ['Object050'], 'z', -80); swing(model, ['Object035'], 'z', 80);                // inner main doors
+  swing(model, ['Object050'], 'z', -77); swing(model, ['Object035'], 'z', 77);                // inner main doors
   // the speed brakes, hinged at their front edge: CLOSED is the swung-up angle, open swings back down
   brakes = [swing(model, ['Object049'], 'x', SB_CLOSED), swing(model, ['Object030'], 'x', SB_CLOSED)];
 }
