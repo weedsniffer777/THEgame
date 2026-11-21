@@ -9,6 +9,7 @@ import { loadJet, viewerAnim } from './jet.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
 import { loadEnemy } from './enemy.js';
+import { createModelViewer } from './modelViewer.js';
 import { createArmsHud } from './hudArms.js';
 import { createXray } from './hudXray.js';
 import { isTouch, createTouch } from './touch.js';
@@ -56,7 +57,8 @@ scene.add(clouds.mesh);
 const cloudEl = document.getElementById('cloudfog');
 
 const ac = new Aircraft(F5);
-const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, await loadEnemy('earlyJet'));
+const enemyProto = await loadEnemy('earlyJet');
+const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, enemyProto);
 const rig = new CameraRig(camera, CAMERA);
 const prevPos = new THREE.Vector3(), prevQuat = new THREE.Quaternion();
 const drawPos = new THREE.Vector3(), drawQuat = new THREE.Quaternion();
@@ -152,7 +154,8 @@ const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [];
 const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles);
-const leadEl = document.getElementById('lead');
+const leadEl = document.getElementById('lead'), lineEl = document.getElementById('leadline');
+function screenOf(p) { _p.copy(p).project(camera); return _p.z < 1 ? [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight] : null; }
 const xray = createXray(document.getElementById('xray'), jet.damage, { ...PART_HP, body: BODY_HP });
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
 function place(el, worldPoint) {
@@ -184,11 +187,24 @@ function hud() {
   weapons.drones.forEach((d, k) => {
     const el = tgtEls[k] || (tgtEls[k] = Object.assign(tgtEl.cloneNode(), { id: '', className: 'tgtc' }), tgtEl.parentNode.appendChild(tgtEls[k]), tgtEls[k]);
     el.hidden = !d.alive || d.falling || !running;
-    el.classList.toggle('sel', d === W.target);
+    el.classList.toggle('sel', d === W.target && !msl);
     if (!el.hidden) place(el, d.obj.position);
   });
   // lead pip for the selected enemy (guns), red when the reticle is on it
   leadEl.hidden = !W.lead || msl || !running || W.leadTime > 2.5;
+  lineEl.hidden = true;
+  if (!leadEl.hidden && W.target) {
+    // gun solution: a line from the target's square to the lead circle
+    const a = screenOf(W.target.obj.position), b = screenOf(W.lead);
+    if (a && b) {
+      const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+      if (len > 14) {
+        lineEl.hidden = false;
+        lineEl.style.width = `${len - 14}px`;
+        lineEl.style.transform = `translate(${a[0] + dx / len * 9}px, ${a[1] + dy / len * 9}px) rotate(${Math.atan2(dy, dx)}rad)`;
+      }
+    }
+  }
   if (!leadEl.hidden) {
     place(leadEl, W.lead);
     const toLead = _n.subVectors(W.lead, camera.position).normalize();
@@ -217,6 +233,7 @@ resize();
 let acc = 0, last = performance.now();
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1); last = now;
+  if (models.on) { models.render(); requestAnimationFrame(frame); return; }   // dev model viewer: its own static scene
   if (running) {
     cursorSteer(dt);
     if (recentre > 0 && !manual) rig.recenter(_n.set(0, 0, 1).applyQuaternion(ac.quat), Math.min(1, dt * 12));
@@ -272,6 +289,7 @@ const viewer = {
 function setViewer(on) {
   viewer.on = on; viewerAnim.active = on;
   document.body.classList.toggle('viewing', on);
+  if (!on) document.body.classList.remove('clean');
   if (on) { if (document.pointerLockElement) document.exitPointerLock(); setRunning(false); startEl.classList.remove('show'); }
   else startEl.classList.add('show');
 }
@@ -284,6 +302,26 @@ canvas.addEventListener('pointermove', e => {
 });
 canvas.addEventListener('pointerup', () => { viewer.drag = null; });
 canvas.addEventListener('wheel', e => { if (viewer.on) { viewer.dist = THREE.MathUtils.clamp(viewer.dist * Math.exp(e.deltaY * 0.001), 4, 60); e.preventDefault(); } }, { passive: false });
+// --- dev kit: model viewer (separate static scene) -----------------------------------------------
+const models = createModelViewer(renderer, canvas, scene.environment, {
+  'player jet': () => jet.object,
+  'enemy: early jet': () => enemyProto,
+  'missile': () => weapons.missileProto,
+});
+function openModels() {
+  if (viewer.on) { setViewer(false); document.querySelectorAll('.lil-gui').forEach(g => { if (g.querySelector('.title')?.textContent === 'cinematic camera') g.style.display = 'none'; }); }
+  if (document.pointerLockElement) document.exitPointerLock();
+  setRunning(false); startEl.classList.remove('show');
+  document.body.classList.add('viewing');
+  models.open(() => { document.body.classList.remove('viewing', 'clean'); startEl.classList.add('show'); });
+}
+document.getElementById('kit-models').addEventListener('click', e => { e.stopPropagation(); kitMenu.hidden = true; openModels(); });
+// Space in the cinematic camera or model viewer: hide / show every overlay for clean shots
+addEventListener('keydown', e => {
+  if (e.code !== 'Space' || !(viewer.on || models.on)) return;
+  e.preventDefault();
+  document.body.classList.toggle('clean');
+});
 const kitBtn = document.getElementById('devkit'), kitMenu = document.getElementById('devmenu');
 kitBtn.addEventListener('click', e => { e.stopPropagation(); kitMenu.hidden = !kitMenu.hidden; });
 document.getElementById('kit-viewer').addEventListener('click', e => {

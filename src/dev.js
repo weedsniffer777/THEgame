@@ -54,7 +54,7 @@ export function toggleDev({ ac, terrain, renderer, spawn }) {
 let vgui;
 export function openViewer(anim, exit, damage) {
   if (vgui) { vgui.show(); return; }
-  vgui = new GUI({ title: 'model viewer' });
+  vgui = new GUI({ title: 'cinematic camera' });
   vgui.domElement.style.top = '70px';
   const a = vgui.addFolder('animation');
   a.add(anim, 'cycle').name('play all');

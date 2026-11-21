@@ -698,6 +698,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     rearm() { S.loaded.fill(true); S.firing = false; },
     explode,   // (used by the dev tests)
     step, render,
+    missileProto: proto,
     crash(p, v, jetRef) {
       explode(p, v, 2.0);
       const wreck = jetRef.object.clone(true);

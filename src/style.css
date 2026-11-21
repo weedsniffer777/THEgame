@@ -53,7 +53,8 @@ body.viewing #game { cursor: grab; }
 #arms.locked .row.sel .msl i:not(.spent) svg path { fill: #ff5a4a; }
 /* enemy diamonds; the selected one is bigger and brighter */
 #tgt::before, #hud .tgtc::before { content: ''; position: absolute; inset: 0; border: 1.6px solid rgba(255,85,65,0.85); transform: rotate(45deg); }
-#hud .sel::before { inset: -5px; border-width: 2.2px; border-color: #ff5541; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
+/* the selected enemy (gun solution): a square instead of a diamond */
+#hud .sel::before { inset: -6px; border-width: 1.8px; border-color: #ff5541; transform: none; box-shadow: 0 0 3px rgba(0,0,0,0.5); }
 /* gun lead pip: where to put the reticle to hit the selected enemy */
 #lead { position: absolute; left: 0; top: 0; width: 18px; height: 18px; margin: -9px 0 0 -9px; border: 1.8px solid #fff; border-radius: 50%; will-change: transform; box-shadow: 0 0 3px rgba(0,0,0,0.6); }
 #lead::after { content: ''; position: absolute; left: 6px; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: #fff; }
@@ -87,3 +88,5 @@ body.touch #arms { right: max(220px, calc(env(safe-area-inset-right) + 200px)); 
 @media (orientation: portrait) and (pointer: coarse) { #rotate { display: grid; } }
 body.touch #xray { left: 84px; }
 body.touch #gauges { left: 84px; }
+body.clean #devkit, body.clean #devmenu, body.clean .lil-gui, body.clean #hud, body.clean #dev { display: none !important; }
+#leadline { position: absolute; left: 0; top: 0; height: 1.6px; margin-top: -0.8px; background: rgba(255,85,65,0.85); transform-origin: 0 50%; will-change: transform; box-shadow: 0 0 2px rgba(0,0,0,0.5); }
