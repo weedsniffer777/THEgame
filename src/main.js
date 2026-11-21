@@ -8,6 +8,7 @@ import { loadTerrain } from './world/terrain.js';
 import { loadJet, viewerAnim } from './jet.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
+import { createArmsHud } from './hudArms.js';
 
 loadTuning();
 const STEP = 1 / 120;
@@ -131,7 +132,7 @@ const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementC
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt');
-const pipsEl = document.getElementById('pips'), pipEls = [...pipsEl.children];
+const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles);
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
 function place(el, worldPoint) {
   _p.copy(worldPoint).project(camera);
@@ -162,8 +163,7 @@ function hud() {
   const dr = weapons.drone;
   tgtEl.hidden = !dr.alive || !running;
   if (dr.alive) place(tgtEl, dr.obj.position);
-  pipEls.forEach((p, k) => { p.className = k < W.stock ? 'on' : ''; });
-  pipsEl.classList.toggle('sel', msl);
+  armsHud(W.selected, W.stock, msl && W.locked);
   aimEl.classList.toggle('stall', ac.t.stall > 0.3);
   thrFill.style.height = `${Math.min(ac.throttle, 1) * 100}%`;
   thrEl.classList.toggle('ab', ac.throttle > 1);

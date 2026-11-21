@@ -46,17 +46,25 @@ class Sprites {
         void main() {
           vec4 h = viewMatrix * vec4(ahead, 1.0);
           vec4 p;
+          float streak = atail.w;
           if (atail.w > 0.5) {
             vec4 t = viewMatrix * vec4(atail.xyz, 1.0);
-            vec2 d = h.xy - t.xy; float l = length(d);
-            vec2 dir = l > 1e-4 ? d / l : vec2(1.0, 0.0), side = vec2(-dir.y, dir.x);
-            float along = position.x * 0.5 + 0.5;
-            p = mix(t, h, along);
-            p.xy += side * position.y * asize.x;
+            // on screen, how long is the streak compared with its width? end-on (looking along the round's path)
+            // it is a dot, so draw a round glow instead of a collapsed sliver
+            vec2 ps = (projectionMatrix * h).xy / max((projectionMatrix * h).w, 1e-4) - (projectionMatrix * t).xy / max((projectionMatrix * t).w, 1e-4);
+            float wClip = asize.x / max(-h.z, 1e-3) * projectionMatrix[1][1];
+            if (length(ps) < wClip * 3.0) { streak = 0.0; p = h; p.xy += position.xy * asize.x * 1.6; }
+            else {
+              vec2 d = h.xy - t.xy; float l = length(d);
+              vec2 dir = l > 1e-4 ? d / l : vec2(1.0, 0.0), side = vec2(-dir.y, dir.x);
+              float along = position.x * 0.5 + 0.5;
+              p = mix(t, h, along);
+              p.xy += side * position.y * asize.x;
+            }
           } else {
             p = h; p.xy += position.xy * asize.x;
           }
-          vUv = position.xy; vCol = acol; vStreak = atail.w; vWorld = ahead; vSeed = asize.y;
+          vUv = position.xy; vCol = acol; vStreak = streak; vWorld = ahead; vSeed = asize.y;
           gl_Position = projectionMatrix * p;
         }`,
       fragmentShader: /* glsl */`
@@ -134,12 +142,20 @@ class Trails {
           float across = vInfo.y, dist = vInfo.z, age = vInfo.w;
           vec2 q = vec2(dist * 0.06, across * 1.5 + age * 0.15);
           float n = noise(q) * 0.55 + noise(q * 2.3 + 7.0) * 0.3 + noise(q * 5.1 - 3.0) * 0.15;
-          float body = 1.0 - smoothstep(0.35 + 0.35 * n, 1.0, abs(across));        // soft, ragged edges
-          float breakup = mix(1.0, smoothstep(0.2, 0.7, n), clamp(age / 5.0, 0.0, 1.0));
-          float a = vInfo.x * body * breakup * smoothstep(6.0, 45.0, length(vWorld - cameraPosition));   // thin out right at the camera
+          // three stages along the trail: hot exhaust right behind the motor, a solid dark-grey smoke rope,
+          // then (with age) a lighter, puffier white that breaks up
+          float hot = 1.0 - smoothstep(0.05, 0.3, age);
+          float puff = smoothstep(1.2, 4.0, age);
+          float edgeSoft = mix(0.75, 0.35 + 0.35 * n, puff);
+          float body = 1.0 - smoothstep(edgeSoft, 1.0, abs(across));
+          float breakup = mix(1.0, smoothstep(0.25, 0.7, n), smoothstep(2.5, 6.0, age));
+          float a = vInfo.x * body * breakup * smoothstep(6.0, 45.0, length(vWorld - cameraPosition));
           if (a < 0.003) discard;
-          float lit = 0.5 + 0.5 * clamp(uSunDir.y * 0.8 + across * 0.35 + (n - 0.5) * 0.6, 0.0, 1.0);
-          vec3 col = applyFog(mix(vec3(0.34, 0.34, 0.35), vec3(0.78, 0.77, 0.74), lit), cameraPosition, vWorld);
+          float lit = 0.5 + 0.5 * clamp(uSunDir.y * 0.8 + across * 0.35 + (n - 0.5) * 0.6 * puff, 0.0, 1.0);
+          vec3 smoke = mix(vec3(0.2, 0.2, 0.2), vec3(0.42, 0.41, 0.4), lit);
+          vec3 white = mix(vec3(0.55, 0.55, 0.56), vec3(0.9, 0.89, 0.86), lit);
+          vec3 col = applyFog(mix(smoke, white, puff), cameraPosition, vWorld);
+          col = mix(col, vec3(1.0, 0.78, 0.5) * 1.6, hot);             // glowing exhaust next to the motor
           gl_FragColor = vec4(col * a, a);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -177,9 +193,9 @@ class Trails {
         _v.subVectors(q1, q0).normalize();
         _w.subVectors(cam, c).normalize();
         const side = _w.cross(_v).normalize();
-        const width = 0.35 + 3.2 * (1 - Math.exp(-age / 1.8)) + age * 0.35;   // tight at the motor, billowing out
+        const width = 0.22 + 0.9 * (1 - Math.exp(-age / 0.8)) + 2.6 * Math.max(0, age - 1.2) / (1 + Math.max(0, age - 1.2) * 0.4);   // a tight rope near the missile, billowing later
         const fromHead = (n - 1 - k);
-        const fade = Math.pow(Math.max(0, 1 - age / LIFE), 1.5) * 0.32 * Math.min(1, fromHead / 2 + 0.25);
+        const fade = Math.pow(Math.max(0, 1 - age / LIFE), 1.5) * (age < 1.5 ? 0.85 : 0.85 - 0.45 * Math.min(1, (age - 1.5) / 2.5)) * Math.min(1, fromHead / 2 + 0.4);   // solid near the missile
         P.set([c.x + side.x * width, c.y + side.y * width, c.z + side.z * width], v * 3); A.set([fade, -1, p.d, age], v * 4); v++;
         P.set([c.x - side.x * width, c.y - side.y * width, c.z - side.z * width], v * 3); A.set([fade, 1, p.d, age], v * 4); v++;
         if (k < n - 1) { const a0 = base + k * 2; I.set([a0, a0 + 1, a0 + 2, a0 + 1, a0 + 3, a0 + 2], i); i += 6; }
