@@ -27,7 +27,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 const envScene = new THREE.Scene(); envScene.add(createSky());
 scene.environment = pmrem.fromScene(envScene, 0, 1, 2000).texture;
 
-const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadJet('models/jets/f5.glb')]);
+const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadJet('models/jets/f5.gltf.json')]);
 scene.add(terrain.group, jet.object);
 
 const ac = new Aircraft(F5);
@@ -49,7 +49,21 @@ let running = false, mouseDX = 0, mouseDY = 0, abHold = 0;
 addEventListener('keydown', e => { keys.add(e.code); if (e.code === 'Backquote') import('./dev.js').then(m => m.toggleDev({ ac, terrain, renderer, spawn })); });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
-addEventListener('mousemove', e => { if (running) { mouseDX += e.movementX; mouseDY += e.movementY; } });
+// With pointer lock the mouse turns the camera directly. Where the page can't lock the pointer
+// (some embedded views), the cursor's distance from the screen centre turns it like a joystick instead.
+let locked = false, cursorX = null, cursorY = null;
+addEventListener('mousemove', e => {
+  cursorX = e.clientX; cursorY = e.clientY;
+  if (running && locked) { mouseDX += e.movementX; mouseDY += e.movementY; }
+});
+addEventListener('keydown', e => { if (e.code === 'Escape' && !locked) setRunning(false); });
+function cursorSteer(dt) {
+  if (locked || cursorX === null) return;
+  const s = Math.min(innerWidth, innerHeight) / 2;
+  const dead = (v) => Math.sign(v) * Math.max(Math.abs(v) - 0.06, 0);
+  mouseDX += dead((cursorX - innerWidth / 2) / s) * 900 * dt;
+  mouseDY += dead((cursorY - innerHeight / 2) / s) * 900 * dt;
+}
 addEventListener('mousedown', e => { if (e.button === 2) rig.zooming = true; });
 addEventListener('mouseup', e => { if (e.button === 2) rig.zooming = false; });
 addEventListener('contextmenu', e => e.preventDefault());
@@ -60,7 +74,11 @@ startEl.addEventListener('click', () => {
   if (lock?.catch) lock.catch(() => {});
   setRunning(true);
 });
-document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement) setRunning(false); });
+document.addEventListener('pointerlockchange', () => {
+  const was = locked;
+  locked = !!document.pointerLockElement;
+  if (was && !locked) setRunning(false);
+});
 if (params.has('autostart')) setRunning(true);
 
 function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0); }
@@ -107,6 +125,7 @@ let acc = 0, last = performance.now();
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1); last = now;
   if (running) {
+    cursorSteer(dt);
     rig.look(mouseDX, mouseDY);
     acc += dt;
     while (acc >= STEP) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }

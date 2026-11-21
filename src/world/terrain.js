@@ -29,12 +29,24 @@ function patchGeometry(cells, max) {
 }
 
 export async function loadTerrain(base) {
-  const [meta, buf, color] = await Promise.all([
+  const [meta, heights, color] = await Promise.all([
     fetch(base + 'terrain.json').then(r => r.json()),
-    fetch(base + 'height.bin').then(r => r.arrayBuffer()),
+    loadHeights(base + 'height.png'),
     new THREE.TextureLoader().loadAsync(base + 'color.jpg'),
   ]);
-  return new Terrain(meta, new Uint16Array(buf), color);
+  return new Terrain(meta, heights, color);
+}
+
+// 16-bit heights packed losslessly into a PNG: red = high byte, green = low byte.
+async function loadHeights(url) {
+  const blob = await (await fetch(url)).blob();
+  const img = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+  const c = new OffscreenCanvas(img.width, img.height).getContext('2d', { willReadFrequently: true });
+  c.drawImage(img, 0, 0);
+  const px = c.getImageData(0, 0, img.width, img.height).data;
+  const out = new Uint16Array(img.width * img.height);
+  for (let i = 0; i < out.length; i++) out[i] = (px[i * 4] << 8) | px[i * 4 + 1];
+  return out;
 }
 
 export class Terrain {

@@ -3,7 +3,7 @@
     python3 tools/terrain/build_terrain.py engadin
 
 Writes public/terrain/<area>/:
-  height.bin   uint16 heights, row 0 = north edge, column 0 = west edge (little-endian)
+  height.png   16-bit heights split over red (high byte) and green (low byte); row 0 = north edge
   color.jpg    aerial photo of the same square
   terrain.json size, spacing and the height range the uint16 values map onto
 Missing tiles (outside Switzerland) are filled from their nearest neighbours and blurred.
@@ -59,7 +59,8 @@ def main(area):
     h = fill(mosaic(os.path.join(raw, 'swissalti3d'), ext, HEIGHT_SPACING, 1), 12)[..., 0]
     lo, hi = float(np.floor(h.min())), float(np.ceil(h.max()))
     q = np.round((h - lo) / (hi - lo) * 65535).astype('<u2')
-    q.tofile(os.path.join(out, 'height.bin'))
+    rgb = np.zeros(q.shape + (3,), np.uint8); rgb[..., 0] = q >> 8; rgb[..., 1] = q & 255
+    Image.fromarray(rgb).save(os.path.join(out, 'height.png'), optimize=True)
 
     c = fill(mosaic(os.path.join(raw, 'swissimage-dop10'), ext, COLOR_SPACING, 3), 20)
     Image.fromarray(np.clip(c, 0, 255).astype(np.uint8)).save(os.path.join(out, 'color.jpg'), quality=88, optimize=True)
