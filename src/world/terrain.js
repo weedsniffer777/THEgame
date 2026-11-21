@@ -131,8 +131,8 @@ export class Terrain {
           vec3 n = normalize(texture(uNormal, (g + 0.5) / size).xyz * 2.0 - 1.0);
           // warm direct sun + cool sky light, normalised so flat ground keeps the photo's brightness
           float ndl = max(dot(n, uSunDir), 0.0);
-          vec3 light = vec3(1.0, 0.93, 0.82) * ndl + vec3(0.42, 0.55, 0.8) * (0.55 + 0.45 * n.y);
-          vec3 flat0 = vec3(1.0, 0.93, 0.82) * max(uSunDir.y, 0.1) + vec3(0.42, 0.55, 0.8);
+          vec3 light = vec3(1.0, 0.93, 0.82) * 1.6 * ndl + vec3(0.36, 0.48, 0.72) * (0.45 + 0.55 * n.y);
+          vec3 flat0 = vec3(1.0, 0.93, 0.82) * 1.6 * max(uSunDir.y, 0.1) + vec3(0.36, 0.48, 0.72);
           vec3 shade = light / dot(flat0, vec3(0.3333));
           albedo = pow(albedo, vec3(1.12));   // a little more contrast in the photo
           vec3 col = albedo * uBright * mix(vec3(1.0), shade, uRelief);

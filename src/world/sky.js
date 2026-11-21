@@ -69,8 +69,10 @@ export function createSky() {
         // with a bright glare that stands in for camera bloom and a soft forward-scattering glow around it
         float c = dot(rd, uSunDir);
         float ang = acos(clamp(c, -1.0, 1.0));
-        float disc = 1.0 - smoothstep(0.75, 0.85, degrees(ang));
-        col += uSunGlow * (disc * 40.0 + exp(-ang * 45.0) * 2.2 + exp(-ang * 10.0) * 0.3);
+        float disc = 1.0 - smoothstep(1.3, 1.45, degrees(ang));
+        // the whole sun side of the sky brightens and pales, as in photos
+        col = mix(col, vec3(1.0, 0.97, 0.92), pow(max(c, 0.0), 4.0) * 0.35);
+        col += uSunGlow * (disc * 30.0 + exp(-ang * 22.0) * 2.6 + exp(-ang * 6.0) * 0.45);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
