@@ -24,3 +24,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8aa4c4; }
 #gauges { position: absolute; left: 24px; bottom: 22px; display: flex; align-items: baseline; gap: 6px; font: 700 22px/1 ui-monospace, monospace; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.6); font-variant-numeric: tabular-nums; }
 #gauges small { font-size: 12px; opacity: 0.8; margin-right: 14px; }
 #gauges b { min-width: 3ch; text-align: right; }
+#fpv { position: absolute; left: 0; top: 0; width: 34px; height: 16px; margin: -8px 0 0 -17px; will-change: transform;
+  background: no-repeat center / 34px 16px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 16'%3E%3Cg fill='none' stroke='%237dff9a' stroke-width='1.6'%3E%3Ccircle cx='17' cy='8' r='4.5'/%3E%3Cpath d='M1 8h11.5M21.5 8H33M17 3.5V0'/%3E%3C/g%3E%3C/svg%3E");
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.6)); }

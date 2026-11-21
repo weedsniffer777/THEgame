@@ -87,7 +87,7 @@ export class Terrain {
       uSpacing: { value: this.s }, uOrigin: { value: new THREE.Vector2(this.ox, this.oz) },
       uHMin: { value: this.hMin }, uHScale: { value: this.hScale },
       uMorph: { value: this.morph },
-      uBright: { value: WORLD.terrainBrightness }, uRelief: { value: WORLD.terrainRelief },
+      uBright: { value: WORLD.terrainBrightness }, uRelief: { value: WORLD.terrainRelief }, uSat: { value: WORLD.saturation },
     };
     const mat = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
@@ -119,7 +119,7 @@ export class Terrain {
       fragmentShader: /* glsl */`
         uniform sampler2D uNormal; uniform sampler2D uColor;
         uniform ivec2 uSize; uniform float uSpacing; uniform vec2 uOrigin;
-        uniform float uBright; uniform float uRelief;
+        uniform float uBright; uniform float uRelief; uniform float uSat;
         in vec3 vWorld;
         layout(location = 0) out highp vec4 outColor;
         #define gl_FragColor outColor
@@ -131,6 +131,7 @@ export class Terrain {
           vec3 n = normalize(texture(uNormal, (g + 0.5) / size).xyz * 2.0 - 1.0);
           float shade = (0.45 + max(dot(n, uSunDir), 0.0)) / (0.45 + max(uSunDir.y, 0.1));
           vec3 col = albedo * uBright * mix(1.0, shade, uRelief);
+          col = max(mix(vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), col, uSat), 0.0);
           col = applyFog(col, cameraPosition, vWorld);
           gl_FragColor = vec4(col, 1.0);
           #include <tonemapping_fragment>

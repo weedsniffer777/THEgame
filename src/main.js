@@ -15,6 +15,7 @@ const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, WORLD.pixelRatio));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, 2, 160000);
 
@@ -22,7 +23,7 @@ const sky = createSky();
 scene.add(sky);
 const sunDir = setSun();
 const sun = new THREE.DirectionalLight(0xfff1dc, WORLD.sunIntensity);
-scene.add(sun, sun.target, new THREE.HemisphereLight(0xb8d0f0, 0x5a5040, 0.6));
+scene.add(sun, sun.target, new THREE.HemisphereLight(0x9cc0ff, 0x6a5a44, 0.8));
 const pmrem = new THREE.PMREMGenerator(renderer);
 const envScene = new THREE.Scene(); envScene.add(createSky());
 scene.environment = pmrem.fromScene(envScene, 0, 1, 2000).texture;
@@ -86,6 +87,8 @@ ready = true;
 startEl.classList.remove('loading');
 setRunning(wantStart);
 
+const aimPoint = new THREE.Vector3();
+let manual = false;
 function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0); }
 
 function physics(dt) {
@@ -93,7 +96,11 @@ function physics(dt) {
   const th = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 1 : 0) - (keys.has('Space') ? 1 : 0);
   if (th > 0 && ac.throttle >= 1) { abHold += dt; if (abHold > 0.25) ac.throttle = 1.1; }
   else { abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 0.6 * dt, 0, 1); }
-  instruct(ac, rig.fwd, INSTRUCTOR, { roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE'), pitch: axis('KeyW', 'KeyS') });
+  const kb = { pitch: axis('KeyW', 'KeyS'), roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE') };
+  kb.active = !!(kb.pitch || kb.roll);
+  manual = kb.active;
+  aimPoint.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance);
+  instruct(ac, aimPoint, INSTRUCTOR, kb, dt);
   ac.step(dt);
   if (ac.pos.y < terrain.heightAt(ac.pos.x, ac.pos.z) + 1.5) spawn();
 }
@@ -102,6 +109,7 @@ function physics(dt) {
 const aimEl = document.getElementById('aim'), noseEl = document.getElementById('nose');
 const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementChild, vig = document.getElementById('vignette');
 const _p = new THREE.Vector3();
+const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
 function place(el, worldPoint) {
   _p.copy(worldPoint).project(camera);
@@ -110,8 +118,11 @@ function place(el, worldPoint) {
   if (vis) el.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth}px, ${(-_p.y * 0.5 + 0.5) * innerHeight}px)`;
 }
 function hud() {
-  place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, 3000));
-  place(noseEl, new THREE.Vector3(0, 0, 1).applyQuaternion(drawQuat).multiplyScalar(1500).add(drawPos));
+  const D = CAMERA.aimDistance;
+  place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, D));
+  aimEl.style.opacity = manual ? 0.25 : 1;
+  place(noseEl, _n.set(0, 0, 1).applyQuaternion(drawQuat).multiplyScalar(D).add(drawPos));
+  if (ac.t.speed > 5) place(fpvEl, _n.copy(ac.vel).normalize().multiplyScalar(D).add(drawPos));
   aimEl.classList.toggle('stall', ac.t.stall > 0.3);
   thrFill.style.height = `${Math.min(ac.throttle, 1) * 100}%`;
   thrEl.classList.toggle('ab', ac.throttle > 1);
@@ -134,7 +145,7 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1); last = now;
   if (running) {
     cursorSteer(dt);
-    rig.look(mouseDX, mouseDY);
+    if (manual) rig.follow(_n.set(0, 0, 1).applyQuaternion(ac.quat)); else rig.look(mouseDX, mouseDY);
     acc += dt;
     while (acc >= STEP) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }
   }

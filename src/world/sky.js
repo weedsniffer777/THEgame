@@ -4,8 +4,8 @@ import { WORLD } from '../config.js';
 // Shared haze: the sky and the terrain use the same fog so distant mountains melt into the horizon.
 export const fogUniforms = {
   uSunDir: { value: new THREE.Vector3() },
-  uFogColor: { value: new THREE.Color(0.52, 0.62, 0.76) },
-  uSunGlow: { value: new THREE.Color(1.0, 0.86, 0.66) },
+  uFogColor: { value: new THREE.Color(0.42, 0.58, 0.82) },
+  uSunGlow: { value: new THREE.Color(1.0, 0.84, 0.6) },
   uFogDensity: { value: WORLD.fogDensity },
   uFogFalloff: { value: WORLD.fogFalloff },
 };
@@ -36,8 +36,8 @@ export function createSky() {
   const mat = new THREE.ShaderMaterial({
     uniforms: {
       ...fogUniforms,
-      uZenith: { value: new THREE.Color(0.09, 0.24, 0.6) },
-      uHorizon: { value: new THREE.Color(0.45, 0.6, 0.82) },
+      uZenith: { value: new THREE.Color(0.03, 0.14, 0.52) },
+      uHorizon: { value: new THREE.Color(0.3, 0.5, 0.85) },
     },
     vertexShader: /* glsl */`
       varying vec3 vDir;
@@ -53,7 +53,7 @@ export function createSky() {
       void main() {
         vec3 rd = normalize(vDir);
         float up = max(rd.y, 0.0);
-        vec3 col = mix(uHorizon, uZenith, pow(up, 0.45));
+        vec3 col = mix(uHorizon, uZenith, pow(up, 0.6));
         col = mix(col, fogTint(rd), fogAmount(cameraPosition, rd, 2.0e5));
         float s = dot(rd, uSunDir);
         col += uSunGlow * (pow(max(s, 0.0), 300.0) * 1.5 + pow(max(s, 0.0), 12.0) * 0.12);

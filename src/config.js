@@ -7,7 +7,7 @@ export const F5 = {
   wingArea: 17.3,
 
   // engines, both together
-  thrustIdle: 1500,
+  thrustIdle: 0,          // zero throttle is zero thrust
   thrustMil: 31000,       // full dry power
   thrustAB: 44400,        // afterburner
   spoolUp: 0.55,          // fraction of full power gained per second
@@ -16,7 +16,7 @@ export const F5 = {
   ramThrust: 0.3,         // extra thrust per Mach
 
   // lift
-  clAlpha: 3.6,           // lift per radian of angle of attack
+  clAlpha: 4.5,           // lift per radian of angle of attack
   clMax: 1.5,
   stallAoA: 22,           // deg
   stallWidth: 6,          // deg over which lift falls away past the stall
@@ -57,6 +57,9 @@ export const F5 = {
 
   // low-speed floor so the jet never becomes completely uncontrollable while tumbling
   minAuthority: 0.03,
+
+  // sideslip rolls the jet away from the yaw (dihedral / sweep effect): rudder right rolls right
+  dihedral: 2.5,
 };
 
 // The mouse-aim "instructor": flies the jet toward wherever the camera points.
@@ -71,8 +74,10 @@ export const INSTRUCTOR = {
   levelAngle: 1.5,        // deg off target below which it only levels the wings
   bankAngle: 8,           // deg off target above which it fully banks toward the target
   pushAngle: 12,          // targets below and closer than this are reached by pushing, not rolling over
-  pushLimit: 0.35,        // most negative stick it will use
-  maxG: 7.3,
+  maxG: 7.33,
+  maxNegG: 3,
+  maxNegAoA: 12,          // deg
+  stickLag: 0.05,         // s for controls to follow a command (smooths jitter)
   maxAoA: 21,             // deg
 };
 
@@ -84,13 +89,15 @@ export const CAMERA = {
   height: 4.2,
   sensitivity: 0.0022,    // rad per pixel
   levelRate: 2.2,         // how fast the camera rolls itself upright
+  aimDistance: 1200,      // m: the jet points its nose at the spot this far down the aim line
 };
 
 export const WORLD = {
   sunAzimuth: 160,        // deg clockwise from north
   sunElevation: 38,
-  sunIntensity: 3.2,
-  fogDensity: 0.00011,
+  sunIntensity: 3.6,
+  saturation: 1.3,
+  fogDensity: 0.00007,
   fogFalloff: 0.00035,    // 1 / haze scale height
   terrainBrightness: 1.45,
   terrainRelief: 0.65,    // how much our sun shading is added on top of the photo

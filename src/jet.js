@@ -22,17 +22,59 @@ function hinge(model, name, edge) {
   return pivot;
 }
 
-function flame() {
-  const geo = new THREE.ConeGeometry(0.3, 1, 16, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.5);
-  const mat = new THREE.ShaderMaterial({
-    uniforms: { uPower: { value: 0 } },
-    vertexShader: `varying float vT; void main(){ vT = -position.z; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-    fragmentShader: `uniform float uPower; varying float vT;
-      void main(){ vec3 c = mix(vec3(1.0,0.75,0.45), vec3(0.35,0.45,1.0), smoothstep(0.0,0.6,vT));
-        gl_FragColor = vec4(c * uPower * (1.0 - vT) * 3.0, 1.0); }`,
+// Afterburner, built the way most real-time games do it: a few nested additive cone "shells" whose
+// edges fade by view angle (so they read as a soft volume, not a cone), plus a row of shock diamonds.
+const FLAME_VS = `varying float vT; varying vec3 vN; varying vec3 vV;
+  void main(){ vT = clamp(-position.z, 0.0, 1.0); vN = normalize(normalMatrix * normal);
+    vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = -mv.xyz; gl_Position = projectionMatrix * mv; }`;
+const FLAME_FS = `uniform float uPower; uniform float uTime; uniform vec3 uCore; uniform vec3 uTip; uniform float uFade;
+  varying float vT; varying vec3 vN; varying vec3 vV;
+  void main(){
+    float edge = pow(abs(dot(normalize(vN), normalize(vV))), 1.6);
+    float flick = 0.82 + 0.18 * sin(uTime * 63.0 + vT * 31.0) * sin(uTime * 41.0 - vT * 17.0);
+    float i = uPower * pow(1.0 - vT, uFade) * edge * flick;
+    gl_FragColor = vec4(mix(uCore, uTip, smoothstep(0.0, 0.8, vT)) * i, 1.0); }`;
+
+function flameMat(core, tip, fade) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uPower: { value: 0 }, uTime: { value: 0 }, uCore: { value: new THREE.Color(...core) }, uTip: { value: new THREE.Color(...tip) }, uFade: { value: fade } },
+    vertexShader: FLAME_VS, fragmentShader: FLAME_FS,
     transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
   });
-  return new THREE.Mesh(geo, mat);
+}
+
+function afterburner() {
+  const g = new THREE.Group();
+  const shells = [[0.3, [1.0, 0.55, 0.25], [0.25, 0.3, 1.0], 1.2], [0.21, [1.0, 0.75, 0.45], [0.5, 0.4, 1.0], 1.6], [0.12, [1.0, 0.95, 0.85], [1.0, 0.6, 0.4], 2.4]]
+    .map(([r, core, tip, fade]) => {
+      const m = new THREE.Mesh(new THREE.ConeGeometry(r, 1, 20, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.5), flameMat(core, tip, fade));
+      g.add(m); return m;
+    });
+  const diamonds = [];
+  const ball = new THREE.SphereGeometry(1, 14, 10);
+  for (let k = 0; k < 5; k++) {
+    const m = new THREE.Mesh(ball, flameMat([1.0, 0.9, 0.75], [1.0, 0.6, 0.5], 0.0));
+    const r = 0.15 * (1 - k * 0.12);
+    m.scale.set(r, r, r * 2.4);
+    m.position.z = -(0.55 + k * 0.62);
+    m.userData.fall = 1 - k * 0.17;
+    g.add(m); diamonds.push(m);
+  }
+  return {
+    group: g,
+    update(mil, ab, t) {
+      shells.forEach((m, k) => {
+        m.material.uniforms.uTime.value = t;
+        m.material.uniforms.uPower.value = (k === 2 ? 0.35 : 0.2) * mil + ab * (k === 2 ? 2.2 : 1.4);
+        m.scale.z = 0.5 + mil * 0.3 + ab * (k === 0 ? 3.6 : k === 1 ? 2.8 : 1.6) * (0.96 + 0.08 * Math.random());
+      });
+      for (const d of diamonds) {
+        d.material.uniforms.uTime.value = t;
+        d.material.uniforms.uPower.value = ab * 1.8 * d.userData.fall;
+        d.visible = ab > 0.02;
+      }
+    },
+  };
 }
 
 // The model ships as glTF JSON with its buffer inlined as base64 (the only form the artifact host serves).
@@ -67,7 +109,7 @@ export async function loadJet(url) {
   };
   model.traverse(o => { if (o.isMesh) { o.castShadow = false; if (o.material.map) o.material.map.anisotropy = 4; } });
 
-  const flames = NOZZLES.map(p => { const f = flame(); f.position.copy(p); model.add(f); return f; });
+  const flames = NOZZLES.map(p => { const f = afterburner(); f.group.position.copy(p); model.add(f.group); return f; });
   model.position.copy(CG).negate();
   const object = new THREE.Group().add(model);
 
@@ -81,10 +123,8 @@ export async function loadJet(url) {
       s.rudder.rotation.y = i.yaw * 20 * DEG;
       s.leL.rotation.x = s.leR.rotation.x = THREE.MathUtils.clamp(ac.t.aoa / 15, 0, 1) * 20 * DEG;
       const ab = THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1);
-      for (const f of flames) {
-        f.material.uniforms.uPower.value = 0.15 + ab * 0.85;
-        f.scale.set(1, 1, 0.6 + ab * (3.2 + Math.random() * 0.4));
-      }
+      const mil = THREE.MathUtils.clamp(ac.engine, 0, 1), t = performance.now() / 1000;
+      for (const f of flames) f.update(mil, ab, t);
     },
   };
 }

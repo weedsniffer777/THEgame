@@ -18,7 +18,7 @@ export class Aircraft {
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
     this.quat = new THREE.Quaternion();
-    this.p = 0; this.q = 0; this.r = 0;        // roll right, pitch up, yaw right rates (rad/s)
+    this.p = 0; this.q = 0; this.r = 0; this.wFp = 0;        // roll right, pitch up, yaw right rates (rad/s)
     this.input = { pitch: 0, roll: 0, yaw: 0 };
     this.throttle = 1;                          // 0..1 dry, above 1 = afterburner
     this.engine = 1;                            // spooled power, same scale
@@ -80,6 +80,9 @@ export class Aircraft {
     let thrust = e <= 1 ? c.thrustIdle + (c.thrustMil - c.thrustIdle) * e : c.thrustMil + (c.thrustAB - c.thrustMil) * Math.min((e - 1) / 0.1, 1);
     thrust *= Math.pow(air.rho / RHO0, c.thrustLapse) * (1 + c.ramThrust * mach);
     _a.addScaledVector(_fwd, thrust);
+    // how fast the flight path itself is turning in the pitch plane: damping only resists rotation beyond this,
+    // so a steady hard turn isn't fought by the damper (real pitch damping is tiny at these speeds)
+    this.wFp = V > 1 ? _a.dot(_up) / (c.mass * V) : 0;
     _f.copy(_a);
     _f.y -= c.mass * G;
     this.vel.addScaledVector(_f, dt / c.mass);
@@ -91,11 +94,11 @@ export class Aircraft {
     const lockP = 1 - c.pitchLock * smooth(c.pitchLockStart, c.pitchLockEnd, ias);
     const lockR = 1 - c.rollLock * smooth(c.rollLockStart, c.rollLockEnd, ias);
     const inp = this.input;
-    const qdot = qr * (c.pitchControl * lockP * inp.pitch - c.pitchStability * Math.sin(alpha)) - c.pitchDamping * sq * this.q;
+    const qdot = qr * (c.pitchControl * lockP * inp.pitch - c.pitchStability * Math.sin(alpha)) - c.pitchDamping * sq * (this.q - this.wFp);
     const rdot = qr * (c.yawControl * inp.yaw - c.yawStability * Math.sin(beta)) - c.yawDamping * sq * this.r;
     const pTarget = c.rollRate * DEG * inp.roll * smooth(0, c.rollFullIAS, ias) * lockR * (1 - c.stallRoll * stall);
     const pdot = (pTarget - this.p) / (c.rollResponse / Math.min(Math.max(sq, 0.35), 2));
-    this.q += qdot * dt; this.r += rdot * dt; this.p += pdot * dt;
+    this.q += qdot * dt; this.r += rdot * dt; this.p += (pdot + qr * c.dihedral * Math.sin(beta)) * dt;
     _w.set(-this.q, -this.r, this.p);
     const ang = _w.length() * dt;
     if (ang > 0) { _dq.setFromAxisAngle(_w.normalize(), ang); this.quat.multiply(_dq).normalize(); }
