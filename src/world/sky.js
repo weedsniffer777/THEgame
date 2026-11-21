@@ -73,7 +73,7 @@ export function createSky() {
         // the whole sun side of the sky brightens and warms, as in photos
         col = mix(col, vec3(1.0, 0.92, 0.8), pow(max(c, 0.0), 4.0) * 0.3);
         // warm glare and glow around the disc, smooth so it reads as light, not a ring
-        col += uSunGlow * (exp(-ang * 18.0) * 1.6 + exp(-ang * 5.0) * 0.35);
+        col += vec3(1.0, 0.96, 0.9) * exp(-ang * 18.0) * 1.6 + uSunGlow * exp(-ang * 5.0) * 0.35;
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

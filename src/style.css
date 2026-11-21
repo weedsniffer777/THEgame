@@ -12,7 +12,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8aa4c4; }
 #throttle { position: absolute; right: 24px; bottom: 24px; width: 8px; height: 110px; background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden; }
 #throttle i { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.85); }
 #throttle.ab i { background: #ffa640; }
-#start { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(10,20,35,0.35); cursor: pointer; }
+#start { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: transparent; cursor: pointer; }
 #start.show { display: flex; }
 #start span { font: 800 28px/1 system-ui, sans-serif; letter-spacing: 0.12em; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
 #dev { position: fixed; left: 8px; top: 8px; font: 12px/1.35 ui-monospace, monospace; color: #fff; background: rgba(0,0,0,0.5); padding: 6px 8px; white-space: pre; pointer-events: none; }
