@@ -1,0 +1,18 @@
+{
+ "size": [
+  2000,
+  2000
+ ],
+ "spacing": 20,
+ "colorSize": [
+  4000,
+  4000
+ ],
+ "heightMin": 771.0,
+ "heightMax": 4043.0,
+ "lv95": {
+  "west": 2760000,
+  "north": 1178000
+ },
+ "credit": "swissALTI3D, SWISSIMAGE (c) swisstopo"
+}

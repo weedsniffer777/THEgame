@@ -3,6 +3,9 @@
 Every third-party asset goes here, with its source, author and license. Everything marked CC-BY must also appear on the in-game credits screen.
 Real aircraft names below only identify the source files; in game, every aircraft gets a fictional name, our own paint and no real markings.
 
+## Terrain
+- Engadin map: swissALTI3D elevation and SWISSIMAGE aerial photos, © swisstopo (Federal Office of Topography), free geodata with attribution. Processed with `tools/terrain/build_terrain.py`.
+
 ## Aircraft models
 
 All licensed under [Creative Commons Attribution 4.0](http://creativecommons.org/licenses/by/4.0/) (attribution required; modified: repainted, split into parts).

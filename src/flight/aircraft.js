@@ -1,0 +1,106 @@
+import * as THREE from 'three';
+import { atmosphere, RHO0 } from './atmosphere.js';
+
+// Body frame: +Z forward (nose), +Y up, +X left wing.
+const G = 9.81;
+const DEG = Math.PI / 180;
+const _v = new THREE.Vector3(), _f = new THREE.Vector3(), _a = new THREE.Vector3();
+const _fwd = new THREE.Vector3(), _up = new THREE.Vector3(), _right = new THREE.Vector3();
+const _lift = new THREE.Vector3(), _side = new THREE.Vector3();
+const _qi = new THREE.Quaternion(), _dq = new THREE.Quaternion(), _w = new THREE.Vector3();
+const air = {};
+
+const smooth = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
+
+export class Aircraft {
+  constructor(cfg) {
+    this.cfg = cfg;
+    this.pos = new THREE.Vector3();
+    this.vel = new THREE.Vector3();
+    this.quat = new THREE.Quaternion();
+    this.p = 0; this.q = 0; this.r = 0;        // roll right, pitch up, yaw right rates (rad/s)
+    this.input = { pitch: 0, roll: 0, yaw: 0 };
+    this.throttle = 1;                          // 0..1 dry, above 1 = afterburner
+    this.engine = 1;                            // spooled power, same scale
+    this.t = { speed: 0, ias: 0, mach: 0, aoa: 0, beta: 0, g: 1, stall: 0, alt: 0 };
+  }
+
+  reset(pos, heading, speed) {
+    this.pos.copy(pos);
+    const h = heading * DEG;
+    const dir = new THREE.Vector3(Math.sin(h), 0, -Math.cos(h));
+    this.quat.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+    this.vel.copy(dir).multiplyScalar(speed);
+    this.p = this.q = this.r = 0;
+    this.throttle = this.engine = 1;
+  }
+
+  liftCoef(alpha) {
+    const c = this.cfg, a = Math.abs(alpha), s = c.stallAoA * DEG;
+    const pre = c.clMax * Math.tanh(c.clAlpha * a / c.clMax);
+    const post = c.postStallCl * Math.sin(2 * a);
+    const k = smooth(s, s + c.stallWidth * DEG, a);
+    return Math.sign(alpha) * (pre * (1 - k) + post * k);
+  }
+
+  step(dt) {
+    const c = this.cfg, t = this.t;
+    atmosphere(this.pos.y, air);
+    const V = this.vel.length();
+    const dyn = 0.5 * air.rho * V * V;
+    const mach = V / air.soundSpeed;
+    const ias = V * Math.sqrt(air.rho / RHO0);
+
+    _fwd.set(0, 0, 1).applyQuaternion(this.quat);
+    _up.set(0, 1, 0).applyQuaternion(this.quat);
+    _right.set(-1, 0, 0).applyQuaternion(this.quat);
+
+    _v.copy(this.vel).applyQuaternion(_qi.copy(this.quat).invert());
+    const alpha = V > 1 ? Math.atan2(-_v.y, _v.z) : 0;
+    const beta = V > 1 ? Math.atan2(_v.x, Math.hypot(_v.y, _v.z)) : 0;
+    const stall = smooth(c.stallAoA * DEG * 0.9, c.stallAoA * DEG * 1.4, Math.abs(alpha));
+
+    // forces
+    _f.set(0, 0, 0);
+    _a.set(0, 0, 0);
+    if (V > 1) {
+      const vdir = _v.copy(this.vel).divideScalar(V);
+      const cl = this.liftCoef(alpha);
+      const wave = c.waveDrag * (smooth(c.machCrit, c.machPeak, mach) - 0.35 * smooth(c.machPeak, c.machPeak + 0.6, mach));
+      const cd = c.cd0 + wave + c.inducedDrag * cl * cl + c.stallDrag * stall;
+      _lift.crossVectors(_right, vdir).normalize().multiplyScalar(dyn * c.wingArea * cl);
+      _side.set(1, 0, 0).applyQuaternion(this.quat);
+      _side.addScaledVector(vdir, -_side.dot(vdir)).normalize().multiplyScalar(-dyn * c.wingArea * c.sideForce * beta);
+      _a.add(_lift).add(_side).addScaledVector(vdir, -dyn * c.wingArea * cd);
+    }
+    // engine
+    const spool = this.throttle > this.engine ? c.spoolUp : c.spoolDown;
+    this.engine += Math.sign(this.throttle - this.engine) * Math.min(Math.abs(this.throttle - this.engine), spool * dt * (this.throttle > 1 ? 3 : 1));
+    const e = this.engine;
+    let thrust = e <= 1 ? c.thrustIdle + (c.thrustMil - c.thrustIdle) * e : c.thrustMil + (c.thrustAB - c.thrustMil) * Math.min((e - 1) / 0.1, 1);
+    thrust *= Math.pow(air.rho / RHO0, c.thrustLapse) * (1 + c.ramThrust * mach);
+    _a.addScaledVector(_fwd, thrust);
+    _f.copy(_a);
+    _f.y -= c.mass * G;
+    this.vel.addScaledVector(_f, dt / c.mass);
+    this.pos.addScaledVector(this.vel, dt);
+
+    // rotation
+    const qr = Math.max(dyn / (0.5 * RHO0 * c.refSpeed * c.refSpeed), c.minAuthority);
+    const sq = Math.sqrt(qr);
+    const lockP = 1 - c.pitchLock * smooth(c.pitchLockStart, c.pitchLockEnd, ias);
+    const lockR = 1 - c.rollLock * smooth(c.rollLockStart, c.rollLockEnd, ias);
+    const inp = this.input;
+    const qdot = qr * (c.pitchControl * lockP * inp.pitch - c.pitchStability * Math.sin(alpha)) - c.pitchDamping * sq * this.q;
+    const rdot = qr * (c.yawControl * inp.yaw - c.yawStability * Math.sin(beta)) - c.yawDamping * sq * this.r;
+    const pTarget = c.rollRate * DEG * inp.roll * smooth(0, c.rollFullIAS, ias) * lockR * (1 - c.stallRoll * stall);
+    const pdot = (pTarget - this.p) / (c.rollResponse / Math.min(Math.max(sq, 0.35), 2));
+    this.q += qdot * dt; this.r += rdot * dt; this.p += pdot * dt;
+    _w.set(-this.q, -this.r, this.p);
+    const ang = _w.length() * dt;
+    if (ang > 0) { _dq.setFromAxisAngle(_w.normalize(), ang); this.quat.multiply(_dq).normalize(); }
+
+    t.speed = V; t.ias = ias; t.mach = mach; t.aoa = alpha / DEG; t.beta = beta / DEG; t.stall = stall;
+    t.g = _a.dot(_up) / (c.mass * G); t.alt = this.pos.y; t.thrust = thrust; t.dyn = dyn;
+  }
+}

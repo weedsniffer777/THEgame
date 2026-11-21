@@ -13,7 +13,7 @@ AREAS = {
 }
 # WGS84 search boxes that cover each LV95 extent with margin (tiles are filtered by id afterwards)
 SEARCH = {
-    'engadin': (9.55, 46.28, 10.25, 46.75),
+    'engadin': (9.40, 46.20, 10.35, 46.85),
 }
 STAC = 'https://data.geo.admin.ch/api/stac/v0.9/collections/{}/items?bbox={}&limit=100'
 SETS = {
