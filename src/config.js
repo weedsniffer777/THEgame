@@ -157,6 +157,8 @@ export const WEAPONS = {
   missileMaxG: 28,
   missileLife: 14,        // s
   proximity: 12,          // m
+  hitRadius: 7,           // m around a target's centre that a round counts as a hit (x1.5 on touch screens)
+  magnetism: 0.35,        // touch screens: how strongly aim is pulled onto the lead point when close to it
   drones: 8,              // test targets circling near the player
 };
 

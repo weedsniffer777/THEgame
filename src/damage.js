@@ -16,7 +16,7 @@ export function classify(p) {
 
 export const PART_HP = { nose: 8, fin: 7, wingOuterL: 6, wingOuterR: 6, wingInnerL: 12, wingInnerR: 12, stabL: 5, stabR: 5 };
 export const FATAL = ['wingInnerL', 'wingInnerR'];   // a lost nose is survivable
-const BODY_HP = 40;
+export const BODY_HP = 40;
 
 // where each part tears off the airframe (model space): the boundary of its region, at the part's own height/depth
 function tornEdge(name, c) {

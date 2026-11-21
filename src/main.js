@@ -9,6 +9,9 @@ import { loadJet, viewerAnim } from './jet.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
 import { createArmsHud } from './hudArms.js';
+import { createXray } from './hudXray.js';
+import { isTouch, createTouch } from './touch.js';
+import { PART_HP, BODY_HP } from './damage.js';
 
 loadTuning();
 const STEP = 1 / 120;
@@ -63,19 +66,22 @@ function spawn() {
   rig.reset(ac.quat);
   prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
   if (typeof weapons !== 'undefined') { weapons.rearm(); jet.damage.repair(); }
+  dead = 0; jet.object.visible = true; document.body.classList.remove('lost');
 }
+let dead = 0;   // seconds since the player was killed (0 = alive)
 spawn();
 
 // input
 const keys = new Set();
 let mouseDX = 0, mouseDY = 0, abHold = 0;
-const GAME_KEYS = new Set(['Space', 'Tab', 'ShiftLeft', 'ShiftRight', 'KeyZ', 'KeyX', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyB', 'Digit1', 'Digit2']);
+const GAME_KEYS = new Set(['Space', 'Tab', 'ShiftLeft', 'ShiftRight', 'KeyZ', 'KeyX', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyB', 'Digit1', 'Digit2', 'KeyR']);
 addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) e.preventDefault(); keys.add(e.code); if (e.code === 'Backquote') import('./dev.js').then(m => m.toggleDev({ ac, terrain, renderer, spawn })); });
 addEventListener('keyup', e => keys.delete(e.code));
 // weapons: 1 guns, 2 missiles; Space or left mouse fires
 addEventListener('keydown', e => {
   if (e.code === 'Digit1') weapons.select(1);
   if (e.code === 'Digit2') weapons.select(2);
+  if (e.code === 'KeyR') weapons.cycleTarget();
   if (e.code === 'Space' && running && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
 });
 addEventListener('keyup', e => { if (e.code === 'Space') weapons.setFiring(false); });
@@ -106,6 +112,14 @@ setRunning(wantStart);
 
 const aimPoint = new THREE.Vector3();
 let manual = false, recentre = 0;   // seconds left of easing the camera back onto the nose after keyboard flying
+// crash: the jet blows up and burns on the ground; the camera holds on it for a few seconds before respawning
+function crash() {
+  if (dead) return;
+  dead = 1e-6;
+  weapons.crash(ac.pos, ac.vel, jet);
+  jet.object.visible = false;
+  document.body.classList.remove('lost');
+}
 function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0); }
 
 function physics(dt) {
@@ -121,10 +135,13 @@ function physics(dt) {
   if (kb.active) recentre = 0.45; else if (recentre > 0) recentre -= dt;
   manual = kb.active;
   aimPoint.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance);
-  instruct(ac, aimPoint, INSTRUCTOR, kb, dt);
+  const lost = jet.damage.dead;
+  if (lost) { ac.input.pitch *= 0.97; ac.input.roll = 0.6; ac.input.yaw = 0.2; ac.throttle = 0; }   // plane lost: no control, it rolls off and goes in
+  else instruct(ac, aimPoint, INSTRUCTOR, kb, dt);
+  document.body.classList.toggle('lost', lost);
   ac.step(dt);
   weapons.step(dt, performance.now() / 1000);
-  if (ac.pos.y < terrain.heightAt(ac.pos.x, ac.pos.z) + 1.5) spawn();
+  if (ac.pos.y < terrain.heightAt(ac.pos.x, ac.pos.z) + 1.5) crash();
 }
 
 // HUD
@@ -134,6 +151,8 @@ const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [];
 const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles);
+const leadEl = document.getElementById('lead');
+const xray = createXray(document.getElementById('xray'), jet.damage, { ...PART_HP, body: BODY_HP });
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
 function place(el, worldPoint) {
   _p.copy(worldPoint).project(camera);
@@ -162,10 +181,19 @@ function hud() {
     seekerEl.className = W.locked ? 'locked' : '';
   }
   weapons.drones.forEach((d, k) => {
-    const el = tgtEls[k] || (tgtEls[k] = tgtEl.cloneNode(), tgtEl.parentNode.appendChild(tgtEls[k]), tgtEls[k]);
+    const el = tgtEls[k] || (tgtEls[k] = Object.assign(tgtEl.cloneNode(), { id: '', className: 'tgtc' }), tgtEl.parentNode.appendChild(tgtEls[k]), tgtEls[k]);
     el.hidden = !d.alive || d.falling || !running;
+    el.classList.toggle('sel', d === W.target);
     if (!el.hidden) place(el, d.obj.position);
   });
+  // lead pip for the selected enemy (guns), red when the reticle is on it
+  leadEl.hidden = !W.lead || msl || !running || W.leadTime > 2.5;
+  if (!leadEl.hidden) {
+    place(leadEl, W.lead);
+    const toLead = _n.subVectors(W.lead, camera.position).normalize();
+    leadEl.className = toLead.angleTo(rig.fwd) < 0.012 ? 'on' : '';
+  }
+  xray();
   armsHud(W.selected, W.stock, msl && W.locked);
   aimEl.classList.toggle('stall', ac.t.stall > 0.3);
   thrFill.style.height = `${Math.min(ac.throttle, 1) * 100}%`;
@@ -192,8 +220,17 @@ function frame(now) {
     cursorSteer(dt);
     if (recentre > 0 && !manual) rig.recenter(_n.set(0, 0, 1).applyQuaternion(ac.quat), Math.min(1, dt * 12));
     rig.look(mouseDX, mouseDY);
+    if (isTouch && weapons.S.lead && weapons.S.selected === 1) {          // aim assist on touch screens
+      const toLead = _n.subVectors(weapons.S.lead, camera.position).normalize();
+      const off = toLead.angleTo(rig.fwd);
+      if (off < 0.08) rig.recenter(toLead, Math.min(1, dt * 6 * WEAPONS.magnetism * (1 - off / 0.08)));
+    }
     acc += dt;
-    while (acc >= STEP) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }
+    if (dead) {                                                           // killed: watch the crash site, then respawn
+      dead += dt; acc = 0;
+      weapons.step(dt, performance.now() / 1000);
+      if (dead > 4) spawn();
+    } else while (acc >= STEP) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }
   }
   mouseDX = mouseDY = 0;
   const a = acc / STEP;
@@ -206,7 +243,7 @@ function frame(now) {
   jet.damage.update(dt);
   ac.damageFx = jet.damage.effects();
   rig.zoom += ((rig.zooming ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);
-  if (viewer.on) viewer.place(); else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1), ac.t.ias);
+  if (viewer.on) viewer.place(); else if (dead) { camera.lookAt(drawPos); } else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1), ac.t.ias);
   sun.position.copy(drawPos).addScaledVector(sunDir, 1000);
   sun.target.position.copy(drawPos);
   sky.position.copy(camera.position);
@@ -253,5 +290,19 @@ document.getElementById('kit-viewer').addEventListener('click', e => {
   setViewer(true);
   import('./dev.js').then(m => m.openViewer(viewerAnim, () => setViewer(false), jet.damage));
 });
+
+// touch screens: drag to aim, throttle slider, fire and switch buttons, bigger hit radius
+if (isTouch) {
+  document.body.classList.add('touch');
+  weapons.S.hitScale = 1.5;
+  createTouch(document.getElementById('touch'), {
+    onLook: (dx, dy) => { if (running) { mouseDX += dx; mouseDY += dy; } },
+    onThrottle: (v) => { ac.throttle = v; },
+    onFire: (on) => { if (running) weapons.setFiring(on, performance.now() / 1000); },
+    onSwitch: () => weapons.select(weapons.S.selected === 1 ? 2 : 1),
+  });
+  cursorX = null;
+  addEventListener('mousemove', () => { cursorX = null; }, true);   // emulated mouse events from taps must not steer
+}
 
 window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons };

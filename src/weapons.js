@@ -325,7 +325,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
     selected: 1, firing: false,
     rounds: [], missiles: [], fx: [],
     stock: cfg.missiles, reload: 0, gunAcc: 0, gunSide: 0, flash: [0, 0],
-    lock: 0, locked: false, seeker: null,
+    lock: 0, locked: false, seeker: null, target: null, lead: null, leadTime: 0, hitScale: 1,
     loaded: Array(RAILS.length).fill(true), lost: Array(RAILS.length).fill(false),
   };
 
@@ -480,7 +480,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       r.v.y -= G * dt;
       r.p.addScaledVector(r.v, dt);
       r.t += dt;
-      for (const d of drones) if (d.alive && !d.falling && segDist(r.prev, r.p, d.pos) < 7) {
+      for (const d of drones) if (d.alive && !d.falling && segDist(r.prev, r.p, d.pos) < cfg.hitRadius * S.hitScale) {
         r.t = 1e9; const at = closestOnSeg(r.prev, r.p, d.pos); spark(at);
         d.dmg.hit(at, d.vel);
         if (d.dmg.dead) killDrone(d);
@@ -493,6 +493,20 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
     }
     S.rounds = S.rounds.filter(r => r.t < cfg.roundLife);
 
+    // selected target: keep it while it's alive, otherwise take the one nearest the nose
+    if (!S.target || !S.target.alive || S.target.falling) S.target = nearestToNose(fwd, null);
+    // gun lead: where to point so rounds (muzzle speed + our own velocity, dropping with gravity) meet the target
+    S.lead = null;
+    if (S.target) {
+      const T = S.target, rel = _w.subVectors(T.vel, ac.vel);
+      let tf = T.pos.distanceTo(ac.pos) / cfg.muzzleVelocity;
+      const L = new THREE.Vector3();
+      for (let i = 0; i < 3; i++) {
+        L.copy(T.pos).addScaledVector(rel, tf); L.y += 0.5 * G * tf * tf;
+        tf = L.distanceTo(ac.pos) / cfg.muzzleVelocity;
+      }
+      S.lead = L; S.leadTime = tf;
+    }
     // seeker and lock
     if (S.selected !== 2) S.seeker = null;
     if (S.selected === 2 && S.stock > 0) {
@@ -547,6 +561,18 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
     }
     for (const m of S.missiles) if (m.t >= cfg.missileLife || m.t >= 1e9) { if (m.t < 1e9) explode(m.p, m.v, 0.5); m.trail.live = false; scene.remove(m.obj); }
     S.missiles = S.missiles.filter(m => m.t < cfg.missileLife && m.t < 1e9);
+  }
+
+  // the live drone closest to the nose direction, skipping 'skip' (so repeated presses cycle through them)
+  function nearestToNose(fwd, skip) {
+    let best = null, bestA = 1e9;
+    for (const d of drones) {
+      if (!d.alive || d.falling || d === skip) continue;
+      const to = _v.subVectors(d.pos, ac.pos), dist = to.length();
+      const a = Math.acos(THREE.MathUtils.clamp(to.dot(fwd) / dist, -1, 1)) + dist / 40000;
+      if (a < bestA) { bestA = a; best = d; }
+    }
+    return best;
   }
 
   function fireMissile(now) {
@@ -669,6 +695,19 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
     rearm() { S.loaded.fill(true); S.firing = false; },
     explode,   // (used by the dev tests)
     step, render,
+    crash(p, v, jetRef) {
+      explode(p, v, 2.0);
+      const wreck = jetRef.object.clone(true);
+      wreck.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); if (o.material.color) o.material.color.multiplyScalar(0.18); } });
+      wreck.position.set(p.x, terrain.heightAt(p.x, p.z) + 0.6, p.z);
+      wreck.rotation.set((Math.random() - 0.5) * 0.3, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.5);
+      scene.add(wreck); setTimeout(() => wreck.removeFromParent(), 40000);
+      emit('groundfire', wreck.position, new THREE.Vector3(1, 0, 0));
+    },
+    cycleTarget() {
+      const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);
+      S.target = nearestToNose(fwd, S.target) || S.target;
+    },
   };
 }
 
