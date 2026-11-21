@@ -8,9 +8,9 @@ export const F5 = {
 
   // engines, both together
   thrustIdle: 0,          // zero throttle is zero thrust
-  thrustMil: 31000,       // full dry power
-  thrustAB: 44400,        // afterburner
-  spoolUp: 0.55,          // fraction of full power gained per second
+  thrustMil: 35000,             // full dry power
+  thrustAB: 51000,         // afterburner
+  spoolUp: 0.8,           // fraction of full power gained per second
   spoolDown: 0.9,
   thrustLapse: 0.75,      // thrust scales with (air density ratio) ^ this
   ramThrust: 0.3,         // extra thrust per Mach
@@ -70,17 +70,17 @@ export const F5 = {
   afterburner: 'spray',   // 'spray' (this jet) or 'diamonds' (shock diamonds after the first flame)
 
   // sideslip rolls the jet away from the yaw (dihedral / sweep effect): rudder right rolls right
-  dihedral: 2.5,
+  dihedral: 1.0,
 };
 
 // The mouse-aim "instructor": flies the jet toward wherever the camera points.
 export const INSTRUCTOR = {
   pitchGain: 5.0,         // stick per radian of pitch error
   pitchLead: 0.4,         // s: how far ahead the pitch controller looks at the closing error
-  yawGain: 3.0,
+  yawGain: 1.8,
   yawLead: 0.25,
-  rollGain: 3.2,
-  rollDamp: 0.3,
+  rollGain: 2.4,
+  rollDamp: 0.42,
   levelGain: 2.0,         // how hard it levels the wings when the target is dead ahead
   levelAngle: 1.2,        // deg off target below which it only levels the wings
   bankAngle: 7,            // deg off target above which it fully banks toward the target
@@ -94,7 +94,7 @@ export const INSTRUCTOR = {
   aimSmooth: 0.06,        // s low-pass on the mouse aim the autopilot chases
   rollSmooth: 0.08,       // s low-pass on the bank the autopilot wants
   pullAfterRoll: 15,      // deg: full pull only once the lift vector is this close to the target
-  holdPull: 0.12,         // stick it keeps while still rolling toward the target         // s for controls to follow a command (smooths jitter)
+  holdPull: 0.3,          // stick it keeps while still rolling toward the target         // s for controls to follow a command (smooths jitter)
   maxAoA: 20,             // deg
 };
 
@@ -145,8 +145,8 @@ export const WEAPONS = {
   muzzleVelocity: 1030,   // m/s
   gunSpread: 0.0012,      // rad
   tracerLength: 24,       // m
-  tracerWidthPx: 5,       // px half-width of a tracer up close
-  tracerMinPx: 2,         // px half-width far away
+  tracerWidthPx: 3.5,       // px half-width of a tracer up close
+  tracerMinPx: 1.5,         // px half-width far away
   roundLife: 3,           // s
   missiles: 6,            // one per station: 2 wingtips + 4 pylons, no reload
   seekerFov: 24,          // deg, full width of the seeker circle

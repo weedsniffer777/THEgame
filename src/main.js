@@ -105,7 +105,7 @@ startEl.classList.remove('loading');
 setRunning(wantStart);
 
 const aimPoint = new THREE.Vector3();
-let manual = false;
+let manual = false, recentre = 0;   // seconds left of easing the camera back onto the nose after keyboard flying
 function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0); }
 
 function physics(dt) {
@@ -118,6 +118,7 @@ function physics(dt) {
   else { abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 0.6 * dt, 0, 1); }
   const kb = { pitch: axis('KeyW', 'KeyS'), roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE') };
   kb.active = !!(kb.pitch || kb.roll);
+  if (kb.active) recentre = 0.45; else if (recentre > 0) recentre -= dt;
   manual = kb.active;
   aimPoint.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance);
   instruct(ac, aimPoint, INSTRUCTOR, kb, dt);
@@ -189,6 +190,7 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1); last = now;
   if (running) {
     cursorSteer(dt);
+    if (recentre > 0 && !manual) rig.recenter(_n.set(0, 0, 1).applyQuaternion(ac.quat), Math.min(1, dt * 12));
     rig.look(mouseDX, mouseDY);
     acc += dt;
     while (acc >= STEP) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }

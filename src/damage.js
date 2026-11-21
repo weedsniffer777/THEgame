@@ -11,7 +11,6 @@ export function classify(p) {
   if (p.y > 2.5 && p.z < -2.4) return 'fin';
   if (ax > 2.45 && p.y < 1.8 && p.z > -3.4 && p.z < 1.4) return 'wingOuter' + side;
   if (ax > 1.05 && p.y < 1.62 && p.z > -3.0 && p.z < 1.8) return 'wingInner' + side;
-  if (p.z < -3.6 && ax > 0.6 && p.y < 2.0) return 'stab' + side;
   return 'body';
 }
 
@@ -92,6 +91,7 @@ export class Damage {
     this.parts = {};
     model.traverse(o => { if (o.userData.part) this.parts[o.userData.part] = { obj: o, hp: PART_HP[o.userData.part] || 5, broken: false, parent: o.parent, local: o.matrix.clone(), breakAt: tornEdge(o.userData.part, o.position) }; });
     this.bodyHp = BODY_HP;
+    this.mats = new Map(); model.traverse(o => { if (o.isMesh) this.mats.set(o, o.material); });   // to undo charring on repair
     this.debris = [];
     this.fires = [];            // break points that keep burning (model space)
     this.smokeT = 0;
@@ -161,6 +161,7 @@ export class Damage {
       p.parent.add(p.obj);
       p.local.decompose(p.obj.position, p.obj.quaternion, p.obj.scale);
     }
+    for (const [o, m] of this.mats) o.material = m;
     this.debris = []; this.fires = []; this.bodyHp = BODY_HP;
   }
 

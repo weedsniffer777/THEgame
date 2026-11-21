@@ -186,7 +186,7 @@ class Tracers {
           if (d > 1.0) discard;
           float core = smoothstep(0.38, 0.0, d), halo = (1.0 - d) * (1.0 - d);
           float along = 0.35 + 0.65 * s;                                  // brighter toward the head
-          vec3 col = vec3(1.0, 0.86, 0.62) * core * 1.6 + vec3(1.0, 0.22, 0.08) * halo * 0.9;
+          vec3 col = vec3(1.0, 0.86, 0.62) * core * 1.3 + vec3(1.0, 0.22, 0.08) * halo * 0.55;
           gl_FragColor = vec4(col * vI * along, 1.0);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -318,6 +318,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
   scene.add(glow.mesh, smoke.mesh, trails.mesh, tracers.mesh);
 
   // missiles on the rails (in the jet's model, which is offset by -CG inside jet.object)
+  const onJet = (o) => { for (let p = o.parent; p; p = p.parent) if (p === jet.model) return true; return false; };
   const railMeshes = RAILS.map(r => { const m = proto.clone(true); m.position.copy(r).add(CG); jet.model.add(m); attachToPart(jet.model, m); return m; });
 
   const S = {
@@ -325,14 +326,15 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
     rounds: [], missiles: [], fx: [],
     stock: cfg.missiles, reload: 0, gunAcc: 0, gunSide: 0, flash: [0, 0],
     lock: 0, locked: false, seeker: null,
+    loaded: Array(RAILS.length).fill(true), lost: Array(RAILS.length).fill(false),
   };
 
   // ---------------- damage: player and drone share the same model and effects
   // smoke and flame are laid down by distance travelled (plus a slow tick when standing still),
   // so fast debris leaves a continuous trail instead of a row of dots
   const lastAt = new WeakMap();
-  const puffSmoke = (p, light) => S.fx.push({ kind: 'smoke', p: p.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2), t: 0, life: 4 + Math.random() * 2.5, s: 1.6 + Math.random() * 2.0, seed: Math.random(), dark: light ? 0 : 1, spread: 1 });
-  const puffFlame = (p, v) => S.fx.push({ kind: 'ball', burn: 1, p: p.clone(), v: (v ? v.clone().multiplyScalar(0.92) : new THREE.Vector3()).add(new THREE.Vector3((Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2)), t: 0, life: 0.9 + Math.random() * 0.6, s: 1.6 + Math.random() * 1.4, seed: Math.random() });
+  const puffSmoke = (p, light) => S.fx.push({ kind: 'smoke', p: p.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2), t: 0, life: 4 + Math.random() * 2.5, s: 0.55 + Math.random() * 0.6, seed: Math.random(), dark: light ? 0 : 1, spread: 1 });
+  const puffFlame = (p, v) => S.fx.push({ kind: 'ball', burn: 1, p: p.clone(), v: (v ? v.clone().multiplyScalar(0.92) : new THREE.Vector3()).add(new THREE.Vector3((Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2)), t: 0, life: 0.9 + Math.random() * 0.6, s: 0.6 + Math.random() * 0.6, seed: Math.random(), bloom: 1 });
   const emit = (kind, p, v, key) => {
     if (kind === 'impact') return explode(p, new THREE.Vector3(), 0.6);
     if (kind === 'groundfire') return fires.push({ p: p.clone(), t: 0, life: v ? 25 : 10, big: !!v, tS: 0, tF: 0 });
@@ -388,6 +390,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       d.pos.addScaledVector(d.vel, dt);
       d.obj.position.copy(d.pos);
       d.obj.rotateZ(d.spin * dt); d.obj.rotateX(0.4 * dt);
+      if (Math.random() < dt * 0.3) {                 // burning in, the odd piece tears off
+        const left = Object.keys(d.dmg.parts).filter(n => !d.dmg.parts[n].broken);
+        if (left.length) d.dmg.breakPart(left[Math.floor(Math.random() * left.length)], d.vel);
+      }
       emit('smoke', d.pos, d.vel, d); emit('flame', d.pos, d.vel, d.obj);
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 2) {
         explode(d.pos, d.vel, 2.0);
@@ -424,15 +430,15 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
   // ---------------- effects
   // War Thunder-style blast: a short flash, a cluster of irregular fire puffs that roll outward and up and
   // cool from white-yellow through orange and deep red to brown smoke, lingering smoke, and burning debris.
-  function explode(p, vel, scale = 1) {
+  function explode(p, vel, scale = 1, embers = false) {
     const carry = vel.clone().multiplyScalar(0.25);
     S.fx.push({ kind: 'fire', p: p.clone(), v: carry.clone(), t: 0, life: 0.18, s: 18 * scale });
-    const n = Math.round(9 + 7 * scale);
+    const n = Math.round(14 + 10 * scale);
     for (let k = 0; k < n; k++) {
       const d = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 0.6, Math.random() * 2 - 1).normalize();
       const sp = (8 + Math.random() * 22) * scale;
       S.fx.push({ kind: 'ball', p: p.clone().addScaledVector(d, Math.random() * 3 * scale), v: d.multiplyScalar(sp).add(carry), t: -Math.random() * 0.1,
-        life: (1.0 + Math.random() * 1.1) * (0.8 + 0.25 * scale), s: (3 + Math.random() * 3.5) * scale, seed: Math.random() });
+        life: (1.1 + Math.random() * 1.3) * (0.8 + 0.25 * scale), s: (3.5 + Math.random() * 4.5) * scale, seed: Math.random() });
     }
     for (let k = 0; k < Math.round(5 + 4 * scale); k++) {   // soot: black puffs boiling through and around the fire
       const d = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 0.4, Math.random() * 2 - 1).normalize();
@@ -444,7 +450,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       S.fx.push({ kind: 'smoke', p: p.clone().addScaledVector(d, 1), v: d.add(carry).add(new THREE.Vector3(0, 3, 0)), t: -0.35 - Math.random() * 0.6,
         life: 7 + Math.random() * 4, s: (6 + Math.random() * 5) * scale, seed: Math.random(), dark: 1, rise: 1 });
     }
-    for (let k = 0; k < Math.round(10 * scale) + 4; k++) {
+    for (let k = 0; embers && k < Math.round(6 * scale) + 2; k++) {
       const d = new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.8 - 0.15, Math.random() - 0.5).normalize().multiplyScalar((35 + Math.random() * 60) * scale);
       S.fx.push({ kind: 'ember', p: p.clone(), v: d.add(carry), t: 0, life: 1.2 + Math.random() * 1.6, s: 0.45 + Math.random() * 0.4 });
     }
@@ -480,7 +486,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
         if (d.dmg.dead) killDrone(d);
         break;
       }
-      else if (r.p.y < terrain.heightAt(r.p.x, r.p.z)) { r.t = 1e9; }
+      else if (r.p.y < terrain.heightAt(r.p.x, r.p.z)) {
+        r.t = 1e9;
+        if (Math.random() < 0.5) S.fx.push({ kind: 'smoke', dust: 1, p: r.p.clone().setY(terrain.heightAt(r.p.x, r.p.z) + 0.5), v: new THREE.Vector3((Math.random() - 0.5) * 3, 3 + Math.random() * 3, (Math.random() - 0.5) * 3), t: 0, life: 1.6 + Math.random(), s: 1.0 + Math.random() * 0.8, seed: Math.random(), spread: 1 });
+      }
     }
     S.rounds = S.rounds.filter(r => r.t < cfg.roundLife);
 
@@ -503,7 +512,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
     S.locked = S.lock >= cfg.lockTime;
 
     // reload
-    railMeshes.forEach((m, k) => { m.visible = k < S.stock; });
+    // a station whose wing section broke off is gone (its missile went down with the piece)
+    railMeshes.forEach((m, k) => { S.lost[k] = !onJet(m); m.visible = S.loaded[k]; });
+    S.stock = S.loaded.filter((l, k) => l && !S.lost[k]).length;
 
     // missiles in flight
     for (const m of S.missiles) {
@@ -526,7 +537,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
           m.t = 1e9; explode(m.p, m.target.vel, 0.8);
           // the blast tears off what was closest to it, then the jet goes down
           const near = Object.keys(m.target.dmg.parts).sort((a, b) => m.target.dmg.parts[a].obj.getWorldPosition(_v).distanceTo(m.p) - m.target.dmg.parts[b].obj.getWorldPosition(_w).distanceTo(m.p));
-          near.slice(0, 2).forEach(n => m.target.dmg.breakPart(n, m.target.vel));
+          near.slice(0, 3 + Math.floor(Math.random() * 3)).forEach(n => m.target.dmg.breakPart(n, m.target.vel));
           killDrone(m.target);
         }
       } else if (speed > 1) m.dir.copy(m.v).normalize();
@@ -539,9 +550,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
   }
 
   function fireMissile(now) {
-    if (S.stock <= 0) return;
-    const k = S.stock - 1;
-    S.stock--;
+    let k = -1;
+    for (let i = RAILS.length - 1; i >= 0; i--) if (S.loaded[i] && !S.lost[i]) { k = i; break; }
+    if (k < 0) return;
+    S.loaded[k] = false;
     const p = RAILS[k].clone().applyQuaternion(ac.quat).add(ac.pos);
     const obj = proto.clone(true); scene.add(obj);
     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);
@@ -612,13 +624,13 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
         e.v.y += dt * 9 * k;                                   // hot gas rises as it slows
         const c = e.soot ? SOOT : fireRamp(e.burn ? 0.1 + k * 0.9 : k);
         const alpha = k < 0.6 ? 0.95 : 0.95 * (1 - (k - 0.6) / 0.4);
-        smoke.push(e.p, null, c[0], c[1], c[2], alpha * Math.min(1, e.t * 20), e.s * (0.55 + 1.3 * Math.sqrt(k)), e.seed);
+        smoke.push(e.p, null, c[0], c[1], c[2], alpha * Math.min(1, e.t * 20), e.s * (e.bloom ? 0.8 + 3.5 * k : 0.55 + 1.3 * Math.sqrt(k)), e.seed);
       } else if (e.kind === 'fire') {
         glow.push(e.p, null, 1.0, 0.75, 0.45, 3.5 * (1 - k), e.s * (0.6 + k * 0.6), 0.3);
       } else if (e.kind === 'smoke') {
         if (e.rise) e.v.y += dt * 0.6;
-        const g = e.dark ? 0.055 + 0.06 * e.seed : 0.42 + 0.1 * e.seed;     // dark sooty grey, with some near-black
-        const grow = e.spread ? 0.7 + 2.6 * (1 - Math.exp(-e.t * 1.2)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
+        const g = e.dust ? 0.48 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.42 + 0.1 * e.seed;     // dark sooty grey, with some near-black
+        const grow = e.spread ? 0.8 + 7 * (1 - Math.exp(-e.t * 0.9)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
         smoke.push(e.p, null, g * 1.08, g, g * 0.92, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow, e.seed);
       } else if (e.kind === 'flame') {
         glow.push(e.p, null, 1.0, 0.3 + 0.25 * (1 - k), 0.03, 0.75 * (1 - k), e.s * (0.8 + k * 0.8), Math.random());
@@ -630,8 +642,6 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       } else glow.push(e.p, null, 1.0, 0.85, 0.55, 3.0 * (1 - k), e.s, 0.5);
     }
     S.fx = S.fx.filter(e => e.t < e.life);
-    // drone afterburner glow so it reads at a distance
-    glow.end(); smoke.end(cam);
     trails.update(now, cam);
     // the old end of each missile trail turns into billowing cloud: lumpy, self-shaded puffs along the path
     for (const t of trails.list) {
@@ -646,6 +656,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
         smoke.push(trails.pointAt(t, k, now, tmpA), null, tone, tone, tone * 0.98, op, grow * (0.85 + 0.3 * Math.sin(p.d * 0.9 + t.seed)), (p.d * 0.0137 + t.seed) % 1);
       }
     }
+    glow.end(); smoke.end(cam);
   }
 
   return {
@@ -655,7 +666,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       S.firing = on;
     },
     select(k) { S.selected = k; S.lock = 0; },
-    rearm() { S.stock = cfg.missiles; S.firing = false; },
+    rearm() { S.loaded.fill(true); S.firing = false; },
     explode,   // (used by the dev tests)
     step, render,
   };
