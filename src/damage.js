@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // Damage model shared by every aircraft: the airframe is cut into parts that take hits and break off.
 // Losing parts degrades the jet (reduced roll, lost yaw authority, slow oscillation) but never makes it
-// unflyable; losing the nose or a wing root is a kill.
+// unflyable; losing a wing root is a kill. A lost nose is survivable (and doesn't burn while still flying).
 //
 // Regions are in the jet model's own coordinates (+X is the left wing, +Z the nose).
 export function classify(p) {
@@ -16,7 +16,7 @@ export function classify(p) {
 }
 
 export const PART_HP = { nose: 8, fin: 7, wingOuterL: 6, wingOuterR: 6, wingInnerL: 12, wingInnerR: 12, stabL: 5, stabR: 5 };
-export const FATAL = ['nose', 'wingInnerL', 'wingInnerR'];
+export const FATAL = ['wingInnerL', 'wingInnerR'];   // a lost nose is survivable
 const BODY_HP = 40;
 
 // where each part tears off the airframe (model space): the boundary of its region, at the part's own height/depth
@@ -135,8 +135,10 @@ export class Damage {
       const outer = this.parts['wingOuter' + name.slice(-1)];
       if (outer && !outer.broken) { outer.broken = true; this.model.updateMatrixWorld(true); o.attach(outer.obj); }
     }
-    const burns = name !== 'nose';                 // a lost nose doesn't burn, on the jet or as a piece
-    if (burns) this.fires.push(part.breakAt.clone());
+    // while the jet can still fly only torn wing sections (fuel) burn, and modestly; fin, stabilators and nose
+    // don't burn at all. Once it's going down, every break burns fully (see update).
+    const burns = name.startsWith('wing') || this.dead;
+    this.fires.push({ at: part.breakAt.clone(), wing: name.startsWith('wing') });
     const edge = part.breakAt.clone().sub(part.local.elements.length ? new THREE.Vector3().setFromMatrixPosition(part.local) : o.position);   // torn edge, relative to the piece
     o.updateWorldMatrix(true, true);
     this.scene.attach(o);
@@ -184,9 +186,12 @@ export class Damage {
     }
     this.debris = this.debris.filter(d => { if (d.t > 40) { d.obj.removeFromParent(); return false; } return true; });
     // break points on the airframe keep burning
+    const dead = this.dead;
     for (const f of this.fires) {
-      const w = this.model.localToWorld(f.clone());
-      this.emit('smoke', w, null, f); this.emit('flame', w, null, f);
+      if (!dead && !f.wing) continue;                        // flyable: only wing breaks burn
+      const w = this.model.localToWorld(f.at.clone());
+      this.emit('smoke', w, null, f);
+      if (dead || Math.random() < 0.35) this.emit('flame', w, null, f);   // flyable: a modest fire, not a blaze
     }
   }
 }
