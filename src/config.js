@@ -82,8 +82,8 @@ export const INSTRUCTOR = {
   rollGain: 3.2,
   rollDamp: 0.3,
   levelGain: 2.0,         // how hard it levels the wings when the target is dead ahead
-  levelAngle: 3,          // deg off target below which it only levels the wings
-  bankAngle: 14,           // deg off target above which it fully banks toward the target
+  levelAngle: 1.2,        // deg off target below which it only levels the wings
+  bankAngle: 7,            // deg off target above which it fully banks toward the target
   pushAngle: 12,          // targets below and closer than this are reached by pushing, not rolling over
   maxG: 9,                // game limit, between the real jet's 7.33 operating and ~11 ultimate
   maxNegG: 3,
@@ -91,7 +91,10 @@ export const INSTRUCTOR = {
   pitchLag: 0.07,         // s for each control to follow its command (smoothness)
   rollLag: 0.06,
   yawLag: 0.1,
-  aimSmooth: 0.06,        // s low-pass on the mouse aim the autopilot chases         // s for controls to follow a command (smooths jitter)
+  aimSmooth: 0.06,        // s low-pass on the mouse aim the autopilot chases
+  rollSmooth: 0.08,       // s low-pass on the bank the autopilot wants
+  pullAfterRoll: 15,      // deg: full pull only once the lift vector is this close to the target
+  holdPull: 0.12,         // stick it keeps while still rolling toward the target         // s for controls to follow a command (smooths jitter)
   maxAoA: 20,             // deg
 };
 
@@ -139,7 +142,7 @@ export const WEAPONS = {
   gunSpread: 0.0012,      // rad
   tracerLength: 24,       // m
   tracerWidth: 0.2,       // m, close up
-  tracerMinPixels: 0.0026, // keeps far tracers at least ~2-3 px wide
+  tracerMinPixels: 0.0032, // keeps far tracers at least a few px wide
   roundLife: 3,           // s
   missiles: 6,            // one per station: 2 wingtips + 4 pylons, no reload
   seekerFov: 24,          // deg, full width of the seeker circle

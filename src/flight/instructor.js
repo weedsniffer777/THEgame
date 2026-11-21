@@ -46,7 +46,11 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     const below = smooth(0, 0.6, -_t.y / Math.max(Math.sin(off), 1e-4));
     const push = below * (1 - smooth(cfg.pushAngle * 0.6 * DEG, cfg.pushAngle * DEG, off));
     const bank = smooth(cfg.levelAngle * DEG, cfg.bankAngle * DEG, off) * (1 - push);
-    const rollErr = level * (1 - bank) + toTarget * bank;
+    // the bank the autopilot wants is low-passed so it doesn't jump around as the nose and target move
+    const rawRoll = level * (1 - bank) + toTarget * bank;
+    if (ac._rollErr === undefined || keys.active) ac._rollErr = rawRoll;
+    ac._rollErr += wrap(rawRoll - ac._rollErr) * (1 - Math.exp(-dt / cfg.rollSmooth));
+    const rollErr = wrap(ac._rollErr);
 
     // PD on the aim error itself: the derivative term sees the nose closing on the target and eases off
     // before it gets there, so the nose settles instead of bobbing past it
@@ -55,9 +59,11 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     m.dp += ((pitchErr - m.pe) / dt - m.dp) * lp; m.dy += ((yawErr - m.ye) / dt - m.dy) * lp;
     m.pe = pitchErr; m.ye = yawErr;
     pitch = cfg.pitchGain * (pitchErr + cfg.pitchLead * m.dp);
-    // no ballooning: while the lift vector still points away from the target, roll first and hold the pull back
-    const aligned = Math.max(Math.cos(rollErr), 0);
-    if (pitch > 0) pitch *= 1 - bank * (1 - aligned * aligned);
+    // roll first, then pull: until the lift vector points within ~15 deg of the target the pull is held back
+    // (only enough to keep the nose up), so the jet never balloons while it rolls
+    const aligned = smooth(Math.cos(cfg.pullAfterRoll * 3 * DEG), Math.cos(cfg.pullAfterRoll * DEG), Math.cos(rollErr));
+    const bigTurn = smooth(8 * DEG, 20 * DEG, off);   // small corrections are just flown, no roll-first hold
+    if (pitch > 0) pitch = THREE.MathUtils.lerp(pitch, Math.min(pitch, cfg.holdPull), bank * (1 - aligned) * bigTurn);
     yaw = clamp(cfg.yawGain * (yawErr + cfg.yawLead * m.dy), -1, 1) * (1 - 0.6 * bank);
     // near the target the direction to it swings fast as the nose passes, so roll gently there
     const rollLim = 0.25 + 0.75 * smooth(cfg.levelAngle * DEG, cfg.bankAngle * 2 * DEG, off);

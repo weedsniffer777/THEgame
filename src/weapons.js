@@ -383,7 +383,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
   // ---------------- per physics step
   function step(dt, now) {
     flyDrone(dt);
-    const fwd = _v.set(0, 0, 1).applyQuaternion(ac.quat);
+    const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);   // own vector: _v/_w are reused below
     // guns
     S.flash[0] = Math.max(0, S.flash[0] - dt); S.flash[1] = Math.max(0, S.flash[1] - dt);
     if (S.firing && S.selected === 1) {
@@ -439,7 +439,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
         const maxTurn = cfg.missileMaxG * G / Math.max(speed, 1) * dt;
         const ang = Math.acos(THREE.MathUtils.clamp(m.dir.dot(want), -1, 1));
         if (ang > 1e-4) m.dir.lerp(want, Math.min(1, maxTurn / ang)).normalize();
-        m.v.copy(m.dir).multiplyScalar(m.v.length());
+        const sp = m.v.length();                      // (read the speed before overwriting the vector)
+        m.v.copy(m.dir).multiplyScalar(sp);
         // fuse only arms once well clear of the launching jet; missiles never damage the player
         const armed = m.t > 0.5 && m.p.distanceTo(ac.pos) > 150;
         if (armed && !m.target.falling && m.p.distanceTo(m.target.pos) < cfg.proximity) {
@@ -481,7 +482,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain) {
       const tail = tmpB.copy(r.v).normalize().multiplyScalar(-back).add(head);
       const w = Math.max(cfg.tracerWidth, head.distanceTo(cam) * cfg.tracerMinPixels);
       const fade = r.t > cfg.roundLife - 0.4 ? (cfg.roundLife - r.t) / 0.4 : 1;
-      glow.push(head, tail, 1.0, 0.62, 0.28, 1.1 * fade, w);
+      glow.push(head, tail, 1.0, 0.32, 0.14, 1.1 * fade, w);                                       // red-orange streak
+      // a bright glowing head on every round, so tracers read from any angle, including straight from behind
+      glow.push(head, null, 1.0, 0.5, 0.3, 1.25 * fade, Math.max(0.3, head.distanceTo(cam) * cfg.tracerMinPixels * 1.8), 0.5);
     }
     // muzzle flashes at the gun ports
     for (let k = 0; k < 2; k++) if (S.flash[k] > 0) {

@@ -1,12 +1,8 @@
 // Weapon panel (bottom right): one row per weapon, key hint, white silhouette, and what's left.
 // Guns: infinite ammo, so an infinity sign. Missiles: one silhouette per missile; spent ones go hollow.
 
-// side view of the short-range missile, nose to the right (2.9 m long, 0.13 m body, canards and finned tail)
-const MISSILE = `<svg viewBox="0 0 100 14" width="60" height="9" aria-hidden="true"><path d="
-  M5 5.4 H88 Q95 5.6 98.5 7 Q95 8.4 88 8.6 H5 Z
-  M77 5.4 L85.5 5.4 L82.5 0.9 Z  M77 8.6 L85.5 8.6 L82.5 13.1 Z
-  M5.5 5.4 L17 5.4 L12.5 0.4 L6.5 0.4 Z  M5.5 8.6 L17 8.6 L12.5 13.6 L6.5 13.6 Z
-  M2.5 5.9 H5 V8.1 H2.5 Z"/></svg>`;
+// side view traced from the missile model itself (triangles projected sideways and rasterised), nose to the right
+const MISSILE = `<svg viewBox="0 0 200 34" width="60" height="10.2" aria-hidden="true"><path d="M137 0h6v1h-6zM1 1h28v1h-28zM137 1h7v1h-7zM1 2h29v1h-29zM137 2h7v1h-7zM1 3h30v1h-30zM137 3h7v1h-7zM1 4h31v1h-31zM138 4h7v1h-7zM1 5h32v1h-32zM138 5h8v1h-8zM1 6h33v1h-33zM138 6h10v1h-10zM1 7h34v1h-34zM138 7h13v1h-13zM1 8h35v1h-35zM138 8h15v1h-15zM1 9h36v1h-36zM138 9h17v1h-17zM1 10h37v1h-37zM139 10h19v1h-19zM1 11h38v1h-38zM139 11h21v1h-21zM1 12h39v1h-39zM139 12h24v1h-24zM0 13h192v1h-192zM0 14h198v1h-198zM0 15h199v1h-199zM0 16h200v1h-200zM0 17h200v1h-200zM0 18h199v1h-199zM0 19h198v1h-198zM1 20h188v1h-188zM1 21h39v1h-39zM139 21h22v1h-22zM1 22h38v1h-38zM139 22h20v1h-20zM1 23h37v1h-37zM138 23h19v1h-19zM1 24h36v1h-36zM138 24h16v1h-16zM1 25h35v1h-35zM138 25h14v1h-14zM1 26h34v1h-34zM138 26h12v1h-12zM1 27h33v1h-33zM138 27h9v1h-9zM1 28h32v1h-32zM138 28h7v1h-7zM1 29h31v1h-31zM138 29h6v1h-6zM1 30h30v1h-30zM137 30h7v1h-7zM1 31h29v1h-29zM137 31h7v1h-7zM137 32h7v1h-7zM137 33h6v1h-6z"/></svg>`;
 
 // side view of the 20 mm revolver cannon: feed and receiver box, gas housing, drum, collars, long barrel
 const GUN = `<svg viewBox="0 0 124 22" width="112" height="20" aria-hidden="true"><path fill-rule="evenodd" d="
