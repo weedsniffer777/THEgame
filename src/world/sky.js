@@ -65,11 +65,12 @@ export function createSky() {
         vec3 col = mix(uHorizon, uZenith, pow(up, 0.5));
         col = mix(col, uFogColor, exp(-max(rd.y, 0.0) * 30.0) * 0.6);     // haze band right at the horizon
         if (rd.y < 0.0) col = uFogColor;
-        // the sun: 0.53 degrees across like the real one, with a tight glare and a soft forward-scattering glow
+        // the sun: drawn about 3x its real 0.53 deg (a real-size disc reads as a dot on screen, games do the same),
+        // with a bright glare that stands in for camera bloom and a soft forward-scattering glow around it
         float c = dot(rd, uSunDir);
-        float disc = smoothstep(0.99998930 - 0.0000025, 0.99998930 + 0.0000025, c);
         float ang = acos(clamp(c, -1.0, 1.0));
-        col += uSunGlow * (disc * 60.0 + exp(-ang * 160.0) * 1.2 + exp(-ang * 14.0) * 0.12);
+        float disc = 1.0 - smoothstep(0.75, 0.85, degrees(ang));
+        col += uSunGlow * (disc * 40.0 + exp(-ang * 45.0) * 2.2 + exp(-ang * 10.0) * 0.3);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
