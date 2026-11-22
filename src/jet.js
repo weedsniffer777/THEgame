@@ -199,28 +199,6 @@ function setDoors(D, airbrake, gear, canopy) {
 const WING_UNDER = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.41);     // keeps y < 1.41 (model space)
 const legClip = new THREE.Plane();
 
-// Compressor faces, seen down the intake ducts. The model's ducts end in a flat wall textured with a slice of the
-// wheel texture; the texture atlas does hold a proper compressor face (a round disc near pixel 997,468), so that
-// image is shown on a round disc in front of the wall, over a dark backing that fills the duct's tall oval, and is
-// spun by turning its texture about the disc centre. Each rendered frame it turns a share of the blade gap set by
-// engine power (windmilling with the engine off), which reads as forward spin at any frame rate.
-const FANS = [new THREE.Vector3(0.77, 1.55, 0.34), new THREE.Vector3(-0.77, 1.55, 0.34)];
-const FAN_PX = { cx: 997, cy: 468, r: 19, size: 1024 };
-function fan(atlas) {
-  const g = new THREE.Group();
-  const back = new THREE.Mesh(new THREE.CircleGeometry(0.28, 32), new THREE.MeshBasicMaterial({ color: 0x07080a }));
-  back.scale.set(0.46, 0.95, 1); back.position.z = -0.004;
-  const tex = atlas.clone(); tex.needsUpdate = true;
-  const { cx, cy, r, size } = FAN_PX;
-  // (with a rotation centre set, the offset places the centre of the crop: uv' = repeat * (uv - 0.5) + 0.5 + offset)
-  tex.repeat.set(2 * r / size, (tex.flipY ? 2 : -2) * r / size);
-  tex.offset.set(cx / size - 0.5, (tex.flipY ? 1 - cy / size : cy / size) - 0.5);
-  tex.center.set(0.5, 0.5);
-  const face = new THREE.Mesh(new THREE.CircleGeometry(0.115, 40), new THREE.MeshBasicMaterial({ map: tex, color: 0x9a9a9a }));
-  g.add(back, face);
-  g.userData.tex = tex;
-  return g;
-}
 
 // The leading-edge flaps are the model's own Object057 (left) and Object055 (right). Each droops about its rear
 // edge (a swept hinge line read from the mesh itself) and is cut where the wing splits into inner and outer
@@ -316,8 +294,6 @@ export async function loadJet(url, cfg) {
   // the burner glow sits in the nozzles, which belong to the rear fuselage: it goes with that part if it breaks off
   const tailPart = model.getObjectByName('part:tail');
   const flames = NOZZLES.map(p => { const f = afterburner(cfg.afterburner); f.group.position.copy(p); model.add(f.group); model.updateMatrixWorld(true); tailPart?.attach(f.group); return f; });
-  let atlas = null; model.traverse(o => { if (!atlas && o.isMesh && o.material.map && o.material.name === 'Northrop_F-5') atlas = o.material.map; });
-  const fans = atlas ? FANS.map(p => { const f = fan(atlas); f.position.copy(p); model.add(f); return f; }) : [];
   model.position.copy(CG).negate();
   const object = new THREE.Group().add(model);
 
@@ -337,7 +313,7 @@ export async function loadJet(url, cfg) {
       const i = ac.input;
       s.aileronL.rotation.x = -i.roll * 18 * DEG;
       s.aileronR.rotation.x = i.roll * 18 * DEG;
-      s.stabL.rotation.x = s.stabR.rotation.x = i.pitch * 14 * DEG;
+      s.stabL.rotation.x = s.stabR.rotation.x = i.pitch * (i.pitch > 0 ? 17 : 5) * DEG;   // stabilators: 17 deg trailing edge up, 5 down
       s.rudder.rotation.y = i.yaw * 20 * DEG;
       object.updateMatrixWorld(true);
       legClip.copy(WING_UNDER).applyMatrix4(model.matrixWorld);
@@ -357,8 +333,6 @@ export async function loadJet(url, cfg) {
       const ab = THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1);
       const mil = THREE.MathUtils.clamp(ac.engine, 0, 1), t = time;
       for (const f of flames) f.update(mil, ab, t);
-      const step = 0.26 * (0.2 + 0.8 * Math.min(ac.engine, 1));          // rad per frame: ~15 deg at full power (the face's pattern repeats only a few times per turn)
-      if (!frozen) for (const f of fans) f.userData.tex.rotation = (f.userData.tex.rotation + step) % (2 * Math.PI);
     },
   };
 }

@@ -777,7 +777,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // canopy. Seen through, it is nearly clear; toward its silhouette (grazing view) it thickens, like a thin sheet of
   // mist. Soft noise keeps it from looking like solid geometry; both rims fade out.
   const machShell = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.85, 3.9, 5.2, 64, 8, true).rotateX(Math.PI / 2).translate(0, 1.72, -1.2),   // (narrow end forward)
+    new THREE.CylinderGeometry(0.95, 4.5, 6.0, 64, 8, true).rotateX(Math.PI / 2).translate(0, 1.72, -1.5),   // (narrow end forward)
     new THREE.ShaderMaterial({
       uniforms: { uK: { value: 0 }, uTime: { value: 0 } },
       vertexShader: `varying vec3 vN; varying vec3 vV; varying vec2 vUv;
@@ -844,8 +844,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     // vapour collar ("Mach cone"): transonic, strongest just under Mach 1. A few faint flickering puffs as it starts,
     // then a smooth translucent shell (machShell) that takes over as it builds
     // builds from M 0.9 as flickering puffs, peaks from M 0.99 to 1.01 as a smooth shell, gone soon after
-    const M = ac.t.mach || 0, km = sm(0.9, 0.99, M) * (1 - sm(1.01, 1.04, M)) * (0.4 + 0.6 * humid);
-    const peak = sm(0.975, 0.99, M) * (1 - sm(1.01, 1.03, M));
+    const M = ac.t.mach || 0, km = sm(0.95, 0.985, M) * (1 - sm(1.012, 1.025, M)) * (0.4 + 0.6 * humid);
+    const peak = sm(0.982, 0.989, M) * (1 - sm(1.011, 1.018, M));   // snaps in and out
     machShell.material.uniforms.uK.value = km * peak;
     machShell.material.uniforms.uTime.value = S.simT || 0;
     machShell.visible = machShell.material.uniforms.uK.value > 0.01;
@@ -871,7 +871,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     // propellers (contra-rotating, 4 blades): each rendered frame they step a fixed share of the gap between blades,
     // 1/8: small enough that the eye sees continuous motion (bigger steps read as stutter or a backwards crawl).
     // Going down, the engines wind down and they turn slower.
-    if (dt > 0) for (const d of drones) if (d.props.length && d.obj.visible) for (const p of d.props) p.rotation.x += p.userData.prop * (Math.PI / 2) * (d.falling ? 0.05 : 0.125);
+    if (dt > 0) for (const d of drones) if (d.props.length && d.obj.visible) for (const p of d.props) p.rotateX(p.userData.prop * (Math.PI / 2) * (d.falling ? 0.05 : 0.125));   // (about the pivot's own axis: it carries a turn from being re-parented)
     const cam = camera.position;
     // tracers
     tracers.begin(renderer);

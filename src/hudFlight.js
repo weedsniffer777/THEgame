@@ -154,13 +154,13 @@ export function createFlightHud(root) {
     const T = L.thr, lever = (v) => v <= 1 ? T.ty0 + (T.mil - T.ty0) * v : T.mil + (T.ty1 - T.mil) * Math.min((v - 1) / 0.1, 1);
     const ly = lever(ac.throttle);
     thr.chev.setAttribute('d', `M${T.tx + 3} ${ly}l8 -6v12z`);
-    thr.chev.classList.toggle('ab', ac.throttle > 1);
+    thr.chev.classList.toggle('ab', ac.throttle >= 1.1);
     // full dry reads 99% (so 100+ means burner); holding for the burner spools it up toward 110, letting go early
     // runs it back down
-    const want = ac.throttle > 1 ? 110 : ac.throttle >= 1 && ac.abHold > 0 ? 99 + 11 * Math.min(ac.abHold, 1) : 20 + 79 * Math.max(0, ac.throttle);
-    shownPct = want >= shownPct || ac.throttle > 1 ? want : Math.max(want, shownPct - 60 * (1 / 60));
+    const want = ac.throttle > 1 ? 99 + 11 * Math.min((ac.throttle - 1) / 0.1, 1) : 20 + 79 * Math.max(0, ac.throttle);
+    shownPct = want >= shownPct ? want : Math.max(want, shownPct - 60 * (1 / 60));
     const pct = Math.round(shownPct);
-    thr.txt.textContent = `${pct}%`; thr.txt.classList.toggle('ab', ac.throttle > 1);
+    thr.txt.textContent = `${pct}%`; thr.txt.classList.toggle('ab', ac.throttle >= 1.1);
     const ey = lever(ac.engine);
     thr.eng.setAttribute('x', T.tx + 1); thr.eng.setAttribute('width', 2); thr.eng.setAttribute('y', Math.min(ey, T.ty0)); thr.eng.setAttribute('height', Math.max(0, T.ty0 - ey));
     // (pitch marks removed for now)

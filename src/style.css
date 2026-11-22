@@ -126,7 +126,7 @@ body.clean #perf { display: none; }
 #fhud .eng { fill: rgba(236,246,238,0.55); }
 body.touch #fhud .thr { display: none; }
 #throttle, #gauges { display: none !important; }
-body.lost #fhud, body.viewing #fhud { display: none; }
+body.viewing #fhud { display: none; }
 
 /* pause menu: the game blurs behind a slanted panel sliding in from the left; the HUD hides */
 #pause { position: fixed; inset: 0; z-index: 40; display: none; }

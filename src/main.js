@@ -155,7 +155,7 @@ function crash(ditched = false, airborne = false) {   // ditched: worn out after
     deathCam.yaw = Math.atan2(o.x, o.z); deathCam.pitch = Math.asin(THREE.MathUtils.clamp(o.y / L, -1, 1)); deathCam.dist = L;
   }
   jet.damage.doomed = true;                                          // every fire on it burns fully again
-  wreck.inWater = terrain.isWater(ac.pos.x, ac.pos.z);
+  wreck.inWater = terrain.isWater(ac.pos.x, ac.pos.z) && ac.pos.y < terrain.heightAt(ac.pos.x, ac.pos.z) + 3;   // (over a lake but still high up: it falls first)
   if (airborne) weapons.explode(ac.pos, ac.vel, 1.0); else weapons.crash(ac.pos, ac.vel, wreck.inWater, ditched);
   wreck.pos.copy(ac.pos); wreck.vel.copy(ac.vel); wreck.quat.copy(ac.quat); wreck.key = {};
   wreck.spin.set(-ac.q, -ac.r, ac.p).applyQuaternion(ac.quat);      // keeps the rotation it had (world axes)
@@ -258,18 +258,24 @@ function physics(dt) {
   // Tab (or X) up, Shift (or Z) down
   const thUp = keys.has('Tab') || keys.has('KeyX'), thDown = keys.has('ShiftLeft') || keys.has('ShiftRight') || keys.has('KeyZ');
   const th = (thUp ? 1 : 0) - (thDown ? 1 : 0);
-  if (th > 0 && ac.throttle >= 1) { abHold += dt; if (abHold > 0.25) ac.throttle = 1.1; }
-  else { abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 1.2 * dt, 0, 1); }
-  ac.abHold = abHold / 0.25;   // (the HUD spools the percentage toward the burner while it's held)
+  // holding throttle-up at full dry power pushes the lever into the burner over ~0.25 s (the burner lights and
+  // grows as it goes); let go before the end and it drops back to full dry
+  if (th > 0 && ac.throttle >= 1) { if (ac.throttle < 1.1) { abHold += dt; ac.throttle = Math.min(1.1, 1 + 0.1 * abHold / 0.25); } }
+  else { if (ac.throttle > 1 && ac.throttle < 1.1) ac.throttle = 1; abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 1.2 * dt, 0, 1); }
   const kb = { pitch: axis('KeyW', 'KeyS'), roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE') };
   kb.active = !!(kb.pitch || kb.roll || kb.yaw);   // any flying key takes over from mouse aim (the camera eases back after)
   if (kb.active) recentre = 0.45; else if (recentre > 0) recentre -= dt;
+  // letting go of the keys: the camera only eases back onto the nose if it was roughly looking along it (not when it
+  // has been turned to look at something else)
+  if (manual && !kb.active && rig.fwd.angleTo(_n.set(0, 0, 1).applyQuaternion(ac.quat)) > 25 * Math.PI / 180) recentre = 0;
   manual = kb.active;
   aimPoint.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance);
   const lost = jet.damage.dead;
-  if (lost) {                                                         // plane lost: no control, it rolls off and goes in
-    ac.input.pitch *= 0.97; ac.input.roll = 0.6; ac.input.yaw = 0.2; ac.throttle = 0;
-    // ...and comes apart in the air: a piece at a time, the fuselage failing with it, until nothing is left flying
+  if (lost) {                                                         // critically damaged: still flown (what's left of it)...
+    const maxG = INSTRUCTOR.maxG; INSTRUCTOR.maxG = maxG * (1 - 0.4 * ac.gear);
+    instruct(ac, aimPoint, INSTRUCTOR, kb, dt);
+    INSTRUCTOR.maxG = maxG;
+    // ...but it comes apart in the air: a piece at a time, the fuselage failing with it, until nothing is left flying
     breakupT -= dt;
     if (breakupT <= 0) {
       breakupT = 0.45 + Math.random() * 0.8;
@@ -486,8 +492,8 @@ resize();
 let acc = 0, last = performance.now(), gameT = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1); last = now;
-  // paused: every effect stands still (the game clock stops); the cinematic camera keeps it running
-  const frozen = started && !running && !viewer.on, vdt = frozen ? 0 : dt;
+  // paused or in the cinematic camera: every effect stands still (the game clock stops)
+  const frozen = (started && !running) || viewer.on, vdt = frozen ? 0 : dt;   // (the cinematic camera freezes the moment too)
   gameT += vdt;
   if (models.on) { models.render(); requestAnimationFrame(frame); return; }   // dev model viewer: its own static scene
   if (running) {

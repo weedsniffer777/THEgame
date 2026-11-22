@@ -155,7 +155,7 @@ export const WEAPONS = {
   tracerWidthPx: 3.5,       // px half-width of a tracer up close
   tracerMinPx: 1.5,         // px half-width far away
   gunRange: 2000,         // m: gun solution and aim assist only within this
-  roundLife: 1.7,         // s: rounds (muzzle speed + our own) cover about 2 km
+  roundLife: 2.9,         // s: rounds (muzzle speed + our own) reach about 2 nm (3.7 km); the gun solution still shows from gunRange
   missiles: 6,            // one per station: 2 wingtips + 4 pylons, no reload
   seekerFov: 24,          // deg, full width of the seeker circle
   lockTime: 0.8,          // s on target to lock
