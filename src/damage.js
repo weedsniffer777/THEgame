@@ -133,7 +133,9 @@ function cutPlane(name, R) {
 function addBulkheads(model, parts, R) {
   model.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
-  const band = Math.max(0.2, (R.jag || 0) * 1.2), v = new THREE.Vector3();
+  // the plate goes a little behind the torn zone, where the airframe is still whole all the way round (the jagged cut
+  // reaches up to 'jag' either side of the region line), so it never hangs off shards at the ragged edge
+  const depth = (R.jag || 0) + 0.15, band = 0.15, v = new THREE.Vector3();
   for (const [name, pivot] of Object.entries(parts)) {
     const cp = cutPlane(name, R); if (!cp) continue;
     // structure that stays: everything outside this part (and outside anything hung on it)
@@ -147,7 +149,7 @@ function addBulkheads(model, parts, R) {
       for (let k = 0; k < n; k++) {
         v.fromBufferAttribute(pos, idx ? idx[k] : k).applyMatrix4(M);
         const d = v.dot(cp.n) - cp.d;
-        if (d < -band || d > 0.1 || !cp.keep(v)) continue;
+        if (Math.abs(d + depth) > band || !cp.keep(v)) continue;
         pts.push(v.clone());
       }
     });
@@ -163,9 +165,9 @@ function addBulkheads(model, parts, R) {
     for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (hi.length >= 2 && cross(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
     const hull = lo.slice(0, -1).concat(hi.slice(0, -1));
     if (hull.length < 3) continue;
-    const off = cp.d - 0.12, base = cp.n.clone().multiplyScalar(off);   // tucked well inside the cut
+    const off = cp.d - depth, base = cp.n.clone().multiplyScalar(off);
     const cx = hull.reduce((s, p) => s + p[0], 0) / hull.length, cy = hull.reduce((s, p) => s + p[1], 0) / hull.length;
-    for (const p of hull) { p[0] = cx + (p[0] - cx) * 0.86; p[1] = cy + (p[1] - cy) * 0.86; }   // a bit inside the skin's outline
+    for (const p of hull) { p[0] = cx + (p[0] - cx) * 0.95; p[1] = cy + (p[1] - cy) * 0.95; }   // just inside the skin
     const at = (x, y) => base.clone().addScaledVector(a, x).addScaledVector(b, y);
     const verts = [];
     for (let i = 0; i < hull.length; i++) {
