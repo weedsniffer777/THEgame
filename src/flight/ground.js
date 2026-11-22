@@ -49,6 +49,7 @@ export function groundContact(ac, terrain, damage, dt, brake) {
       water = true;
       const sp = _vc.length(), angle = Math.asin(Math.min(1, -vn / Math.max(sp, 1)));
       if (vn < -6 || angle > 0.21 || sp > 110 || part === 'canopy') { crash = true; return; }
+      damage.bodyHp -= Math.max(0, -vn - 0.5) * 1.5;                // the hit itself hurts
     }
     // what the hit does
     if (vn < -22 || (part === 'canopy' && _vc.length() > 15)) crash = true;
@@ -101,6 +102,11 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     }
   }
   ac.onGround = touching > 0;
-  if (water && !crash && ac.vel.length() < 8) crash = true;          // stopped on a lake: it settles and sinks
+  // on a lake the airframe keeps taking water: slowly while it skims, faster as it slows, until it's wrecked (then
+  // main.js calls it a crash and it sinks, in one piece)
+  if (water && !crash) {
+    const sp = ac.vel.length();
+    damage.bodyHp -= (2 + 22 * (1 - Math.min(sp, 70) / 70)) * dt;
+  }
   return { touching, wheelsDown, crash, water };
 }

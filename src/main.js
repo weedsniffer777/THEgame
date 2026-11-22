@@ -159,11 +159,11 @@ function crash() {
   wreck.spin.set(-ac.q, -ac.r, ac.p).applyQuaternion(ac.quat);      // keeps the rotation it had (world axes)
   // hitting the ground tears off everything still attached (the rear fuselage can snap off too, on a hard
   // enough contact: see wreckStep)
-  for (const n of Object.keys(jet.damage.parts)) if (n !== 'tail') jet.damage.breakPart(n, ac.vel);
+  if (!wreck.inWater) for (const n of Object.keys(jet.damage.parts)) if (n !== 'tail') jet.damage.breakPart(n, ac.vel);   // (into a lake it sinks in one piece)
   {
     const x = ac.pos.x, z = ac.pos.z;
     _wn.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
-    if (ac.vel.dot(_wn) < -20) jet.damage.breakPart('tail', ac.vel);   // into the ground hard: the fuselage snaps behind the wing
+    if (!wreck.inWater && ac.vel.dot(_wn) < -20) jet.damage.breakPart('tail', ac.vel);   // into the ground hard: the fuselage snaps behind the wing
   }
   if (wreck.inWater) jet.damage.quench();                              // into a lake: the water puts every fire out
   ac.throttle = ac.engine = 0;
