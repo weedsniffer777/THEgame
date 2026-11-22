@@ -86,6 +86,7 @@ export function splitAirframe(model, surfaces = {}, R = REGIONS.lightFighter, dr
     pivot.position.copy(centres[name]).divideScalar(counts[name]);
     for (const { geo, material, M } of list) {
       const mesh = new THREE.Mesh(geo, material);
+      mesh.userData.hullPiece = true;                     // (a piece of the airframe skin, not something hung on it)
       mesh.matrixAutoUpdate = false;
       mesh.matrix.copy(M).premultiply(new THREE.Matrix4().makeTranslation(-pivot.position.x, -pivot.position.y, -pivot.position.z));
       pivot.add(mesh);
@@ -96,7 +97,7 @@ export function splitAirframe(model, surfaces = {}, R = REGIONS.lightFighter, dr
   // moving surfaces ride on their part
   const ride = (obj, name) => { if (obj && parts[name]) { model.updateMatrixWorld(true); parts[name].attach(obj); } };
   ride(surfaces.aileronL, 'wingOuterL'); ride(surfaces.aileronR, 'wingOuterR');
-  ride(model.getObjectByName('Object028'), 'wingInnerL'); ride(model.getObjectByName('Object058'), 'wingInnerR');
+  ride(surfaces.flapL || model.getObjectByName('Object028'), 'wingInnerL'); ride(surfaces.flapR || model.getObjectByName('Object058'), 'wingInnerR');
   ride(surfaces.rudder, 'fin');
   // the all-moving stabilators are parts on their own
   for (const [k, name] of [['stabL', 'stabL'], ['stabR', 'stabR']]) {

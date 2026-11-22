@@ -78,7 +78,7 @@ spawn();
 // input
 const keys = new Set();
 let mouseDX = 0, mouseDY = 0, abHold = 0;
-const GAME_KEYS = new Set(['Space', 'Tab', 'ShiftLeft', 'ShiftRight', 'KeyZ', 'KeyX', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyB', 'Digit1', 'Digit2', 'KeyR']);
+const GAME_KEYS = new Set(['Space', 'Tab', 'ShiftLeft', 'ShiftRight', 'KeyZ', 'KeyX', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyB', 'Digit1', 'Digit2', 'KeyR', 'KeyG']);
 addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) e.preventDefault(); keys.add(e.code); if (e.code === 'Backquote') import('./dev.js').then(m => m.toggleDev({ ac, terrain, renderer, spawn })); });
 addEventListener('keyup', e => keys.delete(e.code));
 // weapons: 1 guns, 2 missiles; Space or left mouse fires
@@ -86,6 +86,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Digit1') weapons.select(1);
   if (e.code === 'Digit2') weapons.select(2);
   if (e.code === 'KeyR') weapons.cycleTarget();
+  if (e.code === 'KeyG' && !e.repeat) ac.gearCmd = ac.gearCmd ? 0 : 1;   // landing gear up / down
   if (e.code === 'Space' && running && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
 });
 addEventListener('keyup', e => { if (e.code === 'Space') weapons.setFiring(false); });

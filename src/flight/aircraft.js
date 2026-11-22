@@ -22,6 +22,7 @@ export class Aircraft {
     this.input = { pitch: 0, roll: 0, yaw: 0 };
     this.throttle = 1;                          // 0..1 dry, above 1 = afterburner
     this.airbrake = 0; this.airbrakeCmd = 0;
+    this.gear = 0; this.gearCmd = 0;            // landing gear: 0 up, 1 down (moves over gearTime s)
     this.engine = 1;                            // spooled power, same scale
     this.t = { speed: 0, ias: 0, mach: 0, aoa: 0, beta: 0, g: 1, stall: 0, alt: 0 };
   }
@@ -34,6 +35,7 @@ export class Aircraft {
     this.vel.copy(dir).multiplyScalar(speed);
     this.p = this.q = this.r = 0;
     this.throttle = this.engine = 1;
+    this.gear = this.gearCmd = 0;
   }
 
   liftCoef(alpha) {
@@ -69,6 +71,7 @@ export class Aircraft {
       const cl = this.liftCoef(alpha);
       const wave = c.waveDrag * (smooth(c.machCrit, c.machPeak, mach) - 0.35 * smooth(c.machPeak, c.machPeak + 0.6, mach));
       this.airbrake += Math.sign(this.airbrakeCmd - this.airbrake) * Math.min(Math.abs(this.airbrakeCmd - this.airbrake), c.airbrakeRate * dt);
+      this.gear += Math.sign(this.gearCmd - this.gear) * Math.min(Math.abs(this.gearCmd - this.gear), dt / (c.gearTime || 4));
       // arcade lift: below corner speed the wing is allowed a guaranteed share of the G limit at full AoA
       // (about 4.7 G at 100 kt, 6.5 G at 145 kt, all of it from ~230 kt). The extra lift costs extra drag,
       // so slow, tight turns trade airspeed.
@@ -79,7 +82,7 @@ export class Aircraft {
       const lm = this.damageFx?.liftMul ?? 1;                // missing lifting / stabilising surfaces: less G for a given AoA
       this.liftScale = boost * lm;
       const clEff = cl * boost * lm;
-      const cd = c.cd0 + wave + c.inducedDrag * cl * cl + c.stallDrag * stall + c.airbrakeDrag * this.airbrake
+      const cd = c.cd0 + wave + c.inducedDrag * cl * cl + c.stallDrag * stall + c.airbrakeDrag * this.airbrake + (c.gearDrag || 0) * (this.gear || 0)
         + c.boostDrag * Math.max(0, clEff - cl) * (1 + (c.lowSpeedBleed || 0) * (1 - smooth(c.gFloorStartIAS, c.lowSpeedBleedIAS || 80, ias)) ** 2);
       _lift.crossVectors(_right, vdir).normalize().multiplyScalar(dyn * c.wingArea * clEff);
       _side.set(1, 0, 0).applyQuaternion(this.quat);
