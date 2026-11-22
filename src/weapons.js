@@ -381,12 +381,13 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       pos: new THREE.Vector3(), vel: new THREE.Vector3(), centre: new THREE.Vector3() };
     scene.add(d.obj);
     d.model = d.obj.children[0];
+    d.props = []; d.obj.traverse(o => { if (o.userData.prop) d.props.push(o); });
     d.dmg = new Damage(d.model, scene, terrain, emit);
     drones.push(d);
     placeDrone(d, k);
   }
   function placeDrone(d, k = Math.random() * 8) {
-    d.dmg.repair();
+    d.dmg.repair(); d.spiral = null;
     // a circle somewhere around the player, 3 to 8 km away, at a similar height
     const a = (k / Math.max(drones.length || cfg.drones, 1)) * Math.PI * 2 + Math.random() * 0.6;
     const r = cfg.droneMinDist + Math.random() * (cfg.droneMaxDist - cfg.droneMinDist);
@@ -400,6 +401,37 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function flyDrone(d, dt) {
     d.dmg.update(dt);
     if (!d.alive) { if ((d.respawn -= dt) <= 0) placeDrone(d); return; }
+    // propellers: contra-rotating discs, slowing once the aircraft is going down
+    if (d.props) for (const p of d.props) p.rotation.x += p.userData.prop * dt * (d.falling ? 8 : d.spiral ? 18 : 28);
+    // an outer wing panel gone on an aircraft that can't take it: a slow, unrecoverable roll toward the missing side,
+    // the nose dropping further and further until it goes in
+    if (!d.falling && !d.spiral && d.def.outerWingFatal) {
+      const L = d.dmg.parts.wingOuterL?.broken, R = d.dmg.parts.wingOuterR?.broken;
+      if (L || R) {
+        const f = d.vel.lengthSq() > 1 ? d.vel.clone().normalize() : new THREE.Vector3(0, 0, 1).applyQuaternion(d.obj.quaternion);
+        d.spiral = { side: L ? -1 : 1, bank: 0, fwd: f, speed: Math.max(d.vel.length(), d.speed), t: 0 };
+      }
+    }
+    if (d.spiral) {
+      const s = d.spiral; s.t += dt;
+      s.bank = Math.min(s.bank + dt * (0.12 + 0.05 * s.t), 2.4);                 // rolls further and further
+      const up = new THREE.Vector3(0, 1, 0);
+      const right = new THREE.Vector3().crossVectors(s.fwd, up).normalize();
+      // the tilted lift turns the path toward the low wing and no longer holds the nose up
+      const turn = 9.81 * Math.sin(s.bank) / s.speed * s.side;
+      s.fwd.applyAxisAngle(up, -turn * dt);
+      s.fwd.y -= dt * (0.04 + 0.12 * (1 - Math.cos(s.bank)));
+      s.fwd.y = Math.max(s.fwd.y, -0.95); s.fwd.normalize();
+      s.speed = Math.min(s.speed + dt * 9.81 * Math.max(0, -s.fwd.y) * 0.5, 260);
+      d.vel.copy(s.fwd).multiplyScalar(s.speed);
+      d.pos.addScaledVector(d.vel, dt);
+      _m.lookAt(new THREE.Vector3(), s.fwd.clone().negate(), up);
+      d.obj.quaternion.setFromRotationMatrix(_m).multiply(_q.setFromAxisAngle(_v.set(0, 0, 1), s.bank * s.side));
+      d.obj.position.copy(d.pos);
+      emit('smoke', d.pos, d.vel, d);
+      if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 3) { d.spiral = null; killDrone(d); d.pos.y = terrain.heightAt(d.pos.x, d.pos.z) + 1; }
+      return;
+    }
     if (d.falling) {                          // killed: falls burning, tumbling, and blows up on the ground
       d.vel.y -= 9.81 * dt; d.vel.multiplyScalar(1 - 0.05 * dt);
       d.pos.addScaledVector(d.vel, dt);

@@ -27,20 +27,67 @@ export const ENEMIES = {
     cg: new THREE.Vector3(0, -2.5, 2),   // model space after the turn
     regions: REGIONS.bomber,
     allMeshes: true,                     // built from many meshes: cut all of them
-    dropMeshes: ['Object_11', 'Object_12', 'Object_13', 'Object_14', 'Object_15', 'Object_16'],   // gear legs and wheels (modelled down)
+    dropMeshes: ['Object_11', 'Object_12', 'Object_13', 'Object_14', 'Object_15', 'Object_16'],   // main gear wheels and legs (modelled down)
+    meta: 'models/jets/bomber.meta.json',   // leftover gear triangles to drop, and the propeller discs (made by an offline pass over the model)
+    outerWingFatal: true,                 // losing an outer wing panel puts it into a slow, unrecoverable roll
     speed: [120, 150], radius: [3000, 4500], hitRadius: 24, toughness: 4,
   },
 };
+
+// Leftover gear triangles are removed; each propeller disc's blades become their own mesh on a spinning pivot
+// (pivot.userData.prop = spin direction: front and rear discs turn opposite ways).
+function applyMeta(root, meta) {
+  root.updateMatrixWorld(true);
+  const byName = (n) => { let m = null; root.traverse(o => { if (!m && o.name === n && o.isMesh) m = o; else if (!m && o.name === n) o.traverse(c => { if (!m && c.isMesh) m = c; }); }); return m; };
+  const take = new Map();   // mesh -> set of triangle numbers removed from it
+  const remove = (mesh, tris) => { const s = take.get(mesh) || new Set(); tris.forEach(t => s.add(t)); take.set(mesh, s); };
+  for (const [name, tris] of Object.entries(meta.drop)) { const m = byName(name); if (m) remove(m, tris); }
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  meta.discs.forEach((disc, k) => {
+    const pivot = new THREE.Object3D();
+    pivot.position.set(...disc.centre).applyMatrix4(inv);
+    pivot.userData.prop = disc.centre[0] < -11.5 || (disc.centre[0] > -9 && disc.centre[0] < -8.2) ? 1 : -1;
+    pivot.name = 'prop' + k;
+    root.add(pivot); pivot.updateMatrixWorld(true);
+    for (const [name, tris] of Object.entries(disc.tris)) {
+      const src = byName(name); if (!src) continue;
+      const idx = src.geometry.index.array, list = [];
+      for (const t of tris) list.push(idx[t * 3], idx[t * 3 + 1], idx[t * 3 + 2]);
+      const geo = new THREE.BufferGeometry();
+      for (const [a, v] of Object.entries(src.geometry.attributes)) geo.setAttribute(a, v);
+      geo.setIndex(list);
+      const blades = new THREE.Mesh(geo, src.material);
+      blades.userData.noSplit = true;
+      blades.matrixAutoUpdate = false;
+      blades.matrix.copy(pivot.matrixWorld).invert().multiply(src.matrixWorld);
+      pivot.add(blades);
+      remove(src, tris);
+    }
+  });
+  for (const [mesh, s] of take) {
+    const idx = mesh.geometry.index.array, keep = [];
+    for (let t = 0; t < idx.length / 3; t++) if (!s.has(t)) keep.push(idx[t * 3], idx[t * 3 + 1], idx[t * 3 + 2]);
+    mesh.geometry = mesh.geometry.clone(); mesh.geometry.setIndex(keep);
+  }
+}
 
 // Returns a prototype to clone per enemy: Group > scaled model (already split into parts).
 export async function loadEnemy(type) {
   const T = ENEMIES[type];
   const gltf = await loadGltfJson(T.url);
   for (const n of T.dropMeshes || []) gltf.scene.getObjectByName(n)?.removeFromParent();
+  if (T.meta) applyMeta(gltf.scene, await (await fetch(T.meta)).json());
   let model = gltf.scene;
   if (T.turn) { model.rotation.y = T.turn; model = new THREE.Group().add(model); }   // damage regions want the nose on +Z
   model.updateMatrixWorld(true);
   splitAirframe(model, {}, T.regions, T.dropGear, T.allMeshes);
+  // propellers ride on the inner wing sections (they come off with them)
+  const props = []; model.traverse(o => { if (o.userData.prop) props.push(o); });
+  model.updateMatrixWorld(true);
+  for (const p of props) {
+    const w = p.getWorldPosition(new THREE.Vector3());
+    model.getObjectByName('part:wingInner' + (w.x > 0 ? 'L' : 'R'))?.attach(p);
+  }
   model.userData.toughness = T.toughness;
   model.traverse(o => { if (o.isMesh && o.material.map) o.material.map.anisotropy = 4; });
   model.scale.setScalar(T.scale);

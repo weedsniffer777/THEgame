@@ -46,7 +46,7 @@ export function splitAirframe(model, surfaces = {}, R = REGIONS.lightFighter, dr
   model.userData.regions = R;
   model.updateMatrixWorld(true);
   const meshes = [];
-  model.traverse(o => { if (o.isMesh) meshes.push(o); });
+  model.traverse(o => { if (o.isMesh && !o.userData.noSplit) meshes.push(o); });
   const targets = allMeshes ? meshes : [meshes.reduce((h, o) => (!h || o.geometry.attributes.position.count > h.geometry.attributes.position.count ? o : h), null)];
   const pieces = {}, centres = {}, counts = {};
   const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), nrm = new THREE.Vector3(), e1 = new THREE.Vector3();
