@@ -441,11 +441,11 @@ function hud(dt = 1 / 60) {
   // G strain (effect only, never a real blackout): builds over about a second of sustained G and eases off faster.
   // From ~6 G the view closes in and drains of colour; at the 9 G limit it is heavy.
   // it only starts after ~3 s spent above 6 G (short pulls never trigger it); the clock drains twice as fast as it fills
-  gTime = g > 6 ? gTime + dt : Math.max(0, gTime - 2 * dt);
-  const want = THREE.MathUtils.clamp((g - 6) / 3.5, 0, 1) * THREE.MathUtils.smoothstep(gTime, 3, 4);
+  gTime = g > 6 && !dead ? gTime + dt : Math.max(0, gTime - 2 * dt);
+  const want = dead ? 0 : THREE.MathUtils.clamp((g - 6) / 3.5, 0, 1) * THREE.MathUtils.smoothstep(gTime, 3, 4);   // (dead: no G effects)
   gStrain += (want - gStrain) * (1 - Math.exp(-dt / (want > gStrain ? 1.0 : 0.6)));
   const k = gStrain;
-  vig.style.opacity = (0.95 * Math.pow(k, 1.2) + THREE.MathUtils.clamp((-g - 2.5) / 1, 0, 0.4)).toFixed(3);
+  vig.style.opacity = (0.95 * Math.pow(k, 1.2) + (dead ? 0 : THREE.MathUtils.clamp((-g - 2.5) / 1, 0, 0.4))).toFixed(3);
   vig.style.setProperty('--inner', `${(35 - 22 * k).toFixed(1)}%`);
   const f = k > 0.01 && !document.body.classList.contains('lost') ? `saturate(${(1 - 0.85 * k).toFixed(2)}) brightness(${(1 - 0.18 * k).toFixed(2)})` : '';
   if (f !== canvas.style.filter) canvas.style.filter = f;
@@ -495,7 +495,7 @@ function frame(now) {
       if (!wreck.inWater) weapons.burn(wreck.pos, wreck.vel, wreck.key);
       weapons.step(dt, performance.now() / 1000);
       if (dead > 9 && !window.__holdWreck) spawn();   // (__holdWreck: dev tests watch the wreck to rest)
-    } else while (acc >= STEP) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }
+    } else while (acc >= STEP && !dead) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }   // (stop stepping the moment it crashes)
   }
   mouseDX = mouseDY = 0;
   const a = acc / STEP;
@@ -554,7 +554,7 @@ function setViewer(on) {
   viewer.on = on; viewerAnim.active = on;
   document.body.classList.toggle('viewing', on);
   if (!on) document.body.classList.remove('clean');
-  if (on) { if (document.pointerLockElement) document.exitPointerLock(); setRunning(false, false); startEl.classList.remove('show'); }
+  if (on) { if (document.pointerLockElement) document.exitPointerLock(); setRunning(false, false); pauseMenu.close(); startEl.classList.remove('show'); }
   else if (started) pauseMenu.open(); else startEl.classList.add('show');
 }
 canvas.addEventListener('pointerdown', e => { if (viewer.on) { viewer.drag = [e.clientX, e.clientY]; canvas.setPointerCapture(e.pointerId); } });
@@ -582,7 +582,7 @@ const models = createModelViewer(renderer, canvas, scene.environment, {
 function openModels() {
   if (viewer.on) { setViewer(false); document.querySelectorAll('.lil-gui').forEach(g => { if (g.querySelector('.title')?.textContent === 'cinematic camera') g.style.display = 'none'; }); }
   if (document.pointerLockElement) document.exitPointerLock();
-  setRunning(false, false); startEl.classList.remove('show');
+  setRunning(false, false); pauseMenu.close(); startEl.classList.remove('show');
   document.body.classList.add('viewing');
   models.open(() => { document.body.classList.remove('viewing', 'clean'); if (started) pauseMenu.open(); else startEl.classList.add('show'); });
 }

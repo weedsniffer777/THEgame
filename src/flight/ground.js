@@ -21,6 +21,12 @@ const INV_I = new THREE.Vector3(1 / 16, 1 / 18, 1 / 4);   // inverse inertia per
 const _r = new THREE.Vector3(), _n = new THREE.Vector3(), _vc = new THREE.Vector3(), _t1 = new THREE.Vector3(), _t2 = new THREE.Vector3();
 const _w = new THREE.Vector3(), _qi = new THREE.Quaternion(), _fwd = new THREE.Vector3(), _side = new THREE.Vector3();
 
+// water wears the rear fuselage down along with the fuselage (shown on the X-ray); it stays attached
+function wearTail(damage, hurt) {
+  const t = damage.parts.tail;
+  if (t && !t.broken) t.hp = Math.max(0.01, t.hp - hurt * 0.35);
+}
+
 export function groundContact(ac, terrain, damage, dt, brake) {
   const q = ac.quat;
   _qi.copy(q).invert();
@@ -49,7 +55,8 @@ export function groundContact(ac, terrain, damage, dt, brake) {
       water = true;
       const sp = _vc.length(), angle = Math.asin(Math.min(1, -vn / Math.max(sp, 1)));
       if (vn < -6 || angle > 0.21 || sp > 110 || part === 'canopy') { crash = true; return; }
-      damage.bodyHp -= Math.max(0, -vn - 0.5) * 1.5;                // the hit itself hurts
+      const hurt = Math.max(0, -vn - 0.5) * 1.5;                    // the hit itself hurts (fuselage and rear fuselage)
+      damage.bodyHp -= hurt; wearTail(damage, hurt);
     }
     // what the hit does
     if (vn < -22 || (part === 'canopy' && _vc.length() > 15)) crash = true;
@@ -106,7 +113,8 @@ export function groundContact(ac, terrain, damage, dt, brake) {
   // main.js calls it a crash and it sinks, in one piece)
   if (water && !crash) {
     const sp = ac.vel.length();
-    damage.bodyHp -= (2 + 22 * (1 - Math.min(sp, 70) / 70)) * dt;
+    const hurt = (2 + 22 * (1 - Math.min(sp, 70) / 70)) * dt;
+    damage.bodyHp -= hurt; wearTail(damage, hurt);
   }
   return { touching, wheelsDown, crash, water };
 }

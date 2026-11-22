@@ -791,9 +791,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
           float along = vUv.y;                                    // 1 at the front rim, 0 at the back
           float rims = smoothstep(1.0, 0.8, along) * smoothstep(0.0, 0.45, along);
           float n = n2(vec2(vUv.x * 18.0, vUv.y * 6.0 - uTime * 3.0)) * 0.6 + n2(vec2(vUv.x * 41.0, vUv.y * 13.0 + uTime * 5.0)) * 0.4;
-          float a = uK * rims * (0.06 + 0.55 * sheet) * (0.65 + 0.5 * n);
+          float a = uK * rims * (0.2 + 0.4 * sheet) * (0.65 + 0.5 * n);   // visible from any side (face-on through it too), thicker toward its silhouette
           if (a < 0.003) discard;
-          gl_FragColor = vec4(encode(vec3(0.86, 0.88, 0.92)) * a, a);
+          gl_FragColor = vec4(vec3(0.9, 0.92, 0.95) * a, a);
         }`,
       transparent: true, depthWrite: false, side: THREE.DoubleSide,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,

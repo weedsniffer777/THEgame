@@ -154,3 +154,7 @@ body.paused #hud, body.paused #touch { display: none; }
 #pause .seg button { font-size: 11px; letter-spacing: 0.1em; padding: 7px 10px; }
 #pause .seg button.on { background: rgba(236,246,238,0.92); color: #0a0e14; }
 #pause .back { font-size: 15px; margin-top: 14px; }
+
+/* the dev kit stays on top of every menu (pause included) and clickable */
+#devkit, #devmenu, #perf { z-index: 60 !important; }
+.lil-gui.root { z-index: 60; }
