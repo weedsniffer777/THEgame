@@ -144,9 +144,10 @@ let manual = false, recentre = 0;   // seconds left of easing the camera back on
 // burning; a hard hit can tear the outer wings off. The camera holds on it, then the player respawns.
 const wreck = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), key: {} };
 // killed: the camera lets go of the jet and pulls far back, circling slowly while it goes in
-const deathCam = { yaw: 0, pitch: 0, dist: 0 };
-function crash(ditched = false) {   // ditched: worn out after a water landing (it sinks whole), not a crash into it
+const deathCam = { yaw: 0, pitch: 0, dist: 0, far: 85 };
+function crash(ditched = false, airborne = false) {   // ditched: worn out after a water landing (sinks whole); airborne: broke up in the air
   if (dead) return;
+  deathCam.far = airborne ? 190 : 85;                                   // broken up: pull right back over the spreading debris
   dead = 1e-6;
   {
     const o = _wv.subVectors(camera.position, ac.pos), L = Math.max(o.length(), 1);
@@ -154,7 +155,7 @@ function crash(ditched = false) {   // ditched: worn out after a water landing (
   }
   jet.damage.doomed = true;                                          // every fire on it burns fully again
   wreck.inWater = terrain.isWater(ac.pos.x, ac.pos.z);
-  weapons.crash(ac.pos, ac.vel, wreck.inWater, ditched);
+  if (airborne) weapons.explode(ac.pos, ac.vel, 1.0); else weapons.crash(ac.pos, ac.vel, wreck.inWater, ditched);
   wreck.pos.copy(ac.pos); wreck.vel.copy(ac.vel); wreck.quat.copy(ac.quat); wreck.key = {};
   wreck.spin.set(-ac.q, -ac.r, ac.p).applyQuaternion(ac.quat);      // keeps the rotation it had (world axes)
   // hitting the ground tears off everything still attached (the rear fuselage can snap off too, on a hard
@@ -265,8 +266,19 @@ function physics(dt) {
   manual = kb.active;
   aimPoint.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance);
   const lost = jet.damage.dead;
-  if (lost) { ac.input.pitch *= 0.97; ac.input.roll = 0.6; ac.input.yaw = 0.2; ac.throttle = 0; }   // plane lost: no control, it rolls off and goes in
-  else {
+  if (lost) {                                                         // plane lost: no control, it rolls off and goes in
+    ac.input.pitch *= 0.97; ac.input.roll = 0.6; ac.input.yaw = 0.2; ac.throttle = 0;
+    // ...and comes apart in the air: a piece at a time, the fuselage failing with it, until nothing is left flying
+    breakupT -= dt;
+    if (breakupT <= 0) {
+      breakupT = 0.45 + Math.random() * 0.8;
+      const left = Object.keys(jet.damage.parts).filter(n => !jet.damage.parts[n].broken);
+      if (left.length) jet.damage.breakPart(left[Math.floor(Math.random() * left.length)], ac.vel);
+      jet.damage.bodyHp -= left.length ? 3 : 8;
+      if (!left.length && jet.damage.bodyHp <= 0) { crash(false, true); return; }
+    }
+  } else {
+    breakupT = 0.6;
     // gear down: the flaps are held at their landing notches, so less turn is available
     const maxG = INSTRUCTOR.maxG; INSTRUCTOR.maxG = maxG * (1 - 0.4 * ac.gear);
     instruct(ac, aimPoint, INSTRUCTOR, kb, dt);
@@ -298,7 +310,7 @@ function place(el, worldPoint) {
   el.style.display = vis ? '' : 'none';
   if (vis) el.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth}px, ${(-_p.y * 0.5 + 0.5) * innerHeight}px)`;
 }
-let gStrain = 0, gTime = 0;
+let gStrain = 0, gTime = 0, breakupT = 0.6;
 // The player's shadow: each frame their jet alone is drawn white-on-black from the sun into a small texture; the
 // terrain darkens wherever that silhouette lands beyond them (softer and fainter the higher they are).
 const shadowRT = new THREE.WebGLRenderTarget(256, 256);
@@ -511,7 +523,7 @@ function frame(now) {
   rig.zoom += ((rig.zooming ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);
   if (viewer.on) viewer.place(); else if (dead) {
     const e = 1 - Math.exp(-dt / 1.1);
-    deathCam.dist += (85 - deathCam.dist) * e;
+    deathCam.dist += ((deathCam.far || 85) - deathCam.dist) * e;
     deathCam.pitch += (0.32 - deathCam.pitch) * e * 0.6;
     deathCam.yaw += dt * 0.18;
     const cp = Math.cos(deathCam.pitch);
