@@ -145,7 +145,7 @@ export const DOORS = {
   outerMain: 104,         // doors on the main gear legs
   smallNose: -105,        // small door at the back of the nose gear well
   noseMain: 90,           // long nose gear doors
-  speedBrakeClosed: 38,
+  speedBrakeClosed: 35,
   speedBrakeOpen: -7,     // 45 deg open
 };
 
