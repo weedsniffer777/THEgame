@@ -408,9 +408,11 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     const make = kind === 'smoke' ? (q) => { puffSmoke(q); const e = S.fx[S.fx.length - 1]; e.scale = Math.sqrt(spacingNow); e.s *= 0.4 + 0.6 * fade; }
       : (q) => { puffFlame(q, v); S.fx[S.fx.length - 1].s *= fade; };
     // spacing grows with the object's speed (bigger, sparser puffs that still merge) and with how busy the pool is
-    const busy = S.fx.length / 3000, speed = v ? v.length() : 0;
+    // (a crash flings a dozen burning pieces at once; the smoke from all of them is what costs, so trails space out
+    // quickly as the pool fills, and stop altogether past ~1300 effects)
+    const busy = S.fx.length / 1100, speed = v ? v.length() : 0;
     if (busy > 1.2) return;
-    const spacing = (kind === 'smoke' ? 1.0 : 1.1) * Math.max(1, speed / 45) * (1 + 2 * Math.max(0, busy - 0.5));
+    const spacing = (kind === 'smoke' ? 1.6 : 1.4) * Math.max(1, speed / 45) * (1 + 3 * Math.max(0, busy - 0.35));
     spacingNow = spacing;
     if (!key) { make(p); return; }
     let st = lastAt.get(key);
@@ -771,6 +773,33 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // Soft short-lived puffs in the missile-cloud colour that ride along with the jet and peel off as they fade.
   // Body frame relative to the CG: +x left wing, +y up, +z nose (the model is offset by its CG, 0 1.9 -0.6).
   const _vp = new THREE.Vector3(), _vv = new THREE.Vector3();
+  // the vapour cone as one smooth surface: an open cone around the fuselage, opening backward from just ahead of the
+  // canopy. Seen through, it is nearly clear; toward its silhouette (grazing view) it thickens, like a thin sheet of
+  // mist. Soft noise keeps it from looking like solid geometry; both rims fade out.
+  const machShell = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.85, 3.9, 5.2, 64, 8, true).rotateX(Math.PI / 2).translate(0, 1.72, -1.2),   // (narrow end forward)
+    new THREE.ShaderMaterial({
+      uniforms: { uK: { value: 0 }, uTime: { value: 0 } },
+      vertexShader: `varying vec3 vN; varying vec3 vV; varying vec2 vUv;
+        void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform float uK; uniform float uTime; varying vec3 vN; varying vec3 vV; varying vec2 vUv; ${ENCODE_GLSL}
+        float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+        void main(){
+          float graze = 1.0 - abs(dot(normalize(vN), normalize(vV)));
+          float sheet = pow(graze, 2.2);
+          float along = vUv.y;                                    // 1 at the front rim, 0 at the back
+          float rims = smoothstep(1.0, 0.8, along) * smoothstep(0.0, 0.45, along);
+          float n = n2(vec2(vUv.x * 18.0, vUv.y * 6.0 - uTime * 3.0)) * 0.6 + n2(vec2(vUv.x * 41.0, vUv.y * 13.0 + uTime * 5.0)) * 0.4;
+          float a = uK * rims * (0.06 + 0.55 * sheet) * (0.65 + 0.5 * n);
+          if (a < 0.003) discard;
+          gl_FragColor = vec4(encode(vec3(0.86, 0.88, 0.92)) * a, a);
+        }`,
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    }));
+  machShell.visible = false; machShell.renderOrder = 2;
+  jet.model.add(machShell);
   // (spawned once per rendered frame at the drawn jet; the render step then moves every puff on by v*dt, so each is
   // placed that much back to land exactly on the airframe)
   let _bp = ac.pos, _bq = ac.quat, _bdt = 0;
@@ -794,6 +823,12 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         const x = 1.3 + Math.random() * 2.6;
         if (gone('wingInner' + side) || (x > 2.45 && gone('wingOuter' + side))) continue;
         const le = -0.22 - 0.46 * (x - 1.6), z = le - Math.pow(Math.random(), 1.6) * 1.1;   // most of it near the leading edge
+        if (Math.random() < 0.18) {                                     // some of it peels off behind the wing
+          toWorld(sx * x, 1.6 + Math.random() * 0.16, le - 1.0 - Math.random() * 0.3);
+          back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone().multiplyScalar(0.93), t: 0, life: 0.3 + Math.random() * 0.25,
+            s: 0.5 + Math.random() * 0.35, seed: Math.random(), op: 0.3 * kw, grow: 1.6 });
+          continue;
+        }
         ride(sx * x, 1.6 + Math.random() * 0.16, z, { life: 0.28 + Math.random() * 0.14, drift: 2.5,     // just over the skin: it wraps the wing
           s: 0.42 + Math.random() * 0.2, seed: Math.random(), op: Math.min(0.42, 0.36 * kw + 0.06), grow: 1.1 });
       }
@@ -805,18 +840,24 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       toWorld(sx * 4.15, 1.3, -1.75);
       vortices.add(l, _vp, S.simT || 0, 0.5 * kv);
     });
-    // vapour collar ("Mach cone"): transonic, strongest just under Mach 1
-    const M = ac.t.mach || 0, km = sm(0.9, 0.97, M) * (1 - sm(1.03, 1.1, M)) * (0.4 + 0.6 * humid);
+    // vapour collar ("Mach cone"): transonic, strongest just under Mach 1. A few faint flickering puffs as it starts,
+    // then a smooth translucent shell (machShell) that takes over as it builds
+    // builds from M 0.9 as flickering puffs, peaks from M 0.99 to 1.01 as a smooth shell, gone soon after
+    const M = ac.t.mach || 0, km = sm(0.9, 0.99, M) * (1 - sm(1.01, 1.04, M)) * (0.4 + 0.6 * humid);
+    const peak = sm(0.975, 0.99, M) * (1 - sm(1.01, 1.03, M));
+    machShell.material.uniforms.uK.value = km * peak;
+    machShell.material.uniforms.uTime.value = S.simT || 0;
+    machShell.visible = machShell.material.uniforms.uK.value > 0.01;
     if (km > 0.02) {
       // weak: a jittery scatter around the fuselage; at the peak the puffs settle onto a cone shell that opens
       // backward from just ahead of the canopy, bigger and denser
-      const shell = sm(0.55, 0.95, km);
-      const rate = (160 + 600 * shell) * km * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
+      const shell = peak;                                    // (the puffs give way to the shell at the peak)
+      const rate = 160 * km * (1 - shell) * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
       for (let i = 0; i < n; i++) {
         const a = Math.random() * Math.PI * 2, aft = Math.sqrt(Math.random());
         const coneR = 0.7 + aft * (1.4 + 2.6 * shell), r = coneR * (1 + (Math.random() - 0.5) * (0.9 - 0.82 * shell));
         ride(Math.cos(a) * r, 1.75 + Math.sin(a) * r * 0.95, 1.4 - aft * (2.4 + 2.2 * shell), { life: 0.3 + Math.random() * 0.2, drift: 1.2,
-          s: (0.5 + Math.random() * 0.3) * (1 + 0.35 * shell), seed: Math.random(), op: (0.22 + 0.2 * shell) * km, grow: 1.1 });
+          s: 0.5 + Math.random() * 0.3, seed: Math.random(), op: 0.22 * km * (1 - shell), grow: 1.1 });
       }
     }
   }

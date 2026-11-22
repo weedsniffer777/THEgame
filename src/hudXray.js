@@ -53,7 +53,7 @@ export function createXray(root, damage, maxHp, renderer, model) {
   rt.dispose();
 
   // per pixel: which part (or -1), and a wireframe-like line strength: outlines, part seams and shape creases
-  const part = new Int8Array(W * H), nz = new Float32Array(W * H), line = new Float32Array(W * H);
+  const part = new Int8Array(W * H), nz = new Float32Array(W * H), line = new Float32Array(W * H), outline = new Uint8Array(W * H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const src = (y * W + x) * 4, dst = (H - 1 - y) * W + x;   // render targets read bottom-up
     part[dst] = ids[src + 3] > 0 ? Math.round(ids[src] / 12) - 1 : -1;
@@ -68,6 +68,7 @@ export function createXray(root, damage, maxHp, renderer, model) {
       crease = Math.max(crease, Math.abs(nz[j] - nz[i]));      // a fold in the surface
     }
     line[i] = Math.max(edge, Math.min(1, crease * 9));
+    outline[i] = edge;
   }
 
   const canvas = document.createElement('canvas');
@@ -77,12 +78,14 @@ export function createXray(root, damage, maxHp, renderer, model) {
   const ctx = canvas.getContext('2d'), img = ctx.createImageData(W, H);
   let lastKey = '';
   return () => {
+    // health tint per part; LOST = gone (broken off, or the fuselage wrecked / crashed): black with a red outline
+    const LOST = 'lost';
     const cols = names.map(n => {
-      if (n === 'body') return [...tint(Math.max(0, damage.bodyHp) / maxHp.body), 1];
+      if (n === 'body') return damage.bodyHp <= 0 || damage.doomed ? LOST : [...tint(Math.max(0, damage.bodyHp) / maxHp.body), 1];
       const p = damage.parts[n];
-      return p.broken ? [120, 40, 36, 0.35] : [...tint(p.hp / (maxHp[n] || 1)), 1];   // lost: a faint red ghost
+      return p.broken ? LOST : [...tint(p.hp / (maxHp[n] || 1)), 1];
     });
-    const key = cols.map(c => c.join()).join('|');
+    const key = cols.map(c => c === LOST ? 'x' : c.join()).join('|');
     if (key === lastKey) return;   // only repaint when something changed
     lastKey = key;
     const d = img.data;
@@ -90,6 +93,11 @@ export function createXray(root, damage, maxHp, renderer, model) {
       const k = part[i];
       if (k < 0) { d[i * 4 + 3] = 0; continue; }
       const col = cols[k], L = line[i];
+      if (col === LOST) {                                     // black fill, red outline (just the part's own edge)
+        const e = outline[i];
+        d[i * 4] = e ? 255 : 6; d[i * 4 + 1] = e ? 64 : 6; d[i * 4 + 2] = e ? 52 : 8;
+        d[i * 4 + 3] = e ? 255 : 200; continue;
+      }
       const bright = 0.55 + 0.45 * L;                         // lines glow brighter than the see-through fill
       d[i * 4] = Math.min(255, col[0] * bright + 60 * L); d[i * 4 + 1] = Math.min(255, col[1] * bright + 60 * L); d[i * 4 + 2] = Math.min(255, col[2] * bright + 60 * L);
       d[i * 4 + 3] = (28 + 227 * L) * col[3];
