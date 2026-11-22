@@ -416,8 +416,6 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     d.dmg.update(dt);
     if (!d.alive) { if ((d.respawn -= dt) <= 0) placeDrone(d); return; }
     d.age = (d.age || 0) + dt;
-    // propellers: contra-rotating discs, slowing once the aircraft is going down
-    if (d.props) for (const p of d.props) p.rotation.x += p.userData.prop * dt * (d.falling ? 10 : 28);
     // enemies can't fly on with asymmetric lift or without a tailplane: a lost wing section, the rear fuselage or
     // both stabilisers means it is going down (the player's jet is the only one that survives an outer wing)
     if (!d.falling) {
@@ -461,7 +459,28 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     if (d.falling) return;
     d.falling = true; d.dmg.doomed = true;   // (every fire on it burns fully again)
     startCrippled(d, d.def.crippled);
-    S.fx.push({ pri: 1, kind: 'fire', p: d.pos.clone(), v: d.vel.clone().multiplyScalar(0.3), t: 0, life: 0.3, s: 12 });
+  }
+
+  // the player's jet touching an enemy (flying or going down): both lose what touched, the enemy goes down, and
+  // a hard enough closing speed kills the player too
+  const _cp = new THREE.Vector3();
+  function collisions() {
+    if (!jet.damage || jet.damage.burning) return;
+    for (const d of drones) {
+      if (!d.alive) continue;
+      const R = (d.def.hitRadius || cfg.hitRadius) * 0.6 + 4;
+      if (d.pos.distanceToSquared(ac.pos) > R * R) continue;
+      const closing = _cp.subVectors(ac.vel, d.vel).length();
+      const nearest = (dmg, to, n) => Object.keys(dmg.parts).filter(k => !dmg.parts[k].broken)
+        .sort((a, b) => dmg.parts[a].obj.getWorldPosition(_v).distanceTo(to) - dmg.parts[b].obj.getWorldPosition(_w).distanceTo(to)).slice(0, n);
+      nearest(d.dmg, ac.pos, 2).forEach(k => d.dmg.breakPart(k, d.vel));
+      nearest(jet.damage, d.pos, closing > 60 ? 3 : 1).forEach(k => jet.damage.breakPart(k, ac.vel));
+      if (closing > 60) jet.damage.bodyHp = 0;
+      _cp.lerpVectors(ac.pos, d.pos, 0.5);
+      for (let i = 0; i < 4; i++) hitFx(_cp, d.vel);
+      killDrone(d);
+      return;
+    }
   }
 
   // ---------------- effects
@@ -508,6 +527,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
 
   // ---------------- per physics step
   function step(dt, now) {
+    collisions();
     S.simT = (S.simT || 0) + dt;   // game time: trails age with the simulation, independent of frame rate
     for (const d of drones) flyDrone(d, dt);
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);   // own vector: _v/_w are reused below
@@ -539,7 +559,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       r.v.y -= G * dt;
       r.p.addScaledVector(r.v, dt);
       r.t += dt;
-      for (const d of drones) if (d.alive && !d.falling && segDist(r.prev, r.p, d.pos) < (d.def.hitRadius || cfg.hitRadius) * S.hitScale) {
+      for (const d of drones) if (d.alive && segDist(r.prev, r.p, d.pos) < (d.def.hitRadius || cfg.hitRadius) * S.hitScale) {   // (going-down wrecks still take hits)
         r.t = 1e9; const at = closestOnSeg(r.prev, r.p, d.pos); hitFx(at, d.vel);
         d.dmg.hit(at, d.vel);
         if (d.dmg.dead) killDrone(d);
@@ -572,7 +592,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       const half = cfg.seekerFov / 2;
       let best = null, bestAng = 1e9;
       for (const d of drones) {
-        if (!d.alive || d.falling || !clearLine(ac.pos, d.pos)) continue;   // no locks through terrain
+        if (!d.alive || (d.falling && d !== S.seeker) || !clearLine(ac.pos, d.pos)) continue;   // no locks through terrain; a lock holds on a target going down, new ones only on live ones
         const to = _w.subVectors(d.pos, ac.pos), dist = to.length();
         const ang = Math.acos(THREE.MathUtils.clamp(to.dot(fwd) / dist, -1, 1)) * 180 / Math.PI;
         const lim = S.locked && d === S.seeker ? half * 1.4 : half;
@@ -608,8 +628,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         m.v.copy(m.dir).multiplyScalar(sp);
         // fuse only arms once well clear of the launching jet; missiles never damage the player
         const armed = m.t > 0.5 && m.p.distanceTo(ac.pos) > 150;
-        if (armed && !m.target.falling && m.p.distanceTo(m.target.pos) < Math.max(cfg.proximity, (m.target.def.hitRadius || 0) * 0.6)) {
+        if (armed && m.p.distanceTo(m.target.pos) < Math.max(cfg.proximity, (m.target.def.hitRadius || 0) * 0.6)) {   // (a target already going down still gets hit)
           m.t = 1e9; explode(m.p, m.target.vel, 0.8);
+          S.fx.push({ pri: 1, kind: 'fire', p: m.p.clone(), v: m.target.vel.clone().multiplyScalar(0.3), t: 0, life: 0.3, s: 12 });   // warhead flash
           // the blast tears off what was closest to it, then the jet goes down
           const near = Object.keys(m.target.dmg.parts).sort((a, b) => m.target.dmg.parts[a].obj.getWorldPosition(_v).distanceTo(m.p) - m.target.dmg.parts[b].obj.getWorldPosition(_w).distanceTo(m.p));
           near.slice(0, 3 + Math.floor(Math.random() * 3)).forEach(n => m.target.dmg.breakPart(n, m.target.vel));
@@ -666,6 +687,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3();
   function render(camera, dt, now, alpha, drawPos, drawQuat, renderer) {
     glow.begin(); smoke.begin();
+    // propellers (contra-rotating, 4 blades): each rendered frame they step a fixed share of the gap between blades,
+    // ~1/3, which always reads as fast forward spin, never as a flicker or a backwards crawl, at any frame rate.
+    // Going down, the engines wind down and they turn slower.
+    for (const d of drones) if (d.props.length && d.obj.visible) for (const p of d.props) p.rotation.x += p.userData.prop * (Math.PI / 2) * (d.falling ? 0.16 : 0.34);
     const cam = camera.position;
     // tracers
     tracers.begin(renderer);

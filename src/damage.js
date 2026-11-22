@@ -221,9 +221,11 @@ export class Damage {
           if (d.burns) this.emit('groundfire', d.obj.position, null);
         }
       }
-      if (d.burns && d.t < 10 && !d.landed) {
-        const at = d.obj.localToWorld(d.edge.clone());   // the torn edge burns, not the middle of the piece
-        this.emit('smoke', at, d.v, d); if (d.t < 5) this.emit('flame', at, d.v, d.obj);
+      // every piece trails smoke from its torn edge while it falls; burning ones (wing sections, anything off an
+      // aircraft that is going down) also trail flame and smoke for longer
+      if (!d.landed && d.t < (d.burns ? 10 : 6)) {
+        const at = d.obj.localToWorld(d.edge.clone());   // the torn edge, not the middle of the piece
+        this.emit('smoke', at, d.v, d); if (d.burns && d.t < 5) this.emit('flame', at, d.v, d.obj);
       }
     }
     this.debris = this.debris.filter(d => { if (d.t > 40) { d.obj.removeFromParent(); return false; } return true; });

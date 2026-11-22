@@ -222,7 +222,7 @@ function physics(dt) {
   if (th > 0 && ac.throttle >= 1) { abHold += dt; if (abHold > 0.25) ac.throttle = 1.1; }
   else { abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 0.6 * dt, 0, 1); }
   const kb = { pitch: axis('KeyW', 'KeyS'), roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE') };
-  kb.active = !!(kb.pitch || kb.roll);
+  kb.active = !!(kb.pitch || kb.roll || kb.yaw);   // any flying key takes over from mouse aim (the camera eases back after)
   if (kb.active) recentre = 0.45; else if (recentre > 0) recentre -= dt;
   manual = kb.active;
   aimPoint.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance);
@@ -252,6 +252,7 @@ function place(el, worldPoint) {
   el.style.display = vis ? '' : 'none';
   if (vis) el.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth}px, ${(-_p.y * 0.5 + 0.5) * innerHeight}px)`;
 }
+let gStrain = 0;
 function hud(dt = 1 / 60) {
   const D = CAMERA.aimDistance;
   place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, D));
@@ -309,8 +310,8 @@ function hud(dt = 1 / 60) {
   // gun-solution target: the enemy nearest the reticle on screen, weighted toward ones in gun range, and sticky:
   // the current target is kept while it stays near the reticle, so sweeping past other planes mid-fight doesn't steal it.
   // A new one takes over only if it is clearly better for a moment. Nothing is chosen through terrain.
-  // Anything inside gun range and reasonably near the reticle always beats anything outside it (a close fight
-  // is never lost to a far-off plane that happens to sit nearer the centre).
+  // Planes inside gun range are strongly preferred, so a close fight isn't lost to a far-off plane that happens
+  // to sit a little nearer the centre.
   {
     const c = screenOf(_p.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance));
     const score = (d) => {
@@ -318,14 +319,16 @@ function hud(dt = 1 / 60) {
       const q = screenOf(d.obj.position);
       if (!q || q[0] < 0 || q[0] > innerWidth || q[1] < 0 || q[1] > innerHeight) return Infinity;
       const px = Math.hypot(q[0] - c[0], q[1] - c[1]), km = d.pos.distanceTo(ac.pos) / 1000;
-      const inGun = km * 1000 <= WEAPONS.gunRange && px < Math.min(innerWidth, innerHeight) * 0.35;
-      return (inGun ? 0 : 1e6) + px * (1 + km / 1.5);          // in gun range first, then near the reticle and close by
+      const inGun = km * 1000 <= WEAPONS.gunRange;
+      // near the reticle and close by wins; inside gun range counts as twice as near the reticle (a strong
+      // preference, but a far plane put right under the reticle still takes over from a close one off to the side)
+      return (px + 25) * (1 + km / 1.5) * (inGun ? 0.5 : 1);
     };
     let best = null, bestS = Infinity;
     if (c) for (const d of weapons.drones) { const sc = score(d); if (sc < bestS) { bestS = sc; best = d; } }
     const cur = W.target, curS = c ? score(cur) : Infinity;
     if (!isFinite(curS)) { W.target = best; tgtSwitch = 0; }                 // current gone, hidden or off screen
-    else if (best && best !== cur && bestS < curS * 0.4) {                    // clearly better...
+    else if (best && best !== cur && bestS < curS * 0.6) {                    // clearly better...
       tgtSwitch += dt;
       if (tgtSwitch > 0.35) { W.target = best; tgtSwitch = 0; }               // ...for a moment, not a sweep past
     } else tgtSwitch = 0;
@@ -362,8 +365,15 @@ function hud(dt = 1 / 60) {
   iasEl.textContent = Math.round(ac.t.ias * 1.94384);
   gEl.textContent = ac.t.g.toFixed(1);
   const g = ac.t.g;
-  // effect only, never a real blackout: starts near 8.5 G, heavy by 10 G
-  vig.style.opacity = THREE.MathUtils.clamp((g - 8.5) / 1.5, 0, 0.7) + THREE.MathUtils.clamp((-g - 2.5) / 1, 0, 0.4);
+  // G strain (effect only, never a real blackout): builds over about a second of sustained G and eases off faster.
+  // From ~6 G the view closes in and drains of colour; at the 9 G limit it is heavy.
+  const want = THREE.MathUtils.clamp((g - 6) / 3.5, 0, 1);
+  gStrain += (want - gStrain) * (1 - Math.exp(-dt / (want > gStrain ? 1.0 : 0.6)));
+  const k = gStrain;
+  vig.style.opacity = (0.95 * Math.pow(k, 1.2) + THREE.MathUtils.clamp((-g - 2.5) / 1, 0, 0.4)).toFixed(3);
+  vig.style.setProperty('--inner', `${(35 - 22 * k).toFixed(1)}%`);
+  const f = k > 0.01 && !document.body.classList.contains('lost') ? `saturate(${(1 - 0.85 * k).toFixed(2)}) brightness(${(1 - 0.18 * k).toFixed(2)})` : '';
+  if (f !== canvas.style.filter) canvas.style.filter = f;
 }
 
 // dev performance readout under the dev kit button (remove for release builds)
