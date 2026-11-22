@@ -126,7 +126,9 @@ export class Aircraft {
     this.time = (this.time || 0) + dt;
     // control surfaces need airflow: no response at all below ~23 kt, full by ~68 kt
     const ctl = smooth(12, 35, ias);
-    const qdot = qr * (c.pitchControl * lockP * pm * inp.pitch * ctl - c.pitchStability * Math.sin(alpha) + wob * 0.3 * Math.sin(this.time * 0.9)) - c.pitchDamping * sq * (this.q - this.wFp);
+    // on the wheels the tail can't lift the nose until rotation speed
+    const rot = this.onGround && inp.pitch > 0 ? smooth(c.rotateStartIAS || 68, c.rotateFullIAS || 78, ias) : 1;
+    const qdot = qr * (c.pitchControl * lockP * pm * inp.pitch * ctl * rot - c.pitchStability * Math.sin(alpha) + wob * 0.3 * Math.sin(this.time * 0.9)) - c.pitchDamping * sq * (this.q - this.wFp);
     const rdot = qr * (c.yawControl * ym * inp.yaw * ctl - c.yawStability * ym * Math.sin(beta) + wob * 0.5 * Math.sin(this.time * 0.7)) - c.yawDamping * sq * this.r;
     const D = this.damageFx;
     let pTarget = c.rollRate * DEG * inp.roll * smooth(0, c.rollFullIAS, ias) * ctl * lockR * (1 - c.stallRoll * stall);

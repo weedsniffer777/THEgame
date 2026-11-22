@@ -60,6 +60,8 @@ export const F5 = {
   lowSpeedAuthority: 0.6,  // control/rotation authority floor at low speed (fraction of reference)
   ctrlFadeLowIAS: 20,     // m/s IAS (~40 kt): below this the floor is gone (controls slack below flying speed)
   ctrlFadeFullIAS: 55,    // m/s IAS (~107 kt): full floor from here
+  rotateStartIAS: 68,     // m/s IAS (~132 kt): on the wheels, nose-up stick starts to lift the nose from here
+  rotateFullIAS: 78,      // m/s IAS (~152 kt): full rotation authority
   gFloorMax: 9,           // arcade lift: G guaranteed at full AoA once at gFloorFullIAS
   gFloorStartIAS: 28,     // m/s IAS where the guarantee starts (~55 kt)
   gFloorFullIAS: 120,     // m/s IAS where it reaches gFloorMax (~230 kt)
