@@ -5,8 +5,8 @@ import * as THREE from 'three';
 // frame relative to the CG: +x left wing, +y up, +z nose) and, with the gear fully down, on its three wheels.
 // Each touching point gets a normal impulse (almost no bounce) and friction, applied at the point, on the flight
 // model's own velocity and body rates, so the flight model keeps running throughout (a jet can roll and take off).
-//  - wheels: roll freely along the jet's heading (B brakes them at idle throttle), grip sideways; landing harder
-//    than ~6 m/s of sink collapses the gear (stays broken until respawn)
+//  - wheels: roll freely along the jet's heading (B brakes them at idle throttle), grip sideways (no gear damage:
+//    a hard landing just bounces)
 //  - airframe: tears off the part that hit if the hit is hard; scraping wears the airframe down
 //  - more than ~22 m/s into the ground at any point, or the canopy hitting fast: a crash
 const WHEELS = [[1.6, -1.9, -0.6], [-1.6, -1.9, -0.6], [0, -1.9, 5.05]].map(p => new THREE.Vector3(...p));
@@ -27,7 +27,7 @@ export function groundContact(ac, terrain, damage, dt, brake) {
   // body rates -> world angular velocity (the flight model rotates by (-q, -r, p) about body x, y, z)
   _w.set(-ac.q, -ac.r, ac.p).applyQuaternion(q);
   let touching = 0, wheelsDown = 0, lift = 0, crash = false;
-  const wheels = ac.gear > 0.95 && !ac.gearBroken;
+  const wheels = ac.gear > 0.95;
 
   const contact = (local, kind, part) => {
     _r.copy(local).applyQuaternion(q);
@@ -42,7 +42,6 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     if (vn >= 0) return;
     // what the hit does
     if (vn < -22 || (part === 'canopy' && _vc.length() > 15)) crash = true;
-    if (kind === 'wheel' && vn < -6) { ac.gearBroken = true; ac.gear = ac.gearCmd = 0; }   // landed too hard: the gear folds
     if (kind === 'frame') {
       const p = part && part !== 'canopy' ? damage.parts[part] : null;
       if (vn < -7 && p && !p.broken) damage.breakPart(part, ac.vel);
