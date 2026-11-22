@@ -393,7 +393,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
 
   const S = {
     selected: 1, firing: false,
-    rounds: [], missiles: [], fx: [],
+    rounds: [], missiles: [], fx: [], kills: [], shots: 0, hits: 0,
     stock: cfg.missiles, reload: 0, gunAcc: 0, gunSide: 0, flash: [0, 0],
     lock: 0, locked: false, seeker: null, target: null, lead: null, leadTime: 0, hitScale: 1,
     loaded: Array(RAILS.length).fill(true), lost: Array(RAILS.length).fill(false),
@@ -474,6 +474,12 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function placeDrone(d, k = Math.random() * 8) {
     d.dmg.repair(); d.cr = null;
     lastAt.delete(d); lastAt.delete(d.obj);   // its old smoke and flame trails ended where it went down
+    d.killedBy = null; d.lastHit = null;
+    if (d.track) {                                             // a mission: on its track, from the track's start
+      d.alive = true; d.falling = false; d.obj.visible = true; d.age = 0;
+      trackPos(d, S.simT || 0, d.pos); d.vel.copy(d.track.dir).multiplyScalar(d.track.speed);
+      return;
+    }
     // a circle somewhere around the player, 3 to 8 km away, at a similar height
     const a = (k / Math.max(drones.length || cfg.drones, 1)) * Math.PI * 2 + Math.random() * 0.6;
     const r = cfg.droneMinDist + Math.random() * (cfg.droneMaxDist - cfg.droneMinDist);
@@ -499,7 +505,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       emit('smoke', d.pos, d.vel, d); if (d.dmg.dead || d.cr.t > 1.5) emit('flame', d.pos, d.vel, d.obj);
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 2 && terrain.isWater(d.pos.x, d.pos.z)) {   // into a lake: a big splash and it's gone
         splash(d.pos, d.vel, d.def.hitRadius > 15 ? 2.2 : 1.3);
-        d.alive = false; d.obj.visible = false; d.respawn = 4;
+        d.alive = false; d.obj.visible = false; d.respawn = d.track ? 1e9 : 4;
         return;
       }
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 2) {
@@ -513,8 +519,21 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         scene.add(wreck);
         setTimeout(() => wreck.removeFromParent(), 40000);
         emit('groundfire', wreck.position, new THREE.Vector3(1, 0, 0));
-        d.alive = false; d.obj.visible = false; d.respawn = 4;
+        d.alive = false; d.obj.visible = false; d.respawn = d.track ? 1e9 : 4;
       }
+      return;
+    }
+    if (d.track) {                                             // a mission: flying its straight track in formation
+      const p = trackPos(d, S.simT || 0, _v);
+      d.vel.subVectors(p, d.pos).divideScalar(Math.max(dt, 1e-3));
+      d.pos.copy(p);
+      if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 3) { killDrone(d); d.pos.y = terrain.heightAt(d.pos.x, d.pos.z) + 1; return; }
+      const fx = d.dmg.effects(), T = d.track, tt = (S.simT || 0) - T.t0;
+      const bankW = T.weave ? -Math.cos(tt * T.weave.w + T.weave.ph) * T.weave.a * T.weave.w * T.weave.w * 0.012 : 0;   // banks into its weave
+      _m.lookAt(new THREE.Vector3(), d.vel.lengthSq() > 1 ? _w.copy(d.vel).normalize().negate() : T.dir.clone().negate(), new THREE.Vector3(0, 1, 0));
+      d.obj.quaternion.setFromRotationMatrix(_m).multiply(_q.setFromAxisAngle(_v.set(0, 0, 1), bankW + fx.wobble * 0.25 * Math.sin(d.age * 1.8)));
+      if (fx.pitchWobble) d.obj.quaternion.multiply(_q.setFromAxisAngle(_v.set(1, 0, 0), fx.pitchWobble * (0.13 * Math.sin(d.age * 1.3) + 0.05 * Math.sin(d.age * 3.1))));
+      d.obj.position.copy(d.pos);
       return;
     }
     d.t += dt * d.speed / d.R * d.dir;
@@ -532,8 +551,19 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     if (fx.pitchWobble) d.obj.quaternion.multiply(_q.setFromAxisAngle(_v.set(1, 0, 0), fx.pitchWobble * (0.13 * Math.sin(d.age * 1.3) + 0.05 * Math.sin(d.age * 3.1))));
     d.obj.position.copy(d.pos);
   }
+  // where a drone on a track is at time t: the formation's lead point moving straight on, plus its slot (x right, y up,
+  // z behind), plus a gentle weave for escorts
+  const _tr = new THREE.Vector3(), _tu = new THREE.Vector3(0, 1, 0);
+  function trackPos(d, t, out) {
+    const T = d.track, tt = t - T.t0;
+    _tr.crossVectors(T.dir, _tu).normalize();
+    out.copy(T.origin).addScaledVector(T.dir, T.speed * tt).addScaledVector(_tr, T.off.x).addScaledVector(_tu, T.off.y).addScaledVector(T.dir, -T.off.z);
+    if (T.weave) { out.addScaledVector(_tr, Math.sin(tt * T.weave.w + T.weave.ph) * T.weave.a); out.y += Math.sin(tt * T.weave.w * 0.7 + T.weave.ph) * T.weave.a * 0.25; }
+    return out;
+  }
   function killDrone(d) {
     if (d.falling) return;
+    d.killedBy = d.lastHit || 'other'; S.kills.push({ d, by: d.killedBy });
     d.falling = true; d.dmg.doomed = true;   // (every fire on it burns fully again)
     startCrippled(d, d.def.crippled);
   }
@@ -653,7 +683,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         }
         const dir = aimDir.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 0).multiplyScalar(cfg.gunSpread).applyQuaternion(ac.quat)).normalize();
         const v = dir.multiplyScalar(cfg.muzzleVelocity).add(ac.vel);
-        S.rounds.push({ p: muzzle, prev: muzzle.clone(), start: muzzle.clone(), v, t: 0 });
+        S.rounds.push({ p: muzzle, prev: muzzle.clone(), start: muzzle.clone(), v, t: 0 }); S.shots++;
         S.flash[side] = 0.05;
       }
     } else S.gunAcc = 0;
@@ -664,7 +694,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       r.t += dt;
       for (const d of drones) if (d.alive && segDist(r.prev, r.p, d.pos) < (d.def.hitRadius || cfg.hitRadius) * S.hitScale) {   // (going-down wrecks still take hits)
         r.t = 1e9; const at = closestOnSeg(r.prev, r.p, d.pos); hitFx(at, d.vel);
-        d.dmg.hit(at, d.vel);
+        d.dmg.hit(at, d.vel); d.lastHit = 'gun'; S.hits++;
         if (d.dmg.dead) killDrone(d);
         break;
       }
@@ -740,7 +770,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
           // the blast tears off what was closest to it, then the jet goes down
           const near = Object.keys(m.target.dmg.parts).sort((a, b) => m.target.dmg.parts[a].obj.getWorldPosition(_v).distanceTo(m.p) - m.target.dmg.parts[b].obj.getWorldPosition(_w).distanceTo(m.p));
           near.slice(0, 3 + Math.floor(Math.random() * 3)).forEach(n => m.target.dmg.breakPart(n, m.target.vel));
-          killDrone(m.target);
+          m.target.lastHit = 'missile'; killDrone(m.target);
         }
       } else if (speed > 1) m.dir.copy(m.v).normalize();
       m.p.addScaledVector(m.v, dt);
@@ -1051,7 +1081,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     },
     select(k) { S.selected = k; S.lock = 0; },
     clearLine: (a, b) => clearLine(a, b),
-    placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now
+    placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now (or on their tracks)
+    resetStats() { S.kills.length = 0; S.shots = 0; S.hits = 0; },
     rearm() { S.loaded.fill(true); S.firing = false; },
     explode, hitFx, killDrone,   // (used by the dev tests)
     vapour, contrailsStep,

@@ -320,6 +320,7 @@ export class Damage {
   }
 
   update(dt) {
+    if (dt <= 0) return;                                       // paused: nothing moves, nothing is laid down (puffs would pile up)
     for (const d of this.debris) {
       d.t += dt;
       if (!d.landed) {

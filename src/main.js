@@ -11,6 +11,9 @@ import { groundContact } from './flight/ground.js';
 import { createFlightHud } from './hudFlight.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
 import { paintEnemy } from './enemy.js';
+import { createMission1 } from './mission/mission1.js';
+import { createOverlay } from './ui/tutorial.js';
+import { save, writeSave, clearSave } from './save.js';
 import { units } from './settings.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
@@ -68,7 +71,7 @@ addEventListener('keydown', e => {                                       // P: p
 document.addEventListener('pointerlockchange', () => {
   const was = locked;
   locked = !!document.pointerLockElement;
-  if (was && !locked) setRunning(false);
+  if (was && !locked && !overlay?.open) setRunning(false);
 });
 
 const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadJet('models/jets/f5.gltf.json', F5)]);
@@ -80,20 +83,52 @@ const cloudEl = document.getElementById('cloudfog');
 const ac = new Aircraft(F5);
 const [enemyProto, bomberProto] = await Promise.all([loadEnemy('earlyJet'), loadEnemy('bomber')]);
 const haze = createHeatHaze(renderer, jet.model, NOZZLES);
-const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, [{ proto: enemyProto, count: WEAPONS.drones - 1 }, { proto: bomberProto, count: 1 }]);
+// what we fly: Mission 1 (default) or free flight (?mode=free, dev kit)
+const MODE = params.get('mode') === 'free' ? 'free' : 'mission1';
+const roster = MODE === 'mission1' ? [{ proto: enemyProto, count: 3 }, { proto: bomberProto, count: 10 }] : [{ proto: enemyProto, count: WEAPONS.drones - 1 }, { proto: bomberProto, count: 1 }];
+const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, roster);
 const rig = new CameraRig(camera, CAMERA);
+const overlay = createOverlay();
+const mission = MODE === 'mission1' ? createMission1({ weapons, ac, rig }) : null;
+let missionEnded = false;
 const prevPos = new THREE.Vector3(), prevQuat = new THREE.Quaternion();
 const drawPos = new THREE.Vector3(), drawQuat = new THREE.Quaternion();
 
 function spawn() {
   const s = WORLD.spawn;
-  ac.reset(new THREE.Vector3(s.x, s.y, s.z), s.heading, s.speed);
-  rig.reset(ac.quat);
+  weapons.rearm(); jet.damage.repair();
+  if (mission) { mission.start(weapons.S.simT || 0); tut.i = 0; tut.shown = false; tut.t = 0; tut.met = 0; tut.wait = 1.5; missionEnded = false; overlay.hideEnd(); }   // (a restart replays the whole mission)
+  else { ac.reset(new THREE.Vector3(s.x, s.y, s.z), s.heading, s.speed); rig.reset(ac.quat); weapons.placeDrones(); }
   prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
-  if (typeof weapons !== 'undefined') { weapons.rearm(); jet.damage.repair(); weapons.placeDrones(); }
   dead = 0; jet.object.visible = true; document.body.classList.remove('lost', 'dead');
 }
 let dead = 0;   // seconds since the player was killed (0 = alive)
+// tutorial (Mission 1, first time only): each step pauses on a card, then waits for the player to do the thing
+const tut = { i: 0, shown: false, t: 0, met: 0, wait: 1.5, gunKills0: 0, mslKills0: 0 };
+const kills = (by) => weapons.S.kills.filter(k => k.by === by).length;
+const TUT = [
+  { text: 'MOVE THE MOUSE TO AIM.<br>YOUR JET FLIES TOWARD THE CIRCLE.', target: '#aim', until: () => tut.t > 5 },
+  { text: 'TAB / SHIFT: THROTTLE.<br>AT FULL POWER, HOLD TAB FOR THE AFTERBURNER.', target: '#thrScale', until: () => ac.throttle >= 1.1, hold: 1 },
+  { text: 'PRESS 1 FOR GUNS.<br>CLOSE IN ON A BOMBER AND FIRE: LEFT CLICK OR SPACE.<br>SHOOT ITS PARTS OFF AND BRING IT DOWN.', target: '#arms', until: () => kills('gun') > tut.gunKills0, hold: 2, enter: () => { tut.gunKills0 = kills('gun'); } },
+  { text: 'PRESS 2 FOR MISSILES.<br>HOLD A TARGET IN THE CIRCLE UNTIL IT TURNS RED, THEN FIRE.', target: '#arms', until: () => kills('missile') > tut.mslKills0, hold: 2, enter: () => { tut.mslKills0 = kills('missile'); } },
+  { text: 'THE ESCORTS ARE COMING.<br>THE REST IS UP TO YOU.', target: null, last: true },
+];
+function tutorialStep(dt) {
+  if (!mission || save.tutorialDone || tut.i >= TUT.length) return;
+  if ((tut.wait -= dt) > 0) return;
+  const st = TUT[tut.i];
+  if (!tut.shown) {
+    tut.shown = true; st.enter?.();
+    weapons.setFiring(false);
+    overlay.show(st.text, st.target, () => {
+      tut.t = 0; tut.met = 0;
+      if (st.last) { save.tutorialDone = true; writeSave(); tut.i++; }
+    });
+    return;
+  }
+  tut.t += dt;
+  if (st.until?.()) { tut.met += dt; if (tut.met >= (st.hold || 0)) { tut.i++; tut.shown = false; tut.wait = 0.8; } }
+}
 let tgtSwitch = 0;   // how long a better gun target has been waiting to take over
 spawn();
 
@@ -109,10 +144,10 @@ addEventListener('keydown', e => {
   if (e.code === 'Digit2') weapons.select(2);
   if (e.code === 'KeyR') weapons.cycleTarget();
   if (e.code === 'KeyG' && !e.repeat) ac.gearCmd = ac.gearCmd ? 0 : 1;   // landing gear up / down
-  if (e.code === 'Space' && running && !dead && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
+  if (e.code === 'Space' && running && !dead && !overlay.open && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
 });
 addEventListener('keyup', e => { if (e.code === 'Space') weapons.setFiring(false); });
-addEventListener('mousedown', e => { if (e.button === 0 && running && !dead && e.target === canvas) weapons.setFiring(true, performance.now() / 1000); });
+addEventListener('mousedown', e => { if (e.button === 0 && running && !dead && !overlay.open && e.target === canvas) weapons.setFiring(true, performance.now() / 1000); });
 addEventListener('mouseup', e => { if (e.button === 0) weapons.setFiring(false); });
 addEventListener('blur', () => keys.clear());
 // With pointer lock the mouse turns the camera directly. Where the page can't lock the pointer
@@ -517,13 +552,21 @@ addEventListener('resize', resize);
 resize();
 
 let acc = 0, last = performance.now(), gameT = 0;
-function frame(now) {
+function frameBody(now) {
   const dt = Math.min((now - last) / 1000, 0.1); last = now;
   // paused or in the cinematic camera: every effect stands still (the game clock stops)
-  const frozen = (started && !running) || viewer.on, vdt = frozen ? 0 : dt;   // (the cinematic camera freezes the moment too)
+  const frozen = (started && !running) || viewer.on || overlay.open, vdt = frozen ? 0 : dt;   // (the cinematic camera and tutorial cards freeze the moment too)
   gameT += vdt;
   if (models.on) { models.render(); requestAnimationFrame(frame); return; }   // dev model viewer: its own static scene
-  if (running) {
+  if (running && !overlay.open && !dead) {
+    tutorialStep(dt);
+    if (mission && !missionEnded && mission.update(dt)) {               // everything is down: the results
+      missionEnded = true; weapons.setFiring(false);
+      overlay.showEnd(mission.stats(), () => { spawn(); resume(); });
+      if (document.pointerLockElement) document.exitPointerLock();
+    }
+  }
+  if (running && !overlay.open) {
     cursorSteer(dt);
     if (recentre > 0 && !manual) rig.recenter(_n.set(0, 0, 1).applyQuaternion(ac.quat), Math.min(1, dt * 12));
     rig.look(mouseDX, mouseDY);
@@ -584,6 +627,23 @@ function frame(now) {
   window.__dev?.(dt);
   requestAnimationFrame(frame);
 }
+// Errors: shown in a small box (dev aid; copy it to report) and logged with the stack. The frame loop survives any
+// single error, so one bad frame can no longer freeze the whole game.
+const errBox = document.createElement('div'); errBox.id = 'errbox'; document.body.appendChild(errBox);
+let errCount = 0, lastErr = '';
+function reportError(e, where) {
+  const msg = `${where}: ${e?.message || e}`;
+  console.error('[game]', where, e);
+  if (msg === lastErr) { errCount++; } else { lastErr = msg; errCount = 1; }
+  errBox.textContent = `${msg}${errCount > 1 ? `  (x${errCount})` : ''}\n${(e?.stack || '').split('\n').slice(1, 5).join('\n')}`;
+  errBox.style.display = 'block';
+}
+addEventListener('error', (e) => reportError(e.error || e.message, 'error'));
+addEventListener('unhandledrejection', (e) => reportError(e.reason, 'promise'));
+function frame(now) {
+  try { frameBody(now); }
+  catch (e) { reportError(e, 'frame'); last = now; requestAnimationFrame(frame); }
+}
 requestAnimationFrame(frame);
 // --- dev kit: model viewer -------------------------------------------------------------------
 const viewer = {
@@ -641,6 +701,15 @@ addEventListener('keydown', e => {
   document.body.classList.toggle('clean');
 });
 const kitBtn = document.getElementById('devkit'), kitMenu = document.getElementById('devmenu');
+// dev kit: level, player aircraft, clear all player data
+{
+  const lv = document.getElementById('kit-level'), pl = document.getElementById('kit-plane');
+  lv.value = MODE;
+  lv.addEventListener('change', () => { const q = new URLSearchParams(location.search); if (lv.value === 'free') q.set('mode', 'free'); else q.delete('mode'); location.search = q.toString(); });
+  pl.addEventListener('change', () => {});            // (only one aircraft so far)
+  document.getElementById('kit-clear').addEventListener('click', (e) => { e.stopPropagation(); if (confirm('Delete all player data (save file, settings, tutorial)?')) { clearSave(); location.reload(); } });
+  for (const el of [lv, pl]) el.addEventListener('click', (e) => e.stopPropagation());
+}
 kitBtn.addEventListener('click', e => { e.stopPropagation(); kitMenu.hidden = !kitMenu.hidden; });
 document.getElementById('kit-viewer').addEventListener('click', e => {
   e.stopPropagation(); kitMenu.hidden = true;
@@ -655,7 +724,7 @@ if (isTouch) {
   createTouch(document.getElementById('touch'), {
     onLook: (dx, dy) => { if (running) { mouseDX += dx; mouseDY += dy; } },
     onThrottle: (v) => { ac.throttle = v; },
-    onFire: (on) => { if (running && !dead) weapons.setFiring(on, performance.now() / 1000); },
+    onFire: (on) => { if (running && !dead && !overlay.open) weapons.setFiring(on, performance.now() / 1000); },
     onSwitch: () => weapons.select(weapons.S.selected === 1 ? 2 : 1),
   });
 }

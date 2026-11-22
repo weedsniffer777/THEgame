@@ -164,3 +164,21 @@ body.dead #hud, body.dead #touch { display: none; }
 /* notices: short red lines high in the centre, stacked */
 #notes { position: absolute; left: 0; right: 0; top: calc(7% + 72px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 #notes div { font: 700 13px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.12em; color: #ff4a3c; text-shadow: 0 0 3px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.7); }
+
+/* tutorial: darkened screen with a spotlight on one part of the HUD, and a short instruction card */
+#tut { position: fixed; inset: 0; z-index: 45; display: none; pointer-events: none; }
+#tut.on { display: block; }
+#tut.nospot { background: rgba(0,0,0,0.55); }
+#tut .spot { position: absolute; border-radius: 10px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.6); border: 1.5px solid rgba(236,246,238,0.8); }
+#tut .card { position: absolute; width: 340px; padding: 14px 16px; background: rgba(8,12,18,0.9); border-left: 3px solid #fff; color: rgba(236,246,238,0.95); font: 700 13px/1.5 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.04em; }
+#tut .go { margin-top: 10px; font-size: 10px; letter-spacing: 0.14em; opacity: 0.6; }
+#mend { position: fixed; inset: 0; z-index: 46; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.35); }
+#mend.on { display: flex; }
+#mend .box { min-width: 300px; padding: 22px 26px; background: rgba(8,12,18,0.9); border-left: 3px solid #fff; color: rgba(236,246,238,0.95); font: 700 13px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.12em; }
+#mend .h { font-size: 22px; margin-bottom: 18px; }
+#mend .row { display: flex; justify-content: space-between; margin: 10px 0; opacity: 0.9; }
+#mend .replay { margin-top: 18px; font: 700 15px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.16em; color: #fff; background: none; border: 1.5px solid rgba(236,246,238,0.8); padding: 10px 16px; cursor: pointer; }
+#mend .replay:hover { background: rgba(236,246,238,0.15); }
+#devmenu select { letter-spacing: 0.06em; color: #fff; background: #0009; border: 1px solid #ffffff4d; border-radius: 4px; padding: 7px 8px; font: 700 11px/1 ui-monospace, monospace; cursor: pointer; }
+#kit-clear { color: #ff8a80 !important; }
+#errbox { display: none; position: fixed; left: 8px; bottom: 8px; z-index: 70; max-width: 60vw; white-space: pre-wrap; font: 11px/1.35 ui-monospace, monospace; color: #ffd0cc; background: rgba(60,0,0,0.85); border: 1px solid #ff6a5a; padding: 6px 8px; user-select: text; -webkit-user-select: text; }

@@ -51,7 +51,7 @@ export function createFlightHud(root) {
   hdg.txt = el('text', { class: 'bv', 'text-anchor': 'middle' }, hdg.g);
 
   // throttle
-  const thr = { g: el('g', {}, svg) };
+  const thr = { g: el('g', { id: 'thrScale' }, svg) };
   thr.ab = el('rect', { fill: 'url(#abHatch)', opacity: 0.55 }, thr.g);
   thr.ticks = el('path', { class: 'tk' }, thr.g);
   thr.eng = el('rect', { class: 'eng' }, thr.g);

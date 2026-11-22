@@ -2,7 +2,7 @@
 
 ## Ground rules
 - Three.js + Vite, plain JavaScript. Target CrazyGames first, Poki later; must run well on Chromebooks.
-- Minimal text in the game. No labels, tooltips or explanatory copy; communicate visually. Allowed text so far: "CLICK TO START"; the flight HUD's numbers (speed tape and readout with KT, altitude tape and readout, G, heading tape and readout); the 1/2 weapon key hints; enemy distances in km; and enemy aircraft types in plain words ("Fighter", "Bomber"; never real names). Ticks, notches and numbers are fine; letters only where they are really needed. Menus (pause, settings) use short uppercase words. Red notices high in the centre: AIRBRAKE ON, LANDING GEAR EXTENDED, SLOW DOWN TO EXTEND LANDING GEAR! Dev-only tools (the ` panel) are exempt.
+- Minimal text in the game. No labels, tooltips or explanatory copy; communicate visually. Allowed text so far: "CLICK TO START"; the flight HUD's numbers (speed tape and readout with KT, altitude tape and readout, G, heading tape and readout); the 1/2 weapon key hints; enemy distances in km; and enemy aircraft types in plain words ("Fighter", "Bomber"; never real names). Ticks, notches and numbers are fine; letters only where they are really needed. Menus (pause, settings) use short uppercase words. Tutorial cards and the mission-complete card (short uppercase sentences). Red notices high in the centre: AIRBRAKE ON, LANDING GEAR EXTENDED, SLOW DOWN TO EXTEND LANDING GEAR! Dev-only tools (the ` panel) are exempt.
 - No real aircraft names, manufacturers, countries, flags or insignia anywhere in the game or store pages. Repaint all models.
 - Every third-party asset must be commercial-use licensed (CC0, CC-BY, or a store license; never NC or ND) and listed in CREDITS.md.
 - No sound yet.
@@ -16,6 +16,7 @@
 - `src/enemy.js`: enemy aircraft types (first: the early swept-wing jet, gear removed, split into parts).
 - `src/weapons.js`: guns (tracer per round), missiles (6 stations, no reload), seeker/lock, explosions, target drone.
 - `src/paint.js`: paint schemes (per type in enemy.js / jet.js: texture file -> repainted file in `public/models/jets/paints/`). Enemies currently use 'standard'; 'unmarked' (no stars) is ready.
+- `src/save.js`: the one save file (tutorialDone, settings, ...). `src/mission/mission1.js`: Mission 1 (formation on a straight track, completion). `src/ui/tutorial.js`: tutorial cards with spotlight, mission-complete card. Default mode is Mission 1; `?mode=free` (dev kit level selector) is free flight.
 - `src/settings.js`: player settings (units) and unit conversions; `src/ui/pauseMenu.js`: pause menu with settings tabs.
 - `src/hudFlight.js`: flight HUD (speed/altitude tapes, heading, G, throttle scale, pitch marks). `src/hudArms.js`, `src/hudXray.js`: weapon panel and X-ray damage view. `src/touch.js`: touch controls (drag to aim, throttle slider, fire/switch).
 - Dev kit (top-right button): model viewer with every animation, door angles and part breaking.

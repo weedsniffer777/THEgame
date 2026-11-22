@@ -1,11 +1,11 @@
 // Player settings (the pause menu edits them; kept in this browser's storage when it is available).
-const KEY = 'thegame.settings';
+import { save, writeSave } from './save.js';
 export const settings = { units: 'imperial' };   // 'imperial' (kts, ft, nm) or 'metric' (km/h, m, km)
-try { Object.assign(settings, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { /* storage blocked: defaults */ }
+Object.assign(settings, save.settings || {});      // (kept in the one save file)
 const listeners = [];
 export function setSetting(k, v) {
   settings[k] = v;
-  try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { /* ignore */ }
+  save.settings = { ...settings }; writeSave();
   listeners.forEach(f => f(k, v));
 }
 export function onSetting(f) { listeners.push(f); }
