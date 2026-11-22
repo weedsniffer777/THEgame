@@ -184,7 +184,7 @@ function hud() {
     lockEl.className = W.locked ? 'locked' : tracking && (performance.now() % 250 < 125) ? 'flash' : '';
     seekerEl.className = W.locked ? 'locked' : '';
   }
-  // enemies: a solid diamond above each one with its distance in nautical miles (counts down as you close)
+  // enemies: a solid diamond above each one with its distance in km (counts down as you close)
   weapons.drones.forEach((d, k) => {
     let el = tgtEls[k];
     if (!el) {
@@ -196,9 +196,9 @@ function hud() {
     el.hidden = !d.alive || d.falling || !running;
     if (el.hidden) return;
     place(el, d.obj.position);
-    const nm = d.pos.distanceTo(ac.pos) / 1852;
-    const txt = nm < 10 ? nm.toFixed(1) : Math.round(nm).toString();
-    if (txt !== el._txt) { el._b.innerHTML = `${txt}<small>NM</small>`; el._txt = txt; }
+    const km = d.pos.distanceTo(ac.pos) / 1000;
+    const txt = km < 10 ? km.toFixed(1) : Math.round(km).toString();
+    if (txt !== el._txt) { el._b.innerHTML = `${txt}<small>KM</small>`; el._txt = txt; }
     el.classList.toggle('sel', d === W.target && !msl);
   });
   // the gun-solution target is whichever enemy sits closest to the reticle on screen

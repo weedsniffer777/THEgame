@@ -376,9 +376,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   }
   function placeDrone(d, k = Math.random() * 8) {
     d.dmg.repair();
-    // a circle somewhere around the player, 0.8 to 2.6 km away, at a similar height
+    // a circle somewhere around the player, 3 to 8 km away, at a similar height
     const a = (k / Math.max(cfg.drones, 1)) * Math.PI * 2 + Math.random() * 0.6;
-    const r = 800 + Math.random() * 1800;
+    const r = cfg.droneMinDist + Math.random() * (cfg.droneMaxDist - cfg.droneMinDist);
     d.R = 500 + Math.random() * 900; d.speed = 140 + Math.random() * 80; d.dir = Math.random() < 0.5 ? -1 : 1;
     d.centre.set(ac.pos.x + Math.cos(a) * r, 0, ac.pos.z + Math.sin(a) * r);
     d.centre.y = Math.max(ac.pos.y + (Math.random() - 0.5) * 600, terrain.heightAt(d.centre.x, d.centre.z) + 700);
