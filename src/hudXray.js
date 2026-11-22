@@ -72,7 +72,7 @@ export function createXray(root, damage, maxHp, renderer, model) {
 
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
-  canvas.style.width = `${W / 2}px`; canvas.style.height = `${H / 2}px`;
+  canvas.style.width = `${W / 2 * 1.3}px`; canvas.style.height = `${H / 2 * 1.3}px`;   // (drawn 1.3x: a bit bigger on screen)
   root.innerHTML = ''; root.append(canvas);
   const ctx = canvas.getContext('2d'), img = ctx.createImageData(W, H);
   let lastKey = '';

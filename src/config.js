@@ -58,6 +58,8 @@ export const F5 = {
   // low-speed floor so the jet never becomes completely uncontrollable while tumbling
   minAuthority: 0.03,
   lowSpeedAuthority: 0.6,  // control/rotation authority floor at low speed (fraction of reference)
+  ctrlFadeLowIAS: 20,     // m/s IAS (~40 kt): below this the floor is gone (controls slack below flying speed)
+  ctrlFadeFullIAS: 55,    // m/s IAS (~107 kt): full floor from here
   gFloorMax: 9,           // arcade lift: G guaranteed at full AoA once at gFloorFullIAS
   gFloorStartIAS: 28,     // m/s IAS where the guarantee starts (~55 kt)
   gFloorFullIAS: 120,     // m/s IAS where it reaches gFloorMax (~230 kt)

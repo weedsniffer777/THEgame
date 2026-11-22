@@ -8,6 +8,7 @@ import { loadTerrain } from './world/terrain.js';
 import { loadJet, viewerAnim , NOZZLES } from './jet.js';
 import { createHeatHaze } from './heatHaze.js';
 import { groundContact } from './flight/ground.js';
+import { createFlightHud } from './hudFlight.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
 import { loadEnemy } from './enemy.js';
@@ -266,7 +267,9 @@ function place(el, worldPoint) {
   if (vis) el.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth}px, ${(-_p.y * 0.5 + 0.5) * innerHeight}px)`;
 }
 let gStrain = 0;
+const flightHud = createFlightHud(document.getElementById('hud'));
 function hud(dt = 1 / 60) {
+  if (running && !dead) flightHud(ac, camera, rig);
   const D = CAMERA.aimDistance;
   place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, D));
   aimEl.style.opacity = manual ? 0.25 : 1;

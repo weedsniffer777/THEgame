@@ -72,7 +72,7 @@ body.lost #game { filter: saturate(0.25) brightness(0.85); transition: filter 0.
 /* touch controls */
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 #touch > * { pointer-events: auto; touch-action: none; }
-body.touch #throttle { display: none; }
+body.touch #throttle, #gauges { display: none !important; }
 .t-throttle { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: 28px; width: 46px; height: 46vh; border-radius: 23px; background: rgba(0,0,0,0.28); border: 1.5px solid rgba(255,255,255,0.5); overflow: hidden; }
 .t-throttle i { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.75); }
 .t-throttle.ab i { background: #ffa640; }
@@ -108,3 +108,20 @@ body.clean #perf { display: none; }
 #hud .mmark { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; }
 #hud .mmark::after { content: ''; position: absolute; left: -5.5px; top: -5.5px; width: 11px; height: 11px; box-sizing: border-box; transform: rotate(45deg); border: 2.5px solid #3d8fff; background: rgba(61, 143, 255, 0.28); }
 #hud .mmark.foe::after { border-color: #d8352b; background: rgba(216, 53, 43, 0.28); }
+
+/* flight HUD: one SVG, thin single-colour strokes, cockpit-display typeface */
+#fhud { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.75)); }
+#fhud .tk, #fhud .box, #fhud .ladder { fill: none; stroke: rgba(236,246,238,0.92); stroke-width: 1.4; }
+#fhud .box { fill: rgba(0,0,0,0.18); }
+#fhud .ladder { stroke: rgba(236,246,238,0.42); stroke-width: 1.3; }
+#fhud text { fill: rgba(236,246,238,0.95); font-family: 'B612 Mono', ui-monospace, monospace; font-weight: 700; font-variant-numeric: tabular-nums; }
+#fhud .tl { font-size: 10px; opacity: 0.85; }
+#fhud .bv { font-size: 12.5px; }
+#fhud .gv { font-size: 12px; }
+#fhud .unit { font-size: 9px; opacity: 0.75; }
+#fhud .chev { fill: rgba(236,246,238,0.95); }
+#fhud .chev.ab { fill: #ffa640; }
+#fhud .eng { fill: rgba(236,246,238,0.55); }
+body.touch #fhud .thr { display: none; }
+#throttle, #gauges { display: none !important; }
+body.lost #fhud, body.viewing #fhud { display: none; }

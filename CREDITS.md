@@ -18,6 +18,9 @@ All licensed under [Creative Commons Attribution 4.0](http://creativecommons.org
 | "VPAF Sukhoi Su-57" | Dave Love SketchFab | https://skfb.ly/pLKWt | ace / boss enemy, possible unlock |
 | "Northrop F-5" | dimal965 | https://skfb.ly/o6FzX | starter player jet (in game: roundels, wing dots and tail/nose numbers painted out of the texture; split into parts) |
 
+## Fonts
+- B612 Mono (HUD numbers): Copyright 2012 The B612 Project Authors, SIL Open Font License 1.1 (via @fontsource/b612-mono).
+
 ## Weapons models
 
 | Source model | Author | Link | Use |
