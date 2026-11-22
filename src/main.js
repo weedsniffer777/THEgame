@@ -157,6 +157,7 @@ function crash(ditched = false, airborne = false) {   // ditched: worn out after
   if (dead) return;
   weapons.setFiring(false); document.body.classList.add('dead');   // dead: no shooting, no HUD
   deathCam.far = airborne ? 190 : 85;                                   // broken up: pull right back over the spreading debris
+  wreck.airborne = airborne;                                          // (the fuselage still has to hit the ground)
   dead = 1e-6;
   {
     const o = _wv.subVectors(camera.position, ac.pos), L = Math.max(o.length(), 1);
@@ -251,6 +252,10 @@ function wreckStep(dt) {
     }
   }
   if (wreck.spin.lengthSq() > 25) wreck.spin.setLength(5);          // a graze at speed can't set it whirling
+  if (touching && wreck.airborne) {                                   // what was left after breaking up hits the ground: it goes up
+    wreck.airborne = false;
+    weapons.crash(wreck.pos, wreck.vel, terrain.isWater(wreck.pos.x, wreck.pos.z));
+  }
   if (touching) {
     wreck.pos.y += lift * 0.8;                                     // push out of the ground
     wreck.vel.multiplyScalar(Math.exp(-0.8 * dt));                 // ground scraping and crumpling
