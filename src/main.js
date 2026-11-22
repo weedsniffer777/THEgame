@@ -198,7 +198,7 @@ function hud() {
     place(el, d.obj.position);
     const nm = d.pos.distanceTo(ac.pos) / 1852;
     const txt = nm < 10 ? nm.toFixed(1) : Math.round(nm).toString();
-    if (txt !== el._txt) { el._b.textContent = txt; el._txt = txt; }
+    if (txt !== el._txt) { el._b.innerHTML = `${txt}<small>NM</small>`; el._txt = txt; }
     el.classList.toggle('sel', d === W.target && !msl);
   });
   // the selected enemy (gun solution) also gets a square around the aircraft itself
@@ -212,10 +212,12 @@ function hud() {
     const a = screenOf(W.target.obj.position), b = screenOf(W.lead);
     if (a && b) {
       const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
-      if (len > 14) {
+      // from the edge of the square (half size 12.6) to the edge of the circle (radius 7.6): one joined shape
+      const ux = dx / len, uy = dy / len, fromBox = 12.6 / Math.max(Math.abs(ux), Math.abs(uy)), toCircle = 7.6;
+      if (len > fromBox + toCircle + 2) {
         lineEl.hidden = false;
-        lineEl.style.width = `${len - 14}px`;
-        lineEl.style.transform = `translate(${a[0] + dx / len * 9}px, ${a[1] + dy / len * 9}px) rotate(${Math.atan2(dy, dx)}rad)`;
+        lineEl.style.width = `${len - fromBox - toCircle}px`;
+        lineEl.style.transform = `translate(${a[0] + ux * fromBox}px, ${a[1] + uy * fromBox}px) rotate(${Math.atan2(dy, dx)}rad)`;
       }
     }
   }
