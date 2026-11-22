@@ -326,6 +326,19 @@ function place(el, worldPoint) {
   if (vis) el.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth}px, ${(-_p.y * 0.5 + 0.5) * innerHeight}px)`;
 }
 let gStrain = 0, gTime = 0, breakupT = 0.6;
+// notices (red, high centre, stacked): airbrake out, gear down, gear blown back by speed
+const notesEl = document.getElementById('notes');
+let gearWarnT = 0, lastNotes = '';
+function notes(dt) {
+  if (ac.gearBlown) { gearWarnT = 2.5; ac.gearBlown = false; }
+  gearWarnT = Math.max(0, gearWarnT - dt);
+  const list = [];
+  if (gearWarnT > 0) list.push('SLOW DOWN TO EXTEND LANDING GEAR!');
+  if (ac.airbrakeCmd > 0 && ac.airbrake > 0.05) list.push('AIRBRAKE ON');
+  if (ac.gearCmd && ac.gear > 0.05) list.push('LANDING GEAR EXTENDED');
+  const html = running && !dead ? list.map(t => `<div>${t}</div>`).join('') : '';
+  if (html !== lastNotes) { notesEl.innerHTML = html; lastNotes = html; }
+}
 // The player's shadow: each frame their jet alone is drawn white-on-black from the sun into a small texture; the
 // terrain darkens wherever that silhouette lands beyond them (softer and fainter the higher they are).
 const shadowRT = new THREE.WebGLRenderTarget(256, 256);
@@ -353,6 +366,7 @@ function playerShadow(time) {
 }
 const flightHud = createFlightHud(document.getElementById('hud'));
 function hud(dt = 1 / 60) {
+  notes(dt);
   if (running && !dead) flightHud(ac, camera, rig);
   const D = CAMERA.aimDistance;
   place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, D));
@@ -532,6 +546,7 @@ function frame(now) {
   jet.object.quaternion.copy(drawQuat);
   jet.animate(ac, gameT);
   if (running && !dead) weapons.vapour(vdt, drawPos, drawQuat);   // wing vapour / transonic collar, at the drawn jet
+  if (vdt > 0) weapons.contrailsStep(drawPos, drawQuat, running && !dead);
   weapons.render(camera, vdt, gameT, a, drawPos, drawQuat, renderer);
   jet.damage.update(vdt);
   ac.damageFx = jet.damage.effects();

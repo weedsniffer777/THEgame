@@ -77,7 +77,7 @@ export class Aircraft {
       if (this.gearCmd && ias * 1.944 > (c.gearMaxKt || 260) && this.gear >= 0.43) {
         if (!this.gearHold) this.gearWasDown = this.gear > 0.999;
         this.gearHold = (this.gearHold || 0) + dt;
-        if (this.gearHold > (this.gearWasDown ? 0.75 : 0.5)) { this.gearCmd = 0; this.gearHold = 0; }
+        if (this.gearHold > (this.gearWasDown ? 0.75 : 0.5)) { this.gearCmd = 0; this.gearHold = 0; this.gearBlown = true; }
       } else this.gearHold = 0;
       if (!this.gearHold) this.gear += Math.sign(this.gearCmd - this.gear) * Math.min(Math.abs(this.gearCmd - this.gear), dt / (c.gearTime || 4));
       // arcade lift: below corner speed the wing is allowed a guaranteed share of the G limit at full AoA

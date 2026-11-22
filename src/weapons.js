@@ -255,7 +255,7 @@ class Vortices {
   }
   add(l, p, t, k) { const L = this.lines[l]; L.push({ p: p.clone(), t, k }); if (L.length > this.max) L.shift(); }
   cut(l) { const L = this.lines[l]; if (L.length && L[L.length - 1].k > 0) L.push({ p: L[L.length - 1].p.clone(), t: L[L.length - 1].t, k: 0 }); }
-  update(now, cam, life = 0.7, width = 0.07) {
+  update(now, cam, life = 0.7, width = 0.07, grow = 1.5) {
     const P = this.pos.array, A = this.alpha.array, side = new THREE.Vector3(), d = new THREE.Vector3(), v = new THREE.Vector3();
     this.lines.forEach((L, l) => {
       while (L.length && now - L[0].t > life) L.shift();
@@ -267,10 +267,10 @@ class Vortices {
         }
         const a = L[i], b = L[Math.min(i + 1, L.length - 1)], c = L[Math.max(i - 1, 0)];
         d.subVectors(b.p, c.p); v.subVectors(cam, a.p);
-        side.crossVectors(d, v).normalize().multiplyScalar(width * (1 + (now - a.t) * 1.5));   // spreads a little as it ages
+        side.crossVectors(d, v).normalize().multiplyScalar(width * (1 + (now - a.t) * grow));   // spreads as it ages
         P[o * 3] = a.p.x + side.x; P[o * 3 + 1] = a.p.y + side.y; P[o * 3 + 2] = a.p.z + side.z;
         P[o * 3 + 3] = a.p.x - side.x; P[o * 3 + 4] = a.p.y - side.y; P[o * 3 + 5] = a.p.z - side.z;
-        A[o] = A[o + 1] = a.k * Math.pow(Math.max(0, 1 - (now - a.t) / life), 1.5) * Math.min(1, i / 3);
+        A[o] = A[o + 1] = a.k * Math.pow(Math.max(0, 1 - (now - a.t) / life), 1.5) * Math.min(1, i / 3) * Math.min(1, (L.length - 1 - i) / 2 + 0.35);
         if (!a.puffed && now - a.t > life * 0.35 && a.k > 0) { a.puffed = true; this.onAge?.(a); }   // older stretch: becomes cloud
       }
     });
@@ -883,11 +883,48 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     }
   }
 
+  // ---------------- contrails: above ~25,000 ft every engine leaves a white trail (twin engines close together, like
+  // ours, make one); long-lived ribbons that spread as they age. Lines: 0 = us, then each enemy's engines.
+  const CONTRAIL_ALT = 7620, CONTRAIL_FULL = 8300;
+  const trailOwners = [{ key: 'player', n: 1 }];
+  for (const d of drones) {
+    const eng = d.props.filter(p => p.userData.prop === 1);          // one disc per engine (front of each pair)
+    trailOwners.push({ key: d, n: eng.length || 1, eng });
+  }
+  const lineOf = new Map(); let nLines = 0;
+  for (const o of trailOwners) { lineOf.set(o.key, nLines); nLines += o.n; }
+  const contrails = new Vortices(nLines, 110);
+  contrails.mesh.renderOrder = 1;
+  scene.add(contrails.mesh);
+  const _ct = new THREE.Vector3(), _cf = new THREE.Vector3();
+  const lastC = [];
+  function contrailPoint(l, p, k) {
+    const L = contrails.lines[l], last = lastC[l];
+    if (k <= 0.01) { contrails.cut(l); lastC[l] = null; return; }
+    if (last && last.distanceToSquared(p) < 28 * 28) return;      // a point every ~28 m
+    if (last && last.distanceToSquared(p) > 800 * 800) contrails.cut(l);   // jumped (respawn): new line
+    contrails.add(l, p, S.simT || 0, 0.75 * k);
+    lastC[l] = p.clone();
+  }
+  function contrailsStep(pos, quat, playerAlive) {
+    const sm2 = (y) => THREE.MathUtils.smoothstep(y, CONTRAIL_ALT, CONTRAIL_FULL);
+    // ours: from between the two nozzles
+    _ct.set(0, 1.628 - 1.9, -6.9 + 0.6).applyQuaternion(quat).add(pos);
+    contrailPoint(0, _ct, playerAlive ? sm2(pos.y) : 0);
+    for (const d of drones) {
+      const l0 = lineOf.get(d), owner = trailOwners.find(o => o.key === d);
+      const k = d.alive && !d.falling ? sm2(d.pos.y) : 0;
+      if (owner.eng.length) owner.eng.forEach((e, i) => { e.getWorldPosition(_ct); _cf.set(0, 0, -1).applyQuaternion(d.obj.quaternion); _ct.addScaledVector(_cf, 6); contrailPoint(l0 + i, _ct, k); });
+      else { _cf.set(0, 0, -1).applyQuaternion(d.obj.quaternion); _ct.copy(d.pos).addScaledVector(_cf, 5); contrailPoint(l0, _ct, k); }
+    }
+  }
+
   // ---------------- per frame: draw effects
   const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3();
   function render(camera, dt, now, alpha, drawPos, drawQuat, renderer) {
     glow.begin(); smoke.begin();
     vortices.update(S.simT || 0, camera.position);
+    contrails.update(S.simT || 0, camera.position, 14, 0.7, 0.35);
     // propellers (contra-rotating, 4 blades): each rendered frame they step a fixed share of the gap between blades,
     // 1/8: small enough that the eye sees continuous motion (bigger steps read as stutter or a backwards crawl).
     // Going down, the engines wind down and they turn slower.
@@ -1017,7 +1054,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now
     rearm() { S.loaded.fill(true); S.firing = false; },
     explode, hitFx, killDrone,   // (used by the dev tests)
-    vapour,
+    vapour, contrailsStep,
     step, render,
     missileProto: proto,
     trails, smoke, cfg,   // (dev tests)

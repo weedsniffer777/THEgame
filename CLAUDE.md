@@ -2,7 +2,7 @@
 
 ## Ground rules
 - Three.js + Vite, plain JavaScript. Target CrazyGames first, Poki later; must run well on Chromebooks.
-- Minimal text in the game. No labels, tooltips or explanatory copy; communicate visually. Allowed text so far: "CLICK TO START"; the flight HUD's numbers (speed tape and readout with KT, altitude tape and readout, G, heading tape and readout); the 1/2 weapon key hints; enemy distances in km; and enemy aircraft types in plain words ("Fighter", "Bomber"; never real names). Ticks, notches and numbers are fine; letters only where they are really needed. Menus (pause, settings) use short uppercase words. Dev-only tools (the ` panel) are exempt.
+- Minimal text in the game. No labels, tooltips or explanatory copy; communicate visually. Allowed text so far: "CLICK TO START"; the flight HUD's numbers (speed tape and readout with KT, altitude tape and readout, G, heading tape and readout); the 1/2 weapon key hints; enemy distances in km; and enemy aircraft types in plain words ("Fighter", "Bomber"; never real names). Ticks, notches and numbers are fine; letters only where they are really needed. Menus (pause, settings) use short uppercase words. Red notices high in the centre: AIRBRAKE ON, LANDING GEAR EXTENDED, SLOW DOWN TO EXTEND LANDING GEAR! Dev-only tools (the ` panel) are exempt.
 - No real aircraft names, manufacturers, countries, flags or insignia anywhere in the game or store pages. Repaint all models.
 - Every third-party asset must be commercial-use licensed (CC0, CC-BY, or a store license; never NC or ND) and listed in CREDITS.md.
 - No sound yet.
