@@ -459,6 +459,18 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     }
   }
   function spark(p) { S.fx.push({ kind: 'spark', p: p.clone(), v: new THREE.Vector3(), t: 0, life: 0.12, s: 2.5 }); }
+  // a round hitting an aircraft: bits of skin flying off, a small grey puff, a few short sparks, sometimes a quick lick of flame.
+  // Everything moves on with the aircraft, so it reads as hits on it rather than flashes in the air.
+  function hitFx(p, vel) {
+    const carry = vel.clone().multiplyScalar(0.85);
+    const rnd = (k) => new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.3, Math.random() - 0.5).normalize().multiplyScalar(k);
+    for (let i = 0; i < 2 + Math.floor(Math.random() * 2); i++)
+      S.fx.push({ kind: 'chip', p: p.clone(), v: carry.clone().add(rnd(12 + Math.random() * 18)), t: 0, life: 1.2 + Math.random(), s: 0.12 + Math.random() * 0.12, seed: Math.random() });
+    S.fx.push({ kind: 'smoke', p: p.clone(), v: carry.clone().add(rnd(2)), t: 0, life: 1.4 + Math.random() * 0.6, s: 0.5 + Math.random() * 0.3, seed: Math.random(), spread: 1, hit: 1 });
+    for (let i = 0; i < 3; i++)
+      S.fx.push({ kind: 'sparkle', p: p.clone(), v: carry.clone().add(rnd(25 + Math.random() * 25)), t: 0, life: 0.12 + Math.random() * 0.12, s: 0.06 });
+    if (Math.random() < 0.25) S.fx.push({ kind: 'ball', burn: 1, p: p.clone(), v: carry.clone(), t: 0, life: 0.35, s: 0.6, seed: Math.random() });
+  }
 
   // ---------------- per physics step
   function step(dt, now) {
@@ -494,7 +506,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       r.p.addScaledVector(r.v, dt);
       r.t += dt;
       for (const d of drones) if (d.alive && !d.falling && segDist(r.prev, r.p, d.pos) < cfg.hitRadius * S.hitScale) {
-        r.t = 1e9; const at = closestOnSeg(r.prev, r.p, d.pos); spark(at);
+        r.t = 1e9; const at = closestOnSeg(r.prev, r.p, d.pos); hitFx(at, d.vel);
         d.dmg.hit(at, d.vel);
         if (d.dmg.dead) killDrone(d);
         break;
@@ -682,7 +694,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         glow.push(e.p, null, 1.0, 0.75, 0.45, 3.5 * (1 - k), e.s * (0.6 + k * 0.6), 0.3);
       } else if (e.kind === 'smoke') {
         if (e.rise) e.v.y += dt * 0.6;
-        const g = e.dust ? 0.48 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.42 + 0.1 * e.seed;     // dark sooty grey, with some near-black
+        const g = e.dust ? 0.48 + 0.08 * e.seed : e.hit ? 0.3 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.42 + 0.1 * e.seed;     // dark sooty grey, with some near-black
         const grow = e.spread ? 0.8 + 7 * (1 - Math.exp(-e.t * 0.9)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
         smoke.push(e.p, null, g * 1.08, g, g * 0.92, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow, e.seed);
       } else if (e.kind === 'flame') {
@@ -692,6 +704,12 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         const tail = tmpB.copy(e.v).multiplyScalar(-0.06).add(e.p);
         glow.push(e.p, tail, 1.0, 0.45 + 0.3 * (1 - k), 0.08, 2.2 * (1 - k * 0.7), e.s * 0.6);
         emit('smoke', e.p, e.v, e);
+      } else if (e.kind === 'chip') {                       // a bit of skin: small dark fleck tumbling away under gravity
+        e.v.y -= G * dt;
+        smoke.push(e.p, null, 0.16, 0.16, 0.17, 0.95 * (1 - k * k), e.s, e.seed);
+      } else if (e.kind === 'sparkle') {                    // a short spark streak
+        const tail = tmpB.copy(e.v).multiplyScalar(-0.03).add(e.p);
+        glow.push(e.p, tail, 1.0, 0.7, 0.35, 0.9 * (1 - k), e.s);
       } else glow.push(e.p, null, 1.0, 0.85, 0.55, 3.0 * (1 - k), e.s, 0.5);
     }
     S.fx = S.fx.filter(e => e.t < e.life);
@@ -729,7 +747,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     clearLine: (a, b) => clearLine(a, b),
     placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now
     rearm() { S.loaded.fill(true); S.firing = false; },
-    explode,   // (used by the dev tests)
+    explode, hitFx,   // (used by the dev tests)
     step, render,
     missileProto: proto,
     trails, smoke, cfg,   // (dev tests)
