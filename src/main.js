@@ -165,6 +165,7 @@ function crash() {
     _wn.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
     if (ac.vel.dot(_wn) < -20) jet.damage.breakPart('tail', ac.vel);   // into the ground hard: the fuselage snaps behind the wing
   }
+  if (wreck.inWater) jet.damage.quench();                              // into a lake: the water puts every fire out
   ac.throttle = ac.engine = 0;
   document.body.classList.remove('lost');
 }

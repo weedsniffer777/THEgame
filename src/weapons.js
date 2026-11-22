@@ -575,6 +575,13 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       S.fx.push({ pri: 1, kind: 'smoke', spray: 1, p: at.clone(), v: new THREE.Vector3(Math.cos(a) * out, (9 + Math.random() * 14) * Math.sqrt(scale), Math.sin(a) * out).add(fwd),
         t: -Math.random() * 0.25, life: 1.6 + Math.random() * 1.0, s: (1.6 + Math.random() * 1.6) * scale, seed: Math.random() });
     }
+    // a big one also throws up a tall column of white water
+    if (scale > 1.2) for (let i = 0; i < 10; i++) {
+      const a = Math.random() * Math.PI * 2, out = Math.random() * 2.5;
+      S.fx.push({ pri: 1, kind: 'smoke', spray: 1, col: 1, p: at.clone().add(new THREE.Vector3(Math.cos(a) * out, 0, Math.sin(a) * out)),
+        v: new THREE.Vector3(Math.cos(a) * out * 0.6, (14 + i * 2.6 + Math.random() * 4) * Math.sqrt(scale / 1.9), Math.sin(a) * out * 0.6).add(fwd.clone().multiplyScalar(0.5)),
+        t: -i * 0.03, life: 2.6 + Math.random() * 0.8, s: (2.2 + Math.random() * 1.2) * scale / 1.6, seed: Math.random() });
+    }
     for (let i = 0; i < 2 * Math.min(scale, 1.6); i++)
       S.fx.push({ pri: 1, kind: 'smoke', mist: 1, p: at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 8 * scale, 1, (Math.random() - 0.5) * 8 * scale)), v: new THREE.Vector3((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2).add(fwd),
         t: -0.3 - Math.random() * 0.5, life: 3 + Math.random() * 1.5, s: (2.5 + Math.random() * 1.5) * scale, seed: Math.random() });
@@ -779,15 +786,15 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     // wing vapour: from ~5 G, thick by 8 G
     const kw = Math.pow(sm(3.2, 8, ac.t.g || 0), 1.4) * fast * humid;   // creeps in from ~3.5 G, thick by 8 G
     if (kw > 0.02) {
-      const rate = (90 + 60 * kw) * kw * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);   // up to ~150 puffs/s at full
+      const rate = (110 + 90 * kw) * kw * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);   // up to ~200 small puffs/s at full
       for (let i = 0; i < n; i++) {
         const sx = Math.random() < 0.5 ? 1 : -1, side = sx > 0 ? 'L' : 'R';
         const x = 1.3 + Math.random() * 2.6;
         if (gone('wingInner' + side) || (x > 2.45 && gone('wingOuter' + side))) continue;
-        const le = -0.22 - 0.46 * (x - 1.6), z = le - Math.random() * 1.0;
-        toWorld(sx * x, 1.75 + Math.random() * 0.25, z);
-        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone().multiplyScalar(0.97 + 0.02 * kw), t: 0, life: (0.16 + Math.random() * 0.14) * (1 + kw),
-          s: 0.8 + Math.random() * 0.35, seed: Math.random(), op: Math.min(0.62, 0.58 * kw + 0.08), grow: 1.3 });
+        const le = -0.22 - 0.46 * (x - 1.6), z = le - Math.pow(Math.random(), 1.6) * 1.1;   // most of it near the leading edge
+        toWorld(sx * x, 1.6 + Math.random() * 0.18, z);                // just over the skin: it wraps the wing
+        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone().multiplyScalar(0.995), t: 0, life: 0.12 + Math.random() * 0.1,
+          s: 0.45 + Math.random() * 0.25, seed: Math.random(), op: Math.min(0.55, 0.5 * kw + 0.08), grow: 1.15 });
       }
     }
     // wingtip vortices: thin ribbons from each intact wingtip at high G (none from a tip that has broken off)
@@ -887,7 +894,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         glow.push(e.p, null, 1.0, 0.75, 0.45, 3.5 * (1 - k), e.s * (0.6 + k * 0.6), 0.3, 1);
       } else if (e.kind === 'smoke') {
         if (e.rise) e.v.y += dt * 0.6;
-        if (e.spray) e.v.y -= G * dt * 0.8;                     // spray falls back
+        if (e.spray) e.v.y -= G * dt * (e.col ? 0.55 : 0.8);    // spray falls back (the column hangs a little longer)
         const g = e.wet ? 0.8 + 0.08 * e.seed : e.spray || e.mist ? 0.88 + 0.08 * e.seed : e.dust ? 0.56 + 0.08 * e.seed : e.hit ? 0.36 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.74 + 0.1 * e.seed;     // dark sooty grey, with some near-black
         const grow = e.spread ? 0.8 + 7 * (1 - Math.exp(-e.t * 0.9)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
         smoke.push(e.p, null, g * 0.97, g, g * 1.04, 0.7 * (e.fade || 1) * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);

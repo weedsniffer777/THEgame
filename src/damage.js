@@ -178,7 +178,7 @@ export class Damage {
     }
     // while the jet can still fly only torn wing sections (fuel) burn, and modestly; fin, stabilators and nose
     // don't burn at all. Once it's going down, every break burns fully (see update).
-    const burns = name.startsWith('wing') || this.burning;
+    const burns = !this.quenched && (name.startsWith('wing') || this.burning);
     this.fires.push({ at: part.breakAt.clone(), wing: name.startsWith('wing'), t: 0, life: 5 + Math.random() * 10 });   // (a wing fire on a flyable aircraft burns out after life s)
     const edge = part.breakAt.clone().sub(part.local.elements.length ? new THREE.Vector3().setFromMatrixPosition(part.local) : o.position);   // torn edge, relative to the piece
     o.updateWorldMatrix(true, true);
@@ -191,6 +191,9 @@ export class Damage {
       spin: 2 + Math.random() * 5, t: 0, smokeT: 0, landed: false, edge, burns,
     });
   }
+
+  // doused (the aircraft went into water): nothing on it or flying off it burns or smokes any more
+  quench() { this.quenched = true; for (const d of this.debris) d.burns = false; }
 
   breakAll(vel) { for (const n of Object.keys(this.parts)) this.breakPart(n, vel); }
 
@@ -205,7 +208,7 @@ export class Damage {
       p.obj.visible = true;                                    // (pieces that sank in a lake were hidden)
     }
     for (const [o, m] of this.mats) o.material = m;
-    this.debris = []; this.fires = []; this.doomed = false; this.bodyHp = BODY_HP * (this.model.userData.toughness || 1);
+    this.debris = []; this.fires = []; this.doomed = false; this.quenched = false; this.bodyHp = BODY_HP * (this.model.userData.toughness || 1);
   }
 
   update(dt) {
@@ -228,7 +231,7 @@ export class Damage {
       }
       // every piece trails smoke from its torn edge while it falls; burning ones (wing sections, anything off an
       // aircraft that is going down) also trail flame and smoke for longer
-      if (!d.landed && d.t < (d.burns ? 10 : 6)) {
+      if (!d.landed && !this.quenched && d.t < (d.burns ? 10 : 6)) {
         const at = d.obj.localToWorld(d.edge.clone());   // the torn edge, not the middle of the piece
         this.emit('smoke', at, d.v, d); if (d.burns && d.t < 5) this.emit('flame', at, d.v, d.obj);
       }
@@ -236,7 +239,7 @@ export class Damage {
     this.debris = this.debris.filter(d => { if (d.t > 40) { d.obj.removeFromParent(); return false; } return true; });
     // break points on the airframe keep burning
     const dead = this.burning;
-    for (const f of this.fires) {
+    for (const f of this.quenched ? [] : this.fires) {
       if (!dead && !f.wing) continue;                        // flyable: only wing breaks burn
       // flyable: the fire dies down over its last couple of seconds and goes out; going down, it all burns again
       f.t += dt;
