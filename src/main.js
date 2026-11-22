@@ -277,6 +277,7 @@ function physics(dt) {
   // touching the ground: roll, bounce, scrape and lose parts; only a really hard hit or a wrecked airframe is a crash
   const g = groundContact(ac, terrain, jet.damage, dt, keys.has('KeyB') && ac.throttle < 0.05);
   if (g.crash || (g.touching && jet.damage.dead)) crash();
+  if (g.water && !dead && Math.random() < dt * 12) weapons.spray(ac.pos, ac.vel);   // skimming: spray
 }
 
 // HUD

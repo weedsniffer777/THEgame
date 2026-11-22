@@ -35,13 +35,21 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     const x = ac.pos.x + _r.x, z = ac.pos.z + _r.z, ground = terrain.heightAt(x, z);
     const pen = ground - (ac.pos.y + _r.y);
     if (pen <= 0) return;
-    if (terrain.isWater?.(x, z)) { water = true; crash = true; return; }   // into a lake: no rolling out of that
+    const onWater = !!terrain.isWater?.(x, z);
+    if (onWater && kind === 'wheel') return;                       // (water: the wheels just dig in; the airframe takes it)
     touching++; lift = Math.max(lift, pen);
     if (kind === 'wheel') { wheelsDown++; if (local.z > 0) noseDown = true; }
     _n.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
     _vc.crossVectors(_w, _r).add(ac.vel);
     const vn = _vc.dot(_n);
     if (vn >= 0) return;
+    // water: like the ground but much less forgiving. Coming down faster than ~6 m/s, hitting at a steep angle, or
+    // touching at more than ~110 m/s is a crash; otherwise it skims, with heavy drag
+    if (onWater) {
+      water = true;
+      const sp = _vc.length(), angle = Math.asin(Math.min(1, -vn / Math.max(sp, 1)));
+      if (vn < -6 || angle > 0.21 || sp > 110 || part === 'canopy') { crash = true; return; }
+    }
     // what the hit does
     if (vn < -22 || (part === 'canopy' && _vc.length() > 15)) crash = true;
     if (kind === 'frame') {
@@ -71,7 +79,7 @@ export function groundContact(ac, terrain, damage, dt, brake) {
       fr(side, 0.8);
     } else {
       const sp = vt.length();
-      if (sp > 1e-4) { fr(vt.clone().divideScalar(sp), 0.5); damage.bodyHp -= sp * dt * 0.04; }   // grinding along
+      if (sp > 1e-4) { fr(vt.clone().divideScalar(sp), onWater ? 1.4 : 0.5); if (!onWater) damage.bodyHp -= sp * dt * 0.04; }   // grinding along (water: heavy drag)
     }
   };
 
@@ -93,5 +101,6 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     }
   }
   ac.onGround = touching > 0;
+  if (water && !crash && ac.vel.length() < 8) crash = true;          // stopped on a lake: it settles and sinks
   return { touching, wheelsDown, crash, water };
 }

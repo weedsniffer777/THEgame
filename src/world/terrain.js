@@ -111,6 +111,29 @@ function findWater(t) {
   return out;
 }
 
+// 128x128 tileable ripple normals (xy = slope), from wrapped value noise at a few octaves
+function rippleTexture() {
+  const N = 128, h = new Float32Array(N * N), d = new Uint8Array(N * N * 4);
+  for (const [cells, amp] of [[8, 1], [16, 0.5], [32, 0.25]]) {
+    const g = Array.from({ length: cells * cells }, () => Math.random());
+    const at = (i, j) => g[((j % cells + cells) % cells) * cells + ((i % cells + cells) % cells)];
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const fx = x / N * cells, fy = y / N * cells, i = Math.floor(fx), j = Math.floor(fy);
+      let tx = fx - i, ty = fy - j; tx = tx * tx * (3 - 2 * tx); ty = ty * ty * (3 - 2 * ty);
+      h[y * N + x] += amp * ((at(i, j) * (1 - tx) + at(i + 1, j) * tx) * (1 - ty) + (at(i, j + 1) * (1 - tx) + at(i + 1, j + 1) * tx) * ty);
+    }
+  }
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = h[y * N + (x + 1) % N] - h[y * N + (x + N - 1) % N], dy = h[((y + 1) % N) * N + x] - h[((y + N - 1) % N) * N + x];
+    const k = (y * N + x) * 4;
+    d[k] = Math.max(0, Math.min(255, 128 - dx * 300)); d[k + 1] = Math.max(0, Math.min(255, 128 - dy * 300)); d[k + 3] = 255;
+  }
+  const t = new THREE.DataTexture(d, N, N, THREE.RGBAFormat);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+  t.needsUpdate = true;
+  return t;
+}
+
 export class Terrain {
   constructor(meta, heights, color) {
     this.w = meta.size[0]; this.h = meta.size[1]; this.s = meta.spacing;
@@ -155,7 +178,7 @@ export class Terrain {
       uHMin: { value: this.hMin }, uHScale: { value: this.hScale },
       uMorph: { value: this.morph },
       uBright: { value: WORLD.terrainBrightness }, uRelief: { value: WORLD.terrainRelief }, uSat: { value: WORLD.saturation },
-      uTime: { value: 0 },
+      uTime: { value: 0 }, uRipple: { value: rippleTexture() },
       uShadow: { value: null }, uShadowMat: { value: new THREE.Matrix4() }, uShadowPos: { value: new THREE.Vector3() }, uShadowK: { value: 0 }, uShadowSoft: { value: 0.004 },
     };
     const mat = new THREE.ShaderMaterial({
@@ -188,15 +211,12 @@ export class Terrain {
       fragmentShader: /* glsl */`
         uniform sampler2D uNormal; uniform sampler2D uColor;
         uniform ivec2 uSize; uniform float uSpacing; uniform vec2 uOrigin;
-        uniform float uBright; uniform float uRelief; uniform float uSat; uniform float uTime;
+        uniform float uBright; uniform float uRelief; uniform float uSat; uniform float uTime; uniform sampler2D uRipple;
         uniform sampler2D uShadow; uniform mat4 uShadowMat; uniform vec3 uShadowPos; uniform float uShadowK; uniform float uShadowSoft;
         in vec3 vWorld;
         layout(location = 0) out highp vec4 outColor;
         #define gl_FragColor outColor
         ${FOG_GLSL}
-        float vhash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-        float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-          return mix(mix(vhash(i), vhash(i + vec2(1, 0)), f.x), mix(vhash(i + vec2(0, 1)), vhash(i + vec2(1, 1)), f.x), f.y); }
         void main() {
           vec2 g = (vWorld.xz - uOrigin) / uSpacing;
           vec2 size = vec2(uSize);
@@ -215,12 +235,10 @@ export class Terrain {
           // water: slightly reflective (sky at grazing angles, a soft sun glint) over the lake's own colour
           if (water > 0.0) {
             vec3 v = normalize(cameraPosition - vWorld);
-            // ripples from drifting value noise at two scales (no regular wave pattern), very gentle slopes
-            vec2 q1 = vWorld.xz * 0.045 + vec2(uTime * 0.05, uTime * 0.03), q2 = vWorld.xz * 0.17 - vec2(uTime * 0.09, -uTime * 0.07);
-            float e = 0.35;
-            float hx = (vnoise(q1 + vec2(e, 0.0)) - vnoise(q1 - vec2(e, 0.0))) + 0.5 * (vnoise(q2 + vec2(e, 0.0)) - vnoise(q2 - vec2(e, 0.0)));
-            float hz = (vnoise(q1 + vec2(0.0, e)) - vnoise(q1 - vec2(0.0, e))) + 0.5 * (vnoise(q2 + vec2(0.0, e)) - vnoise(q2 - vec2(0.0, e)));
-            vec3 wn = normalize(vec3(-hx * 0.05, 1.0, -hz * 0.05));
+            // ripples: a small tileable normal texture at two unrelated scales and directions (cheap, no visible repeat)
+            vec2 r1 = texture(uRipple, vWorld.xz * 0.0071 + vec2(uTime * 0.004, uTime * 0.0027)).xy * 2.0 - 1.0;
+            vec2 r2 = texture(uRipple, mat2(0.8, -0.6, 0.6, 0.8) * vWorld.xz * 0.0263 - vec2(uTime * 0.011, -uTime * 0.008)).xy * 2.0 - 1.0;
+            vec3 wn = normalize(vec3((r1.x + 0.6 * r2.x) * 0.05, 1.0, (r1.y + 0.6 * r2.y) * 0.05));
             vec3 r = reflect(-v, wn);
             float fres = 0.04 + 0.96 * pow(1.0 - max(dot(v, wn), 0.0), 5.0);
             vec3 sky = mix(vec3(0.62, 0.72, 0.86), vec3(0.32, 0.5, 0.82), clamp(r.y * 2.0, 0.0, 1.0));
