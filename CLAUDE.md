@@ -9,7 +9,7 @@
 
 ## Layout
 - `src/config.js`: every tunable number (flight model, mouse-aim instructor, camera, world).
-- `src/flight/`: atmosphere, flight model (`aircraft.js`), mouse-aim autopilot (`instructor.js`).
+- `src/flight/`: atmosphere, flight model (`aircraft.js`), mouse-aim autopilot (`instructor.js`), flight of doomed enemies from what is left of their airframe (`crippled.js`).
 - `src/world/`: CDLOD terrain from a heightmap (mirrors past the map edge) and the shared sky/haze.
 - `src/jet.js`: F-5 model, control surface pivots, gear/doors, afterburner.
 - `src/damage.js`: break-apart damage model shared by every aircraft (parts, hit points, debris, flight effects); per-type region tables (REGIONS).

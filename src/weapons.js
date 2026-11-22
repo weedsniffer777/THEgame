@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { startCrippled, stepCrippled } from './flight/crippled.js';
 import { loadGltfJson } from './gltf.js';
 import { Damage, attachToPart } from './damage.js';
 import { FOG_GLSL, fogUniforms } from './world/sky.js';
@@ -387,7 +388,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     placeDrone(d, k);
   }
   function placeDrone(d, k = Math.random() * 8) {
-    d.dmg.repair(); d.spiral = null;
+    d.dmg.repair(); d.cr = null;
     // a circle somewhere around the player, 3 to 8 km away, at a similar height
     const a = (k / Math.max(drones.length || cfg.drones, 1)) * Math.PI * 2 + Math.random() * 0.6;
     const r = cfg.droneMinDist + Math.random() * (cfg.droneMaxDist - cfg.droneMinDist);
@@ -401,49 +402,20 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function flyDrone(d, dt) {
     d.dmg.update(dt);
     if (!d.alive) { if ((d.respawn -= dt) <= 0) placeDrone(d); return; }
+    d.age = (d.age || 0) + dt;
     // propellers: contra-rotating discs, slowing once the aircraft is going down
-    if (d.props) for (const p of d.props) p.rotation.x += p.userData.prop * dt * (d.falling ? 8 : d.spiral ? 18 : 28);
-    // an outer wing panel gone on an aircraft that can't take it: a slow, unrecoverable roll toward the missing side,
-    // the nose dropping further and further until it goes in
-    if (!d.falling && !d.spiral && d.def.outerWingFatal) {
-      const L = d.dmg.parts.wingOuterL?.broken, R = d.dmg.parts.wingOuterR?.broken;
-      if (L || R) {
-        const f = d.vel.lengthSq() > 1 ? d.vel.clone().normalize() : new THREE.Vector3(0, 0, 1).applyQuaternion(d.obj.quaternion);
-        d.spiral = { side: L ? -1 : 1, bank: 0, fwd: f, speed: Math.max(d.vel.length(), d.speed), t: 0 };
-      }
+    if (d.props) for (const p of d.props) p.rotation.x += p.userData.prop * dt * (d.falling ? 10 : 28);
+    // enemies can't fly on with asymmetric lift or without a tailplane: a lost wing section, the rear fuselage or
+    // both stabilisers means it is going down (the player's jet is the only one that survives an outer wing)
+    if (!d.falling) {
+      const P = d.dmg.parts, gone = (n) => !!P[n]?.broken;
+      if (gone('wingOuterL') || gone('wingOuterR') || gone('wingInnerL') || gone('wingInnerR') || gone('tail') || (P.stabL && gone('stabL') && gone('stabR'))) killDrone(d);
     }
-    if (d.spiral) {
-      const s = d.spiral; s.t += dt;
-      s.bank = Math.min(s.bank + dt * (0.12 + 0.05 * s.t), 2.4);                 // rolls further and further
-      const up = new THREE.Vector3(0, 1, 0);
-      const right = new THREE.Vector3().crossVectors(s.fwd, up).normalize();
-      // the tilted lift turns the path toward the low wing and no longer holds the nose up
-      const turn = 9.81 * Math.sin(s.bank) / s.speed * s.side;
-      s.fwd.applyAxisAngle(up, -turn * dt);
-      s.fwd.y -= dt * (0.04 + 0.12 * (1 - Math.cos(s.bank)));
-      s.fwd.y = Math.max(s.fwd.y, -0.95); s.fwd.normalize();
-      s.speed = Math.min(s.speed + dt * 9.81 * Math.max(0, -s.fwd.y) * 0.5, 260);
-      d.vel.copy(s.fwd).multiplyScalar(s.speed);
-      d.pos.addScaledVector(d.vel, dt);
-      _m.lookAt(new THREE.Vector3(), s.fwd.clone().negate(), up);
-      d.obj.quaternion.setFromRotationMatrix(_m).multiply(_q.setFromAxisAngle(_v.set(0, 0, 1), s.bank * s.side));
-      d.obj.position.copy(d.pos);
-      emit('smoke', d.pos, d.vel, d);
-      if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 3) { d.spiral = null; killDrone(d); d.pos.y = terrain.heightAt(d.pos.x, d.pos.z) + 1; }
-      return;
-    }
-    if (d.falling) {                          // killed: falls burning, tumbling, and blows up on the ground
-      d.vel.y -= 9.81 * dt; d.vel.multiplyScalar(1 - 0.05 * dt);
-      d.pos.addScaledVector(d.vel, dt);
-      d.obj.position.copy(d.pos);
-      d.obj.rotateZ(d.spin * dt); d.obj.rotateX(0.4 * dt);
-      if (Math.random() < dt * 0.3) {                 // burning in, the odd piece tears off
-        const left = Object.keys(d.dmg.parts).filter(n => !d.dmg.parts[n].broken);
-        if (left.length) d.dmg.breakPart(left[Math.floor(Math.random() * left.length)], d.vel);
-      }
-      emit('smoke', d.pos, d.vel, d); emit('flame', d.pos, d.vel, d.obj);
+    if (d.falling) {                          // going down: flown by what's left of the airframe, burning, until it hits
+      stepCrippled(d, dt);
+      emit('smoke', d.pos, d.vel, d); if (d.dmg.dead || d.cr.t > 1.5) emit('flame', d.pos, d.vel, d.obj);
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 2) {
-        explode(d.pos, d.vel, 2.0);
+        explode(d.pos, d.vel, d.def.hitRadius > 15 ? 3.2 : 2.0);
         // a charred wreck stays on the ground and burns, with a smoke column drifting downwind
         const wreck = d.obj.clone(true);
         wreck.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); if (o.material.color) o.material.color.multiplyScalar(0.18); } });
@@ -465,14 +437,17 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 3) { killDrone(d); d.pos.y = terrain.heightAt(d.pos.x, d.pos.z) + 1; return; }
     const fwd = new THREE.Vector3(-Math.sin(d.t) * d.dir, 0, Math.cos(d.t) * d.dir).normalize();
     const fx = d.dmg.effects();
-    const wobble = fx.wobble * 0.25 * Math.sin(d.t * 9) + fx.rollBias * 0.6;   // damaged: rocks and leans toward the missing tip
+    const wobble = fx.wobble * 0.25 * Math.sin(d.age * 1.8);   // damaged: rocks
     _m.lookAt(new THREE.Vector3(), fwd.clone().negate(), new THREE.Vector3(0, 1, 0));
     d.obj.quaternion.setFromRotationMatrix(_m).multiply(_q.setFromAxisAngle(_v.set(0, 0, 1), -0.5 * d.dir + wobble));
+    // one stabiliser gone: it porpoises, the pilot fighting the nose up and down
+    if (fx.pitchWobble) d.obj.quaternion.multiply(_q.setFromAxisAngle(_v.set(1, 0, 0), fx.pitchWobble * (0.13 * Math.sin(d.age * 1.3) + 0.05 * Math.sin(d.age * 3.1))));
     d.obj.position.copy(d.pos);
   }
   function killDrone(d) {
     if (d.falling) return;
-    d.falling = true; d.spin = (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 2);
+    d.falling = true;
+    startCrippled(d, d.def.crippled);
     S.fx.push({ pri: 1, kind: 'fire', p: d.pos.clone(), v: d.vel.clone().multiplyScalar(0.3), t: 0, life: 0.3, s: 12 });
   }
 
@@ -607,7 +582,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       m.prev.copy(m.p);
       const speed = m.v.length();
       if (m.t > IGNITE && m.t < IGNITE + cfg.motorTime) m.v.addScaledVector(m.dir, cfg.missileThrust * dt);
-      if (m.t > IGNITE) { m.v.y -= G * dt * 0.3; m.v.multiplyScalar(1 - 7.5e-5 * speed * dt); }
+      if (m.t > IGNITE) { m.v.y -= G * dt * 0.3; m.v.multiplyScalar(1 - cfg.missileDrag * speed * dt); }
+      // out of energy after burnout: it can't catch anything any more, so it self-destructs
+      if (m.t > IGNITE + cfg.motorTime && speed < cfg.missileMinSpeed) m.t = Math.max(m.t, cfg.missileLife);
       if (m.target && m.target.alive && m.t > 0.3) {
         const lead = _w.copy(m.target.pos).addScaledVector(m.target.vel, m.p.distanceTo(m.target.pos) / Math.max(speed, 300));
         const want = lead.sub(m.p).normalize();
@@ -742,7 +719,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         if (e.rise) e.v.y += dt * 0.6;
         const g = e.dust ? 0.48 + 0.08 * e.seed : e.hit ? 0.3 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.42 + 0.1 * e.seed;     // dark sooty grey, with some near-black
         const grow = e.spread ? 0.8 + 7 * (1 - Math.exp(-e.t * 0.9)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
-        smoke.push(e.p, null, g * 1.08, g, g * 0.92, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
+        smoke.push(e.p, null, g * 0.99, g, g * 1.03, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
       } else if (e.kind === 'flame') {
         glow.push(e.p, null, 1.0, 0.3 + 0.25 * (1 - k), 0.03, 0.75 * (1 - k), e.s * (0.8 + k * 0.8), Math.random());
       } else if (e.kind === 'ember') {
@@ -823,9 +800,9 @@ function closestOnSeg(a, b, p) {
   return a.clone().addScaledVector(ab, t);
 }
 
-// fire colour over a puff's life: white-yellow, orange, deep red, then brown smoke (emissive values above 1 glow)
-const RAMP = [[0, 2.4, 2.0, 1.1], [0.12, 2.2, 1.05, 0.28], [0.3, 1.4, 0.38, 0.07], [0.48, 0.32, 0.09, 0.03], [0.65, 0.07, 0.06, 0.05], [1, 0.09, 0.085, 0.08]];
-const SOOT = [0.035, 0.03, 0.028];
+// fire colour over a puff's life: white-yellow, orange, a brief deep red, then neutral grey smoke (emissive values above 1 glow)
+const RAMP = [[0, 2.4, 2.0, 1.1], [0.12, 2.2, 1.05, 0.28], [0.3, 1.4, 0.38, 0.07], [0.41, 0.3, 0.11, 0.05], [0.53, 0.075, 0.073, 0.073], [1, 0.088, 0.088, 0.09]];
+const SOOT = [0.034, 0.034, 0.036];
 function fireRamp(k) {
   for (let i = 1; i < RAMP.length; i++) if (k <= RAMP[i][0]) {
     const a = RAMP[i - 1], b = RAMP[i], t = (k - a[0]) / (b[0] - a[0]);

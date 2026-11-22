@@ -120,9 +120,15 @@ let manual = false, recentre = 0;   // seconds left of easing the camera back on
 // crash: the airframe keeps its momentum and is simulated as a tumbling, bouncing, sliding body until it stops,
 // burning; a hard hit can tear the outer wings off. The camera holds on it, then the player respawns.
 const wreck = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), key: {} };
+// killed: the camera lets go of the jet and pulls far back, circling slowly while it goes in
+const deathCam = { yaw: 0, pitch: 0, dist: 0 };
 function crash() {
   if (dead) return;
   dead = 1e-6;
+  {
+    const o = _wv.subVectors(camera.position, ac.pos), L = Math.max(o.length(), 1);
+    deathCam.yaw = Math.atan2(o.x, o.z); deathCam.pitch = Math.asin(THREE.MathUtils.clamp(o.y / L, -1, 1)); deathCam.dist = L;
+  }
   weapons.crash(ac.pos, ac.vel);
   wreck.pos.copy(ac.pos); wreck.vel.copy(ac.vel); wreck.quat.copy(ac.quat); wreck.key = {};
   wreck.spin.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(4);
@@ -234,6 +240,8 @@ function hud(dt = 1 / 60) {
   // gun-solution target: the enemy nearest the reticle on screen, weighted toward ones in gun range, and sticky:
   // the current target is kept while it stays near the reticle, so sweeping past other planes mid-fight doesn't steal it.
   // A new one takes over only if it is clearly better for a moment. Nothing is chosen through terrain.
+  // Anything inside gun range and reasonably near the reticle always beats anything outside it (a close fight
+  // is never lost to a far-off plane that happens to sit nearer the centre).
   {
     const c = screenOf(_p.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance));
     const score = (d) => {
@@ -241,7 +249,8 @@ function hud(dt = 1 / 60) {
       const q = screenOf(d.obj.position);
       if (!q || q[0] < 0 || q[0] > innerWidth || q[1] < 0 || q[1] > innerHeight) return Infinity;
       const px = Math.hypot(q[0] - c[0], q[1] - c[1]), km = d.pos.distanceTo(ac.pos) / 1000;
-      return px * (1 + km / 1.5);          // near the reticle and close by wins
+      const inGun = km * 1000 <= WEAPONS.gunRange && px < Math.min(innerWidth, innerHeight) * 0.35;
+      return (inGun ? 0 : 1e6) + px * (1 + km / 1.5);          // in gun range first, then near the reticle and close by
     };
     let best = null, bestS = Infinity;
     if (c) for (const d of weapons.drones) { const sc = score(d); if (sc < bestS) { bestS = sc; best = d; } }
@@ -342,7 +351,18 @@ function frame(now) {
   jet.damage.update(dt);
   ac.damageFx = jet.damage.effects();
   rig.zoom += ((rig.zooming ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);
-  if (viewer.on) viewer.place(); else if (dead) { camera.lookAt(drawPos); } else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1), ac.t.ias);
+  if (viewer.on) viewer.place(); else if (dead) {
+    const e = 1 - Math.exp(-dt / 1.1);
+    deathCam.dist += (85 - deathCam.dist) * e;
+    deathCam.pitch += (0.32 - deathCam.pitch) * e * 0.6;
+    deathCam.yaw += dt * 0.18;
+    const cp = Math.cos(deathCam.pitch);
+    camera.position.set(Math.sin(deathCam.yaw) * cp, Math.sin(deathCam.pitch), Math.cos(deathCam.yaw) * cp).multiplyScalar(deathCam.dist).add(drawPos);
+    camera.position.y = Math.max(camera.position.y, terrain.heightAt(camera.position.x, camera.position.z) + 15);
+    camera.up.set(0, 1, 0); camera.lookAt(drawPos);
+    const fov = CAMERA.fov;
+    if (Math.abs(camera.fov - fov) > 0.01) { camera.fov += (fov - camera.fov) * e; camera.updateProjectionMatrix(); }
+  } else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1), ac.t.ias);
   sun.position.copy(drawPos).addScaledVector(sunDir, 1000);
   sun.target.position.copy(drawPos);
   sky.position.copy(camera.position);
@@ -425,4 +445,4 @@ if (isTouch) {
   });
 }
 
-window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons };
+window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash };

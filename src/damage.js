@@ -9,7 +9,7 @@ import * as THREE from 'three';
 export const REGIONS = {
   lightFighter: { noseZ: 6.0, fin: { y: 2.5, z: -2.4 }, outer: { x: 2.45, y: 1.8, z0: -3.4, z1: 1.4 }, inner: { x: 1.05, y: 1.62, z0: -3.0, z1: 1.8 } },
   // heavy four-engine bomber (model turned so its nose is +Z)
-  bomber: { noseZ: 15, stab: { x: 1.0, y: -6, z: -19, yMax: 0.3 }, fin: { y: 0.3, z: -15 }, outer: { x: 13, y: 0.5, z0: -10, z1: 12 }, inner: { x: 1.6, y: 0.5, z0: -10, z1: 14 } },
+  bomber: { noseZ: 15, tail: { z: -12 }, stab: { x: 1.0, y: -6, z: -19, yMax: 0.3 }, fin: { y: 0.3, z: -15 }, outer: { x: 13, y: 0.5, z0: -10, z1: 12 }, inner: { x: 1.6, y: 0.5, z0: -10, z1: 14 } },
   earlyJet: { noseZ: 3.3, stab: { x: 0.3, y: 4.0, z: -9.2 }, fin: { y: 3.3, z: -6.8 }, outer: { x: 4.2, y: 3.2, z0: -6.5, z1: 1.0 }, inner: { x: 1.0, y: 3.1, z0: -6.5, z1: 1.3 } },
 };
 
@@ -21,11 +21,12 @@ export function classify(p, R = REGIONS.lightFighter) {
   const o = R.outer, n = R.inner;
   if (ax > o.x && p.y < o.y && p.z > o.z0 && p.z < o.z1) return 'wingOuter' + side;
   if (ax > n.x && p.y < n.y && p.z > n.z0 && p.z < n.z1) return 'wingInner' + side;
+  if (R.tail && p.z < R.tail.z) return 'tail';            // rear fuselage that can snap off (big aircraft)
   return 'body';
 }
 
-export const PART_HP = { nose: 8, fin: 7, wingOuterL: 6, wingOuterR: 6, wingInnerL: 12, wingInnerR: 12, stabL: 5, stabR: 5 };
-export const FATAL = ['wingInnerL', 'wingInnerR'];   // a lost nose is survivable
+export const PART_HP = { nose: 8, fin: 7, wingOuterL: 6, wingOuterR: 6, wingInnerL: 12, wingInnerR: 12, stabL: 5, stabR: 5, tail: 14 };
+export const FATAL = ['wingInnerL', 'wingInnerR', 'tail'];   // a lost nose is survivable
 export const BODY_HP = 40;
 
 // where each part tears off the airframe (model space): the boundary of its region, at the part's own height/depth
@@ -36,6 +37,7 @@ function tornEdge(name, c, R = REGIONS.lightFighter) {
   if (name.startsWith('stab')) return new THREE.Vector3(s * (R.stab ? R.stab.x : 0.6), c.y, c.z);
   if (name === 'fin') return new THREE.Vector3(0, R.fin.y, c.z);
   if (name === 'nose') return new THREE.Vector3(0, c.y, R.noseZ);
+  if (name === 'tail') return new THREE.Vector3(0, c.y, R.tail.z);
   return c.clone();
 }
 
@@ -138,6 +140,7 @@ export class Damage {
       pitchMul: 1 - 0.3 * (b('stabL') + b('stabR')),
       yawMul: 1 - 0.7 * b('fin'),
       wobble: 0.25 * (b('stabL') + b('stabR')) + 0.4 * b('fin'),
+      pitchWobble: b('stabL') + b('stabR') === 1 ? 1 : 0,    // (enemies: one stabiliser left, it porpoises)
     };
   }
 
@@ -163,6 +166,11 @@ export class Damage {
     if (name.startsWith('wingInner')) {
       const outer = this.parts['wingOuter' + name.slice(-1)];
       if (outer && !outer.broken) { outer.broken = true; this.model.updateMatrixWorld(true); o.attach(outer.obj); }
+    }
+    // a snapped rear fuselage takes the fin and tailplane with it
+    if (name === 'tail') {
+      this.model.updateMatrixWorld(true);
+      for (const n of ['fin', 'stabL', 'stabR']) { const p = this.parts[n]; if (p && !p.broken) { p.broken = true; o.attach(p.obj); } }
     }
     // while the jet can still fly only torn wing sections (fuel) burn, and modestly; fin, stabilators and nose
     // don't burn at all. Once it's going down, every break burns fully (see update).

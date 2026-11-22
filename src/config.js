@@ -65,6 +65,8 @@ export const F5 = {
   gFloorAoA: 20,          // deg, the AoA the guarantee is measured at
   turnBoost: 1.3,         // arcade: flight path turns this much harder than the G shown
   boostDrag: 0.22,        // drag per unit of extra lift: what slow tight turns cost in speed
+  lowSpeedBleed: 3,       // that drag is up to (1 + this) times higher near the stall, fading out by lowSpeedBleedIAS,
+  lowSpeedBleedIAS: 90,   // m/s IAS (~175 kt): so a slow, gliding jet can't hold 2-3 G turns for free
   airbrakeDrag: 0.08,     // extra drag coefficient with the speed brakes fully out
   airbrakeRate: 1.5,      // fraction of full travel per second
   afterburner: 'spray',   // 'spray' (this jet) or 'diamonds' (shock diamonds after the first flame)
@@ -152,9 +154,11 @@ export const WEAPONS = {
   lockTime: 0.8,          // s on target to lock
   lockRange: 5000,        // m
   missileThrust: 230,     // m/s² while the motor burns
-  motorTime: 2.6,         // s
+  motorTime: 4,           // s
+  missileDrag: 4e-5,      // speed loss per second = this x speed²
   missileMaxG: 28,
-  missileLife: 14,        // s
+  missileLife: 11,        // s: self-destructs after this (a fleeing target at 6 km is caught in about 9.7 s)
+  missileMinSpeed: 300,   // m/s: after burnout, self-destructs once slower than this (it can't catch anything)
   proximity: 12,          // m
   assistFull: 1.5,        // deg: nose within this of the gun solution -> rounds fly to the intercept
   assistAngle: 4,         // deg: assist fades out by here (both x1.5 on touch screens)

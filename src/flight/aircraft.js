@@ -79,7 +79,7 @@ export class Aircraft {
       this.liftScale = boost;
       const clEff = cl * boost;
       const cd = c.cd0 + wave + c.inducedDrag * cl * cl + c.stallDrag * stall + c.airbrakeDrag * this.airbrake
-        + c.boostDrag * Math.abs(clEff - cl);
+        + c.boostDrag * Math.abs(clEff - cl) * (1 + (c.lowSpeedBleed || 0) * (1 - smooth(c.gFloorStartIAS, c.lowSpeedBleedIAS || 80, ias)) ** 2);
       _lift.crossVectors(_right, vdir).normalize().multiplyScalar(dyn * c.wingArea * clEff);
       _side.set(1, 0, 0).applyQuaternion(this.quat);
       _side.addScaledVector(vdir, -_side.dot(vdir)).normalize().multiplyScalar(-dyn * c.wingArea * c.sideForce * beta);
