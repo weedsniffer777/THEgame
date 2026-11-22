@@ -95,6 +95,9 @@ export const INSTRUCTOR = {
   bankAngle: 16,          // deg off the aim point above which it fully rolls the lift onto it
   pushAngle: 18,          // deg: aim points a little below are reached by pushing, not rolling over
   pushMaxBank: 30,        // deg: pushing only with the wings within this of level; banked, it rolls first
+  slowIAS: 70,            // m/s IAS (~136 kt): at or below this (or with the gear down) the gentle low-speed behaviour is full
+  fastIAS: 130,           // m/s IAS (~250 kt): from here up, none of it (dogfighting unchanged)
+  slowMaxBank: 60,        // deg: bank limit when slow
   maxG: 9,                // game limit, between the real jet's 7.33 operating and ~11 ultimate
   maxNegG: 3,
   maxNegAoA: 12,          // deg

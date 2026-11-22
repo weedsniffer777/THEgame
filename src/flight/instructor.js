@@ -52,8 +52,12 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     // (only with the wings near level: when banked, an aim point on the other side is reached by rolling, never by pushing)
     _r.set(-1, 0, 0).applyQuaternion(ac.quat);
     const bank = Math.abs(Math.asin(clamp(_r.y, -1, 1))) / DEG;
-    if (ac._mode === 'push') { if (!below || off > (cfg.pushAngle + 6) * DEG || lateral > 0.8 || bank > cfg.pushMaxBank + 10) ac._mode = 'pull'; }
-    else if (below && off < cfg.pushAngle * DEG && lateral < 0.6 && bank < cfg.pushMaxBank) ac._mode = 'push';
+    // slow flight (approach, landing) or gear down: gentler. Aim points further below are pushed to instead of
+    // rolled onto, and the bank is held within ~60 deg (fast flight is unchanged)
+    const slow = Math.max(1 - smooth(cfg.slowIAS || 70, cfg.fastIAS || 130, ias), ac.gear || 0);
+    const pushAng = cfg.pushAngle + 22 * slow, pushLat = 0.6 + 0.25 * slow, pushBank = cfg.pushMaxBank + 15 * slow;
+    if (ac._mode === 'push') { if (!below || off > (pushAng + 6) * DEG || lateral > pushLat + 0.2 || bank > pushBank + 10) ac._mode = 'pull'; }
+    else if (below && off < pushAng * DEG && lateral < pushLat && bank < pushBank) ac._mode = 'push';
     const push = ac._mode === 'push';
 
     // roll: angle that would put the aim point straight "up" (or straight "down" when pushing) in the lift plane
@@ -61,14 +65,22 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     let turnW = smooth(cfg.levelAngle * DEG, cfg.bankAngle * DEG, off);            // 0 near the aim point, 1 for real turns
     // aim point 'below' the jet's own up axis and not pushing: small offsets are pushed to (a little negative G is
     // fine); only bigger ones roll the lift onto it first, so a nudge below the nose never flips the jet over
-    if (!push && _t.y < 0) turnW = Math.max(turnW, smooth(8 * DEG, 14 * DEG, off));
+    if (!push && _t.y < 0) turnW = Math.max(turnW, smooth((8 + 10 * slow) * DEG, (14 + 14 * slow) * DEG, off));
     // near the aim point the bank is simply held (no rolling back to wings-level, no corrective banks): pitch
     // fixes the error along the jet's own up axis and the rudder fixes the sideways part, so nothing rocks.
     // Rolling only happens for real turns, where the lift is rolled onto the target.
     const yawErr = Math.atan2(-_t.x, _t.z);                                         // + = aim point to the right
     const rollErr = wrap(toTarget) * turnW;
     const rollAvail = f.rollRate * DEG * smooth(0, f.rollFullIAS, ias);
-    const pDes = clamp(cfg.rollGain * rollErr, -rollAvail, rollAvail);
+    let pDes = clamp(cfg.rollGain * rollErr, -rollAvail, rollAvail);
+    // bank limit when slow: never rolled further than maxBank (180 = no limit when fast); beyond it, rolled back
+    const maxBank = (cfg.slowMaxBank || 60) + (180 - (cfg.slowMaxBank || 60)) * (1 - slow);
+    if (maxBank < 179) {
+      _u.set(0, 1, 0).applyQuaternion(ac.quat);
+      const bankR = Math.atan2(-_r.y, _u.y) / DEG;                                  // + = banked right
+      if (bankR > maxBank && pDes > -0.2) pDes = Math.min(pDes, -cfg.rollGain * (bankR - maxBank) * DEG);
+      if (bankR < -maxBank && pDes < 0.2) pDes = Math.max(pDes, cfg.rollGain * (-maxBank - bankR) * DEG);
+    }
     roll = rollAvail > 0.01 ? clamp(pDes / rollAvail, -1, 1) : 0;
 
     // pitch: desired turn rate toward the aim point, only for the part of the error the lift can act on
