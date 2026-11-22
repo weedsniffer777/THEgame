@@ -152,9 +152,9 @@ const aimEl = document.getElementById('aim'), noseEl = document.getElementById('
 const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementChild, vig = document.getElementById('vignette');
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
-const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], selEl = document.getElementById('selbox');
+const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [];
 const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles);
-const leadEl = document.getElementById('lead'), lineEl = document.getElementById('leadline');
+const gunSvg = document.getElementById('gunsol'), [gunBox, gunLine, gunCirc] = gunSvg.children;
 function screenOf(p) { _p.copy(p).project(camera); return _p.z < 1 ? [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight] : null; }
 const xray = createXray(document.getElementById('xray'), jet.damage, { ...PART_HP, body: BODY_HP }, renderer, jet.model);
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
@@ -201,30 +201,41 @@ function hud() {
     if (txt !== el._txt) { el._b.innerHTML = `${txt}<small>NM</small>`; el._txt = txt; }
     el.classList.toggle('sel', d === W.target && !msl);
   });
-  // the selected enemy (gun solution) also gets a square around the aircraft itself
-  selEl.hidden = !W.target || msl || !running || !W.target.alive || W.target.falling;
-  if (!selEl.hidden) place(selEl, W.target.obj.position);
-  // lead pip for the selected enemy (guns), red when the reticle is on it
-  leadEl.hidden = !W.lead || msl || !running || W.leadTime > 2.5;
-  lineEl.hidden = true;
-  if (!leadEl.hidden && W.target) {
-    // gun solution: a line from the target's square to the lead circle
-    const a = screenOf(W.target.obj.position), b = screenOf(W.lead);
-    if (a && b) {
-      const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
-      // from the edge of the square (half size 12.6) to the edge of the circle (radius 7.6): one joined shape
-      const ux = dx / len, uy = dy / len, fromBox = 12.6 / Math.max(Math.abs(ux), Math.abs(uy)), toCircle = 7.6;
-      if (len > fromBox + toCircle + 2) {
-        lineEl.hidden = false;
-        lineEl.style.width = `${len - fromBox - toCircle}px`;
-        lineEl.style.transform = `translate(${a[0] + ux * fromBox}px, ${a[1] + uy * fromBox}px) rotate(${Math.atan2(dy, dx)}rad)`;
-      }
+  // the gun-solution target is whichever enemy sits closest to the reticle on screen
+  {
+    const c = screenOf(_p.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance));
+    let best = null, bestD = Infinity;
+    if (c) for (const d of weapons.drones) {
+      if (!d.alive || d.falling) continue;
+      const q = screenOf(d.obj.position);
+      if (!q || q[0] < 0 || q[0] > innerWidth || q[1] < 0 || q[1] > innerHeight) continue;
+      const dd = Math.hypot(q[0] - c[0], q[1] - c[1]);
+      if (dd < bestD) { bestD = dd; best = d; }
     }
+    if (best) W.target = best;
   }
-  if (!leadEl.hidden) {
-    place(leadEl, W.lead);
-    const toLead = _n.subVectors(W.lead, camera.position).normalize();
-    leadEl.className = toLead.angleTo(rig.fwd) < 0.012 ? 'on' : '';
+  // gun solution: square on the selected enemy, a line, and the lead circle, drawn as one SVG shape so they always join
+  const showSel = W.target && !msl && running && W.target.alive && !W.target.falling;
+  const a = showSel ? screenOf(W.target.obj.position) : null;
+  const b = showSel && W.lead && W.leadTime <= 2.5 ? screenOf(W.lead) : null;
+  gunSvg.style.display = a ? '' : 'none';
+  if (a) {
+    const H = 11, R = 6.5;                                 // square half size, circle radius (px)
+    gunBox.setAttribute('x', a[0] - H); gunBox.setAttribute('y', a[1] - H);
+    gunCirc.style.display = gunLine.style.display = b ? '' : 'none';
+    if (b) {
+      gunCirc.setAttribute('cx', b[0]); gunCirc.setAttribute('cy', b[1]);
+      const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+      const from = H / Math.max(Math.abs(ux), Math.abs(uy), 1e-3);
+      const show = len > from + R + 1;
+      gunLine.style.display = show ? '' : 'none';
+      if (show) {
+        gunLine.setAttribute('x1', a[0] + ux * from); gunLine.setAttribute('y1', a[1] + uy * from);
+        gunLine.setAttribute('x2', b[0] - ux * R); gunLine.setAttribute('y2', b[1] - uy * R);
+      }
+      const onTarget = _n.subVectors(W.lead, camera.position).normalize().angleTo(rig.fwd) < 0.012;
+      gunCirc.setAttribute('fill', onTarget ? 'rgba(255,85,65,0.35)' : 'none');
+    }
   }
   xray();
   armsHud(W.selected, W.stock, msl && W.locked);
