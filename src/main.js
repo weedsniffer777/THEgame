@@ -145,7 +145,7 @@ let manual = false, recentre = 0;   // seconds left of easing the camera back on
 const wreck = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), key: {} };
 // killed: the camera lets go of the jet and pulls far back, circling slowly while it goes in
 const deathCam = { yaw: 0, pitch: 0, dist: 0 };
-function crash() {
+function crash(ditched = false) {   // ditched: worn out after a water landing (it sinks whole), not a crash into it
   if (dead) return;
   dead = 1e-6;
   {
@@ -154,16 +154,16 @@ function crash() {
   }
   jet.damage.doomed = true;                                          // every fire on it burns fully again
   wreck.inWater = terrain.isWater(ac.pos.x, ac.pos.z);
-  weapons.crash(ac.pos, ac.vel, wreck.inWater);
+  weapons.crash(ac.pos, ac.vel, wreck.inWater, ditched);
   wreck.pos.copy(ac.pos); wreck.vel.copy(ac.vel); wreck.quat.copy(ac.quat); wreck.key = {};
   wreck.spin.set(-ac.q, -ac.r, ac.p).applyQuaternion(ac.quat);      // keeps the rotation it had (world axes)
   // hitting the ground tears off everything still attached (the rear fuselage can snap off too, on a hard
   // enough contact: see wreckStep)
-  if (!wreck.inWater) for (const n of Object.keys(jet.damage.parts)) if (n !== 'tail') jet.damage.breakPart(n, ac.vel);   // (into a lake it sinks in one piece)
+  if (!ditched) for (const n of Object.keys(jet.damage.parts)) if (n !== 'tail') jet.damage.breakPart(n, ac.vel);   // (a ditched jet sinks in one piece)
   {
     const x = ac.pos.x, z = ac.pos.z;
     _wn.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
-    if (!wreck.inWater && ac.vel.dot(_wn) < -20) jet.damage.breakPart('tail', ac.vel);   // into the ground hard: the fuselage snaps behind the wing
+    if (!ditched && ac.vel.dot(_wn) < -20) jet.damage.breakPart('tail', ac.vel);   // into the ground hard: the fuselage snaps behind the wing
   }
   if (wreck.inWater) jet.damage.quench();                              // into a lake: the water puts every fire out
   ac.throttle = ac.engine = 0;
@@ -277,7 +277,7 @@ function physics(dt) {
   weapons.step(dt, performance.now() / 1000);
   // touching the ground: roll, bounce, scrape and lose parts; only a really hard hit or a wrecked airframe is a crash
   const g = groundContact(ac, terrain, jet.damage, dt, keys.has('KeyB') && ac.throttle < 0.05);
-  if (g.crash || (g.touching && jet.damage.dead)) crash();
+  if (g.crash) crash(); else if (g.touching && jet.damage.dead) crash(g.water);
   if (g.water && !dead && Math.random() < dt * 12) weapons.spray(ac.pos, ac.vel);   // skimming: spray
 }
 

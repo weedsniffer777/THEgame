@@ -1000,8 +1000,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     missileProto: proto,
     trails, smoke, cfg,   // (dev tests)
     // the player's jet hit the ground: blast and a fire where it hit (the airframe itself is simulated by main.js)
-    crash(p, v, water = false) {
-      if (water) { splash(p, v, 1.9); return; }   // (a death in the water: the big splash)
+    crash(p, v, water = false, ditched = false) {
+      if (water) { splash(p, v, ditched ? 0.8 : 1.9); return; }   // (a crash into the water: the big splash; settling after a ditching: a small one)
       explode(p, v, 2.0);
       emit('groundfire', new THREE.Vector3(p.x, terrain.heightAt(p.x, p.z), p.z), new THREE.Vector3(1, 0, 0));
     },
