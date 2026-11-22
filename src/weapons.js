@@ -521,14 +521,14 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function splash(p, vel, scale = 1) {
     const at = new THREE.Vector3(p.x, terrain.heightAt(p.x, p.z) + 0.3, p.z);
     const fwd = new THREE.Vector3(vel.x, 0, vel.z).multiplyScalar(0.12);
-    for (let i = 0; i < 26 * Math.min(scale, 2); i++) {
-      const a = Math.random() * Math.PI * 2, out = (2 + Math.random() * 7) * scale;
-      S.fx.push({ pri: 1, kind: 'smoke', spray: 1, p: at.clone(), v: new THREE.Vector3(Math.cos(a) * out, (9 + Math.random() * 16) * Math.sqrt(scale), Math.sin(a) * out).add(fwd),
-        t: -Math.random() * 0.25, life: 1.8 + Math.random() * 1.2, s: (1.2 + Math.random() * 1.6) * scale, seed: Math.random(), spread: 1 });
+    for (let i = 0; i < 16 * Math.min(scale, 1.6); i++) {
+      const a = Math.random() * Math.PI * 2, out = (2 + Math.random() * 6) * scale;
+      S.fx.push({ pri: 1, kind: 'smoke', spray: 1, p: at.clone(), v: new THREE.Vector3(Math.cos(a) * out, (9 + Math.random() * 14) * Math.sqrt(scale), Math.sin(a) * out).add(fwd),
+        t: -Math.random() * 0.25, life: 1.6 + Math.random() * 1.0, s: (1.6 + Math.random() * 1.6) * scale, seed: Math.random() });
     }
-    for (let i = 0; i < 8 * Math.min(scale, 2); i++)
+    for (let i = 0; i < 4 * Math.min(scale, 1.6); i++)
       S.fx.push({ pri: 1, kind: 'smoke', mist: 1, p: at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 8 * scale, 1, (Math.random() - 0.5) * 8 * scale)), v: new THREE.Vector3((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2).add(fwd),
-        t: -0.3 - Math.random() * 0.5, life: 4 + Math.random() * 2, s: (3 + Math.random() * 2) * scale, seed: Math.random(), spread: 1 });
+        t: -0.3 - Math.random() * 0.5, life: 3 + Math.random() * 1.5, s: (2.5 + Math.random() * 1.5) * scale, seed: Math.random() });
   }
   function spark(p) { S.fx.push({ kind: 'spark', p: p.clone(), v: new THREE.Vector3(), t: 0, life: 0.12, s: 2.5 }); }
   // a round hitting an aircraft: bits of skin flying off, a small grey puff, a few short sparks, sometimes a quick lick of flame.
@@ -702,6 +702,56 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     S.lock = 0;
   }
 
+  // ---------------- condensation: wing vapour under G, a vapour collar around the fuselage near Mach 1
+  // Soft short-lived puffs in the missile-cloud colour that ride along with the jet and peel off as they fade.
+  // Body frame relative to the CG: +x left wing, +y up, +z nose (the model is offset by its CG, 0 1.9 -0.6).
+  const _vp = new THREE.Vector3(), _vv = new THREE.Vector3();
+  // (spawned once per rendered frame at the drawn jet; the render step then moves every puff on by v*dt, so each is
+  // placed that much back to land exactly on the airframe)
+  let _bp = ac.pos, _bq = ac.quat, _bdt = 0;
+  const toWorld = (x, y, z) => _vp.set(x, y - 1.9, z + 0.6).applyQuaternion(_bq).add(_bp);
+  const sm = (a, b, x) => THREE.MathUtils.smoothstep(x, a, b);
+  function vapour(dt, pos, quat) {
+    if (!jet.damage || jet.damage.burning || dt <= 0) return;
+    _bp = pos; _bq = quat; _bdt = dt;
+    const back = (e) => { e.p.addScaledVector(e.v, -dt); S.fx.push(e); };
+    const alt = ac.pos.y, humid = 1 - 0.6 * sm(3000, 9000, alt);            // more moisture low down
+    const fast = sm(90, 150, ac.t.ias || 0);
+    const P = jet.damage.parts, gone = (n) => !!P[n]?.broken;
+    // wing vapour: from ~5 G, thick by 8 G
+    const kw = sm(4.8, 8, ac.t.g || 0) * fast * humid;
+    if (kw > 0.02) {
+      const rate = 70 * kw * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);   // ~70 puffs/s at full
+      for (let i = 0; i < n; i++) {
+        const sx = Math.random() < 0.5 ? 1 : -1, side = sx > 0 ? 'L' : 'R';
+        const x = 1.3 + Math.random() * 2.6;
+        if (gone('wingInner' + side) || (x > 2.45 && gone('wingOuter' + side))) continue;
+        const le = -0.22 - 0.46 * (x - 1.6), z = le - Math.random() * 1.0;
+        toWorld(sx * x, 1.75 + Math.random() * 0.25, z);
+        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone().multiplyScalar(0.97), t: 0, life: 0.16 + Math.random() * 0.16,
+          s: 0.8 + Math.random() * 0.6, seed: Math.random(), op: 0.42 * kw, grow: 1.6 });
+      }
+      // wingtip vortices: thin threads left hanging in the air
+      if (kw > 0.25 && Math.random() < dt * 60) for (const sx of [1, -1]) {
+        if (gone('wingOuter' + (sx > 0 ? 'L' : 'R'))) continue;
+        toWorld(sx * 4.15, 1.3, -1.6);
+        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone().multiplyScalar(0.05), t: 0, life: 0.5 + Math.random() * 0.3,
+          s: 0.45 + Math.random() * 0.2, seed: Math.random(), op: 0.5 * kw, grow: 1.6 });
+      }
+    }
+    // vapour collar ("Mach cone"): transonic, strongest just under Mach 1
+    const M = ac.t.mach || 0, km = sm(0.9, 0.97, M) * (1 - sm(1.03, 1.1, M)) * (0.4 + 0.6 * humid);
+    if (km > 0.02) {
+      const rate = 90 * km * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2, aft = Math.random(), r = 0.8 + aft * 1.4;
+        toWorld(Math.cos(a) * r * 1.15, 1.75 + Math.sin(a) * r, 0.4 - aft * 2.4);
+        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone(), t: 0, life: 0.09 + Math.random() * 0.08,
+          s: 0.9 + Math.random() * 0.5, seed: Math.random(), op: 0.4 * km, grow: 1.3 });
+      }
+    }
+  }
+
   // ---------------- per frame: draw effects
   const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3();
   function render(camera, dt, now, alpha, drawPos, drawQuat, renderer) {
@@ -763,7 +813,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     // explosions, smoke, fire
     for (const e of S.fx) {
       e.t += dt; if (e.t < 0 || e.t >= e.life) continue;   // (a puff past its life would fade to NaN and flash white)
-      e.p.addScaledVector(e.v, dt); e.v.multiplyScalar(1 - dt * (e.kind === 'ball' ? (e.burn ? 1.4 : 2.2) : 0.8));
+      e.p.addScaledVector(e.v, dt); e.v.multiplyScalar(1 - dt * (e.kind === 'ball' ? (e.burn ? 1.4 : 2.2) : e.kind === 'vapor' ? 0.6 : 0.8));
       const k = e.t / e.life;
       if (e.kind === 'ball') {
         e.v.y += dt * 9 * k;                                   // hot gas rises as it slows
@@ -778,6 +828,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         const g = e.spray || e.mist ? 0.88 + 0.08 * e.seed : e.dust ? 0.56 + 0.08 * e.seed : e.hit ? 0.36 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.74 + 0.1 * e.seed;     // dark sooty grey, with some near-black
         const grow = e.spread ? 0.8 + 7 * (1 - Math.exp(-e.t * 0.9)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
         smoke.push(e.p, null, g * 0.97, g, g * 1.04, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
+      } else if (e.kind === 'vapor') {                        // condensation: fades in and out fast, swells a little
+        const g = 0.76 + 0.1 * e.seed;
+        smoke.push(e.p, null, g * 0.97, g, g * 1.04, e.op * Math.sin(Math.PI * Math.min(k * 1.4, 1)), e.s * (1 + (e.grow - 1) * k), e.seed);
       } else if (e.kind === 'flame') {
         glow.push(e.p, null, 1.0, 0.3 + 0.25 * (1 - k), 0.03, 0.75 * (1 - k), e.s * (0.8 + k * 0.8), Math.random());
       } else if (e.kind === 'ember') {
@@ -829,6 +882,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now
     rearm() { S.loaded.fill(true); S.firing = false; },
     explode, hitFx, killDrone,   // (used by the dev tests)
+    vapour,
     step, render,
     missileProto: proto,
     trails, smoke, cfg,   // (dev tests)

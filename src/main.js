@@ -500,6 +500,7 @@ function frame(now) {
   jet.object.position.copy(drawPos);
   jet.object.quaternion.copy(drawQuat);
   jet.animate(ac, gameT);
+  if (running && !dead) weapons.vapour(vdt, drawPos, drawQuat);   // wing vapour / transonic collar, at the drawn jet
   weapons.render(camera, vdt, gameT, a, drawPos, drawQuat, renderer);
   jet.damage.update(vdt);
   ac.damageFx = jet.damage.effects();

@@ -49,32 +49,66 @@ async function loadHeights(url) {
   return out;
 }
 
-// flat-water mask: 255 where a sample and its 8 neighbours share one height, in connected areas of >= MIN_WATER samples
-const MIN_WATER = 60;
+// Water mask. Lakes are flat in the elevation data, but not perfectly: the survey leaves small bumps and noise on
+// the surface. A sample counts as flat when its whole 5x5 neighbourhood stays within FLAT_TOL of it (a few cm per
+// sample, far flatter than any real land); flat areas of at least MIN_WATER connected samples are water; then small
+// holes inside a lake (bumps, boats, piers) are filled and the edge grown by one sample to meet the shore.
+const MIN_WATER = 150, FLAT_TOL = 0.35;   // samples (20 m each), metres
 function findWater(t) {
-  const W = t.w, H = t.h, hs = t.heights, flat = new Uint8Array(W * H);
-  for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) {
-    const k = j * W + i, v = hs[k];
-    if (hs[k - 1] === v && hs[k + 1] === v && hs[k - W] === v && hs[k + W] === v && hs[k - W - 1] === v && hs[k - W + 1] === v && hs[k + W - 1] === v && hs[k + W + 1] === v) flat[k] = 1;
+  const W = t.w, H = t.h, hs = t.heights, tol = FLAT_TOL / t.hScale, flat = new Uint8Array(W * H);
+  for (let j = 2; j < H - 2; j++) for (let i = 2; i < W - 2; i++) {
+    const k = j * W + i, v = hs[k]; let ok = 1;
+    for (let dj = -2; dj <= 2 && ok; dj++) for (let di = -2; di <= 2; di++) if (Math.abs(hs[k + dj * W + di] - v) > tol) { ok = 0; break; }
+    flat[k] = ok;
   }
-  const out = new Uint8Array(W * H), seen = new Uint8Array(W * H), stack = new Int32Array(W * H);
+  // connected flat areas big enough to be lakes (a flat area also has to be one level: neighbours within tol)
+  const water = new Uint8Array(W * H), seen = new Uint8Array(W * H), stack = new Int32Array(W * H), comp = new Int32Array(W * H);
   for (let s0 = 0; s0 < W * H; s0++) {
     if (!flat[s0] || seen[s0]) continue;
-    let top = 0, n = 0; const comp = []; stack[top++] = s0; seen[s0] = 1;
+    let top = 0, n = 0; stack[top++] = s0; seen[s0] = 1;
     while (top) {
-      const k = stack[--top]; comp.push(k); n++;
+      const k = stack[--top]; comp[n++] = k;
       const i = k % W;
       for (const d of [-1, 1, -W, W]) {
         const q = k + d; if (q < 0 || q >= W * H || (d === -1 && i === 0) || (d === 1 && i === W - 1)) continue;
-        if (flat[q] && !seen[q]) { seen[q] = 1; stack[top++] = q; }
+        if (flat[q] && !seen[q] && Math.abs(hs[q] - hs[k]) <= tol) { seen[q] = 1; stack[top++] = q; }
       }
     }
-    if (n >= MIN_WATER) for (const k of comp) { out[k] = 255; }
+    if (n >= MIN_WATER) for (let c = 0; c < n; c++) water[comp[c]] = 1;
   }
-  // grow by one sample so the shoreline samples (not fully flat themselves) count as water too
-  const grown = out.slice();
-  for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) { const k = j * W + i; if (!out[k] && (out[k - 1] || out[k + 1] || out[k - W] || out[k + W])) grown[k] = 255; }
-  return grown;
+  // fill holes: anything not water that the outside can't reach without crossing water, up to a size limit
+  const outside = new Uint8Array(W * H); let top = 0;
+  for (let i = 0; i < W; i++) for (const j of [0, H - 1]) { const k = j * W + i; if (!water[k] && !outside[k]) { outside[k] = 1; stack[top++] = k; } }
+  for (let j = 0; j < H; j++) for (const i of [0, W - 1]) { const k = j * W + i; if (!water[k] && !outside[k]) { outside[k] = 1; stack[top++] = k; } }
+  while (top) {
+    const k = stack[--top], i = k % W;
+    for (const d of [-1, 1, -W, W]) {
+      const q = k + d; if (q < 0 || q >= W * H || (d === -1 && i === 0) || (d === 1 && i === W - 1)) continue;
+      if (!water[q] && !outside[q]) { outside[q] = 1; stack[top++] = q; }
+    }
+  }
+  // enclosed pockets: fill the small ones (islands bigger than ~4 ha stay land)
+  const seen2 = new Uint8Array(W * H);
+  for (let s0 = 0; s0 < W * H; s0++) {
+    if (water[s0] || outside[s0] || seen2[s0]) continue;
+    let tp = 0, n = 0; stack[tp++] = s0; seen2[s0] = 1;
+    while (tp) {
+      const k = stack[--tp]; comp[n++] = k; const i = k % W;
+      for (const d of [-1, 1, -W, W]) {
+        const q = k + d; if (q < 0 || q >= W * H || (d === -1 && i === 0) || (d === 1 && i === W - 1)) continue;
+        if (!water[q] && !outside[q] && !seen2[q]) { seen2[q] = 1; stack[tp++] = q; }
+      }
+    }
+    if (n <= 100) for (let c = 0; c < n; c++) water[comp[c]] = 1;
+  }
+  // grow by two samples so the 5x5 test's margin and the shoreline count as water too
+  const out = new Uint8Array(W * H);
+  for (let j = 2; j < H - 2; j++) for (let i = 2; i < W - 2; i++) {
+    const k = j * W + i; let w = 0;
+    for (let dj = -2; dj <= 2 && !w; dj++) for (let di = -2; di <= 2; di++) if (water[k + dj * W + di] && di * di + dj * dj <= 5) { w = 1; break; }
+    out[k] = w ? 255 : 0;
+  }
+  return out;
 }
 
 export class Terrain {
@@ -160,6 +194,9 @@ export class Terrain {
         layout(location = 0) out highp vec4 outColor;
         #define gl_FragColor outColor
         ${FOG_GLSL}
+        float vhash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(vhash(i), vhash(i + vec2(1, 0)), f.x), mix(vhash(i + vec2(0, 1)), vhash(i + vec2(1, 1)), f.x), f.y); }
         void main() {
           vec2 g = (vWorld.xz - uOrigin) / uSpacing;
           vec2 size = vec2(uSize);
@@ -178,11 +215,12 @@ export class Terrain {
           // water: slightly reflective (sky at grazing angles, a soft sun glint) over the lake's own colour
           if (water > 0.0) {
             vec3 v = normalize(cameraPosition - vWorld);
-            // small, irregular ripples: several crossing wave trains, gentle slopes
-            vec2 q = vWorld.xz * 0.11;
-            float wx = sin(dot(q, vec2(0.83, 0.55)) * 3.0 + uTime * 0.9) + sin(dot(q, vec2(-0.41, 0.91)) * 4.7 - uTime * 1.1) * 0.6 + sin(dot(q, vec2(0.97, -0.24)) * 7.3 + uTime * 1.6) * 0.35;
-            float wz = cos(dot(q, vec2(0.12, 0.99)) * 3.4 - uTime * 0.8) + cos(dot(q, vec2(0.71, -0.7)) * 5.9 + uTime * 1.3) * 0.5 + cos(dot(q, vec2(-0.9, -0.43)) * 8.1 - uTime * 1.7) * 0.3;
-            vec3 wn = normalize(vec3(wx * 0.012, 1.0, wz * 0.012));
+            // ripples from drifting value noise at two scales (no regular wave pattern), very gentle slopes
+            vec2 q1 = vWorld.xz * 0.045 + vec2(uTime * 0.05, uTime * 0.03), q2 = vWorld.xz * 0.17 - vec2(uTime * 0.09, -uTime * 0.07);
+            float e = 0.35;
+            float hx = (vnoise(q1 + vec2(e, 0.0)) - vnoise(q1 - vec2(e, 0.0))) + 0.5 * (vnoise(q2 + vec2(e, 0.0)) - vnoise(q2 - vec2(e, 0.0)));
+            float hz = (vnoise(q1 + vec2(0.0, e)) - vnoise(q1 - vec2(0.0, e))) + 0.5 * (vnoise(q2 + vec2(0.0, e)) - vnoise(q2 - vec2(0.0, e)));
+            vec3 wn = normalize(vec3(-hx * 0.05, 1.0, -hz * 0.05));
             vec3 r = reflect(-v, wn);
             float fres = 0.04 + 0.96 * pow(1.0 - max(dot(v, wn), 0.0), 5.0);
             vec3 sky = mix(vec3(0.62, 0.72, 0.86), vec3(0.32, 0.5, 0.82), clamp(r.y * 2.0, 0.0, 1.0));

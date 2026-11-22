@@ -202,6 +202,7 @@ export class Damage {
       p.obj.removeFromParent();
       p.parent.add(p.obj);
       p.local.decompose(p.obj.position, p.obj.quaternion, p.obj.scale);
+      p.obj.visible = true;                                    // (pieces that sank in a lake were hidden)
     }
     for (const [o, m] of this.mats) o.material = m;
     this.debris = []; this.fires = []; this.doomed = false; this.bodyHp = BODY_HP * (this.model.userData.toughness || 1);
