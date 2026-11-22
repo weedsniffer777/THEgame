@@ -473,7 +473,16 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         S.gunAcc -= 1;
         const side = S.gunSide ^= 1;
         const muzzle = MUZZLES[side].clone().applyQuaternion(ac.quat).add(ac.pos);
-        const dir = fwd.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 0).multiplyScalar(cfg.gunSpread).applyQuaternion(ac.quat)).normalize();
+        let aimDir = fwd;
+        // aim assist: rounds fired with the nose near the gun solution are bent onto the predicted intercept,
+        // fully inside the inner cone and fading out by the outer one; a target that breaks hard still makes them miss
+        if (S.lead && S.target) {
+          const toLead = _q2.subVectors(S.lead, muzzle).normalize();
+          const ang = Math.acos(THREE.MathUtils.clamp(toLead.dot(fwd), -1, 1)) * 180 / Math.PI;
+          const k = 1 - THREE.MathUtils.smoothstep(ang, cfg.assistFull * S.hitScale, cfg.assistAngle * S.hitScale);
+          if (k > 0) aimDir = fwd.clone().lerp(toLead, k).normalize();
+        }
+        const dir = aimDir.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 0).multiplyScalar(cfg.gunSpread).applyQuaternion(ac.quat)).normalize();
         const v = dir.multiplyScalar(cfg.muzzleVelocity).add(ac.vel);
         S.rounds.push({ p: muzzle, prev: muzzle.clone(), start: muzzle.clone(), v, t: 0 });
         S.flash[side] = 0.05;
@@ -702,7 +711,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         at.x += (r1 - 0.5) * spread; at.z += (r2 - 0.5) * spread; at.y += (r1 * r2 - 0.25) * spread + age * 0.6;
         const grow = 2.2 + 11 * (1 - Math.exp(-(age - 0.9) / 2.6)) * (0.75 + 0.5 * r2);   // ~4 m across, billowing to ~25 m
         const op = THREE.MathUtils.smoothstep(age, 0.9, 2.2) * Math.pow(Math.max(0, 1 - age / 10), 1.1) * 0.8;
-        const tone = 0.66 + 0.22 * r1;
+        const tone = 0.5 + 0.16 * r1;                                    // light grey, never pure white
         smoke.push(at, null, tone, tone, tone * 0.98, op, grow, (r1 + r2) % 1);
       }
     }
@@ -722,7 +731,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     explode,   // (used by the dev tests)
     step, render,
     missileProto: proto,
-    trails, smoke,   // (dev tests)
+    trails, smoke, cfg,   // (dev tests)
     crash(p, v, jetRef) {
       explode(p, v, 2.0);
       const wreck = jetRef.object.clone(true);

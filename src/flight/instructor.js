@@ -55,14 +55,12 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
 
     // roll: angle that would put the aim point straight "up" (or straight "down" when pushing) in the lift plane
     const toTarget = push ? Math.atan2(_t.x, -_t.y) : Math.atan2(-_t.x, _t.y);   // + = roll right
-    _r.set(-1, 0, 0).applyQuaternion(ac.quat);                                     // right wing in world space
-    const levelErr = Math.asin(clamp(_r.y, -1, 1));                                // roll that levels the wings (+ = roll right)
     const turnW = smooth(cfg.levelAngle * DEG, cfg.bankAngle * DEG, off);          // 0 near the aim point, 1 for real turns
-    // near the aim point: a small coordinated bank proportional to the sideways error (so it actually closes it),
-    // blending continuously into rolling the lift onto the target for real turns
+    // near the aim point the bank is simply held (no rolling back to wings-level, no corrective banks): pitch
+    // fixes the error along the jet's own up axis and the rudder fixes the sideways part, so nothing rocks.
+    // Rolling only happens for real turns, where the lift is rolled onto the target.
     const yawErr = Math.atan2(-_t.x, _t.z);                                         // + = aim point to the right
-    const smallBank = clamp(cfg.bankPerErr * yawErr, -cfg.maxSmallBank * DEG, cfg.maxSmallBank * DEG);
-    const rollErr = wrap(toTarget * turnW + (smallBank + levelErr) * (1 - turnW));
+    const rollErr = wrap(toTarget) * turnW;
     const rollAvail = f.rollRate * DEG * smooth(0, f.rollFullIAS, ias);
     const pDes = clamp(cfg.rollGain * rollErr, -rollAvail, rollAvail);
     roll = rollAvail > 0.01 ? clamp(pDes / rollAvail, -1, 1) : 0;
@@ -80,7 +78,8 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     pitch += cfg.rateGain * (qDes - (ac.q || 0));                                  // small trim on the actual pitch rate
 
     // rudder: fine sideways trim near the aim point, fading out in real turns
-    yaw = clamp(cfg.yawGain * yawErr - cfg.yawDamp * (ac.r || 0), -1, 1) * (1 - turnW * 0.8);
+    yaw = clamp(cfg.yawGain * yawErr - cfg.yawDamp * (ac.r || 0), -1, 1) * (1 - turnW);
+    if (turnW < 0.05) roll = clamp(-cfg.rollHold * (ac.p || 0), -0.3, 0.3);   // hold the bank: just damp any leftover roll rate
     if (keys.yaw) yaw = keys.yaw;
   }
 

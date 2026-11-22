@@ -42,7 +42,7 @@ export const F5 = {
   pitchLock: 0.3,         // fraction of pitch authority lost at pitchLockEnd
 
   // yaw
-  yawControl: 1.6,
+  yawControl: 3.2,     
   yawStability: 12,
   yawDamping: 4,
 
@@ -79,12 +79,11 @@ export const INSTRUCTOR = {
   maxRate: 30,            // deg/s cap on the commanded turn rate
   rateGain: 0.45,         // stick per rad/s of pitch-rate error (small trim on top of the lift-curve feed-forward)
   rollGain: 5,            // roll rate (rad/s) per radian of bank error
-  yawGain: 2.0,           // rudder per radian of sideways error near the aim point
-  yawDamp: 0.5,
-  bankPerErr: 12,         // near the aim point: degrees of bank per degree of sideways error
-  maxSmallBank: 60,       // deg, most bank used for small corrections
-  levelAngle: 4,          // deg off the aim point below which it only makes small coordinated corrections
-  bankAngle: 14,          // deg off the aim point above which it fully rolls the lift onto it
+  yawGain: 7,             // rudder per radian of sideways error near the aim point (wings stay level, rudder slides the nose)
+  yawDamp: 0.9,
+  rollHold: 0.4,          // near the aim point: aileron per rad/s of roll rate, to hold the bank steady
+  levelAngle: 5,          // deg off the aim point below which it holds the bank and corrects with pitch and rudder
+  bankAngle: 16,          // deg off the aim point above which it fully rolls the lift onto it
   pushAngle: 18,          // deg: aim points a little below are reached by pushing, not rolling over
   maxG: 9,                // game limit, between the real jet's 7.33 operating and ~11 ultimate
   maxNegG: 3,
@@ -155,6 +154,8 @@ export const WEAPONS = {
   missileMaxG: 28,
   missileLife: 14,        // s
   proximity: 12,          // m
+  assistFull: 1.5,        // deg: nose within this of the gun solution -> rounds fly to the intercept
+  assistAngle: 4,         // deg: assist fades out by here (both x1.5 on touch screens)
   hitRadius: 7,           // m around a target's centre that a round counts as a hit (x1.5 on touch screens)
   magnetism: 0.35,        // touch screens: how strongly aim is pulled onto the lead point when close to it
   drones: 8,              // test targets circling near the player
