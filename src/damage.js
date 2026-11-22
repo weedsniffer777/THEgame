@@ -7,11 +7,18 @@ import * as THREE from 'three';
 // Regions are per aircraft type, in that model's own coordinates (+X is the left wing, +Z the nose).
 // stab: tailplane cut from the hull (T-tails etc.); jets with separate moving stabilators leave it out.
 export const REGIONS = {
-  lightFighter: { noseZ: 6.0, tail: { z: -3.6 }, fin: { y: 2.5, z: -2.4 }, outer: { x: 2.45, y: 1.8, z0: -3.4, z1: 1.4 }, inner: { x: 1.05, y: 1.62, z0: -3.0, z1: 1.8 } },
+  lightFighter: { jag: 0.22, noseZ: 6.0, tail: { z: -3.6 }, fin: { y: 2.5, z: -2.4 }, outer: { x: 2.45, y: 1.8, z0: -3.4, z1: 1.4 }, inner: { x: 1.05, y: 1.62, z0: -3.0, z1: 1.8 } },
   // heavy four-engine bomber (model turned so its nose is +Z)
-  bomber: { noseZ: 15, tail: { z: -12 }, stab: { x: 1.0, y: -6, z: -19, yMax: 0.3 }, fin: { y: 0.3, z: -15 }, outer: { x: 13, y: 0.5, z0: -10, z1: 12 }, inner: { x: 1.6, y: 0.5, z0: -10, z1: 14 } },
-  earlyJet: { noseZ: 3.3, stab: { x: 0.3, y: 4.0, z: -9.2 }, fin: { y: 3.3, z: -6.8 }, outer: { x: 4.2, y: 3.2, z0: -6.5, z1: 1.0 }, inner: { x: 1.0, y: 3.1, z0: -6.5, z1: 1.3 } },
+  bomber: { jag: 0.9, noseZ: 15, tail: { z: -12 }, stab: { x: 1.0, y: -6, z: -19, yMax: 0.3 }, fin: { y: 0.3, z: -15 }, outer: { x: 13, y: 0.5, z0: -10, z1: 12 }, inner: { x: 1.6, y: 0.5, z0: -10, z1: 14 } },
+  earlyJet: { jag: 0.3, noseZ: 3.3, stab: { x: 0.3, y: 4.0, z: -9.2 }, fin: { y: 3.3, z: -6.8 }, outer: { x: 4.2, y: 3.2, z0: -6.5, z1: 1.0 }, inner: { x: 1.0, y: 3.1, z0: -6.5, z1: 1.3 } },
 };
+
+const _jg = new THREE.Vector3();
+function jagged(c, J) {
+  if (!J) return c;
+  const cell = J * 1.6, h = (k) => { const v = Math.sin(Math.floor(c.x / cell) * 127.1 + Math.floor(c.y / cell) * 311.7 + Math.floor(c.z / cell) * 74.7 + k * 19.19) * 43758.5453; return v - Math.floor(v) - 0.5; };
+  return _jg.set(c.x + h(1) * J * 2, c.y + h(2) * J * 2, c.z + h(3) * J * 2);
+}
 
 export function classify(p, R = REGIONS.lightFighter) {
   const ax = Math.abs(p.x), side = p.x > 0 ? 'L' : 'R';
@@ -64,7 +71,9 @@ export function splitAirframe(model, surfaces = {}, R = REGIONS.lightFighter, dr
       if (drop) { nrm.subVectors(b, a).cross(e1.subVectors(c, a)).normalize(); }
       const centre = a.add(b).add(c).divideScalar(3);
       if (drop && drop(centre, nrm)) continue;
-      const name = classify(centre, R);
+      // (each triangle is classified at a point nudged by a blocky random offset, so the cut lines wander in
+      // chunks instead of running dead straight: torn, not sawn)
+      const name = classify(jagged(centre, R.jag || 0), R);
       (groups[name] ||= []).push(idx[t], idx[t + 1], idx[t + 2]);
       (centres[name] ||= new THREE.Vector3()).add(centre);
       counts[name] = (counts[name] || 0) + 1;
@@ -104,7 +113,74 @@ export function splitAirframe(model, surfaces = {}, R = REGIONS.lightFighter, dr
     if (!surfaces[k]) continue;
     if (parts[name]) { ride(surfaces[k], name); } else { surfaces[k].userData.part = name; surfaces[k].name = 'part:' + name; }
   }
+  addBulkheads(model, parts, R);
   return parts;
+}
+
+// Bulkheads: a dark plate across each cut, shaped like the airframe's cross-section there (a convex outline of the
+// remaining structure's vertices near the cut), shown once that part has come off so nobody sees into the airframe.
+// It sits a few cm inside the cut, so the torn skin still sticks out past it.
+const capMat = new THREE.MeshStandardMaterial({ color: 0x1c1d1f, roughness: 0.85, metalness: 0.3, side: THREE.DoubleSide });
+function cutPlane(name, R) {
+  const s = name.endsWith('L') ? 1 : -1;
+  const fus = (p) => Math.abs(p.x) < R.inner.x * 1.1 && p.y < R.fin.y + 0.1;          // just the fuselage, not wings or fin
+  if (name === 'nose') return { n: new THREE.Vector3(0, 0, 1), d: R.noseZ, keep: fus };
+  if (name === 'tail' && R.tail) return { n: new THREE.Vector3(0, 0, -1), d: -R.tail.z, keep: fus };
+  if (name === 'fin') return { n: new THREE.Vector3(0, 1, 0), d: R.fin.y, keep: (p) => p.z < R.fin.z + 0.5 && Math.abs(p.x) < R.inner.x * 0.14 };   // the fin's own stub
+  if (name.startsWith('wingOuter')) return { n: new THREE.Vector3(s, 0, 0), d: R.outer.x, keep: (p) => p.y < R.outer.y + 0.5 && p.z > R.outer.z0 - 0.5 && p.z < R.outer.z1 + 0.5 };
+  if (name.startsWith('wingInner')) return { n: new THREE.Vector3(s, 0, 0), d: R.inner.x, keep: (p) => p.y < R.inner.y + 0.5 && p.z > R.inner.z0 - 0.5 && p.z < R.inner.z1 + 0.5 };
+  if (name.startsWith('stab') && R.stab) return { n: new THREE.Vector3(s, 0, 0), d: R.stab.x, keep: (p) => p.z < R.stab.z + 0.5 && p.y > R.stab.y - 0.5 };
+  return null;
+}
+function addBulkheads(model, parts, R) {
+  model.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
+  const band = Math.max(0.2, (R.jag || 0) * 1.2), v = new THREE.Vector3();
+  for (const [name, pivot] of Object.entries(parts)) {
+    const cp = cutPlane(name, R); if (!cp) continue;
+    // structure that stays: everything outside this part (and outside anything hung on it)
+    const inPart = new Set(); pivot.traverse(o => inPart.add(o));
+    const pts = [];
+    model.traverse(o => {
+      if (!o.isMesh || inPart.has(o) || o.userData.noSplit || !o.visible) return;
+      const pos = o.geometry.attributes.position; if (!pos) return;   // (a mesh emptied by the split)
+      const M = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+      const idx = o.geometry.index ? o.geometry.index.array : null, n = idx ? idx.length : pos.count;
+      for (let k = 0; k < n; k++) {
+        v.fromBufferAttribute(pos, idx ? idx[k] : k).applyMatrix4(M);
+        const d = v.dot(cp.n) - cp.d;
+        if (d < -band || d > 0.1 || !cp.keep(v)) continue;
+        pts.push(v.clone());
+      }
+    });
+    if (pts.length < 6) continue;
+    // 2D basis on the plane, convex hull of the projected points
+    const u = Math.abs(cp.n.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+    const a = new THREE.Vector3().crossVectors(cp.n, u).normalize(), b = new THREE.Vector3().crossVectors(cp.n, a);
+    const P = pts.map(p => [p.dot(a), p.dot(b)]);
+    P.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+    const cross = (o, p, q) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+    const lo = [], hi = [];
+    for (const p of P) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+    for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (hi.length >= 2 && cross(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
+    const hull = lo.slice(0, -1).concat(hi.slice(0, -1));
+    if (hull.length < 3) continue;
+    const off = cp.d - 0.04, base = cp.n.clone().multiplyScalar(off);
+    const cx = hull.reduce((s, p) => s + p[0], 0) / hull.length, cy = hull.reduce((s, p) => s + p[1], 0) / hull.length;
+    const at = (x, y) => base.clone().addScaledVector(a, x).addScaledVector(b, y);
+    const verts = [];
+    for (let i = 0; i < hull.length; i++) {
+      const p = hull[i], q = hull[(i + 1) % hull.length];
+      for (const w of [at(cx, cy), at(p[0], p[1]), at(q[0], q[1])]) verts.push(w.x, w.y, w.z);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3)); g.computeVertexNormals();
+    const cap = new THREE.Mesh(g, capMat);
+    cap.visible = false; cap.userData.noSplit = true; cap.userData.cap = true;
+    // it belongs to whatever the part was attached to (an outer wing's cap rides on the inner wing)
+    const host = name.startsWith('wingOuter') ? parts['wingInner' + name.slice(-1)] || model : model;
+    model.add(cap); model.updateMatrixWorld(true); host.attach(cap);
+    pivot.userData.capMesh = cap;
+  }
 }
 
 // Hang any extra object (missiles on pylons, ...) on the part it sits on.
@@ -170,6 +246,9 @@ export class Damage {
     const part = this.parts[name];
     if (!part || part.broken) return;
     part.broken = true;
+    if (part.obj.userData.capMesh) part.obj.userData.capMesh.visible = true;
+    // tail surfaces and the nose come off in a spray of white paint flakes and dust
+    if (/^(fin|stab|nose)/.test(name)) this.emit('flakes', this.model.localToWorld(part.breakAt.clone()), vel);
     const o = part.obj;
     // a wing root that goes takes the rest of that wing with it: the outer panel rides along on the same piece
     if (name.startsWith('wingInner')) {
@@ -211,6 +290,7 @@ export class Damage {
       p.parent.add(p.obj);
       p.local.decompose(p.obj.position, p.obj.quaternion, p.obj.scale);
       p.obj.visible = true;                                    // (pieces that sank in a lake were hidden)
+      if (p.obj.userData.capMesh) p.obj.userData.capMesh.visible = false;
     }
     for (const [o, m] of this.mats) o.material = m;
     this.debris = []; this.fires = []; this.doomed = false; this.quenched = false; this.bodyHp = BODY_HP * (this.model.userData.toughness || 1);
@@ -242,6 +322,9 @@ export class Damage {
       }
     }
     this.debris = this.debris.filter(d => { if (d.t > 40) { d.obj.removeFromParent(); return false; } return true; });
+    // the fin's stump trips the airflow: irregular little wisps tearing off it
+    const fin = this.parts.fin;
+    if (fin?.broken && !this.quenched && Math.random() < dt * 9) this.emit('wisp', this.model.localToWorld(fin.breakAt.clone()), null);
     // break points on the airframe keep burning
     const dead = this.burning;
     for (const f of this.quenched ? [] : this.fires) {

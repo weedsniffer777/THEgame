@@ -408,6 +408,19 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   const emit = (kind, p, v, key) => {
     if (kind === 'impact') return explode(p, new THREE.Vector3(), 0.6);
     if (kind === 'splash') return splash(p, v || new THREE.Vector3(), 0.5);
+    if (kind === 'flakes') {                                  // paint flakes and dust off a torn surface
+      const carry = v ? v.clone().multiplyScalar(0.85) : new THREE.Vector3();
+      for (let i = 0; i < 26; i++) S.fx.push({ kind: 'chip', light: 1, p: p.clone(), v: carry.clone().add(new THREE.Vector3((Math.random() - 0.5) * 14, (Math.random() - 0.3) * 12, (Math.random() - 0.5) * 14)),
+        t: 0, life: 1.0 + Math.random() * 1.2, s: 0.06 + Math.random() * 0.1, seed: Math.random() });
+      for (let i = 0; i < 6; i++) S.fx.push({ kind: 'vapor', soft: 1, p: p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.5)),
+        v: carry.clone().multiplyScalar(0.6).add(new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3)), t: 0, life: 0.8 + Math.random() * 0.6, s: 0.6 + Math.random() * 0.5, seed: Math.random(), op: 0.45, grow: 3 });
+      return;
+    }
+    if (kind === 'wisp') {                                     // a scrap of turbulent air off a broken stump, left behind in the air
+      S.fx.push({ kind: 'vapor', soft: 1, p: p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6)),
+        v: new THREE.Vector3((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3), t: 0, life: 0.5 + Math.random() * 0.6, s: 0.25 + Math.random() * 0.3, seed: Math.random(), op: 0.3, grow: 3.5 });
+      return;
+    }
     if (kind === 'groundfire') return fires.push({ p: p.clone(), t: 0, life: v ? 25 : 10, big: !!v, tS: 0, tF: 0 });
     let spacingNow = 1;
     // key.fade (0..1) shrinks the puffs: a fire dying down
@@ -961,7 +974,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         emit('smoke', e.p, e.v, e);
       } else if (e.kind === 'chip') {                       // a bit of skin: small dark fleck tumbling away under gravity
         e.v.y -= G * dt;
-        smoke.push(e.p, null, 0.16, 0.16, 0.17, 0.95 * (1 - k * k), e.s, e.seed);
+        const cg = e.light ? 0.85 : 0.16;                    // (light: paint flakes)
+        smoke.push(e.p, null, cg, cg, cg * 1.02, 0.95 * (1 - k * k), e.s, e.seed);
       } else if (e.kind === 'sparkle') {                    // a short spark streak
         const tail = tmpB.copy(e.v).multiplyScalar(-0.03).add(e.p);
         glow.push(e.p, tail, 1.0, 0.7, 0.35, 0.9 * (1 - k), e.s);
