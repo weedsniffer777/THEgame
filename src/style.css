@@ -121,7 +121,36 @@ body.clean #perf { display: none; }
 #fhud .unit { font-size: 9px; opacity: 0.75; }
 #fhud .chev { fill: rgba(236,246,238,0.95); }
 #fhud .chev.ab { fill: #ffa640; }
+#fhud .thrv { font-size: 11px; }
+#fhud .thrv.ab { fill: #ffa640; }
 #fhud .eng { fill: rgba(236,246,238,0.55); }
 body.touch #fhud .thr { display: none; }
 #throttle, #gauges { display: none !important; }
 body.lost #fhud, body.viewing #fhud { display: none; }
+
+/* pause menu: the game blurs behind a slanted panel sliding in from the left; the HUD hides */
+#pause { position: fixed; inset: 0; z-index: 40; display: none; }
+body.paused #pause { display: block; }
+body.paused #game { filter: blur(7px) brightness(0.72) saturate(0.75) !important; }
+body.paused #hud, body.paused #touch { display: none; }
+#pause .panel { position: absolute; left: -150px; top: 0; bottom: 0; width: min(520px, 86vw); padding-left: 190px; box-sizing: border-box;
+  display: flex; flex-direction: column; justify-content: center; transform: skewX(9deg); transform-origin: top left;
+  background: linear-gradient(90deg, rgba(8,12,18,0.86) 60%, rgba(8,12,18,0.6)); border-right: 2px solid rgba(236,246,238,0.65);
+  animation: pausein 0.22s ease-out; }
+@keyframes pausein { from { transform: skewX(9deg) translateX(-60px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #pause .panel { animation: none; } }
+#pause .page { display: none; transform: skewX(-9deg); transform-origin: 0 50%; }
+#pause .page.on { display: block; }
+#pause button { font-family: 'B612 Mono', ui-monospace, monospace; font-weight: 700; color: rgba(236,246,238,0.85); background: none; border: none; cursor: pointer; }
+#pause .item { display: block; font-size: 22px; letter-spacing: 0.16em; padding: 12px 0 12px 14px; border-left: 3px solid transparent; text-align: left; transition: transform 0.12s, color 0.12s; }
+#pause .item:hover, #pause .item:focus-visible { color: #fff; border-left-color: #fff; transform: translateX(6px); outline: none; }
+#pause .tabs { display: flex; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+#pause .tabs button { font-size: 12px; letter-spacing: 0.12em; padding: 6px 0; border-bottom: 2px solid transparent; opacity: 0.7; }
+#pause .tabs button.on { opacity: 1; border-bottom-color: #fff; color: #fff; }
+#pause .tab { display: none; min-height: 90px; }
+#pause .tab.on { display: block; }
+#pause .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 300px; font: 700 12px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.12em; color: rgba(236,246,238,0.85); }
+#pause .seg { display: inline-flex; border: 1.5px solid rgba(236,246,238,0.7); }
+#pause .seg button { font-size: 11px; letter-spacing: 0.1em; padding: 7px 10px; }
+#pause .seg button.on { background: rgba(236,246,238,0.92); color: #0a0e14; }
+#pause .back { font-size: 15px; margin-top: 14px; }

@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import '@fontsource/b612-mono/700.css';
+import { settings, units } from './settings.js';
 
 // Flight HUD, drawn as one SVG over the screen: thin single-colour strokes and a cockpit-display typeface.
 //  - speed tape left of the reticle and altitude tape right of it, each with a readout box whose last digit rolls
 //  - G under the speed box, heading tape across the top
 //  - throttle: a tick scale beside the speed tape, notch at full dry power, hatched afterburner zone, a chevron for
 //    the lever and a thin bar for what the engine is actually giving
-//  - faint pitch marks referenced to the real horizon, near the reticle
+//  - Mach above the speed box once past M 0.75
+//  - units (speed kts / km/h, altitude ft / m) follow the Units setting
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent?.appendChild(e); return e; };
 const DEG = Math.PI / 180;
@@ -35,7 +37,10 @@ export function createFlightHud(root) {
   };
   const spd = tape('spd', -1), alt = tape('alt', 1);
   const gTxt = el('text', { class: 'gv', 'text-anchor': 'end' }, svg);
-  const ktTxt = el('text', { class: 'unit', 'text-anchor': 'end' }, svg); ktTxt.textContent = 'KT';
+  const ktTxt = el('text', { class: 'unit', 'text-anchor': 'end' }, svg);
+  const ftTxt = el('text', { class: 'unit', 'text-anchor': 'end' }, svg);
+  const mTxt = el('text', { class: 'gv', 'text-anchor': 'end' }, svg);
+  let machOn = false;
 
   // heading
   const hdg = { g: el('g', {}, svg) };
@@ -51,9 +56,8 @@ export function createFlightHud(root) {
   thr.ticks = el('path', { class: 'tk' }, thr.g);
   thr.eng = el('rect', { class: 'eng' }, thr.g);
   thr.chev = el('path', { class: 'chev' }, thr.g);
+  thr.txt = el('text', { class: 'gv thrv', 'text-anchor': 'middle' }, thr.g);   // lever position: 20% idle ... 99% full dry, 110% afterburner
 
-  // pitch marks
-  const ladder = el('path', { class: 'ladder' }, svg);
 
   let W = 0, H = 0, L = {};
   function layout() {
@@ -75,6 +79,8 @@ export function createFlightHud(root) {
     }
     gTxt.setAttribute('x', spd.textX); gTxt.setAttribute('y', cy + 30);
     ktTxt.setAttribute('x', spd.textX); ktTxt.setAttribute('y', cy - 16);
+    ftTxt.setAttribute('x', alt.textX); ftTxt.setAttribute('y', cy - 16);
+    mTxt.setAttribute('x', spd.textX); mTxt.setAttribute('y', cy - 30);
     const hc = clips.hdgClip; hc.setAttribute('x', cx - L.hw / 2); hc.setAttribute('y', L.hy - 16); hc.setAttribute('width', L.hw); hc.setAttribute('height', 30);
     hdg.caret.setAttribute('d', `M${cx - 22} ${L.hy + 26}H${cx + 22}V${L.hy + 44}H${cx - 22}ZM${cx} ${L.hy + 14}L${cx - 5} ${L.hy + 21}H${cx + 5}Z`);
     hdg.txt.setAttribute('x', cx); hdg.txt.setAttribute('y', L.hy + 40);
@@ -86,6 +92,7 @@ export function createFlightHud(root) {
     for (let k = 0; k <= 10; k++) { const y = ty0 - (mil - ty0) * -k / 10; d += `M${tx} ${y}h${k % 5 ? -4 : -7}`; }
     d += `M${tx - 9} ${mil}h18`;                                   // the detent: full dry power
     thr.ticks.setAttribute('d', d);
+    thr.txt.setAttribute('x', tx); thr.txt.setAttribute('y', ty1 - 9);
   }
   addEventListener('resize', layout); layout();
 
@@ -121,10 +128,16 @@ export function createFlightHud(root) {
   const _f = new THREE.Vector3(), _p = new THREE.Vector3(), _r = new THREE.Vector3();
   return function update(ac, camera, rig) {
     if (W !== innerWidth || H !== innerHeight) layout();
-    const kt = ac.t.ias * 1.94384, ft = ac.pos.y * 3.28084;
-    tapeTicks(spd, kt, 1, 10, 50, 1.2); rollBox(spd, kt, 1);
-    tapeTicks(alt, ft, 1, 100, 500, 0.1); rollBox(alt, ft, 10);
+    const metric = settings.units === 'metric';
+    const v = units.speed(ac.t.ias), a = units.alt(ac.pos.y);
+    if (metric) { tapeTicks(spd, v, 1, 20, 100, 0.65); tapeTicks(alt, a, 1, 50, 250, 0.33); }
+    else { tapeTicks(spd, v, 1, 10, 50, 1.2); tapeTicks(alt, a, 1, 100, 500, 0.1); }
+    rollBox(spd, v, 1); rollBox(alt, a, 10);
+    ktTxt.textContent = units.speedLabel(); ftTxt.textContent = units.altLabel();
     gTxt.textContent = `${ac.t.g.toFixed(1)}G`;
+    // Mach, once it matters (on past 0.75, off again below 0.73)
+    machOn = ac.t.mach > (machOn ? 0.73 : 0.75);
+    mTxt.textContent = machOn ? `M ${ac.t.mach.toFixed(2)}` : '';
     // heading of the nose, 0-360 clockwise from north (-z)
     _f.set(0, 0, 1).applyQuaternion(ac.quat);
     const h = ((Math.atan2(_f.x, -_f.z) / DEG) + 360) % 360, px = 2;   // px per degree
@@ -142,26 +155,10 @@ export function createFlightHud(root) {
     const ly = lever(ac.throttle);
     thr.chev.setAttribute('d', `M${T.tx + 3} ${ly}l8 -6v12z`);
     thr.chev.classList.toggle('ab', ac.throttle > 1);
+    const pct = ac.throttle > 1 ? 110 : Math.round(20 + 79 * Math.max(0, ac.throttle));   // full dry reads 99%, so 100+ means burner
+    thr.txt.textContent = `${pct}%`; thr.txt.classList.toggle('ab', ac.throttle > 1);
     const ey = lever(ac.engine);
     thr.eng.setAttribute('x', T.tx + 1); thr.eng.setAttribute('width', 2); thr.eng.setAttribute('y', Math.min(ey, T.ty0)); thr.eng.setAttribute('height', Math.max(0, T.ty0 - ey));
-    // pitch marks: rungs every 10 deg of elevation along the camera's heading, laid along the true horizon
-    camera.getWorldDirection(_f); const az = Math.atan2(_f.x, -_f.z);
-    _r.set(Math.cos(az), 0, Math.sin(az));                            // horizontal, to the camera's right
-    let lad = '';
-    for (let e = -30; e <= 30; e += 10) {
-      _p.set(Math.sin(az) * Math.cos(e * DEG), Math.sin(e * DEG), -Math.cos(az) * Math.cos(e * DEG)).multiplyScalar(1000).add(camera.position);
-      const a = _p.clone().project(camera); if (a.z > 1) continue;
-      const b = _p.clone().addScaledVector(_r, 30).project(camera);
-      const ax = (a.x * 0.5 + 0.5) * W, ay = (-a.y * 0.5 + 0.5) * H, bx = (b.x * 0.5 + 0.5) * W, by = (-b.y * 0.5 + 0.5) * H;
-      if (Math.abs(ay - L.cy) > L.th * 0.6 || Math.abs(ax - L.cx) > W * 0.3) continue;
-      const l = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / l, uy = (by - ay) / l;
-      const g0 = e === 0 ? 46 : 40, g1 = e === 0 ? 150 : 82;
-      for (const s of [-1, 1]) {
-        if (e < 0) for (let k = g0; k < g1; k += 12) lad += `M${(ax + s * ux * k).toFixed(1)} ${(ay + s * uy * k).toFixed(1)}l${(s * ux * 7).toFixed(1)} ${(s * uy * 7).toFixed(1)}`;
-        else lad += `M${(ax + s * ux * g0).toFixed(1)} ${(ay + s * uy * g0).toFixed(1)}L${(ax + s * ux * g1).toFixed(1)} ${(ay + s * uy * g1).toFixed(1)}`;
-        if (e !== 0) lad += `l${(-uy * (e > 0 ? 6 : -6)).toFixed(1)} ${(ux * (e > 0 ? 6 : -6)).toFixed(1)}`;   // end tick points at the horizon
-      }
-    }
-    ladder.setAttribute('d', lad);
+    // (pitch marks removed for now)
   };
 }

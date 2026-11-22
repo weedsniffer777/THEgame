@@ -9,6 +9,8 @@ import { loadJet, viewerAnim , NOZZLES } from './jet.js';
 import { createHeatHaze } from './heatHaze.js';
 import { groundContact } from './flight/ground.js';
 import { createFlightHud } from './hudFlight.js';
+import { createPauseMenu } from './ui/pauseMenu.js';
+import { units } from './settings.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
 import { loadEnemy } from './enemy.js';
@@ -43,11 +45,24 @@ scene.environment = pmrem.fromScene(envScene, 0, 1, 2000).texture;
 
 // start screen works while the world is still loading; the game begins as soon as both are ready
 const startEl = document.getElementById('start');
-let ready = false, wantStart = params.has('autostart'), running = false, locked = false;
-function setRunning(on) { wantStart = on; running = on && ready; startEl.classList.toggle('show', !running); }
-startEl.addEventListener('click', () => {
+let ready = false, wantStart = params.has('autostart'), running = false, locked = false, started = false;
+// paused after the first start: the pause menu, not the start screen (menu=false: something else takes the screen)
+function setRunning(on, menu = true) {
+  wantStart = on; running = on && ready;
+  if (running) { started = true; pauseMenu.close(); }
+  else if (started && menu) pauseMenu.open();
+  startEl.classList.toggle('show', !running && !started);
+}
+function resume() {
   try { const lock = canvas.requestPointerLock?.(); lock?.catch?.(() => {}); } catch { /* no pointer lock here */ }
   setRunning(true);
+}
+const pauseMenu = createPauseMenu({ onResume: resume });
+startEl.addEventListener('click', resume);
+addEventListener('keydown', e => {                                       // P: pause / resume
+  if (e.code !== 'KeyP' || e.repeat || viewer.on) return;
+  if (running) { if (document.pointerLockElement) document.exitPointerLock(); else setRunning(false); }
+  else if (started) resume();
 });
 document.addEventListener('pointerlockchange', () => {
   const was = locked;
@@ -341,9 +356,9 @@ function hud(dt = 1 / 60) {
     el.hidden = !d.alive || d.falling || !running;
     if (el.hidden) return;
     place(el, d.obj.position);
-    const km = d.pos.distanceTo(ac.pos) / 1000;
-    const txt = km < 10 ? km.toFixed(1) : Math.round(km).toString();
-    if (txt !== el._txt) { el._b.innerHTML = `${txt}<small>KM</small>`; el._txt = txt; }
+    const dist = units.dist(d.pos.distanceTo(ac.pos));
+    const txt = (dist < 10 ? dist.toFixed(1) : Math.round(dist).toString()) + units.distLabel();
+    if (txt !== el._txt) { el._b.innerHTML = `${txt.replace(/[A-Z]+$/, '')}<small>${units.distLabel()}</small>`; el._txt = txt; }
     el.classList.toggle('sel', d === W.target);
   });
   // missiles in flight: a diamond on each, blue for ours, red for the enemy's
@@ -529,8 +544,8 @@ function setViewer(on) {
   viewer.on = on; viewerAnim.active = on;
   document.body.classList.toggle('viewing', on);
   if (!on) document.body.classList.remove('clean');
-  if (on) { if (document.pointerLockElement) document.exitPointerLock(); setRunning(false); startEl.classList.remove('show'); }
-  else startEl.classList.add('show');
+  if (on) { if (document.pointerLockElement) document.exitPointerLock(); setRunning(false, false); startEl.classList.remove('show'); }
+  else if (started) pauseMenu.open(); else startEl.classList.add('show');
 }
 canvas.addEventListener('pointerdown', e => { if (viewer.on) { viewer.drag = [e.clientX, e.clientY]; canvas.setPointerCapture(e.pointerId); } });
 canvas.addEventListener('pointermove', e => {
@@ -551,9 +566,9 @@ const models = createModelViewer(renderer, canvas, scene.environment, {
 function openModels() {
   if (viewer.on) { setViewer(false); document.querySelectorAll('.lil-gui').forEach(g => { if (g.querySelector('.title')?.textContent === 'cinematic camera') g.style.display = 'none'; }); }
   if (document.pointerLockElement) document.exitPointerLock();
-  setRunning(false); startEl.classList.remove('show');
+  setRunning(false, false); startEl.classList.remove('show');
   document.body.classList.add('viewing');
-  models.open(() => { document.body.classList.remove('viewing', 'clean'); startEl.classList.add('show'); });
+  models.open(() => { document.body.classList.remove('viewing', 'clean'); if (started) pauseMenu.open(); else startEl.classList.add('show'); });
 }
 document.getElementById('kit-models').addEventListener('click', e => { e.stopPropagation(); kitMenu.hidden = true; openModels(); });
 // Space in the cinematic camera or model viewer: hide / show every overlay for clean shots
