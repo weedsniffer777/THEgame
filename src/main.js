@@ -5,7 +5,8 @@ import { instruct } from './flight/instructor.js';
 import { CameraRig } from './camera.js';
 import { createSky, setSun } from './world/sky.js';
 import { loadTerrain } from './world/terrain.js';
-import { loadJet, viewerAnim } from './jet.js';
+import { loadJet, viewerAnim , NOZZLES } from './jet.js';
+import { createHeatHaze } from './heatHaze.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
 import { loadEnemy } from './enemy.js';
@@ -21,7 +22,8 @@ const params = new URLSearchParams(location.search);
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.localClippingEnabled = true;   // (the gear legs are clipped at the underside of the wing while they swing)
+renderer.localClippingEnabled = true;
+renderer.info.autoReset = false;   // (several passes per frame: the perf counter sums them)   // (the gear legs are clipped at the underside of the wing while they swing)
 renderer.setPixelRatio(Math.min(devicePixelRatio, WORLD.pixelRatio));
 renderer.toneMapping = THREE.NeutralToneMapping;   // keeps hues and saturation, so the picked sky colours stay true
 renderer.toneMappingExposure = 1.25;
@@ -59,6 +61,7 @@ const cloudEl = document.getElementById('cloudfog');
 
 const ac = new Aircraft(F5);
 const [enemyProto, bomberProto] = await Promise.all([loadEnemy('earlyJet'), loadEnemy('bomber')]);
+const haze = createHeatHaze(renderer, jet.model, NOZZLES);
 const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, [{ proto: enemyProto, count: WEAPONS.drones - 1 }, { proto: bomberProto, count: 1 }]);
 const rig = new CameraRig(camera, CAMERA);
 const prevPos = new THREE.Vector3(), prevQuat = new THREE.Quaternion();
@@ -456,7 +459,10 @@ function frame(now) {
   terrain.update(camera);
   cloudEl.style.opacity = clouds.update(camera);
   hud(dt);
+  renderer.info.reset();
   renderer.render(scene, camera);
+  // heat shimmer behind our own nozzles (dry power a little, afterburner a lot)
+  haze.render(camera, dead ? 0 : THREE.MathUtils.clamp(ac.engine, 0, 1) * 0.4 + THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1) * 0.6, now / 1000);
   perf(dt);
   window.__dev?.(dt);
   requestAnimationFrame(frame);

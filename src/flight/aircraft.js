@@ -71,7 +71,8 @@ export class Aircraft {
       const cl = this.liftCoef(alpha);
       const wave = c.waveDrag * (smooth(c.machCrit, c.machPeak, mach) - 0.35 * smooth(c.machPeak, c.machPeak + 0.6, mach));
       this.airbrake += Math.sign(this.airbrakeCmd - this.airbrake) * Math.min(Math.abs(this.airbrakeCmd - this.airbrake), c.airbrakeRate * dt);
-      if (this.gearCmd && ias * 1.944 > (c.gearMaxKt || 260)) this.gearCmd = 0;   // past the gear's limit speed it comes up by itself
+      // past the gear's limit speed it comes up by itself (lowered that fast, it gets partway out before the airflow wins)
+      if (this.gearCmd && ias * 1.944 > (c.gearMaxKt || 260) && this.gear >= 0.3) this.gearCmd = 0;
       this.gear += Math.sign(this.gearCmd - this.gear) * Math.min(Math.abs(this.gearCmd - this.gear), dt / (c.gearTime || 4));
       // arcade lift: below corner speed the wing is allowed a guaranteed share of the G limit at full AoA
       // (about 4.7 G at 100 kt, 6.5 G at 145 kt, all of it from ~230 kt). The extra lift costs extra drag,

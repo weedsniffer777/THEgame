@@ -6,7 +6,7 @@ import { DOORS } from './config.js';
 const GEAR = ['Object023', 'Object052', 'Object024', 'Object032', 'Object033', 'Object049', 'Object050', 'Object051', 'Object030', 'Object048', 'Object035'];
 const CG = new THREE.Vector3(0, 1.9, -0.6);
 // exhaust exits, measured from the model: centre, at the nozzle lip (opening radius 0.215 m, 0.20 m deeper inside)
-const NOZZLES = [new THREE.Vector3(0.285, 1.628, -6.659), new THREE.Vector3(-0.285, 1.628, -6.659)];
+export const NOZZLES = [new THREE.Vector3(0.285, 1.628, -6.659), new THREE.Vector3(-0.285, 1.628, -6.659)];
 const DEG = Math.PI / 180;
 
 function hinge(model, name, edge) {
@@ -75,8 +75,8 @@ void main() {
   // flame tongues licking out over its rim toward the liner (they only add light, the disc stays solid)
   // thin straight rays spraying out over the rim (sharp, not wobbly); dry power stays dark
   float a = atan(vUv.y - 0.5, vUv.x - 0.5) / 6.2832;
-  float n = noise(vec2(a * 70.0, r * 1.2 - uTime * 30.0));
-  c += vec3(1.0, 0.6, 0.38) * smoothstep(0.62, 0.8, n) * smoothstep(0.55, 1.0, r) * uAB * 0.45;
+  float n = noise(vec2(a * 32.0, r * 1.2 - uTime * 14.0));
+  c += vec3(1.0, 0.6, 0.38) * smoothstep(0.45, 0.9, n) * smoothstep(0.55, 1.0, r) * uAB * 0.4;   // (soft-edged, unhurried rays)
   gl_FragColor = vec4(c, 1.0);
 }`;
 // the inside of the nozzle between the burner face and the lip: hot liner with flame licks streaming out
@@ -86,8 +86,8 @@ ${NOISE}
 void main() {
   float deep = vUv.y;                                                     // 1 at the burner face, 0 at the lip
   // thin straight streaks along the pipe, racing out toward the lip (sharp spray, not wobbly tongues)
-  float n = noise(vec2(vUv.x * 90.0, deep * 1.5 + uTime * 34.0));
-  float lick = smoothstep(0.6, 0.78, n + deep * 0.2);
+  float n = noise(vec2(vUv.x * 40.0, deep * 1.5 + uTime * 15.0));
+  float lick = smoothstep(0.42, 0.9, n + deep * 0.15);                  // soft-edged streaks
   vec3 c = mix(vec3(0.9, 0.4, 0.3), vec3(1.0, 0.75, 0.9), lick) * lick * (0.3 + 0.7 * deep) * uAB * 0.7;
   gl_FragColor = vec4(c, 1.0);
 }`;
