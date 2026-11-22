@@ -120,15 +120,13 @@ export function splitAirframe(model, surfaces = {}, R = REGIONS.lightFighter, dr
 // Bulkheads: a dark plate across each cut, shaped like the airframe's cross-section there (a convex outline of the
 // remaining structure's vertices near the cut), shown once that part has come off so nobody sees into the airframe.
 // It sits a few cm inside the cut, so the torn skin still sticks out past it.
-const capMat = new THREE.MeshStandardMaterial({ color: 0x1c1d1f, roughness: 0.85, metalness: 0.3, side: THREE.DoubleSide });
+const capMat = new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.7, metalness: 0.45, side: THREE.DoubleSide });   // bare, scorched-looking metal
 function cutPlane(name, R) {
   const s = name.endsWith('L') ? 1 : -1;
   const fus = (p) => Math.abs(p.x) < R.inner.x * 1.1 && p.y < R.fin.y + 0.1;          // just the fuselage, not wings or fin
   if (name === 'nose') return { n: new THREE.Vector3(0, 0, 1), d: R.noseZ, keep: fus };
   if (name === 'tail' && R.tail) return { n: new THREE.Vector3(0, 0, -1), d: -R.tail.z, keep: fus };
   if (name === 'fin') return { n: new THREE.Vector3(0, 1, 0), d: R.fin.y, keep: (p) => p.z < R.fin.z + 0.5 && Math.abs(p.x) < R.inner.x * 0.14 };   // the fin's own stub
-  if (name.startsWith('wingOuter')) return { n: new THREE.Vector3(s, 0, 0), d: R.outer.x, keep: (p) => p.y < R.outer.y + 0.5 && p.z > R.outer.z0 - 0.5 && p.z < R.outer.z1 + 0.5 };
-  if (name.startsWith('wingInner')) return { n: new THREE.Vector3(s, 0, 0), d: R.inner.x, keep: (p) => p.y < R.inner.y + 0.5 && p.z > R.inner.z0 - 0.5 && p.z < R.inner.z1 + 0.5 };
   if (name.startsWith('stab') && R.stab) return { n: new THREE.Vector3(s, 0, 0), d: R.stab.x, keep: (p) => p.z < R.stab.z + 0.5 && p.y > R.stab.y - 0.5 };
   return null;
 }
@@ -165,8 +163,9 @@ function addBulkheads(model, parts, R) {
     for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (hi.length >= 2 && cross(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
     const hull = lo.slice(0, -1).concat(hi.slice(0, -1));
     if (hull.length < 3) continue;
-    const off = cp.d - 0.04, base = cp.n.clone().multiplyScalar(off);
+    const off = cp.d - 0.12, base = cp.n.clone().multiplyScalar(off);   // tucked well inside the cut
     const cx = hull.reduce((s, p) => s + p[0], 0) / hull.length, cy = hull.reduce((s, p) => s + p[1], 0) / hull.length;
+    for (const p of hull) { p[0] = cx + (p[0] - cx) * 0.86; p[1] = cy + (p[1] - cy) * 0.86; }   // a bit inside the skin's outline
     const at = (x, y) => base.clone().addScaledVector(a, x).addScaledVector(b, y);
     const verts = [];
     for (let i = 0; i < hull.length; i++) {
@@ -176,8 +175,7 @@ function addBulkheads(model, parts, R) {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3)); g.computeVertexNormals();
     const cap = new THREE.Mesh(g, capMat);
     cap.visible = false; cap.userData.noSplit = true; cap.userData.cap = true;
-    // it belongs to whatever the part was attached to (an outer wing's cap rides on the inner wing)
-    const host = name.startsWith('wingOuter') ? parts['wingInner' + name.slice(-1)] || model : model;
+    const host = model;
     model.add(cap); model.updateMatrixWorld(true); host.attach(cap);
     pivot.userData.capMesh = cap;
   }
