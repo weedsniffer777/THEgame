@@ -602,6 +602,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   }
 
   function fireMissile(now) {
+    if (!S.locked || !S.seeker) return;   // no lock, no launch
     let k = -1;
     for (let i = RAILS.length - 1; i >= 0; i--) if (S.loaded[i] && !S.lost[i]) { k = i; break; }
     if (k < 0) return;
