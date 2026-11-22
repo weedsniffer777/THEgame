@@ -635,7 +635,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       }
       else if (r.p.y < terrain.heightAt(r.p.x, r.p.z)) {
         r.t = 1e9;
-        if (Math.random() < 0.5) S.fx.push({ kind: 'smoke', dust: 1, p: r.p.clone().setY(terrain.heightAt(r.p.x, r.p.z) + 0.5), v: new THREE.Vector3((Math.random() - 0.5) * 3, 3 + Math.random() * 3, (Math.random() - 0.5) * 3), t: 0, life: 1.6 + Math.random(), s: 1.0 + Math.random() * 0.8, seed: Math.random(), spread: 1 });
+        // rounds hitting the ground: a small faint dust puff on land, a bigger bright splash puff on water
+        const wet = terrain.isWater(r.p.x, r.p.z);
+        if (Math.random() < 0.5) S.fx.push({ kind: 'smoke', dust: wet ? 0 : 1, wet: wet ? 1 : 0, p: r.p.clone().setY(terrain.heightAt(r.p.x, r.p.z) + 0.5), v: new THREE.Vector3((Math.random() - 0.5) * 3, 3 + Math.random() * 3, (Math.random() - 0.5) * 3), t: 0, life: 1.6 + Math.random(),
+          s: wet ? 1.0 + Math.random() * 0.8 : 0.55 + Math.random() * 0.45, seed: Math.random(), spread: 1, fade: wet ? 1 : 0.6 });
       }
     }
     S.rounds = S.rounds.filter(r => r.t < cfg.roundLife);
@@ -879,9 +882,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       } else if (e.kind === 'smoke') {
         if (e.rise) e.v.y += dt * 0.6;
         if (e.spray) e.v.y -= G * dt * 0.8;                     // spray falls back
-        const g = e.spray || e.mist ? 0.88 + 0.08 * e.seed : e.dust ? 0.56 + 0.08 * e.seed : e.hit ? 0.36 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.74 + 0.1 * e.seed;     // dark sooty grey, with some near-black
+        const g = e.wet ? 0.8 + 0.08 * e.seed : e.spray || e.mist ? 0.88 + 0.08 * e.seed : e.dust ? 0.56 + 0.08 * e.seed : e.hit ? 0.36 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.74 + 0.1 * e.seed;     // dark sooty grey, with some near-black
         const grow = e.spread ? 0.8 + 7 * (1 - Math.exp(-e.t * 0.9)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
-        smoke.push(e.p, null, g * 0.97, g, g * 1.04, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
+        smoke.push(e.p, null, g * 0.97, g, g * 1.04, 0.7 * (e.fade || 1) * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
       } else if (e.kind === 'vapor') {                        // condensation: fades in and out fast, swells a little
         const g = 0.76 + 0.1 * e.seed;
         smoke.push(e.p, null, g * 0.97, g, g * 1.04, e.op * Math.sin(Math.PI * Math.min(k * 1.4, 1)), e.s * (1 + (e.grow - 1) * k), e.seed);
