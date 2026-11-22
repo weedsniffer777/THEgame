@@ -10,6 +10,7 @@ import { createHeatHaze } from './heatHaze.js';
 import { groundContact } from './flight/ground.js';
 import { createFlightHud } from './hudFlight.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
+import { paintEnemy } from './enemy.js';
 import { units } from './settings.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
@@ -256,6 +257,7 @@ function physics(dt) {
   const th = (thUp ? 1 : 0) - (thDown ? 1 : 0);
   if (th > 0 && ac.throttle >= 1) { abHold += dt; if (abHold > 0.25) ac.throttle = 1.1; }
   else { abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 1.2 * dt, 0, 1); }
+  ac.abHold = abHold / 0.25;   // (the HUD spools the percentage toward the burner while it's held)
   const kb = { pitch: axis('KeyW', 'KeyS'), roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE') };
   kb.active = !!(kb.pitch || kb.roll || kb.yaw);   // any flying key takes over from mouse aim (the camera eases back after)
   if (kb.active) recentre = 0.45; else if (recentre > 0) recentre -= dt;
@@ -464,9 +466,12 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-let acc = 0, last = performance.now();
+let acc = 0, last = performance.now(), gameT = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1); last = now;
+  // paused: every effect stands still (the game clock stops); the cinematic camera keeps it running
+  const frozen = started && !running && !viewer.on, vdt = frozen ? 0 : dt;
+  gameT += vdt;
   if (models.on) { models.render(); requestAnimationFrame(frame); return; }   // dev model viewer: its own static scene
   if (running) {
     cursorSteer(dt);
@@ -494,9 +499,9 @@ function frame(now) {
   drawQuat.slerpQuaternions(prevQuat, ac.quat, a);
   jet.object.position.copy(drawPos);
   jet.object.quaternion.copy(drawQuat);
-  jet.animate(ac);
-  weapons.render(camera, dt, now / 1000, a, drawPos, drawQuat, renderer);
-  jet.damage.update(dt);
+  jet.animate(ac, gameT);
+  weapons.render(camera, vdt, gameT, a, drawPos, drawQuat, renderer);
+  jet.damage.update(vdt);
   ac.damageFx = jet.damage.effects();
   rig.zoom += ((rig.zooming ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);
   if (viewer.on) viewer.place(); else if (dead) {
@@ -517,12 +522,12 @@ function frame(now) {
   camera.updateMatrixWorld();
   terrain.update(camera);
   cloudEl.style.opacity = clouds.update(camera);
-  hud(dt);
+  hud(vdt || 1e-6);
   renderer.info.reset();
-  playerShadow(now / 1000);
+  playerShadow(gameT);
   renderer.render(scene, camera);
   // heat shimmer behind our own nozzles (dry power a little, afterburner a lot)
-  haze.render(camera, dead ? 0 : THREE.MathUtils.clamp(ac.engine, 0, 1) * 0.4 + THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1) * 0.6, now / 1000);
+  haze.render(camera, dead ? 0 : THREE.MathUtils.clamp(ac.engine, 0, 1) * 0.4 + THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1) * 0.6, gameT);
   perf(dt);
   window.__dev?.(dt);
   requestAnimationFrame(frame);
@@ -557,10 +562,16 @@ canvas.addEventListener('pointermove', e => {
 canvas.addEventListener('pointerup', () => { viewer.drag = null; });
 canvas.addEventListener('wheel', e => { if (viewer.on) { viewer.dist = THREE.MathUtils.clamp(viewer.dist * Math.exp(e.deltaY * 0.001), 4, 60); e.preventDefault(); } }, { passive: false });
 // --- dev kit: model viewer (separate static scene) -----------------------------------------------
+// the alternative paint schemes, for the model viewer (loaded in the background)
+const unmarked = {};
+paintEnemy(enemyProto, 'unmarked').then(o => { unmarked.earlyJet = o; });
+paintEnemy(bomberProto, 'unmarked').then(o => { unmarked.bomber = o; });
 const models = createModelViewer(renderer, canvas, scene.environment, {
   'player jet': () => jet.object,
   'enemy: early jet': () => enemyProto,
   'enemy: bomber': () => bomberProto,
+  'enemy: early jet (unmarked)': () => unmarked.earlyJet || enemyProto,
+  'enemy: bomber (unmarked)': () => unmarked.bomber || bomberProto,
   'missile': () => weapons.missileProto,
 });
 function openModels() {

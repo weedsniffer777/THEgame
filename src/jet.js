@@ -131,7 +131,7 @@ function afterburner(kind) {
       for (const m of [core, liner]) { const u = m.material.uniforms; u.uMil.value = mil; u.uAB.value = ab; u.uTime.value = t; }
       const u = plume.material.uniforms;
       u.uAB.value = ab; u.uTime.value = t;
-      u.uLen.value = (diamonds ? 1.3 : 3.2) * (0.3 + 0.7 * ab) * (0.95 + 0.1 * Math.random());
+      u.uLen.value = (diamonds ? 1.3 : 3.2) * (0.3 + 0.7 * ab) * (1 + 0.05 * Math.sin(t * 61) * Math.sin(t * 37));   // (flicker from the clock: stops when the game is paused)
       plume.visible = ab > 0.01;
     },
   };
@@ -139,6 +139,10 @@ function afterburner(kind) {
 
 import { loadGltfJson } from './gltf.js';
 import { splitAirframe, REGIONS } from './damage.js';
+import { tagTextures } from './paint.js';
+
+// paint schemes for the player's jet (texture file -> repainted file); only the standard one so far
+export const F5_PAINTS = { standard: {} };
 
 // The source model is posed for the ground: canopy open, gear doors open. Close it up for flight.
 function swing(model, names, axis, deg, at) {
@@ -287,6 +291,7 @@ export const viewerAnim = { active: false, pitch: 0, roll: 0, yaw: 0, airbrake: 
 
 export async function loadJet(url, cfg) {
   const gltf = await loadGltfJson(url);
+  tagTextures(gltf);
   const model = gltf.scene;
   model.updateMatrixWorld(true);
   for (const n of GEAR) { const o = model.getObjectByName(n); if (o) o.visible = false; }
@@ -316,7 +321,8 @@ export async function loadJet(url, cfg) {
 
   return {
     object, model,
-    animate(acReal) {
+    animate(acReal, time = performance.now() / 1000) {   // time: the game clock (stands still while paused)
+      const frozen = time === this._t; this._t = time;
       const V = viewerAnim;
       if (V.active && V.cycle) {
         const t = performance.now() / 1000;
@@ -347,10 +353,10 @@ export async function loadJet(url, cfg) {
       for (const t of lef) t.rotation.x = flaps.le * DEG;
       s.flapL.rotation.x = s.flapR.rotation.x = -flaps.te * DEG;
       const ab = THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1);
-      const mil = THREE.MathUtils.clamp(ac.engine, 0, 1), t = performance.now() / 1000;
+      const mil = THREE.MathUtils.clamp(ac.engine, 0, 1), t = time;
       for (const f of flames) f.update(mil, ab, t);
       const step = 0.26 * (0.2 + 0.8 * Math.min(ac.engine, 1));          // rad per frame: ~15 deg at full power (the face's pattern repeats only a few times per turn)
-      for (const f of fans) f.userData.tex.rotation = (f.userData.tex.rotation + step) % (2 * Math.PI);
+      if (!frozen) for (const f of fans) f.userData.tex.rotation = (f.userData.tex.rotation + step) % (2 * Math.PI);
     },
   };
 }

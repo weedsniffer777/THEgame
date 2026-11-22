@@ -15,6 +15,7 @@
 - `src/damage.js`: break-apart damage model shared by every aircraft (parts, hit points, debris, flight effects); per-type region tables (REGIONS).
 - `src/enemy.js`: enemy aircraft types (first: the early swept-wing jet, gear removed, split into parts).
 - `src/weapons.js`: guns (tracer per round), missiles (6 stations, no reload), seeker/lock, explosions, target drone.
+- `src/paint.js`: paint schemes (per type in enemy.js / jet.js: texture file -> repainted file in `public/models/jets/paints/`). Enemies currently use 'standard'; 'unmarked' (no stars) is ready.
 - `src/settings.js`: player settings (units) and unit conversions; `src/ui/pauseMenu.js`: pause menu with settings tabs.
 - `src/hudFlight.js`: flight HUD (speed/altitude tapes, heading, G, throttle scale, pitch marks). `src/hudArms.js`, `src/hudXray.js`: weapon panel and X-ray damage view. `src/touch.js`: touch controls (drag to aim, throttle slider, fire/switch).
 - Dev kit (top-right button): model viewer with every animation, door angles and part breaking.

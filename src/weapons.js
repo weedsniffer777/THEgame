@@ -709,7 +709,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     // propellers (contra-rotating, 4 blades): each rendered frame they step a fixed share of the gap between blades,
     // 1/8: small enough that the eye sees continuous motion (bigger steps read as stutter or a backwards crawl).
     // Going down, the engines wind down and they turn slower.
-    for (const d of drones) if (d.props.length && d.obj.visible) for (const p of d.props) p.rotation.x += p.userData.prop * (Math.PI / 2) * (d.falling ? 0.05 : 0.125);
+    if (dt > 0) for (const d of drones) if (d.props.length && d.obj.visible) for (const p of d.props) p.rotation.x += p.userData.prop * (Math.PI / 2) * (d.falling ? 0.05 : 0.125);
     const cam = camera.position;
     // tracers
     tracers.begin(renderer);

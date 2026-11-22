@@ -40,7 +40,7 @@ export function createFlightHud(root) {
   const ktTxt = el('text', { class: 'unit', 'text-anchor': 'end' }, svg);
   const ftTxt = el('text', { class: 'unit', 'text-anchor': 'end' }, svg);
   const mTxt = el('text', { class: 'gv', 'text-anchor': 'end' }, svg);
-  let machOn = false;
+  let machOn = false, shownPct = 20;
 
   // heading
   const hdg = { g: el('g', {}, svg) };
@@ -155,7 +155,11 @@ export function createFlightHud(root) {
     const ly = lever(ac.throttle);
     thr.chev.setAttribute('d', `M${T.tx + 3} ${ly}l8 -6v12z`);
     thr.chev.classList.toggle('ab', ac.throttle > 1);
-    const pct = ac.throttle > 1 ? 110 : Math.round(20 + 79 * Math.max(0, ac.throttle));   // full dry reads 99%, so 100+ means burner
+    // full dry reads 99% (so 100+ means burner); holding for the burner spools it up toward 110, letting go early
+    // runs it back down
+    const want = ac.throttle > 1 ? 110 : ac.throttle >= 1 && ac.abHold > 0 ? 99 + 11 * Math.min(ac.abHold, 1) : 20 + 79 * Math.max(0, ac.throttle);
+    shownPct = want >= shownPct || ac.throttle > 1 ? want : Math.max(want, shownPct - 60 * (1 / 60));
+    const pct = Math.round(shownPct);
     thr.txt.textContent = `${pct}%`; thr.txt.classList.toggle('ab', ac.throttle > 1);
     const ey = lever(ac.engine);
     thr.eng.setAttribute('x', T.tx + 1); thr.eng.setAttribute('width', 2); thr.eng.setAttribute('y', Math.min(ey, T.ty0)); thr.eng.setAttribute('height', Math.max(0, T.ty0 - ey));

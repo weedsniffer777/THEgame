@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadGltfJson } from './gltf.js';
 import { splitAirframe, REGIONS } from './damage.js';
+import { tagTextures, painted } from './paint.js';
 
 // Enemy aircraft types. Each model is cut into breakable parts by its own region table (damage.js).
 export const ENEMIES = {
@@ -18,6 +19,7 @@ export const ENEMIES = {
       || (Math.abs(c.x) < 0.5 && c.z > 2.0 && c.z < 4.0 && c.y < 0.84)
       || (Math.abs(c.x) < 0.2 && c.z > 3.4 && c.z < 4.3 && c.y < 1.2 && Math.abs(n.y) < 0.35),
     speed: [140, 220], radius: [500, 1400], hitRadius: 7, toughness: 1, crippled: 'fighter', label: 'Fighter',
+    paints: { standard: {}, unmarked: { 'mig15_0.png': 'models/jets/paints/mig15_0.unmarked.png' } },
   },
   // slow four-engine strategic bomber: big, tough, flies wide steady circles
   bomber: {
@@ -30,6 +32,7 @@ export const ENEMIES = {
     dropMeshes: ['Object_11', 'Object_12', 'Object_13', 'Object_14', 'Object_15', 'Object_16'],   // main gear wheels and legs (modelled down)
     meta: 'models/jets/bomber.meta.json',   // leftover gear triangles to drop, and the propeller discs (made by an offline pass over the model)
     speed: [120, 150], radius: [3000, 4500], hitRadius: 24, toughness: 4, crippled: 'bomber', label: 'Bomber',
+    paints: { standard: {}, unmarked: { 'bomber_0.png': 'models/jets/paints/bomber_0.unmarked.png' } },
   },
 };
 
@@ -74,6 +77,7 @@ function applyMeta(root, meta) {
 export async function loadEnemy(type) {
   const T = ENEMIES[type];
   const gltf = await loadGltfJson(T.url);
+  tagTextures(gltf);
   for (const n of T.dropMeshes || []) gltf.scene.getObjectByName(n)?.removeFromParent();
   if (T.meta) applyMeta(gltf.scene, await (await fetch(T.meta)).json());
   let model = gltf.scene;
@@ -94,4 +98,10 @@ export async function loadEnemy(type) {
   const object = new THREE.Group().add(model);
   object.userData.type = type; object.userData.def = T;
   return object;
+}
+
+// the same type in another paint scheme (see paint.js); unknown schemes fall back to the standard paint
+export function paintEnemy(proto, scheme = 'standard') {
+  const T = proto.userData.def;
+  return painted(proto, T.paints?.[scheme]);
 }

@@ -131,7 +131,7 @@ body.lost #fhud, body.viewing #fhud { display: none; }
 /* pause menu: the game blurs behind a slanted panel sliding in from the left; the HUD hides */
 #pause { position: fixed; inset: 0; z-index: 40; display: none; }
 body.paused #pause { display: block; }
-body.paused #game { filter: blur(7px) brightness(0.72) saturate(0.75) !important; }
+body.paused #game { filter: blur(7px) !important; }
 body.paused #hud, body.paused #touch { display: none; }
 #pause .panel { position: absolute; left: -150px; top: 0; bottom: 0; width: min(520px, 86vw); padding-left: 190px; box-sizing: border-box;
   display: flex; flex-direction: column; justify-content: center; transform: skewX(9deg); transform-origin: top left;
