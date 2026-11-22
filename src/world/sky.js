@@ -64,7 +64,12 @@ export function createSky() {
         float up = max(rd.y, 0.0);
         vec3 col = mix(uHorizon, uZenith, pow(up, 0.5));
         col = mix(col, uFogColor, exp(-max(rd.y, 0.0) * 30.0) * 0.6);     // haze band right at the horizon
-        if (rd.y < 0.0) col = uFogColor;
+        // below the horizon (seen from high up, past where the terrain is drawn): distant ground seen through the
+        // haze, so the edge of the drawn terrain fades into land instead of into pale sky
+        if (rd.y < 0.0) {
+          float h = max(cameraPosition.y - 1800.0, 50.0), dist = min(h / max(-rd.y, 1e-3), 400000.0);
+          col = applyFog(vec3(0.16, 0.18, 0.15), cameraPosition, cameraPosition + rd * dist);
+        }
         // the sun: drawn about 3x its real 0.53 deg (a real-size disc reads as a dot on screen, games do the same),
         // with a bright glare that stands in for camera bloom and a soft forward-scattering glow around it
         float c = dot(rd, uSunDir);

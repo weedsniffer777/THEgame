@@ -133,6 +133,14 @@ function cursorSteer(dt) {
 addEventListener('mousedown', e => { if (e.button === 2) rig.zooming = true; });
 addEventListener('mouseup', e => { if (e.button === 2) rig.zooming = false; });
 addEventListener('contextmenu', e => e.preventDefault());
+// compile every shader now, hidden things included (effects, wrecks, the vapour cone...), so nothing stalls the
+// first time it appears mid-game (a likely source of the rare hitches, worst on phones)
+{
+  const hidden = [];
+  scene.traverse(o => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+  try { renderer.compile(scene, camera); } catch { /* not fatal: they compile on first use instead */ }
+  for (const o of hidden) o.visible = false;
+}
 ready = true;
 startEl.classList.remove('loading');
 setRunning(wantStart);

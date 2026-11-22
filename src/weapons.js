@@ -78,6 +78,13 @@ class Sprites {
           }
           vUv = position.xy; vCol = acol; vStreak = streak; vWorld = ahead; vSeed = asize.y;
           gl_Position = projectionMatrix * p;
+          // smoke right at the camera (flying through a trail) fades out and is not drawn at all: those huge
+          // overlapping close-up puffs were what made flying through smoke slow
+          if (uAdd < 0.5 && streak < 0.5) {
+            float near = smoothstep(asize.x * 0.9, asize.x * 2.2, -h.z);
+            vCol.a *= near;
+            if (near < 0.01) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+          }
         }`,
       fragmentShader: /* glsl */`
         uniform float uAdd;
