@@ -106,5 +106,5 @@ body.clean #perf { display: none; }
 #devmenu { top: 84px; }
 /* missiles in flight: a small diamond on each, blue = ours, red = the enemy's */
 #hud .mmark { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; }
-#hud .mmark::after { content: ''; position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; background: #3d9bff; transform: rotate(45deg); box-shadow: 0 0 0 1px rgba(0,0,0,0.45), 0 0 3px rgba(0,0,0,0.6); }
+#hud .mmark::after { content: ''; position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; background: #3d9bff; transform: rotate(45deg); }
 #hud .mmark.foe::after { background: #ff463c; }

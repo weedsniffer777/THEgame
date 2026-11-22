@@ -287,6 +287,9 @@ function hud(dt = 1 / 60) {
       const m = ms[k];
       if (!m || !running) { el.style.display = 'none'; continue; }
       if (el._own !== m.owner) { el.classList.toggle('foe', m.owner !== 'player'); el._own = m.owner; }
+      // none for a moment after launch, then it fades in over half a second
+      const op = THREE.MathUtils.clamp((m.t - 0.2) / 0.5, 0, 1);
+      el.style.opacity = op.toFixed(2);
       place(el, m.p);
     }
   }
