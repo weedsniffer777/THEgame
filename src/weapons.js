@@ -254,13 +254,17 @@ class Vortices {
       while (L.length && now - L[0].t > life) L.shift();
       for (let i = 0; i < this.max; i++) {
         const o = (l * this.max + i) * 2;
-        if (i >= L.length) { A[o] = A[o + 1] = 0; P.fill(0, o * 3, o * 3 + 6); continue; }
+        if (i >= L.length) {                                          // unused: collapsed onto the line's last point
+          const q = L.length ? L[L.length - 1].p : cam;
+          A[o] = A[o + 1] = 0; P[o * 3] = P[o * 3 + 3] = q.x; P[o * 3 + 1] = P[o * 3 + 4] = q.y; P[o * 3 + 2] = P[o * 3 + 5] = q.z; continue;
+        }
         const a = L[i], b = L[Math.min(i + 1, L.length - 1)], c = L[Math.max(i - 1, 0)];
         d.subVectors(b.p, c.p); v.subVectors(cam, a.p);
         side.crossVectors(d, v).normalize().multiplyScalar(width * (1 + (now - a.t) * 1.5));   // spreads a little as it ages
         P[o * 3] = a.p.x + side.x; P[o * 3 + 1] = a.p.y + side.y; P[o * 3 + 2] = a.p.z + side.z;
         P[o * 3 + 3] = a.p.x - side.x; P[o * 3 + 4] = a.p.y - side.y; P[o * 3 + 5] = a.p.z - side.z;
         A[o] = A[o + 1] = a.k * Math.pow(Math.max(0, 1 - (now - a.t) / life), 1.5) * Math.min(1, i / 3);
+        if (!a.puffed && now - a.t > life * 0.35 && a.k > 0) { a.puffed = true; this.onAge?.(a); }   // older stretch: becomes cloud
       }
     });
     this.pos.needsUpdate = this.alpha.needsUpdate = true;
@@ -373,6 +377,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
 
   const glow = new Sprites(2500, true), smoke = new Sprites(4000, false), trails = new Trails(), tracers = new Tracers(), vortices = new Vortices();
   scene.add(glow.mesh, smoke.mesh, trails.mesh, tracers.mesh, vortices.mesh);
+  vortices.onAge = (a) => S.fx.push({ kind: 'vapor', p: a.p.clone(), v: new THREE.Vector3(0, 0.3, 0), t: 0, life: 1.0 + Math.random() * 0.6,
+    s: 0.25 + Math.random() * 0.12, seed: Math.random(), op: 0.4 * a.k, grow: 3, soft: 1 });
 
   // missiles on the rails (in the jet's model, which is offset by -CG inside jet.object)
   const onJet = (o) => { for (let p = o.parent; p; p = p.parent) if (p === jet.model) return true; return false; };
@@ -773,14 +779,14 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     // wing vapour: from ~5 G, thick by 8 G
     const kw = Math.pow(sm(3.2, 8, ac.t.g || 0), 1.4) * fast * humid;   // creeps in from ~3.5 G, thick by 8 G
     if (kw > 0.02) {
-      const rate = 90 * kw * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);   // ~90 puffs/s at full
+      const rate = (90 + 60 * kw) * kw * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);   // up to ~150 puffs/s at full
       for (let i = 0; i < n; i++) {
         const sx = Math.random() < 0.5 ? 1 : -1, side = sx > 0 ? 'L' : 'R';
         const x = 1.3 + Math.random() * 2.6;
         if (gone('wingInner' + side) || (x > 2.45 && gone('wingOuter' + side))) continue;
         const le = -0.22 - 0.46 * (x - 1.6), z = le - Math.random() * 1.0;
         toWorld(sx * x, 1.75 + Math.random() * 0.25, z);
-        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone().multiplyScalar(0.97), t: 0, life: 0.16 + Math.random() * 0.14,
+        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone().multiplyScalar(0.97 + 0.02 * kw), t: 0, life: (0.16 + Math.random() * 0.14) * (1 + kw),
           s: 0.8 + Math.random() * 0.35, seed: Math.random(), op: Math.min(0.62, 0.58 * kw + 0.08), grow: 1.3 });
       }
     }
@@ -797,13 +803,13 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       // weak: a jittery scatter around the fuselage; at the peak the puffs settle onto a cone shell that opens
       // backward from just ahead of the canopy, bigger and denser
       const shell = sm(0.55, 0.95, km);
-      const rate = (90 + 260 * shell) * km * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
+      const rate = (90 + 520 * shell) * km * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
       for (let i = 0; i < n; i++) {
         const a = Math.random() * Math.PI * 2, aft = Math.sqrt(Math.random());
-        const coneR = 0.7 + aft * (1.4 + 2.6 * shell), r = coneR * (1 + (Math.random() - 0.5) * (0.9 - 0.75 * shell));
+        const coneR = 0.7 + aft * (1.4 + 2.6 * shell), r = coneR * (1 + (Math.random() - 0.5) * (0.9 - 0.82 * shell));
         toWorld(Math.cos(a) * r, 1.75 + Math.sin(a) * r * 0.95, 1.4 - aft * (2.4 + 2.2 * shell));
-        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone(), t: 0, life: 0.09 + Math.random() * 0.08,
-          s: (0.9 + Math.random() * 0.5) * (1 + 0.5 * shell), seed: Math.random(), op: 0.4 * km, grow: 1.3 });
+        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone(), t: 0, life: (0.09 + Math.random() * 0.08) * (1 + 0.8 * shell),
+          s: (0.9 + Math.random() * 0.5) * (1 + 0.5 * shell), seed: Math.random(), op: (0.4 + 0.25 * shell) * km, grow: 1.2 });
       }
     }
   }
@@ -887,7 +893,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         smoke.push(e.p, null, g * 0.97, g, g * 1.04, 0.7 * (e.fade || 1) * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
       } else if (e.kind === 'vapor') {                        // condensation: fades in and out fast, swells a little
         const g = 0.76 + 0.1 * e.seed;
-        smoke.push(e.p, null, g * 0.97, g, g * 1.04, e.op * Math.sin(Math.PI * Math.min(k * 1.4, 1)), e.s * (1 + (e.grow - 1) * k), e.seed);
+        const env = e.soft ? Math.sin(Math.PI * Math.min(k * 1.2, 1)) : THREE.MathUtils.smoothstep(k, 0, 0.25) * (1 - THREE.MathUtils.smoothstep(k, 0.6, 1));   // fade in, hold, fade out
+        smoke.push(e.p, null, g * 0.97, g, g * 1.04, e.op * env, e.s * (1 + (e.grow - 1) * k), e.seed);
       } else if (e.kind === 'flame') {
         glow.push(e.p, null, 1.0, 0.3 + 0.25 * (1 - k), 0.03, 0.75 * (1 - k), e.s * (0.8 + k * 0.8), Math.random());
       } else if (e.kind === 'ember') {
