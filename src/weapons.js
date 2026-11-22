@@ -373,9 +373,11 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     droneProto = jet.object.clone(true);
     droneProto.traverse(o => { if (o.isMesh && o.material.color && !o.material.transparent) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.55).add(new THREE.Color(0.35, 0.05, 0.03)); } });
   }
+  // enemyProto may be one prototype or a list of { proto, count }
+  const roster = Array.isArray(enemyProto) ? enemyProto.flatMap(e => Array(e.count).fill(e.proto)) : Array(cfg.drones).fill(droneProto);
   const drones = [];
-  for (let k = 0; k < cfg.drones; k++) {
-    const d = { obj: droneProto.clone(true), alive: true, falling: false, respawn: 0, t: 0, spin: 0, dir: 1, R: 1000, speed: 180,
+  for (let k = 0; k < roster.length; k++) {
+    const d = { obj: roster[k].clone(true), def: roster[k].userData.def || {}, alive: true, falling: false, respawn: 0, t: 0, spin: 0, dir: 1, R: 1000, speed: 180,
       pos: new THREE.Vector3(), vel: new THREE.Vector3(), centre: new THREE.Vector3() };
     scene.add(d.obj);
     d.model = d.obj.children[0];
@@ -386,9 +388,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function placeDrone(d, k = Math.random() * 8) {
     d.dmg.repair();
     // a circle somewhere around the player, 3 to 8 km away, at a similar height
-    const a = (k / Math.max(cfg.drones, 1)) * Math.PI * 2 + Math.random() * 0.6;
+    const a = (k / Math.max(drones.length || cfg.drones, 1)) * Math.PI * 2 + Math.random() * 0.6;
     const r = cfg.droneMinDist + Math.random() * (cfg.droneMaxDist - cfg.droneMinDist);
-    d.R = 500 + Math.random() * 900; d.speed = 140 + Math.random() * 80; d.dir = Math.random() < 0.5 ? -1 : 1;
+    const D = d.def, rr = D.radius || [500, 1400], sp = D.speed || [140, 220];
+    d.R = rr[0] + Math.random() * (rr[1] - rr[0]); d.speed = sp[0] + Math.random() * (sp[1] - sp[0]); d.dir = Math.random() < 0.5 ? -1 : 1;
     d.centre.set(ac.pos.x + Math.cos(a) * r, 0, ac.pos.z + Math.sin(a) * r);
     d.centre.y = Math.max(ac.pos.y + (Math.random() - 0.5) * 600, terrain.heightAt(d.centre.x, d.centre.z) + 700);
     d.alive = true; d.falling = false; d.obj.visible = true; d.t = Math.random() * Math.PI * 2;
@@ -516,7 +519,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       r.v.y -= G * dt;
       r.p.addScaledVector(r.v, dt);
       r.t += dt;
-      for (const d of drones) if (d.alive && !d.falling && segDist(r.prev, r.p, d.pos) < cfg.hitRadius * S.hitScale) {
+      for (const d of drones) if (d.alive && !d.falling && segDist(r.prev, r.p, d.pos) < (d.def.hitRadius || cfg.hitRadius) * S.hitScale) {
         r.t = 1e9; const at = closestOnSeg(r.prev, r.p, d.pos); hitFx(at, d.vel);
         d.dmg.hit(at, d.vel);
         if (d.dmg.dead) killDrone(d);
@@ -583,7 +586,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         m.v.copy(m.dir).multiplyScalar(sp);
         // fuse only arms once well clear of the launching jet; missiles never damage the player
         const armed = m.t > 0.5 && m.p.distanceTo(ac.pos) > 150;
-        if (armed && !m.target.falling && m.p.distanceTo(m.target.pos) < cfg.proximity) {
+        if (armed && !m.target.falling && m.p.distanceTo(m.target.pos) < Math.max(cfg.proximity, (m.target.def.hitRadius || 0) * 0.6)) {
           m.t = 1e9; explode(m.p, m.target.vel, 0.8);
           // the blast tears off what was closest to it, then the jet goes down
           const near = Object.keys(m.target.dmg.parts).sort((a, b) => m.target.dmg.parts[a].obj.getWorldPosition(_v).distanceTo(m.p) - m.target.dmg.parts[b].obj.getWorldPosition(_w).distanceTo(m.p));

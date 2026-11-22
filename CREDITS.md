@@ -24,6 +24,8 @@ All licensed under [Creative Commons Attribution 4.0](http://creativecommons.org
 | --- | --- | --- | --- |
 | "300 followers - free aircraft missile set" | NETRUNNER_pl | https://sketchfab.com/3d-models/300-followers-free-aircraft-missile-set-2e70bc2ea0824897b2ccaea378809c9e | short-range missile (CC-BY 4.0; the set's text labels are not used) |
 
+| "Tupolev Tu-95 \"Bear\"" | helijah | https://skfb.ly/DITt | slow bomber enemy (CC-BY 4.0; gear removed, split into parts; repaint pending) |
+
 ### Pending
 
 - "Free Fighter Jet Collection (low poly)", https://sketchfab.com/3d-models/free-fighter-jet-collection-low-poly-cb5966c988d9403895be89b364c2252f (six player jets). Author and license still to be confirmed from its `license.txt`.

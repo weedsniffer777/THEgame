@@ -8,12 +8,14 @@ import * as THREE from 'three';
 // stab: tailplane cut from the hull (T-tails etc.); jets with separate moving stabilators leave it out.
 export const REGIONS = {
   lightFighter: { noseZ: 6.0, fin: { y: 2.5, z: -2.4 }, outer: { x: 2.45, y: 1.8, z0: -3.4, z1: 1.4 }, inner: { x: 1.05, y: 1.62, z0: -3.0, z1: 1.8 } },
+  // heavy four-engine bomber (model turned so its nose is +Z)
+  bomber: { noseZ: 15, stab: { x: 1.0, y: -6, z: -19, yMax: 0.3 }, fin: { y: 0.3, z: -15 }, outer: { x: 13, y: 0.5, z0: -10, z1: 12 }, inner: { x: 1.6, y: 0.5, z0: -10, z1: 14 } },
   earlyJet: { noseZ: 3.3, stab: { x: 0.3, y: 4.0, z: -9.2 }, fin: { y: 3.3, z: -6.8 }, outer: { x: 4.2, y: 3.2, z0: -6.5, z1: 1.0 }, inner: { x: 1.0, y: 3.1, z0: -6.5, z1: 1.3 } },
 };
 
 export function classify(p, R = REGIONS.lightFighter) {
   const ax = Math.abs(p.x), side = p.x > 0 ? 'L' : 'R';
-  if (R.stab && ax > R.stab.x && p.y > R.stab.y && p.z < R.stab.z) return 'stab' + side;
+  if (R.stab && ax > R.stab.x && p.y > R.stab.y && p.z < R.stab.z && (R.stab.yMax === undefined || p.y < R.stab.yMax)) return 'stab' + side;
   if (p.z > R.noseZ) return 'nose';
   if (p.y > R.fin.y && p.z < R.fin.z) return 'fin';
   const o = R.outer, n = R.inner;
@@ -39,39 +41,53 @@ function tornEdge(name, c, R = REGIONS.lightFighter) {
 
 // Called once on the loaded model: splits the main hull mesh by region and hangs the moving parts on them.
 // drop(centre) can remove triangles outright (e.g. landing gear modelled down).
-export function splitAirframe(model, surfaces = {}, R = REGIONS.lightFighter, drop = null) {
+// allMeshes: cut every mesh of the model (for models built from many pieces), not just the main hull.
+export function splitAirframe(model, surfaces = {}, R = REGIONS.lightFighter, drop = null, allMeshes = false) {
   model.userData.regions = R;
-  let hull = null;
-  model.traverse(o => { if (o.isMesh && (!hull || o.geometry.attributes.position.count > hull.geometry.attributes.position.count)) hull = o; });
   model.updateMatrixWorld(true);
-  const M = hull.matrixWorld.clone();             // model-space transform of the hull (the model itself is at the origin here)
-  const g = hull.geometry, pos = g.attributes.position, idx = g.index.array;
-  const groups = {}, centres = {};
+  const meshes = [];
+  model.traverse(o => { if (o.isMesh) meshes.push(o); });
+  const targets = allMeshes ? meshes : [meshes.reduce((h, o) => (!h || o.geometry.attributes.position.count > h.geometry.attributes.position.count ? o : h), null)];
+  const pieces = {}, centres = {}, counts = {};
   const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), nrm = new THREE.Vector3(), e1 = new THREE.Vector3();
-  for (let t = 0; t < idx.length; t += 3) {
-    a.fromBufferAttribute(pos, idx[t]).applyMatrix4(M);
-    b.fromBufferAttribute(pos, idx[t + 1]).applyMatrix4(M);
-    c.fromBufferAttribute(pos, idx[t + 2]).applyMatrix4(M);
-    if (drop) { nrm.subVectors(b, a).cross(e1.subVectors(c, a)).normalize(); }
-    const centre = a.add(b).add(c).divideScalar(3);
-    if (drop && drop(centre, nrm)) continue;
-    const name = classify(centre, R);
-    (groups[name] ||= []).push(idx[t], idx[t + 1], idx[t + 2]);
-    (centres[name] ||= new THREE.Vector3()).add(centre);
+  for (const hull of targets) {
+    const M = hull.matrixWorld.clone();           // model-space transform of this mesh (the model itself is at the origin here)
+    const g = hull.geometry, pos = g.attributes.position;
+    const idx = g.index ? g.index.array : Array.from({ length: pos.count }, (_, k) => k);
+    const groups = {};
+    for (let t = 0; t < idx.length; t += 3) {
+      a.fromBufferAttribute(pos, idx[t]).applyMatrix4(M);
+      b.fromBufferAttribute(pos, idx[t + 1]).applyMatrix4(M);
+      c.fromBufferAttribute(pos, idx[t + 2]).applyMatrix4(M);
+      if (drop) { nrm.subVectors(b, a).cross(e1.subVectors(c, a)).normalize(); }
+      const centre = a.add(b).add(c).divideScalar(3);
+      if (drop && drop(centre, nrm)) continue;
+      const name = classify(centre, R);
+      (groups[name] ||= []).push(idx[t], idx[t + 1], idx[t + 2]);
+      (centres[name] ||= new THREE.Vector3()).add(centre);
+      counts[name] = (counts[name] || 0) + 1;
+    }
+    for (const [name, list] of Object.entries(groups)) {
+      const geo = new THREE.BufferGeometry();
+      for (const [k, v] of Object.entries(g.attributes)) geo.setAttribute(k, v);   // shares the vertex data
+      geo.setIndex(list);
+      if (name === 'body') { hull.userData.bodyGeo = geo; continue; }
+      (pieces[name] ||= []).push({ geo, material: hull.material, M });
+    }
+    hull.geometry = hull.userData.bodyGeo || new THREE.BufferGeometry();   // what stays on the airframe
+    delete hull.userData.bodyGeo;
   }
   const parts = {};
-  for (const [name, list] of Object.entries(groups)) {
-    const geo = new THREE.BufferGeometry();
-    for (const [k, v] of Object.entries(g.attributes)) geo.setAttribute(k, v);   // shares the vertex data
-    geo.setIndex(list);
-    if (name === 'body') { hull.geometry = geo; continue; }
+  for (const [name, list] of Object.entries(pieces)) {
     const pivot = new THREE.Group();
     pivot.name = 'part:' + name; pivot.userData.part = name;
-    pivot.position.copy(centres[name]).divideScalar(list.length / 3);
-    const mesh = new THREE.Mesh(geo, hull.material);
-    mesh.matrixAutoUpdate = false;
-    mesh.matrix.copy(M).premultiply(new THREE.Matrix4().makeTranslation(-pivot.position.x, -pivot.position.y, -pivot.position.z));
-    pivot.add(mesh);
+    pivot.position.copy(centres[name]).divideScalar(counts[name]);
+    for (const { geo, material, M } of list) {
+      const mesh = new THREE.Mesh(geo, material);
+      mesh.matrixAutoUpdate = false;
+      mesh.matrix.copy(M).premultiply(new THREE.Matrix4().makeTranslation(-pivot.position.x, -pivot.position.y, -pivot.position.z));
+      pivot.add(mesh);
+    }
     model.add(pivot);
     parts[name] = pivot;
   }
@@ -102,8 +118,8 @@ export class Damage {
   constructor(model, scene, terrain, emit) {
     this.model = model; this.scene = scene; this.terrain = terrain; this.emit = emit;
     this.parts = {};
-    model.traverse(o => { if (o.userData.part) this.parts[o.userData.part] = { obj: o, hp: PART_HP[o.userData.part] || 5, broken: false, parent: o.parent, local: o.matrix.clone(), breakAt: tornEdge(o.userData.part, o.position, model.userData.regions) }; });
-    this.bodyHp = BODY_HP;
+    model.traverse(o => { if (o.userData.part) this.parts[o.userData.part] = { obj: o, hp: (PART_HP[o.userData.part] || 5) * (model.userData.toughness || 1), broken: false, parent: o.parent, local: o.matrix.clone(), breakAt: tornEdge(o.userData.part, o.position, model.userData.regions) }; });
+    this.bodyHp = BODY_HP * (model.userData.toughness || 1);
     this.mats = new Map(); model.traverse(o => { if (o.isMesh) this.mats.set(o, o.material); });   // to undo charring on repair
     this.debris = [];
     this.fires = [];            // break points that keep burning (model space)
@@ -168,14 +184,15 @@ export class Damage {
 
   repair() {
     for (const [, p] of Object.entries(this.parts)) {
-      if (!p.broken) { p.hp = PART_HP[p.obj.userData.part] || 5; continue; }
-      p.broken = false; p.hp = PART_HP[p.obj.userData.part] || 5;
+      const hp = (PART_HP[p.obj.userData.part] || 5) * (this.model.userData.toughness || 1);
+      if (!p.broken) { p.hp = hp; continue; }
+      p.broken = false; p.hp = hp;
       p.obj.removeFromParent();
       p.parent.add(p.obj);
       p.local.decompose(p.obj.position, p.obj.quaternion, p.obj.scale);
     }
     for (const [o, m] of this.mats) o.material = m;
-    this.debris = []; this.fires = []; this.bodyHp = BODY_HP;
+    this.debris = []; this.fires = []; this.bodyHp = BODY_HP * (this.model.userData.toughness || 1);
   }
 
   update(dt) {

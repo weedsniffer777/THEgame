@@ -57,8 +57,8 @@ scene.add(clouds.mesh);
 const cloudEl = document.getElementById('cloudfog');
 
 const ac = new Aircraft(F5);
-const enemyProto = await loadEnemy('earlyJet');
-const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, enemyProto);
+const [enemyProto, bomberProto] = await Promise.all([loadEnemy('earlyJet'), loadEnemy('bomber')]);
+const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, [{ proto: enemyProto, count: WEAPONS.drones - 1 }, { proto: bomberProto, count: 1 }]);
 const rig = new CameraRig(camera, CAMERA);
 const prevPos = new THREE.Vector3(), prevQuat = new THREE.Quaternion();
 const drawPos = new THREE.Vector3(), drawQuat = new THREE.Quaternion();
@@ -253,7 +253,8 @@ function hud(dt = 1 / 60) {
     } else tgtSwitch = 0;
   }
   // gun solution: square on the selected enemy, a line, and the lead circle, drawn as one SVG shape so they always join
-  const showSel = W.target && running && W.target.alive && !W.target.falling;
+  // guns selected: the box shows at any range; another weapon selected: only once the target is inside gun range
+  const showSel = W.target && running && W.target.alive && !W.target.falling && (!msl || W.target.pos.distanceTo(ac.pos) <= WEAPONS.gunRange);
   const a = showSel ? screenOf(W.target.obj.position) : null;
   const b = showSel && W.lead && W.target.pos.distanceTo(ac.pos) <= WEAPONS.gunRange ? screenOf(W.lead) : null;
   gunSvg.style.display = a ? '' : 'none';
@@ -285,6 +286,17 @@ function hud(dt = 1 / 60) {
   const g = ac.t.g;
   // effect only, never a real blackout: starts near 8.5 G, heavy by 10 G
   vig.style.opacity = THREE.MathUtils.clamp((g - 8.5) / 1.5, 0, 0.7) + THREE.MathUtils.clamp((-g - 2.5) / 1, 0, 0.4);
+}
+
+// dev performance readout under the dev kit button (remove for release builds)
+const perfEl = document.getElementById('perf');
+let perfFps = 60, perfT = 0;
+function perf(dt) {
+  perfFps += (1 / Math.max(dt, 1e-3) - perfFps) * 0.08;
+  if ((perfT += dt) < 0.25) return;
+  perfT = 0;
+  const r = renderer.info.render;
+  perfEl.textContent = `${Math.round(perfFps)} FPS\n${(r.triangles / 1000).toFixed(0)}K TRIS\n${r.calls} CALLS`;
 }
 
 function resize() {
@@ -339,6 +351,7 @@ function frame(now) {
   cloudEl.style.opacity = clouds.update(camera);
   hud(dt);
   renderer.render(scene, camera);
+  perf(dt);
   window.__dev?.(dt);
   requestAnimationFrame(frame);
 }
@@ -375,6 +388,7 @@ canvas.addEventListener('wheel', e => { if (viewer.on) { viewer.dist = THREE.Mat
 const models = createModelViewer(renderer, canvas, scene.environment, {
   'player jet': () => jet.object,
   'enemy: early jet': () => enemyProto,
+  'enemy: bomber': () => bomberProto,
   'missile': () => weapons.missileProto,
 });
 function openModels() {
