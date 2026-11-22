@@ -7,6 +7,7 @@ import * as THREE from 'three';
 // model's own velocity and body rates, so the flight model keeps running throughout (a jet can roll and take off).
 //  - wheels: roll freely along the jet's heading (B brakes them at idle throttle), grip sideways (no gear damage:
 //    a hard landing just bounces)
+//  - nosewheel steering: the rudder input steers the nose wheel below ~100 kt
 //  - airframe: tears off the part that hit if the hit is hard; scraping wears the airframe down
 //  - more than ~22 m/s into the ground at any point, or the canopy hitting fast: a crash
 const WHEELS = [[1.6, -1.9, -0.6], [-1.6, -1.9, -0.6], [0, -1.9, 5.05]].map(p => new THREE.Vector3(...p));
@@ -26,7 +27,7 @@ export function groundContact(ac, terrain, damage, dt, brake) {
   const invI = (v, out) => out.copy(v).applyQuaternion(_qi).multiply(INV_I).applyQuaternion(q);
   // body rates -> world angular velocity (the flight model rotates by (-q, -r, p) about body x, y, z)
   _w.set(-ac.q, -ac.r, ac.p).applyQuaternion(q);
-  let touching = 0, wheelsDown = 0, lift = 0, crash = false, water = false;
+  let touching = 0, wheelsDown = 0, lift = 0, crash = false, water = false, noseDown = false;
   const wheels = ac.gear > 0.95;
 
   const contact = (local, kind, part) => {
@@ -36,7 +37,7 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     if (pen <= 0) return;
     if (terrain.isWater?.(x, z)) { water = true; crash = true; return; }   // into a lake: no rolling out of that
     touching++; lift = Math.max(lift, pen);
-    if (kind === 'wheel') wheelsDown++;
+    if (kind === 'wheel') { wheelsDown++; if (local.z > 0) noseDown = true; }
     _n.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
     _vc.crossVectors(_w, _r).add(ac.vel);
     const vn = _vc.dot(_n);
@@ -83,6 +84,13 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     // world angular velocity -> body rates
     _t1.copy(_w).applyQuaternion(_qi);
     ac.q = -_t1.x; ac.r = -_t1.y; ac.p = _t1.z;
+    // nosewheel steering: with the nose wheel on the ground the rudder input turns it, strongest at taxi speed and
+    // fading out by ~100 kt, where the rudder itself has taken over (tightest turn ~10 m radius)
+    if (noseDown) {
+      const ias = ac.t.ias || 0, k = 1 - Math.min(Math.max((ias - 25) / 27, 0), 1);
+      const want = (ac.input.yaw || 0) * Math.min(0.6, Math.max(ac.vel.length(), 2) / 10);
+      ac.r += (want - ac.r) * Math.min(1, dt * 8) * k;
+    }
   }
   ac.onGround = touching > 0;
   return { touching, wheelsDown, crash, water };
