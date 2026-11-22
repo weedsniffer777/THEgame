@@ -247,7 +247,7 @@ class Trails {
           // three stages along the trail: hot exhaust right behind the motor, a solid dark-grey smoke rope,
           // then (with age) a lighter, puffier white that breaks up
           float hot = 1.0 - smoothstep(0.05, 0.3, age);
-          float puff = smoothstep(1.2, 4.0, age);
+          float puff = smoothstep(0.5, 2.0, age);          // fully cloud-coloured before the ribbon fades out (~1-2.6 s)
           float edgeSoft = mix(0.75, 0.35 + 0.35 * n, puff);
           float body = 1.0 - smoothstep(edgeSoft, 1.0, abs(across));
           float breakup = mix(1.0, smoothstep(0.3, 0.75, n), smoothstep(2.0, 5.0, age));
@@ -255,8 +255,9 @@ class Trails {
           if (a < 0.003) discard;
           float lit = 0.5 + 0.5 * clamp(uSunDir.y * 0.8 + across * 0.35 + (n - 0.5) * 0.6 * puff, 0.0, 1.0);
           vec3 smoke = mix(vec3(0.2, 0.2, 0.2), vec3(0.42, 0.41, 0.4), lit);
-          vec3 white = mix(vec3(0.55, 0.55, 0.56), vec3(0.8, 0.8, 0.79), lit);   // off-white: lighter than the rope, never glowing
-          vec3 col = applyFog(mix(smoke, white, puff), cameraPosition, vWorld);
+          vec3 white = vec3(0.97, 1.0, 1.04) * mix(0.45, 0.95, lit);        // the colour of the cloud puffs that take over
+          vec3 col = mix(smoke, white, puff);
+          col = mix(applyFog(col, cameraPosition, vWorld), mix(col, applyFog(col, cameraPosition, vWorld), 0.5), puff);   // hazed like the puffs at the end
           col = mix(col, vec3(1.0, 0.78, 0.5) * 1.6, hot);             // glowing exhaust next to the motor
           gl_FragColor = vec4(mix(encode(col) * a, encode(col * a), hot), a);   // opacity after encoding (see the sprites); the hot exhaust glows
         }`,

@@ -133,8 +133,14 @@ function crash() {
   weapons.crash(ac.pos, ac.vel);
   wreck.pos.copy(ac.pos); wreck.vel.copy(ac.vel); wreck.quat.copy(ac.quat); wreck.key = {};
   wreck.spin.set(-ac.q, -ac.r, ac.p).applyQuaternion(ac.quat);      // keeps the rotation it had (world axes)
-  const speed = ac.vel.length();
-  for (const side of ['L', 'R']) if (speed > 90 && Math.random() < 0.6) jet.damage.breakPart('wingOuter' + side, ac.vel);
+  // hitting the ground tears off everything still attached (the rear fuselage can snap off too, on a hard
+  // enough contact: see wreckStep)
+  for (const n of Object.keys(jet.damage.parts)) if (n !== 'tail') jet.damage.breakPart(n, ac.vel);
+  {
+    const x = ac.pos.x, z = ac.pos.z;
+    _wn.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
+    if (ac.vel.dot(_wn) < -20) jet.damage.breakPart('tail', ac.vel);   // into the ground hard: the fuselage snaps behind the wing
+  }
   ac.throttle = ac.engine = 0;
   document.body.classList.remove('lost');
 }
@@ -144,7 +150,8 @@ const _wn = new THREE.Vector3(), _wv = new THREE.Vector3(), _wq = new THREE.Quat
 // almost no bounce and a friction impulse, applied at that point, so it tumbles only as much as the contacts make it,
 // slides, settles on whatever it lands on and comes to rest.
 const WRECK_PTS = [
-  [[0, -0.2, 7.2]], [[0, 0.3, -7]], [[0, -1.0, 0.5]], [[0, -0.9, -3.5]], [[0, 1.2, 2.6]], [[0, 3.1, -6.4], 'fin'],
+  [[0, -0.2, 7.2], 'nose'], [[0, -0.5, 4.6]], [[0, 0.3, -7], 'tail'], [[0, -0.9, -6], 'tail'], [[0, -1.0, 0.5]], [[0, -0.9, -3.4]], [[0, 0.7, -3.3]],
+  [[0, 1.2, 2.6]], [[0, 3.1, -6.4], 'fin'],
   [[4.0, -0.1, -1.6], 'wingOuterL'], [[-4.0, -0.1, -1.6], 'wingOuterR'], [[2.0, -0.3, -0.6], 'wingInnerL'], [[-2.0, -0.3, -0.6], 'wingInnerR'],
   [[2.6, 0.2, -5.6], 'stabL'], [[-2.6, 0.2, -5.6], 'stabR'],
 ].map(([p, part]) => ({ p: new THREE.Vector3(...p), part }));
@@ -157,6 +164,10 @@ function invI(v, out) {   // world-space inverse inertia applied to a world vect
 }
 function wreckStep(dt) {
   wreck.vel.y -= 9.81 * dt;
+  // in the air: drag on the tumbling airframe, and a tumble the air slows (faster tumbling, harder braking)
+  const V = wreck.vel.length(), W = wreck.spin.length();
+  wreck.vel.multiplyScalar(1 / (1 + 0.0007 * V * dt));
+  wreck.spin.multiplyScalar(1 / (1 + (0.4 + 0.25 * W) * dt));
   wreck.pos.addScaledVector(wreck.vel, dt);
   const w0 = wreck.spin.length();
   if (w0 > 1e-5) { _wq.setFromAxisAngle(_wn.copy(wreck.spin).divideScalar(w0), w0 * dt); wreck.quat.premultiply(_wq).normalize(); }
@@ -177,6 +188,7 @@ function wreckStep(dt) {
       const k = 1 + _wn.dot(_t1.crossVectors(invI(_t2.crossVectors(_r, _wn), _t2), _r));
       const jn = -(1 + (vn < -20 ? 0 : 0.1)) * vn / k;
       if (vn < -12) wreck.vel.multiplyScalar(1 - Math.min(0.45, -vn / 120));   // a hard hit crumples the airframe: much of the speed goes
+      if (vn < -22 && !jet.damage.parts.tail?.broken) jet.damage.breakPart('tail', wreck.vel);   // hard enough: the fuselage snaps behind the wing
       wreck.vel.addScaledVector(_wn, jn);
       wreck.spin.add(invI(_t1.crossVectors(_r, _wn).multiplyScalar(jn), _t2));
       // friction: oppose the sliding of this point, up to mu times the normal impulse
@@ -191,10 +203,11 @@ function wreckStep(dt) {
       }
     }
   }
+  if (wreck.spin.lengthSq() > 25) wreck.spin.setLength(5);          // a graze at speed can't set it whirling
   if (touching) {
     wreck.pos.y += lift * 0.8;                                     // push out of the ground
     wreck.vel.multiplyScalar(Math.exp(-0.8 * dt));                 // ground scraping and crumpling
-    wreck.spin.multiplyScalar(Math.exp(-2.5 * dt));
+    wreck.spin.multiplyScalar(Math.exp(-(2.5 + 1.2 * touching) * dt));   // rolling and grinding over the ground stops it turning
     if (touching >= 3 && wreck.vel.lengthSq() < 0.15 && wreck.spin.lengthSq() < 0.01) { wreck.vel.set(0, 0, 0); wreck.spin.set(0, 0, 0); }   // at rest
   }
 }
@@ -501,4 +514,4 @@ if (isTouch) {
   });
 }
 
-window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash };
+window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck };
