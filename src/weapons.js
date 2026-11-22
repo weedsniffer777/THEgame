@@ -247,7 +247,7 @@ class Trails {
           // three stages along the trail: hot exhaust right behind the motor, a solid dark-grey smoke rope,
           // then (with age) a lighter, puffier white that breaks up
           float hot = 1.0 - smoothstep(0.05, 0.3, age);
-          float puff = smoothstep(0.3, 1.2, age);          // fully cloud-coloured before the ribbon fades out (~0.6-1.6 s)
+          float puff = smoothstep(0.15, 0.6, age);         // fully cloud-coloured before the ribbon fades out (~0.35-1 s)
           float edgeSoft = mix(0.75, 0.35 + 0.35 * n, puff);
           float body = 1.0 - smoothstep(edgeSoft, 1.0, abs(across));
           float breakup = mix(1.0, smoothstep(0.3, 0.75, n), smoothstep(2.0, 5.0, age));
@@ -303,7 +303,7 @@ class Trails {
         const width = 0.22 + 0.9 * (1 - Math.exp(-age / 0.8)) + 3.6 * Math.max(0, age - 1.2) / (1 + Math.max(0, age - 1.2) * 0.3) + 0.8 * Math.sin(p.d * 0.21 + t.seed) * Math.min(1, Math.max(0, age - 1.5) / 3);   // tight near the missile, billowing and lumpy later
         const fromHead = (n - 1 - k);
         const fade = Math.pow(Math.max(0, 1 - age / LIFE), 1.5) * (age < 1.5 ? 0.85 : 0.85 - 0.45 * Math.min(1, (age - 1.5) / 2.5)) * Math.min(1, fromHead / 2 + 0.4)
-          * (1 - THREE.MathUtils.smoothstep(age, 0.6, 1.6));   // solid near the missile; by ~1.6 s the cloud puffs have taken over
+          * (1 - THREE.MathUtils.smoothstep(age, 0.35, 1.0));   // solid near the missile; by ~1 s the cloud puffs have taken over
         P.set([c.x + side.x * width, c.y + side.y * width, c.z + side.z * width], v * 3); A.set([fade, -1, p.d, age], v * 4); v++;
         P.set([c.x - side.x * width, c.y - side.y * width, c.z - side.z * width], v * 3); A.set([fade, 1, p.d, age], v * 4); v++;
         if (k < n - 1) { const a0 = base + k * 2; I.set([a0, a0 + 1, a0 + 2, a0 + 1, a0 + 3, a0 + 2], i); i += 6; }
@@ -781,16 +781,16 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       let lastD = -1e9;
       for (let k = 0; k < t.pts.length; k++) {
         const p = t.pts[k], age = simNow - p.t;
-        if (age < 0.5 || p.d - lastD < 4) continue;
+        if (age < 0.25 || p.d - lastD < 4) continue;
         lastD = p.d;
         // each puff sits a little off the line (seeded by its place along the trail), rises slowly and swells
         const h1 = Math.sin(p.d * 12.9898 + t.seed) * 43758.5453, r1 = h1 - Math.floor(h1);
         const h2 = Math.sin(p.d * 78.233 + t.seed * 3) * 12543.212, r2 = h2 - Math.floor(h2);
-        const spread = Math.min(1, (age - 0.5) / 3) * 4;
+        const spread = Math.min(1, (age - 0.25) / 3) * 4;
         const at = trails.pointAt(t, k, simNow, tmpA);
         at.x += (r1 - 0.5) * spread; at.z += (r2 - 0.5) * spread; at.y += (r1 * r2 - 0.25) * spread + age * 0.6;
-        const grow = 2.2 + 11 * (1 - Math.exp(-(age - 0.5) / 2.6)) * (0.75 + 0.5 * r2);   // ~4 m across, billowing to ~25 m
-        const op = THREE.MathUtils.smoothstep(age, 0.5, 1.2) * Math.pow(Math.max(0, 1 - age / 10), 1.1) * 0.8;
+        const grow = 2.2 + 11 * (1 - Math.exp(-(age - 0.25) / 2.6)) * (0.75 + 0.5 * r2);   // ~4 m across, billowing to ~25 m
+        const op = THREE.MathUtils.smoothstep(age, 0.25, 0.7) * Math.pow(Math.max(0, 1 - age / 10), 1.1) * 0.8;
         const tone = 0.72 + 0.12 * r1;                                    // off-white, a little greyer than a cloud
         smoke.push(at, null, tone * 0.97, tone, tone * 1.04, op, grow, (r1 + r2) % 1);
       }

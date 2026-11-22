@@ -16,7 +16,7 @@ All licensed under [Creative Commons Attribution 4.0](http://creativecommons.org
 | "MIG-21 Fishbed - cold war era fighter - free" | NETRUNNER_pl | https://skfb.ly/6SoVo | common enemy |
 | "MiG 29" | Usman Zia | https://skfb.ly/6XBBu | main enemy fighter |
 | "VPAF Sukhoi Su-57" | Dave Love SketchFab | https://skfb.ly/pLKWt | ace / boss enemy, possible unlock |
-| "Northrop F-5" | dimal965 | https://skfb.ly/o6FzX | starter player jet |
+| "Northrop F-5" | dimal965 | https://skfb.ly/o6FzX | starter player jet (in game: roundels and wing dots painted out of the texture; split into parts) |
 
 ## Weapons models
 
@@ -24,7 +24,7 @@ All licensed under [Creative Commons Attribution 4.0](http://creativecommons.org
 | --- | --- | --- | --- |
 | "300 followers - free aircraft missile set" | NETRUNNER_pl | https://sketchfab.com/3d-models/300-followers-free-aircraft-missile-set-2e70bc2ea0824897b2ccaea378809c9e | short-range missile (CC-BY 4.0; the set's text labels are not used) |
 
-| "Tupolev Tu-95 \"Bear\"" | helijah | https://skfb.ly/DITt | slow bomber enemy (CC-BY 4.0; gear removed, split into parts; repaint pending) |
+| "Tupolev Tu-95 \"Bear\"" | helijah | https://skfb.ly/DITt | slow bomber enemy (CC-BY 4.0; gear removed, split into parts; nose name and the texture's credit line painted out; stars still to go) |
 
 ### Pending
 
