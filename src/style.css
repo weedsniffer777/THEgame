@@ -158,3 +158,5 @@ body.paused #hud, body.paused #touch { display: none; }
 /* the dev kit stays on top of every menu (pause included) and clickable */
 #devkit, #devmenu, #perf { z-index: 60 !important; }
 .lil-gui.root { z-index: 60; }
+
+body.dead #hud, body.dead #touch { display: none; }

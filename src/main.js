@@ -91,7 +91,7 @@ function spawn() {
   rig.reset(ac.quat);
   prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
   if (typeof weapons !== 'undefined') { weapons.rearm(); jet.damage.repair(); weapons.placeDrones(); }
-  dead = 0; jet.object.visible = true; document.body.classList.remove('lost');
+  dead = 0; jet.object.visible = true; document.body.classList.remove('lost', 'dead');
 }
 let dead = 0;   // seconds since the player was killed (0 = alive)
 let tgtSwitch = 0;   // how long a better gun target has been waiting to take over
@@ -109,10 +109,10 @@ addEventListener('keydown', e => {
   if (e.code === 'Digit2') weapons.select(2);
   if (e.code === 'KeyR') weapons.cycleTarget();
   if (e.code === 'KeyG' && !e.repeat) ac.gearCmd = ac.gearCmd ? 0 : 1;   // landing gear up / down
-  if (e.code === 'Space' && running && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
+  if (e.code === 'Space' && running && !dead && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
 });
 addEventListener('keyup', e => { if (e.code === 'Space') weapons.setFiring(false); });
-addEventListener('mousedown', e => { if (e.button === 0 && running && e.target === canvas) weapons.setFiring(true, performance.now() / 1000); });
+addEventListener('mousedown', e => { if (e.button === 0 && running && !dead && e.target === canvas) weapons.setFiring(true, performance.now() / 1000); });
 addEventListener('mouseup', e => { if (e.button === 0) weapons.setFiring(false); });
 addEventListener('blur', () => keys.clear());
 // With pointer lock the mouse turns the camera directly. Where the page can't lock the pointer
@@ -147,6 +147,7 @@ const wreck = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), quat: new TH
 const deathCam = { yaw: 0, pitch: 0, dist: 0, far: 85 };
 function crash(ditched = false, airborne = false) {   // ditched: worn out after a water landing (sinks whole); airborne: broke up in the air
   if (dead) return;
+  weapons.setFiring(false); document.body.classList.add('dead');   // dead: no shooting, no HUD
   deathCam.far = airborne ? 190 : 85;                                   // broken up: pull right back over the spreading debris
   dead = 1e-6;
   {
@@ -620,7 +621,7 @@ if (isTouch) {
   createTouch(document.getElementById('touch'), {
     onLook: (dx, dy) => { if (running) { mouseDX += dx; mouseDY += dy; } },
     onThrottle: (v) => { ac.throttle = v; },
-    onFire: (on) => { if (running) weapons.setFiring(on, performance.now() / 1000); },
+    onFire: (on) => { if (running && !dead) weapons.setFiring(on, performance.now() / 1000); },
     onSwitch: () => weapons.select(weapons.S.selected === 1 ? 2 : 1),
   });
 }

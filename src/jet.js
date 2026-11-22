@@ -313,7 +313,9 @@ export async function loadJet(url, cfg) {
     }
   });
 
-  const flames = NOZZLES.map(p => { const f = afterburner(cfg.afterburner); f.group.position.copy(p); model.add(f.group); return f; });
+  // the burner glow sits in the nozzles, which belong to the rear fuselage: it goes with that part if it breaks off
+  const tailPart = model.getObjectByName('part:tail');
+  const flames = NOZZLES.map(p => { const f = afterburner(cfg.afterburner); f.group.position.copy(p); model.add(f.group); model.updateMatrixWorld(true); tailPart?.attach(f.group); return f; });
   let atlas = null; model.traverse(o => { if (!atlas && o.isMesh && o.material.map && o.material.name === 'Northrop_F-5') atlas = o.material.map; });
   const fans = atlas ? FANS.map(p => { const f = fan(atlas); f.position.copy(p); model.add(f); return f; }) : [];
   model.position.copy(CG).negate();
