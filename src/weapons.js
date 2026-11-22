@@ -116,14 +116,19 @@ class Sprites {
     this.mesh.renderOrder = additive ? 3 : 2;
   }
   begin() { this.n = 0; this.items = this.items || []; this.items.length = 0; }
-  push(head, tail, r, g, b, i, halfWidth, seed = 0) {
-    if (this.n >= this.max) return;
+  // pri: 1 for effects that must always show (explosions, crash fires); trail puffs are 0 and are the ones dropped
+  push(head, tail, r, g, b, i, halfWidth, seed = 0, pri = 0) {
     this.n++;
-    this.items.push([head.x, head.y, head.z, tail ? tail.x : 0, tail ? tail.y : 0, tail ? tail.z : 0, tail ? 1 : 0, r, g, b, i, halfWidth, seed, 0]);
+    this.items.push([head.x, head.y, head.z, tail ? tail.x : 0, tail ? tail.y : 0, tail ? tail.z : 0, tail ? 1 : 0, r, g, b, i, halfWidth, seed, 0, pri]);
   }
   // alpha-blended sprites must be drawn far to near, or overlapping puffs pop in front of each other as they fade
   end(cam) {
-    const it = this.items;
+    let it = this.items;
+    if (it.length > this.max) {             // over budget: keep the important ones, then the newest
+      for (let k = 0; k < it.length; k++) it[k][15] = k;
+      it.sort((a, b) => (b[14] - a[14]) || (b[15] - a[15]));
+      it.length = this.max; this.items = it;
+    }
     if (!this.additive && cam) {
       for (const q of it) q[13] = (q[0] - cam.x) ** 2 + (q[1] - cam.y) ** 2 + (q[2] - cam.z) ** 2;
       it.sort((x, y) => y[13] - x[13]);
@@ -338,9 +343,13 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   const emit = (kind, p, v, key) => {
     if (kind === 'impact') return explode(p, new THREE.Vector3(), 0.6);
     if (kind === 'groundfire') return fires.push({ p: p.clone(), t: 0, life: v ? 25 : 10, big: !!v, tS: 0, tF: 0 });
-    const make = kind === 'smoke' ? (q) => puffSmoke(q) : (q) => puffFlame(q, v);
-    if (S.fx.length > 3600) return;               // never overflow the sprite pool
-    const spacing = kind === 'smoke' ? 1.0 : 1.1;
+    let spacingNow = 1;
+    const make = kind === 'smoke' ? (q) => { puffSmoke(q); S.fx[S.fx.length - 1].scale = Math.sqrt(spacingNow); } : (q) => puffFlame(q, v);
+    // spacing grows with the object's speed (bigger, sparser puffs that still merge) and with how busy the pool is
+    const busy = S.fx.length / 3000, speed = v ? v.length() : 0;
+    if (busy > 1.2) return;
+    const spacing = (kind === 'smoke' ? 1.0 : 1.1) * Math.max(1, speed / 45) * (1 + 2 * Math.max(0, busy - 0.5));
+    spacingNow = spacing;
     if (!key) { make(p); return; }
     let st = lastAt.get(key);
     if (!st) { st = { [kind]: { p: p.clone(), t: 0 } }; lastAt.set(key, st); make(p); return; }
@@ -427,7 +436,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function killDrone(d) {
     if (d.falling) return;
     d.falling = true; d.spin = (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 2);
-    S.fx.push({ kind: 'fire', p: d.pos.clone(), v: d.vel.clone().multiplyScalar(0.3), t: 0, life: 0.3, s: 12 });
+    S.fx.push({ pri: 1, kind: 'fire', p: d.pos.clone(), v: d.vel.clone().multiplyScalar(0.3), t: 0, life: 0.3, s: 12 });
   }
 
   // ---------------- effects
@@ -435,27 +444,27 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // cool from white-yellow through orange and deep red to brown smoke, lingering smoke, and burning debris.
   function explode(p, vel, scale = 1, embers = false) {
     const carry = vel.clone().multiplyScalar(0.25);
-    S.fx.push({ kind: 'fire', p: p.clone(), v: carry.clone(), t: 0, life: 0.18, s: 18 * scale });
+    S.fx.push({ pri: 1, kind: 'fire', p: p.clone(), v: carry.clone(), t: 0, life: 0.18, s: 18 * scale });
     const n = Math.round(14 + 10 * scale);
     for (let k = 0; k < n; k++) {
       const d = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 0.6, Math.random() * 2 - 1).normalize();
       const sp = (8 + Math.random() * 22) * scale;
-      S.fx.push({ kind: 'ball', p: p.clone().addScaledVector(d, Math.random() * 3 * scale), v: d.multiplyScalar(sp).add(carry), t: -Math.random() * 0.1,
+      S.fx.push({ pri: 1, kind: 'ball', p: p.clone().addScaledVector(d, Math.random() * 3 * scale), v: d.multiplyScalar(sp).add(carry), t: -Math.random() * 0.1,
         life: (1.1 + Math.random() * 1.3) * (0.8 + 0.25 * scale), s: (3.5 + Math.random() * 4.5) * scale, seed: Math.random() });
     }
     for (let k = 0; k < Math.round(5 + 4 * scale); k++) {   // soot: black puffs boiling through and around the fire
       const d = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 0.4, Math.random() * 2 - 1).normalize();
-      S.fx.push({ kind: 'ball', soot: 1, p: p.clone().addScaledVector(d, (2 + Math.random() * 4) * scale), v: d.multiplyScalar((6 + Math.random() * 16) * scale).add(carry), t: -0.05 - Math.random() * 0.25,
+      S.fx.push({ pri: 1, kind: 'ball', soot: 1, p: p.clone().addScaledVector(d, (2 + Math.random() * 4) * scale), v: d.multiplyScalar((6 + Math.random() * 16) * scale).add(carry), t: -0.05 - Math.random() * 0.25,
         life: (2.2 + Math.random() * 1.6) * (0.8 + 0.25 * scale), s: (3.5 + Math.random() * 3.5) * scale, seed: Math.random() });
     }
     for (let k = 0; k < 7; k++) {
       const d = new THREE.Vector3(Math.random() - 0.5, 0.3 + Math.random() * 0.5, Math.random() - 0.5).multiplyScalar(6 * scale);
-      S.fx.push({ kind: 'smoke', p: p.clone().addScaledVector(d, 1), v: d.add(carry).add(new THREE.Vector3(0, 3, 0)), t: -0.35 - Math.random() * 0.6,
+      S.fx.push({ pri: 1, kind: 'smoke', p: p.clone().addScaledVector(d, 1), v: d.add(carry).add(new THREE.Vector3(0, 3, 0)), t: -0.35 - Math.random() * 0.6,
         life: 7 + Math.random() * 4, s: (6 + Math.random() * 5) * scale, seed: Math.random(), dark: 1, rise: 1 });
     }
     for (let k = 0; embers && k < Math.round(6 * scale) + 2; k++) {
       const d = new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.8 - 0.15, Math.random() - 0.5).normalize().multiplyScalar((35 + Math.random() * 60) * scale);
-      S.fx.push({ kind: 'ember', p: p.clone(), v: d.add(carry), t: 0, life: 1.2 + Math.random() * 1.6, s: 0.45 + Math.random() * 0.4 });
+      S.fx.push({ pri: 1, kind: 'ember', p: p.clone(), v: d.add(carry), t: 0, life: 1.2 + Math.random() * 1.6, s: 0.45 + Math.random() * 0.4 });
     }
   }
   function spark(p) { S.fx.push({ kind: 'spark', p: p.clone(), v: new THREE.Vector3(), t: 0, life: 0.12, s: 2.5 }); }
@@ -671,11 +680,11 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       if ((f.tF -= dt) <= 0) {
         f.tF = 0.07 / big;
         const off = new THREE.Vector3((Math.random() - 0.5) * 8 * big, 0, (Math.random() - 0.5) * 8 * big);
-        S.fx.push({ kind: 'ball', burn: 1, p: f.p.clone().add(off), v: new THREE.Vector3(1.5 + Math.random(), 6 + Math.random() * 6, 1), t: 0, life: 1.4 + Math.random() * 0.9, s: (2.6 + Math.random() * 2.8) * big * (0.4 + 0.6 * power), seed: Math.random() });
+        S.fx.push({ pri: 1, kind: 'ball', burn: 1, p: f.p.clone().add(off), v: new THREE.Vector3(1.5 + Math.random(), 6 + Math.random() * 6, 1), t: 0, life: 1.4 + Math.random() * 0.9, s: (2.6 + Math.random() * 2.8) * big * (0.4 + 0.6 * power), seed: Math.random() });
       }
       if ((f.tS -= dt) <= 0) {
         f.tS = 0.4 / big;
-        S.fx.push({ kind: 'smoke', p: f.p.clone().add(new THREE.Vector3(0, 10 * big, 0)), v: new THREE.Vector3(3 + Math.random() * 2, 7 + Math.random() * 4, 1.5 + Math.random()), t: 0, life: 9 + Math.random() * 4, s: (3.5 + Math.random() * 2.5) * big, seed: Math.random(), dark: 1, rise: 1 });
+        S.fx.push({ pri: 1, kind: 'smoke', p: f.p.clone().add(new THREE.Vector3(0, 10 * big, 0)), v: new THREE.Vector3(3 + Math.random() * 2, 7 + Math.random() * 4, 1.5 + Math.random()), t: 0, life: 9 + Math.random() * 4, s: (3.5 + Math.random() * 2.5) * big, seed: Math.random(), dark: 1, rise: 1 });
       }
     }
     for (let i = fires.length - 1; i >= 0; i--) if (fires[i].t > fires[i].life) fires.splice(i, 1);
@@ -689,14 +698,14 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         e.v.y += dt * 9 * k;                                   // hot gas rises as it slows
         const c = e.soot ? SOOT : fireRamp(e.burn ? 0.1 + k * 0.9 : k);
         const alpha = k < 0.6 ? 0.95 : 0.95 * (1 - (k - 0.6) / 0.4);
-        smoke.push(e.p, null, c[0], c[1], c[2], alpha * Math.min(1, e.t * 20), e.s * (e.bloom ? 0.8 + 3.5 * k : 0.55 + 1.3 * Math.sqrt(k)), e.seed);
+        smoke.push(e.p, null, c[0], c[1], c[2], alpha * Math.min(1, e.t * 20), e.s * (e.bloom ? 0.8 + 3.5 * k : 0.55 + 1.3 * Math.sqrt(k)), e.seed, e.pri || 0);
       } else if (e.kind === 'fire') {
-        glow.push(e.p, null, 1.0, 0.75, 0.45, 3.5 * (1 - k), e.s * (0.6 + k * 0.6), 0.3);
+        glow.push(e.p, null, 1.0, 0.75, 0.45, 3.5 * (1 - k), e.s * (0.6 + k * 0.6), 0.3, 1);
       } else if (e.kind === 'smoke') {
         if (e.rise) e.v.y += dt * 0.6;
         const g = e.dust ? 0.48 + 0.08 * e.seed : e.hit ? 0.3 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.42 + 0.1 * e.seed;     // dark sooty grey, with some near-black
         const grow = e.spread ? 0.8 + 7 * (1 - Math.exp(-e.t * 0.9)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
-        smoke.push(e.p, null, g * 1.08, g, g * 0.92, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow, e.seed);
+        smoke.push(e.p, null, g * 1.08, g, g * 0.92, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
       } else if (e.kind === 'flame') {
         glow.push(e.p, null, 1.0, 0.3 + 0.25 * (1 - k), 0.03, 0.75 * (1 - k), e.s * (0.8 + k * 0.8), Math.random());
       } else if (e.kind === 'ember') {
@@ -747,7 +756,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     clearLine: (a, b) => clearLine(a, b),
     placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now
     rearm() { S.loaded.fill(true); S.firing = false; },
-    explode, hitFx,   // (used by the dev tests)
+    explode, hitFx, killDrone,   // (used by the dev tests)
     step, render,
     missileProto: proto,
     trails, smoke, cfg,   // (dev tests)
