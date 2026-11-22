@@ -71,7 +71,7 @@ export const F5 = {
   airbrakeRate: 1.5,      // fraction of full travel per second
   gearDrag: 0.05,         // extra drag coefficient with the landing gear down
   gearTime: 4,            // s for the gear to go fully up or down
-  gearMaxKt: 260,         // kt IAS: above this the gear retracts by itself
+  gearMaxKt: 320,         // kt IAS: above this the gear retracts by itself (the real limit is ~260 kt; some leeway)
   afterburner: 'spray',   // 'spray' (this jet) or 'diamonds' (shock diamonds after the first flame)
 
   // sideslip rolls the jet away from the yaw (dihedral / sweep effect): rudder right rolls right

@@ -222,7 +222,7 @@ function physics(dt) {
   const thUp = keys.has('Tab') || keys.has('KeyX'), thDown = keys.has('ShiftLeft') || keys.has('ShiftRight') || keys.has('KeyZ');
   const th = (thUp ? 1 : 0) - (thDown ? 1 : 0);
   if (th > 0 && ac.throttle >= 1) { abHold += dt; if (abHold > 0.25) ac.throttle = 1.1; }
-  else { abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 0.6 * dt, 0, 1); }
+  else { abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 1.2 * dt, 0, 1); }
   const kb = { pitch: axis('KeyW', 'KeyS'), roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE') };
   kb.active = !!(kb.pitch || kb.roll || kb.yaw);   // any flying key takes over from mouse aim (the camera eases back after)
   if (kb.active) recentre = 0.45; else if (recentre > 0) recentre -= dt;

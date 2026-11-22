@@ -59,8 +59,9 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     // roll: angle that would put the aim point straight "up" (or straight "down" when pushing) in the lift plane
     const toTarget = push ? Math.atan2(_t.x, -_t.y) : Math.atan2(-_t.x, _t.y);   // + = roll right
     let turnW = smooth(cfg.levelAngle * DEG, cfg.bankAngle * DEG, off);            // 0 near the aim point, 1 for real turns
-    // aim point 'below' the jet's own up axis and not pushing: roll toward it first, whatever the size of the error
-    if (!push && _t.y < 0) turnW = Math.max(turnW, smooth(0.3 * DEG, 1.5 * DEG, off));
+    // aim point 'below' the jet's own up axis and not pushing: small offsets are pushed to (a little negative G is
+    // fine); only bigger ones roll the lift onto it first, so a nudge below the nose never flips the jet over
+    if (!push && _t.y < 0) turnW = Math.max(turnW, smooth(8 * DEG, 14 * DEG, off));
     // near the aim point the bank is simply held (no rolling back to wings-level, no corrective banks): pitch
     // fixes the error along the jet's own up axis and the rudder fixes the sideways part, so nothing rocks.
     // Rolling only happens for real turns, where the lift is rolled onto the target.
@@ -74,18 +75,19 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     const pitchErr = Math.atan2(_t.y, _t.z);                                       // nose-up angle to the aim point
     const aligned = Math.max(0, Math.cos(rollErr));                                // lift pointing at the target?
     let qDes = cfg.aimRate * pitchErr * (push ? 1 : 0.35 + 0.65 * aligned * aligned);
-    if (!push) qDes = Math.max(qDes, 0);                                              // roll first, then pull: no negative G unless pushing
+    if (!push) qDes = Math.max(qDes, qDes * (1 - smooth(6 * DEG, 12 * DEG, off)));   // small corrections may push; big ones roll first, then pull
     qDes = clamp(qDes, -cfg.maxRate * DEG, cfg.maxRate * DEG);
     // load factor that gives that turn rate, plus what holds the flight path up against gravity
     const upY = Math.max(-1, Math.min(1, _u.set(0, 1, 0).applyQuaternion(ac.quat).y));
     const boost = f.turnBoost || 1;
     const gNeed = (qDes * V / G + upY) / boost;
-    pitch = stickFor(ac, clamp(gNeed, -cfg.maxNegG, cfg.maxG), gNeed >= 0 ? cfg.maxAoA : cfg.maxNegAoA);
+    pitch = stickFor(ac, clamp(gNeed, push ? -cfg.maxNegG : -1, cfg.maxG), gNeed >= 0 ? cfg.maxAoA : cfg.maxNegAoA);   // (outside push mode, at most -1 G)
     pitch += cfg.rateGain * (qDes - (ac.q || 0));                                  // small trim on the actual pitch rate
 
     // rudder: fine sideways trim near the aim point, fading out in real turns
     yaw = clamp(cfg.yawGain * yawErr - cfg.yawDamp * (ac.r || 0), -1, 1) * (1 - turnW);
-    if (turnW < 0.05) roll = clamp(-cfg.rollHold * (ac.p || 0), -0.3, 0.3);   // hold the bank: just damp any leftover roll rate
+    // hold the bank near the aim point (just damp any leftover roll rate), blending smoothly into real rolling
+    roll = roll * smooth(0.04, 0.35, turnW) + clamp(-cfg.rollHold * (ac.p || 0), -0.3, 0.3) * (1 - smooth(0.04, 0.35, turnW));
     if (keys.yaw) yaw = keys.yaw;
   }
 

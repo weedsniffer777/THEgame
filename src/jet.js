@@ -73,10 +73,10 @@ void main() {
   float r = length(vUv - 0.5) * 2.0;
   vec3 c = mix(vec3(1.0, 0.85, 1.0) * 1.6, vec3(0.55, 0.42, 1.0) * 0.9, r * r) * uAB;   // the solid glowing disc
   // flame tongues licking out over its rim toward the liner (they only add light, the disc stays solid)
+  // thin straight rays spraying out over the rim (sharp, not wobbly); dry power stays dark
   float a = atan(vUv.y - 0.5, vUv.x - 0.5) / 6.2832;
-  float n = noise(vec2(a * 11.0, r * 3.0 - uTime * 24.0)) * 0.6 + noise(vec2(a * 27.0 + 3.0, r * 6.0 - uTime * 37.0)) * 0.4;
-  c += vec3(1.0, 0.55, 0.32) * smoothstep(0.45, 0.85, n) * smoothstep(0.45, 1.0, r) * uAB * 0.9;
-  c += vec3(0.5, 0.16, 0.05) * uMil * (1.0 - uAB) * 0.5;                    // dry power: a dull red-hot glow
+  float n = noise(vec2(a * 70.0, r * 1.2 - uTime * 30.0));
+  c += vec3(1.0, 0.6, 0.38) * smoothstep(0.62, 0.8, n) * smoothstep(0.55, 1.0, r) * uAB * 0.45;
   gl_FragColor = vec4(c, 1.0);
 }`;
 // the inside of the nozzle between the burner face and the lip: hot liner with flame licks streaming out
@@ -85,10 +85,10 @@ uniform float uMil; uniform float uAB; uniform float uTime; varying vec2 vUv;
 ${NOISE}
 void main() {
   float deep = vUv.y;                                                     // 1 at the burner face, 0 at the lip
-  float n = noise(vec2(vUv.x * 26.0, deep * 4.0 + uTime * 28.0)) * 0.65 + noise(vec2(vUv.x * 61.0, deep * 9.0 + uTime * 45.0)) * 0.35;
-  float lick = smoothstep(0.35, 0.8, n + deep * 0.45);
-  vec3 c = mix(vec3(0.9, 0.35, 0.25), vec3(1.0, 0.72, 0.9), lick) * lick * (0.25 + 0.75 * deep) * uAB * 1.3;
-  c += vec3(0.4, 0.12, 0.04) * uMil * (1.0 - uAB) * deep * 0.6;
+  // thin straight streaks along the pipe, racing out toward the lip (sharp spray, not wobbly tongues)
+  float n = noise(vec2(vUv.x * 90.0, deep * 1.5 + uTime * 34.0));
+  float lick = smoothstep(0.6, 0.78, n + deep * 0.2);
+  vec3 c = mix(vec3(0.9, 0.4, 0.3), vec3(1.0, 0.75, 0.9), lick) * lick * (0.3 + 0.7 * deep) * uAB * 0.7;
   gl_FragColor = vec4(c, 1.0);
 }`;
 
@@ -201,32 +201,30 @@ function setDoors(D, airbrake, gear, canopy) {
 const WING_UNDER = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.41);     // keeps y < 1.41 (model space)
 const legClip = new THREE.Plane();
 
-// Compressor faces, seen down the intake ducts (the model's ducts end in a flat wall): a dark bladed disc with a
-// spinner. Each rendered frame it turns a share of the blade gap set by engine power (windmilling with the engine
-// off), which always reads as forward spin at any frame rate.
+// Compressor faces, seen down the intake ducts. The model's ducts end in a flat wall textured with a slice of the
+// wheel texture; the texture atlas does hold a proper compressor face (a round disc near pixel 997,468), so that
+// image is shown on a round disc in front of the wall, over a dark backing that fills the duct's tall oval, and is
+// spun by turning its texture about the disc centre. Each rendered frame it turns a share of the blade gap set by
+// engine power (windmilling with the engine off), which reads as forward spin at any frame rate.
 const FANS = [new THREE.Vector3(0.77, 1.55, 0.34), new THREE.Vector3(-0.77, 1.55, 0.34)];
-const FAN_BLADES = 21;
-function fan() {
-  const m = new THREE.Mesh(new THREE.CircleGeometry(0.28, 40), new THREE.ShaderMaterial({
-    uniforms: { uAng: { value: 0 } },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform float uAng; varying vec2 vUv;
-      void main() {
-        vec2 q = vUv - 0.5; float r = length(q) * 2.0, a = atan(q.y, q.x) + uAng;
-        float b = fract(a / 6.2832 * ${FAN_BLADES}.0 + r * 0.35);          // twisted blades
-        float blade = smoothstep(0.0, 0.08, b) * (1.0 - smoothstep(0.55, 0.7, b));
-        vec3 c = mix(vec3(0.025), vec3(0.11, 0.11, 0.12), blade * (0.5 + 0.5 * b));
-        c *= 1.0 - 0.5 * smoothstep(0.6, 1.0, r);                         // darker toward the duct walls
-        float hub = 1.0 - smoothstep(0.2, 0.24, r);
-        c = mix(c, vec3(0.16, 0.16, 0.17) * (0.7 + 0.3 * (1.0 - r / 0.24)), hub);   // spinner
-        gl_FragColor = vec4(c, 1.0);
-        #include <colorspace_fragment>
-      }`,
-  }));
-  return m;
+const FAN_PX = { cx: 997, cy: 468, r: 19, size: 1024 };
+const FAN_STEP = 2 * Math.PI / 24;              // the face has ~24 blades
+function fan(atlas) {
+  const g = new THREE.Group();
+  const back = new THREE.Mesh(new THREE.CircleGeometry(0.28, 32), new THREE.MeshBasicMaterial({ color: 0x07080a }));
+  back.scale.set(0.46, 0.95, 1); back.position.z = -0.004;
+  const tex = atlas.clone(); tex.needsUpdate = true;
+  const { cx, cy, r, size } = FAN_PX;
+  // (with a rotation centre set, the offset places the centre of the crop: uv' = repeat * (uv - 0.5) + 0.5 + offset)
+  tex.repeat.set(2 * r / size, (tex.flipY ? 2 : -2) * r / size);
+  tex.offset.set(cx / size - 0.5, (tex.flipY ? 1 - cy / size : cy / size) - 0.5);
+  tex.center.set(0.5, 0.5);
+  const face = new THREE.Mesh(new THREE.CircleGeometry(0.115, 40), new THREE.MeshBasicMaterial({ map: tex, color: 0x9a9a9a }));
+  g.add(back, face);
+  g.userData.tex = tex;
+  return g;
 }
 
-// ---------------------------------------------------------------- flaps
 // The leading-edge flaps are the model's own Object057 (left) and Object055 (right). Each droops about its rear
 // edge (a swept hinge line read from the mesh itself) and is cut where the wing splits into inner and outer
 // sections, so each half stays with its section when that breaks off.
@@ -318,7 +316,8 @@ export async function loadJet(url, cfg) {
   });
 
   const flames = NOZZLES.map(p => { const f = afterburner(cfg.afterburner); f.group.position.copy(p); model.add(f.group); return f; });
-  const fans = FANS.map(p => { const f = fan(); f.position.copy(p); f.scale.set(0.46, 0.95, 1); model.add(f); return f; });   // the duct is a tall narrow oval (~0.25 x 0.5 m)
+  let atlas = null; model.traverse(o => { if (!atlas && o.isMesh && o.material.map && o.material.name === 'Northrop_F-5') atlas = o.material.map; });
+  const fans = atlas ? FANS.map(p => { const f = fan(atlas); f.position.copy(p); model.add(f); return f; }) : [];
   model.position.copy(CG).negate();
   const object = new THREE.Group().add(model);
 
@@ -357,8 +356,8 @@ export async function loadJet(url, cfg) {
       const ab = THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1);
       const mil = THREE.MathUtils.clamp(ac.engine, 0, 1), t = performance.now() / 1000;
       for (const f of flames) f.update(mil, ab, t);
-      const step = (2 * Math.PI / FAN_BLADES) * (0.1 + 0.3 * Math.min(ac.engine, 1));   // per frame: never past half the blade gap
-      for (const f of fans) f.material.uniforms.uAng.value = (f.material.uniforms.uAng.value + step) % (2 * Math.PI);
+      const step = FAN_STEP * (0.1 + 0.3 * Math.min(ac.engine, 1));      // per frame: never past half the blade gap
+      for (const f of fans) f.userData.tex.rotation = (f.userData.tex.rotation + step) % (2 * Math.PI);
     },
   };
 }
