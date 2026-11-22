@@ -92,8 +92,8 @@ body.clean #devkit, body.clean #devmenu, body.clean .lil-gui, body.clean #hud, b
 #leadline { position: absolute; left: 0; top: 0; height: 1.6px; margin-top: -0.8px; background: rgba(255,85,65,0.85); transform-origin: 0 50%; will-change: transform; box-shadow: 0 0 2px rgba(0,0,0,0.5); }
 /* enemy markers (War Thunder style): a solid diamond floating above the aircraft, distance in nm under it */
 #hud .mark { position: absolute; left: 0; top: 0; will-change: transform; width: 0; height: 0; }
-#hud .mark i { position: absolute; left: -5px; top: -38px; width: 10px; height: 10px; background: #ff4a3a; transform: rotate(45deg); box-shadow: 0 0 2px rgba(0,0,0,0.7); }
-#hud .mark b { position: absolute; left: -30px; top: -26px; width: 60px; text-align: center; font: 700 11px/1 ui-monospace, monospace; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
-#hud .mark.sel i { background: #ff6b5c; width: 12px; height: 12px; left: -6px; top: -40px; }
+#hud .mark i { position: absolute; left: -3.5px; top: -35px; width: 7px; height: 7px; background: #c8392d; transform: rotate(45deg); box-shadow: 0 0 2px rgba(0,0,0,0.7); }
+#hud .mark b { position: absolute; left: -30px; top: -25px; opacity: 0.9; width: 60px; text-align: center; font: 700 11px/1 ui-monospace, monospace; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
+#hud .mark.sel i { background: #e0473a; width: 8px; height: 8px; left: -4px; top: -36px; }
 /* the gun-solution target: a square around the aircraft itself */
 #selbox { position: absolute; left: 0; top: 0; width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 1.8px solid #ff5541; will-change: transform; box-shadow: 0 0 3px rgba(0,0,0,0.5); }
