@@ -215,6 +215,9 @@ export class Damage {
         d.obj.position.addScaledVector(d.v, dt);
         d.obj.rotateOnWorldAxis(d.axis, d.spin * dt);
         const ground = this.terrain.heightAt(d.obj.position.x, d.obj.position.z);
+        if (d.obj.position.y < ground && this.terrain.isWater?.(d.obj.position.x, d.obj.position.z)) {   // into a lake: splash, gone
+          d.landed = true; this.emit('splash', d.obj.position, d.v); d.obj.visible = false; d.t = 1e9; continue;
+        }
         if (d.obj.position.y < ground) {
           d.landed = true; d.obj.position.y = ground + 0.2;             // the piece stays where it fell, burning
           d.obj.traverse(o => { if (o.isMesh && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.25); } });

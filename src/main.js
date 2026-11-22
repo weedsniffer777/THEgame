@@ -137,7 +137,8 @@ function crash() {
     deathCam.yaw = Math.atan2(o.x, o.z); deathCam.pitch = Math.asin(THREE.MathUtils.clamp(o.y / L, -1, 1)); deathCam.dist = L;
   }
   jet.damage.doomed = true;                                          // every fire on it burns fully again
-  weapons.crash(ac.pos, ac.vel);
+  wreck.inWater = terrain.isWater(ac.pos.x, ac.pos.z);
+  weapons.crash(ac.pos, ac.vel, wreck.inWater);
   wreck.pos.copy(ac.pos); wreck.vel.copy(ac.vel); wreck.quat.copy(ac.quat); wreck.key = {};
   wreck.spin.set(-ac.q, -ac.r, ac.p).applyQuaternion(ac.quat);      // keeps the rotation it had (world axes)
   // hitting the ground tears off everything still attached (the rear fuselage can snap off too, on a hard
@@ -170,6 +171,18 @@ function invI(v, out) {   // world-space inverse inertia applied to a world vect
   return out;
 }
 function wreckStep(dt) {
+  if (!wreck.inWater && terrain.isWater(wreck.pos.x, wreck.pos.z) && wreck.pos.y < terrain.heightAt(wreck.pos.x, wreck.pos.z) + 1.5) {
+    wreck.inWater = true; weapons.splash(wreck.pos, wreck.vel, 1.2);
+  }
+  if (wreck.inWater) {                                                 // in a lake: dragged to a stop, then it sinks
+    wreck.vel.multiplyScalar(Math.exp(-2.5 * dt)); wreck.vel.y += (-1.4 - wreck.vel.y) * Math.min(1, 2 * dt);
+    wreck.spin.multiplyScalar(Math.exp(-2 * dt));
+    wreck.pos.addScaledVector(wreck.vel, dt);
+    const w0 = wreck.spin.length();
+    if (w0 > 1e-5) { _wq.setFromAxisAngle(_wn.copy(wreck.spin).divideScalar(w0), w0 * dt); wreck.quat.premultiply(_wq).normalize(); }
+    if (wreck.pos.y < terrain.heightAt(wreck.pos.x, wreck.pos.z) - 14) jet.object.visible = false;
+    return;
+  }
   wreck.vel.y -= 9.81 * dt;
   // in the air: drag on the tumbling airframe, and a tumble the air slows (faster tumbling, harder braking)
   const V = wreck.vel.length(), W = wreck.spin.length();
@@ -267,6 +280,31 @@ function place(el, worldPoint) {
   if (vis) el.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth}px, ${(-_p.y * 0.5 + 0.5) * innerHeight}px)`;
 }
 let gStrain = 0;
+// The player's shadow: each frame their jet alone is drawn white-on-black from the sun into a small texture; the
+// terrain darkens wherever that silhouette lands beyond them (softer and fainter the higher they are).
+const shadowRT = new THREE.WebGLRenderTarget(256, 256);
+const shadowCam = new THREE.OrthographicCamera(-14, 14, 14, -14, 1, 400);
+shadowCam.layers.set(5);
+const shadowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+jet.object.traverse(o => { if (o.isMesh && o.material.type !== 'ShaderMaterial') o.layers.enable(5); });
+const _shadowM = new THREE.Matrix4(), _clr = new THREE.Color();
+function playerShadow(time) {
+  const U = terrain.uniforms;
+  U.uTime.value = time;
+  const h = drawPos.y - terrain.heightAt(drawPos.x, drawPos.z);
+  const k = jet.object.visible && !viewer.on ? 0.55 * (1 - THREE.MathUtils.smoothstep(h, 150, 900)) : 0;
+  U.uShadowK.value = k;
+  if (k <= 0) return;
+  shadowCam.position.copy(drawPos).addScaledVector(sunDir, 200); shadowCam.lookAt(drawPos); shadowCam.updateMatrixWorld();
+  const prevT = renderer.getRenderTarget(), prevA = renderer.getClearAlpha(); renderer.getClearColor(_clr);
+  renderer.setRenderTarget(shadowRT); renderer.setClearColor(0x000000, 1); renderer.clear();
+  scene.overrideMaterial = shadowMat; renderer.render(scene, shadowCam); scene.overrideMaterial = null;
+  renderer.setRenderTarget(prevT); renderer.setClearColor(_clr, prevA);
+  U.uShadow.value = shadowRT.texture;
+  U.uShadowMat.value.multiplyMatrices(shadowCam.projectionMatrix, shadowCam.matrixWorldInverse);
+  U.uShadowPos.value.copy(drawPos);
+  U.uShadowSoft.value = 0.002 + Math.min(h, 900) * 0.000025;
+}
 const flightHud = createFlightHud(document.getElementById('hud'));
 function hud(dt = 1 / 60) {
   if (running && !dead) flightHud(ac, camera, rig);
@@ -430,7 +468,7 @@ function frame(now) {
       for (let k = 0; k < 4; k++) wreckStep(dt / 4);
       ac.pos.copy(wreck.pos); ac.quat.copy(wreck.quat); ac.vel.copy(wreck.vel);
       prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
-      weapons.burn(wreck.pos, wreck.vel, wreck.key);
+      if (!wreck.inWater) weapons.burn(wreck.pos, wreck.vel, wreck.key);
       weapons.step(dt, performance.now() / 1000);
       if (dead > 9 && !window.__holdWreck) spawn();   // (__holdWreck: dev tests watch the wreck to rest)
     } else while (acc >= STEP) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }
@@ -466,6 +504,7 @@ function frame(now) {
   cloudEl.style.opacity = clouds.update(camera);
   hud(dt);
   renderer.info.reset();
+  playerShadow(now / 1000);
   renderer.render(scene, camera);
   // heat shimmer behind our own nozzles (dry power a little, afterburner a lot)
   haze.render(camera, dead ? 0 : THREE.MathUtils.clamp(ac.engine, 0, 1) * 0.4 + THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1) * 0.6, now / 1000);

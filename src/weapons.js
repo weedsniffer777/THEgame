@@ -351,6 +351,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   const puffFlame = (p, v) => S.fx.push({ kind: 'ball', burn: 1, p: p.clone(), v: (v ? v.clone().multiplyScalar(0.92) : new THREE.Vector3()).add(new THREE.Vector3((Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2)), t: 0, life: 0.9 + Math.random() * 0.6, s: 0.6 + Math.random() * 0.6, seed: Math.random(), bloom: 1 });
   const emit = (kind, p, v, key) => {
     if (kind === 'impact') return explode(p, new THREE.Vector3(), 0.6);
+    if (kind === 'splash') return splash(p, v || new THREE.Vector3(), 0.5);
     if (kind === 'groundfire') return fires.push({ p: p.clone(), t: 0, life: v ? 25 : 10, big: !!v, tS: 0, tF: 0 });
     let spacingNow = 1;
     // key.fade (0..1) shrinks the puffs: a fire dying down
@@ -425,6 +426,11 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     if (d.falling) {                          // going down: flown by what's left of the airframe, burning, until it hits
       stepCrippled(d, dt);
       emit('smoke', d.pos, d.vel, d); if (d.dmg.dead || d.cr.t > 1.5) emit('flame', d.pos, d.vel, d.obj);
+      if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 2 && terrain.isWater(d.pos.x, d.pos.z)) {   // into a lake: a big splash and it's gone
+        splash(d.pos, d.vel, d.def.hitRadius > 15 ? 2.2 : 1.3);
+        d.alive = false; d.obj.visible = false; d.respawn = 4;
+        return;
+      }
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 2) {
         explode(d.pos, d.vel, d.def.hitRadius > 15 ? 3.2 : 2.0);
         // a charred wreck stays on the ground and burns, with a smoke column drifting downwind
@@ -510,6 +516,19 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       const d = new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.8 - 0.15, Math.random() - 0.5).normalize().multiplyScalar((35 + Math.random() * 60) * scale);
       S.fx.push({ pri: 1, kind: 'ember', p: p.clone(), v: d.add(carry), t: 0, life: 1.2 + Math.random() * 1.6, s: 0.45 + Math.random() * 0.4 });
     }
+  }
+  // something hitting a lake: a white column of spray thrown up and falling back, then drifting mist
+  function splash(p, vel, scale = 1) {
+    const at = new THREE.Vector3(p.x, terrain.heightAt(p.x, p.z) + 0.3, p.z);
+    const fwd = new THREE.Vector3(vel.x, 0, vel.z).multiplyScalar(0.12);
+    for (let i = 0; i < 26 * Math.min(scale, 2); i++) {
+      const a = Math.random() * Math.PI * 2, out = (2 + Math.random() * 7) * scale;
+      S.fx.push({ pri: 1, kind: 'smoke', spray: 1, p: at.clone(), v: new THREE.Vector3(Math.cos(a) * out, (9 + Math.random() * 16) * Math.sqrt(scale), Math.sin(a) * out).add(fwd),
+        t: -Math.random() * 0.25, life: 1.8 + Math.random() * 1.2, s: (1.2 + Math.random() * 1.6) * scale, seed: Math.random(), spread: 1 });
+    }
+    for (let i = 0; i < 8 * Math.min(scale, 2); i++)
+      S.fx.push({ pri: 1, kind: 'smoke', mist: 1, p: at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 8 * scale, 1, (Math.random() - 0.5) * 8 * scale)), v: new THREE.Vector3((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2).add(fwd),
+        t: -0.3 - Math.random() * 0.5, life: 4 + Math.random() * 2, s: (3 + Math.random() * 2) * scale, seed: Math.random(), spread: 1 });
   }
   function spark(p) { S.fx.push({ kind: 'spark', p: p.clone(), v: new THREE.Vector3(), t: 0, life: 0.12, s: 2.5 }); }
   // a round hitting an aircraft: bits of skin flying off, a small grey puff, a few short sparks, sometimes a quick lick of flame.
@@ -755,7 +774,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         glow.push(e.p, null, 1.0, 0.75, 0.45, 3.5 * (1 - k), e.s * (0.6 + k * 0.6), 0.3, 1);
       } else if (e.kind === 'smoke') {
         if (e.rise) e.v.y += dt * 0.6;
-        const g = e.dust ? 0.56 + 0.08 * e.seed : e.hit ? 0.36 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.74 + 0.1 * e.seed;     // dark sooty grey, with some near-black
+        if (e.spray) e.v.y -= G * dt * 0.8;                     // spray falls back
+        const g = e.spray || e.mist ? 0.88 + 0.08 * e.seed : e.dust ? 0.56 + 0.08 * e.seed : e.hit ? 0.36 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.74 + 0.1 * e.seed;     // dark sooty grey, with some near-black
         const grow = e.spread ? 0.8 + 7 * (1 - Math.exp(-e.t * 0.9)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
         smoke.push(e.p, null, g * 0.97, g, g * 1.04, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
       } else if (e.kind === 'flame') {
@@ -813,10 +833,12 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     missileProto: proto,
     trails, smoke, cfg,   // (dev tests)
     // the player's jet hit the ground: blast and a fire where it hit (the airframe itself is simulated by main.js)
-    crash(p, v) {
+    crash(p, v, water = false) {
+      if (water) { splash(p, v, 1.4); return; }
       explode(p, v, 2.0);
       emit('groundfire', new THREE.Vector3(p.x, terrain.heightAt(p.x, p.z), p.z), new THREE.Vector3(1, 0, 0));
     },
+    splash,
     // a burning wreck moving along: smoke and flame laid down by distance like any other burning thing
     burn(p, v, key) { emit('smoke', p, v, key); emit('flame', p, v, key.flameKey || (key.flameKey = {})); },
     cycleTarget() {

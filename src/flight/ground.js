@@ -26,7 +26,7 @@ export function groundContact(ac, terrain, damage, dt, brake) {
   const invI = (v, out) => out.copy(v).applyQuaternion(_qi).multiply(INV_I).applyQuaternion(q);
   // body rates -> world angular velocity (the flight model rotates by (-q, -r, p) about body x, y, z)
   _w.set(-ac.q, -ac.r, ac.p).applyQuaternion(q);
-  let touching = 0, wheelsDown = 0, lift = 0, crash = false;
+  let touching = 0, wheelsDown = 0, lift = 0, crash = false, water = false;
   const wheels = ac.gear > 0.95;
 
   const contact = (local, kind, part) => {
@@ -34,6 +34,7 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     const x = ac.pos.x + _r.x, z = ac.pos.z + _r.z, ground = terrain.heightAt(x, z);
     const pen = ground - (ac.pos.y + _r.y);
     if (pen <= 0) return;
+    if (terrain.isWater?.(x, z)) { water = true; crash = true; return; }   // into a lake: no rolling out of that
     touching++; lift = Math.max(lift, pen);
     if (kind === 'wheel') wheelsDown++;
     _n.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
@@ -84,5 +85,5 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     ac.q = -_t1.x; ac.r = -_t1.y; ac.p = _t1.z;
   }
   ac.onGround = touching > 0;
-  return { touching, wheelsDown, crash };
+  return { touching, wheelsDown, crash, water };
 }

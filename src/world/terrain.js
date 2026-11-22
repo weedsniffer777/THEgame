@@ -49,6 +49,34 @@ async function loadHeights(url) {
   return out;
 }
 
+// flat-water mask: 255 where a sample and its 8 neighbours share one height, in connected areas of >= MIN_WATER samples
+const MIN_WATER = 60;
+function findWater(t) {
+  const W = t.w, H = t.h, hs = t.heights, flat = new Uint8Array(W * H);
+  for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) {
+    const k = j * W + i, v = hs[k];
+    if (hs[k - 1] === v && hs[k + 1] === v && hs[k - W] === v && hs[k + W] === v && hs[k - W - 1] === v && hs[k - W + 1] === v && hs[k + W - 1] === v && hs[k + W + 1] === v) flat[k] = 1;
+  }
+  const out = new Uint8Array(W * H), seen = new Uint8Array(W * H), stack = new Int32Array(W * H);
+  for (let s0 = 0; s0 < W * H; s0++) {
+    if (!flat[s0] || seen[s0]) continue;
+    let top = 0, n = 0; const comp = []; stack[top++] = s0; seen[s0] = 1;
+    while (top) {
+      const k = stack[--top]; comp.push(k); n++;
+      const i = k % W;
+      for (const d of [-1, 1, -W, W]) {
+        const q = k + d; if (q < 0 || q >= W * H || (d === -1 && i === 0) || (d === 1 && i === W - 1)) continue;
+        if (flat[q] && !seen[q]) { seen[q] = 1; stack[top++] = q; }
+      }
+    }
+    if (n >= MIN_WATER) for (const k of comp) { out[k] = 255; }
+  }
+  // grow by one sample so the shoreline samples (not fully flat themselves) count as water too
+  const grown = out.slice();
+  for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) { const k = j * W + i; if (!out[k] && (out[k - 1] || out[k + 1] || out[k - W] || out[k + W])) grown[k] = 255; }
+  return grown;
+}
+
 export class Terrain {
   constructor(meta, heights, color) {
     this.w = meta.size[0]; this.h = meta.size[1]; this.s = meta.spacing;
@@ -69,6 +97,11 @@ export class Terrain {
       const l = Math.hypot(dx, 1, dz), k = (j * this.w + i) * 4;
       n[k] = (-dx / l * 0.5 + 0.5) * 255; n[k + 1] = (1 / l * 0.5 + 0.5) * 255; n[k + 2] = (-dz / l * 0.5 + 0.5) * 255; n[k + 3] = 255;
     }
+    // water: lakes are perfectly flat in the elevation data (land never is). A sample whose whole 3x3 neighbourhood
+    // has exactly the same height is flat; flat patches of a few hectares or more are water. Stored in the normal
+    // texture's alpha (filtered, so shorelines blend) and kept on the CPU for physics.
+    this.water = findWater(this);
+    for (let i = 0; i < this.w * this.h; i++) n[i * 4 + 3] = this.water[i];
     const nTex = new THREE.DataTexture(n, this.w, this.h, THREE.RGBAFormat);
     nTex.wrapS = nTex.wrapT = THREE.MirroredRepeatWrapping;
     nTex.magFilter = THREE.LinearFilter; nTex.minFilter = THREE.LinearMipmapLinearFilter; nTex.generateMipmaps = true;
@@ -88,6 +121,8 @@ export class Terrain {
       uHMin: { value: this.hMin }, uHScale: { value: this.hScale },
       uMorph: { value: this.morph },
       uBright: { value: WORLD.terrainBrightness }, uRelief: { value: WORLD.terrainRelief }, uSat: { value: WORLD.saturation },
+      uTime: { value: 0 },
+      uShadow: { value: null }, uShadowMat: { value: new THREE.Matrix4() }, uShadowPos: { value: new THREE.Vector3() }, uShadowK: { value: 0 }, uShadowSoft: { value: 0.004 },
     };
     const mat = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
@@ -119,7 +154,8 @@ export class Terrain {
       fragmentShader: /* glsl */`
         uniform sampler2D uNormal; uniform sampler2D uColor;
         uniform ivec2 uSize; uniform float uSpacing; uniform vec2 uOrigin;
-        uniform float uBright; uniform float uRelief; uniform float uSat;
+        uniform float uBright; uniform float uRelief; uniform float uSat; uniform float uTime;
+        uniform sampler2D uShadow; uniform mat4 uShadowMat; uniform vec3 uShadowPos; uniform float uShadowK; uniform float uShadowSoft;
         in vec3 vWorld;
         layout(location = 0) out highp vec4 outColor;
         #define gl_FragColor outColor
@@ -128,7 +164,9 @@ export class Terrain {
           vec2 g = (vWorld.xz - uOrigin) / uSpacing;
           vec2 size = vec2(uSize);
           vec3 albedo = texture(uColor, g / size).rgb;
-          vec3 n = normalize(texture(uNormal, (g + 0.5) / size).xyz * 2.0 - 1.0);
+          vec4 nw = texture(uNormal, (g + 0.5) / size);
+          vec3 n = normalize(nw.xyz * 2.0 - 1.0);
+          float water = smoothstep(0.35, 0.75, nw.a);
           // warm direct sun + cool sky light, normalised so flat ground keeps the photo's brightness
           float ndl = max(dot(n, uSunDir), 0.0);
           vec3 light = vec3(1.0, 0.93, 0.82) * 1.6 * ndl + vec3(0.36, 0.48, 0.72) * (0.45 + 0.55 * n.y);
@@ -137,6 +175,35 @@ export class Terrain {
           albedo = pow(albedo, vec3(1.12));   // a little more contrast in the photo
           vec3 col = albedo * uBright * mix(vec3(1.0), shade, uRelief);
           col = max(mix(vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), col, uSat), 0.0);
+          // water: slightly reflective (sky at grazing angles, a soft sun glint) over the lake's own colour
+          if (water > 0.0) {
+            vec3 v = normalize(cameraPosition - vWorld);
+            // small, irregular ripples: several crossing wave trains, gentle slopes
+            vec2 q = vWorld.xz * 0.11;
+            float wx = sin(dot(q, vec2(0.83, 0.55)) * 3.0 + uTime * 0.9) + sin(dot(q, vec2(-0.41, 0.91)) * 4.7 - uTime * 1.1) * 0.6 + sin(dot(q, vec2(0.97, -0.24)) * 7.3 + uTime * 1.6) * 0.35;
+            float wz = cos(dot(q, vec2(0.12, 0.99)) * 3.4 - uTime * 0.8) + cos(dot(q, vec2(0.71, -0.7)) * 5.9 + uTime * 1.3) * 0.5 + cos(dot(q, vec2(-0.9, -0.43)) * 8.1 - uTime * 1.7) * 0.3;
+            vec3 wn = normalize(vec3(wx * 0.012, 1.0, wz * 0.012));
+            vec3 r = reflect(-v, wn);
+            float fres = 0.04 + 0.96 * pow(1.0 - max(dot(v, wn), 0.0), 5.0);
+            vec3 sky = mix(vec3(0.62, 0.72, 0.86), vec3(0.32, 0.5, 0.82), clamp(r.y * 2.0, 0.0, 1.0));
+            vec3 wcol = mix(col * 0.9, sky, min(fres * 0.5 + 0.04, 0.55));          // slightly reflective, not a mirror
+            // the sun's reflection: a tight patch of glitter (twinkling cells), not a soft white blob
+            float glit = step(0.8, fract(sin(dot(floor(vWorld.xz * 0.9), vec2(12.9898, 78.233)) + floor(uTime * 6.0) * 7.31) * 43758.5453));
+            wcol += vec3(1.0, 0.95, 0.85) * pow(max(dot(r, uSunDir), 0.0), 2500.0) * (0.25 + 1.6 * glit);
+            col = mix(col, wcol, water);
+          }
+          // the player's shadow: their silhouette seen from the sun, on ground beyond them from the sun
+          if (uShadowK > 0.0) {
+            vec4 sp = uShadowMat * vec4(vWorld, 1.0);
+            vec2 suv = sp.xy * 0.5 + 0.5;
+            if (all(greaterThan(suv, vec2(0.0))) && all(lessThan(suv, vec2(1.0))) && dot(vWorld - uShadowPos, uSunDir) < 0.0) {
+              float sh = 0.0; float rr = uShadowSoft;
+              sh += texture(uShadow, suv).r * 0.36;
+              sh += texture(uShadow, suv + vec2(rr, 0.0)).r * 0.16; sh += texture(uShadow, suv - vec2(rr, 0.0)).r * 0.16;
+              sh += texture(uShadow, suv + vec2(0.0, rr)).r * 0.16; sh += texture(uShadow, suv - vec2(0.0, rr)).r * 0.16;
+              col *= 1.0 - sh * uShadowK;
+            }
+          }
           col = applyFog(col, cameraPosition, vWorld);
           gl_FragColor = vec4(col, 1.0);
           #include <tonemapping_fragment>
@@ -166,6 +233,12 @@ export class Terrain {
     const i = Math.floor(gx), j = Math.floor(gz), tx = gx - i, tz = gz - j;
     const a = this.raw(i, j), b = this.raw(i + 1, j), c = this.raw(i, j + 1), d = this.raw(i + 1, j + 1);
     return this.hMin + this.hScale * ((a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz);
+  }
+
+  // true over a lake (nearest height sample)
+  isWater(x, z) {
+    const i = Math.round((x - this.ox) / this.s), j = Math.round((z - this.oz) / this.s);
+    return this.water[mirror(j, this.h) * this.w + mirror(i, this.w)] > 127;
   }
 
   update(camera) {
