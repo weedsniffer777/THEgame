@@ -85,6 +85,7 @@ export const INSTRUCTOR = {
   levelAngle: 5,          // deg off the aim point below which it holds the bank and corrects with pitch and rudder
   bankAngle: 16,          // deg off the aim point above which it fully rolls the lift onto it
   pushAngle: 18,          // deg: aim points a little below are reached by pushing, not rolling over
+  pushMaxBank: 30,        // deg: pushing only with the wings within this of level; banked, it rolls first
   maxG: 9,                // game limit, between the real jet's 7.33 operating and ~11 ultimate
   maxNegG: 3,
   maxNegAoA: 12,          // deg

@@ -49,13 +49,18 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
 
     // push or pull? targets a little below are pushed to; hysteresis keeps the choice steady
     const below = _t.y < 0, lateral = Math.abs(_t.x) / Math.max(Math.hypot(_t.x, _t.y), 1e-6);
-    if (ac._mode === 'push') { if (!below || off > (cfg.pushAngle + 6) * DEG || lateral > 0.8) ac._mode = 'pull'; }
-    else if (below && off < cfg.pushAngle * DEG && lateral < 0.6) ac._mode = 'push';
+    // (only with the wings near level: when banked, an aim point on the other side is reached by rolling, never by pushing)
+    _r.set(-1, 0, 0).applyQuaternion(ac.quat);
+    const bank = Math.abs(Math.asin(clamp(_r.y, -1, 1))) / DEG;
+    if (ac._mode === 'push') { if (!below || off > (cfg.pushAngle + 6) * DEG || lateral > 0.8 || bank > cfg.pushMaxBank + 10) ac._mode = 'pull'; }
+    else if (below && off < cfg.pushAngle * DEG && lateral < 0.6 && bank < cfg.pushMaxBank) ac._mode = 'push';
     const push = ac._mode === 'push';
 
     // roll: angle that would put the aim point straight "up" (or straight "down" when pushing) in the lift plane
     const toTarget = push ? Math.atan2(_t.x, -_t.y) : Math.atan2(-_t.x, _t.y);   // + = roll right
-    const turnW = smooth(cfg.levelAngle * DEG, cfg.bankAngle * DEG, off);          // 0 near the aim point, 1 for real turns
+    let turnW = smooth(cfg.levelAngle * DEG, cfg.bankAngle * DEG, off);            // 0 near the aim point, 1 for real turns
+    // aim point 'below' the jet's own up axis and not pushing: roll toward it first, whatever the size of the error
+    if (!push && _t.y < 0) turnW = Math.max(turnW, smooth(0.3 * DEG, 1.5 * DEG, off));
     // near the aim point the bank is simply held (no rolling back to wings-level, no corrective banks): pitch
     // fixes the error along the jet's own up axis and the rudder fixes the sideways part, so nothing rocks.
     // Rolling only happens for real turns, where the lift is rolled onto the target.
@@ -69,6 +74,7 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     const pitchErr = Math.atan2(_t.y, _t.z);                                       // nose-up angle to the aim point
     const aligned = Math.max(0, Math.cos(rollErr));                                // lift pointing at the target?
     let qDes = cfg.aimRate * pitchErr * (push ? 1 : 0.35 + 0.65 * aligned * aligned);
+    if (!push) qDes = Math.max(qDes, 0);                                              // roll first, then pull: no negative G unless pushing
     qDes = clamp(qDes, -cfg.maxRate * DEG, cfg.maxRate * DEG);
     // load factor that gives that turn rate, plus what holds the flight path up against gravity
     const upY = Math.max(-1, Math.min(1, _u.set(0, 1, 0).applyQuaternion(ac.quat).y));
