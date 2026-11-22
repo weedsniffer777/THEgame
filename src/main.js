@@ -7,6 +7,7 @@ import { createSky, setSun } from './world/sky.js';
 import { loadTerrain } from './world/terrain.js';
 import { loadJet, viewerAnim , NOZZLES } from './jet.js';
 import { createHeatHaze } from './heatHaze.js';
+import { groundContact } from './flight/ground.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
 import { loadEnemy } from './enemy.js';
@@ -242,7 +243,9 @@ function physics(dt) {
   document.body.classList.toggle('lost', lost);
   ac.step(dt);
   weapons.step(dt, performance.now() / 1000);
-  if (ac.pos.y < terrain.heightAt(ac.pos.x, ac.pos.z) + 1.5) crash();
+  // touching the ground: roll, bounce, scrape and lose parts; only a really hard hit or a wrecked airframe is a crash
+  const g = groundContact(ac, terrain, jet.damage, dt, keys.has('KeyB') && ac.throttle < 0.05);
+  if (g.crash || (g.touching && jet.damage.dead)) crash();
 }
 
 // HUD

@@ -202,7 +202,6 @@ const legClip = new THREE.Plane();
 // engine power (windmilling with the engine off), which reads as forward spin at any frame rate.
 const FANS = [new THREE.Vector3(0.77, 1.55, 0.34), new THREE.Vector3(-0.77, 1.55, 0.34)];
 const FAN_PX = { cx: 997, cy: 468, r: 19, size: 1024 };
-const FAN_STEP = 2 * Math.PI / 24;              // the face has ~24 blades
 function fan(atlas) {
   const g = new THREE.Group();
   const back = new THREE.Mesh(new THREE.CircleGeometry(0.28, 32), new THREE.MeshBasicMaterial({ color: 0x07080a }));
@@ -326,7 +325,7 @@ export async function loadJet(url, cfg) {
         V.gear = THREE.MathUtils.clamp(0.5 + 0.8 * Math.sin(t * 0.35), 0, 1); V.canopy = THREE.MathUtils.clamp(Math.sin(t * 0.25) * 1.5, 0, 1);
       }
       const ac = V.active ? { input: V, engine: V.engine, airbrake: V.airbrake, t: { aoa: V.aoa, ias: 100 } } : acReal;
-      const gear = V.active ? V.gear : (acReal.gear || 0), canopy = V.active ? V.canopy : 0;
+      const gear = V.active ? V.gear : (acReal.gearBroken ? 0 : acReal.gear || 0), canopy = V.active ? V.canopy : 0;
       const i = ac.input;
       s.aileronL.rotation.x = -i.roll * 18 * DEG;
       s.aileronR.rotation.x = i.roll * 18 * DEG;
@@ -350,7 +349,7 @@ export async function loadJet(url, cfg) {
       const ab = THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1);
       const mil = THREE.MathUtils.clamp(ac.engine, 0, 1), t = performance.now() / 1000;
       for (const f of flames) f.update(mil, ab, t);
-      const step = FAN_STEP * (0.1 + 0.3 * Math.min(ac.engine, 1));      // per frame: never past half the blade gap
+      const step = 0.26 * (0.2 + 0.8 * Math.min(ac.engine, 1));          // rad per frame: ~15 deg at full power (the face's pattern repeats only a few times per turn)
       for (const f of fans) f.userData.tex.rotation = (f.userData.tex.rotation + step) % (2 * Math.PI);
     },
   };
