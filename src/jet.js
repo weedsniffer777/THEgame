@@ -70,13 +70,13 @@ const CORE_FS = `
 uniform float uMil; uniform float uAB; uniform float uTime; varying vec2 vUv;
 ${NOISE}
 void main() {
-  vec2 q = vUv - 0.5; float r = length(q) * 2.0, a = atan(q.y, q.x) / 6.2832;
-  float n = noise(vec2(a * 9.0, r * 3.0 - uTime * 7.0)) * 0.6 + noise(vec2(a * 23.0 + 3.0, r * 6.0 - uTime * 11.0)) * 0.4;
-  float tongue = smoothstep(0.25, 0.75, n + 0.55 * (1.0 - r));          // flame reaching out toward the rim
-  vec3 core = vec3(1.0, 0.85, 1.0) * 1.7, flame = vec3(1.0, 0.55, 0.3) * 1.5, cool = vec3(0.5, 0.38, 0.9) * 0.7;
-  vec3 c = mix(core, mix(cool, flame, tongue), smoothstep(0.0, 0.75, r));
-  c *= mix(0.55, 1.0, tongue) * uAB;
-  c += vec3(0.5, 0.16, 0.05) * uMil * (1.0 - uAB) * (0.4 + 0.3 * n);     // dry power: a dull red-hot glow
+  float r = length(vUv - 0.5) * 2.0;
+  vec3 c = mix(vec3(1.0, 0.85, 1.0) * 1.6, vec3(0.55, 0.42, 1.0) * 0.9, r * r) * uAB;   // the solid glowing disc
+  // flame tongues licking out over its rim toward the liner (they only add light, the disc stays solid)
+  float a = atan(vUv.y - 0.5, vUv.x - 0.5) / 6.2832;
+  float n = noise(vec2(a * 11.0, r * 3.0 - uTime * 24.0)) * 0.6 + noise(vec2(a * 27.0 + 3.0, r * 6.0 - uTime * 37.0)) * 0.4;
+  c += vec3(1.0, 0.55, 0.32) * smoothstep(0.45, 0.85, n) * smoothstep(0.45, 1.0, r) * uAB * 0.9;
+  c += vec3(0.5, 0.16, 0.05) * uMil * (1.0 - uAB) * 0.5;                    // dry power: a dull red-hot glow
   gl_FragColor = vec4(c, 1.0);
 }`;
 // the inside of the nozzle between the burner face and the lip: hot liner with flame licks streaming out
@@ -85,7 +85,7 @@ uniform float uMil; uniform float uAB; uniform float uTime; varying vec2 vUv;
 ${NOISE}
 void main() {
   float deep = vUv.y;                                                     // 1 at the burner face, 0 at the lip
-  float n = noise(vec2(vUv.x * 26.0, deep * 4.0 + uTime * 9.0)) * 0.65 + noise(vec2(vUv.x * 61.0, deep * 9.0 + uTime * 15.0)) * 0.35;
+  float n = noise(vec2(vUv.x * 26.0, deep * 4.0 + uTime * 28.0)) * 0.65 + noise(vec2(vUv.x * 61.0, deep * 9.0 + uTime * 45.0)) * 0.35;
   float lick = smoothstep(0.35, 0.8, n + deep * 0.45);
   vec3 c = mix(vec3(0.9, 0.35, 0.25), vec3(1.0, 0.72, 0.9), lick) * lick * (0.25 + 0.75 * deep) * uAB * 1.3;
   c += vec3(0.4, 0.12, 0.04) * uMil * (1.0 - uAB) * deep * 0.6;
@@ -173,21 +173,33 @@ function closeUp(model) {
   doors.innerL = swing(model, ['Object050'], 'z', 0); doors.innerR = swing(model, ['Object035'], 'z', 0);   // inner main doors
   brakes = [swing(model, ['Object049'], 'x', 0), swing(model, ['Object030'], 'x', 0)];        // speed brakes
   doors.legs = ['Object052', 'Object023', 'Object024'].map(n => model.getObjectByName(n));
+  doors.noseLeg = swing(model, ['Object024'], 'x', 0, new THREE.Vector3(0, 1.33, 4.31));   // pivot: the top of the leg
+  for (const n of ['Object052', 'Object023']) model.getObjectByName(n).traverse(o => {
+    if (o.isMesh) { o.material = o.material.clone(); o.material.clippingPlanes = [legClip]; }
+  });
 }
 
 // gear: 0 = up (doors at their closed angles, legs hidden), 1 = down as modelled. canopy: 0 shut, 1 open.
+// Sequence: the doors open first, then the legs come down (and the reverse going up). The main legs ride on their
+// outer doors' hinges; the nose leg swings down from its own pivot at the top of the leg, out of the well ahead of it.
 function setDoors(D, airbrake, gear, canopy) {
-  const g = (closed) => THREE.MathUtils.lerp(closed, 0, gear) * DEG;
+  const doorK = THREE.MathUtils.smoothstep(gear, 0, 0.12), legK = THREE.MathUtils.smoothstep(gear, 0.15, 1);   // doors snap open (~0.5 s) before the legs move
+  const g = (closed, k) => THREE.MathUtils.lerp(closed, 0, k) * DEG;
   doors.canopy.rotation.x = THREE.MathUtils.lerp(45, 0, canopy) * DEG;
-  doors.nose.rotation.z = g(D.noseMain); doors.noseTwin.rotation.z = -g(D.noseMain);
-  doors.small.rotation.x = g(D.smallNose);
-  doors.outerL.rotation.z = g(D.outerMain); doors.outerR.rotation.z = -g(D.outerMain);
-  doors.innerL.rotation.z = -g(D.innerMain); doors.innerR.rotation.z = g(D.innerMain);
-  for (const l of doors.legs) l.visible = gear > 0.05;
-  doors.legs[2].visible = gear > 0.6;   // nose leg: no hinge data, shown once the gear is mostly down
+  doors.nose.rotation.z = g(D.noseMain, doorK); doors.noseTwin.rotation.z = -g(D.noseMain, doorK);
+  doors.small.rotation.x = g(D.smallNose, doorK);
+  doors.outerL.rotation.z = g(D.outerMain, legK); doors.outerR.rotation.z = -g(D.outerMain, legK);
+  doors.innerL.rotation.z = -g(D.innerMain, doorK); doors.innerR.rotation.z = g(D.innerMain, doorK);
+  for (const l of doors.legs) l.visible = gear > 0.2;
+  doors.noseLeg.rotation.x = -100 * DEG * (1 - legK);                     // stowed forward and tipped up in the nose
   const sb = THREE.MathUtils.lerp(D.speedBrakeClosed, D.speedBrakeOpen, airbrake);
-  for (const b of brakes) b.rotation.x = THREE.MathUtils.lerp(sb, 0, gear) * DEG;
+  for (const b of brakes) b.rotation.x = sb * DEG;                         // (the model's ground pose has them open: not tied to the gear)
 }
+
+// The main legs' upper braces would swing up through the wing on the way: everything of them above the underside
+// of the wing is clipped away (it is inside the wing when the gear is down anyway).
+const WING_UNDER = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.41);     // keeps y < 1.41 (model space)
+const legClip = new THREE.Plane();
 
 // Compressor faces, seen down the intake ducts (the model's ducts end in a flat wall): a dark bladed disc with a
 // spinner. Each rendered frame it turns a share of the blade gap set by engine power (windmilling with the engine
@@ -306,7 +318,7 @@ export async function loadJet(url, cfg) {
   });
 
   const flames = NOZZLES.map(p => { const f = afterburner(cfg.afterburner); f.group.position.copy(p); model.add(f.group); return f; });
-  const fans = FANS.map(p => { const f = fan(); f.position.copy(p); model.add(f); return f; });
+  const fans = FANS.map(p => { const f = fan(); f.position.copy(p); f.scale.set(0.46, 0.95, 1); model.add(f); return f; });   // the duct is a tall narrow oval (~0.25 x 0.5 m)
   model.position.copy(CG).negate();
   const object = new THREE.Group().add(model);
 
@@ -327,6 +339,8 @@ export async function loadJet(url, cfg) {
       s.aileronR.rotation.x = i.roll * 18 * DEG;
       s.stabL.rotation.x = s.stabR.rotation.x = i.pitch * 14 * DEG;
       s.rudder.rotation.y = i.yaw * 20 * DEG;
+      object.updateMatrixWorld(true);
+      legClip.copy(WING_UNDER).applyMatrix4(model.matrixWorld);
       setDoors(DOORS, ac.airbrake, gear, canopy);
       // Flaps, F-5 style (leading edge up to 24 deg, trailing edge up to 20 deg):
       //  - auto (maneuvering): out with angle of attack, most at high AoA and low speed, in at high speed;

@@ -21,6 +21,7 @@ const params = new URLSearchParams(location.search);
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.localClippingEnabled = true;   // (the gear legs are clipped at the underside of the wing while they swing)
 renderer.setPixelRatio(Math.min(devicePixelRatio, WORLD.pixelRatio));
 renderer.toneMapping = THREE.NeutralToneMapping;   // keeps hues and saturation, so the picked sky colours stay true
 renderer.toneMappingExposure = 1.25;
@@ -229,7 +230,12 @@ function physics(dt) {
   aimPoint.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance);
   const lost = jet.damage.dead;
   if (lost) { ac.input.pitch *= 0.97; ac.input.roll = 0.6; ac.input.yaw = 0.2; ac.throttle = 0; }   // plane lost: no control, it rolls off and goes in
-  else instruct(ac, aimPoint, INSTRUCTOR, kb, dt);
+  else {
+    // gear down: the flaps are held at their landing notches, so less turn is available
+    const maxG = INSTRUCTOR.maxG; INSTRUCTOR.maxG = maxG * (1 - 0.4 * ac.gear);
+    instruct(ac, aimPoint, INSTRUCTOR, kb, dt);
+    INSTRUCTOR.maxG = maxG;
+  }
   document.body.classList.toggle('lost', lost);
   ac.step(dt);
   weapons.step(dt, performance.now() / 1000);

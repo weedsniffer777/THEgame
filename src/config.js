@@ -69,8 +69,9 @@ export const F5 = {
   lowSpeedBleedIAS: 90,   // m/s IAS (~175 kt): so a slow, gliding jet can't hold 2-3 G turns for free
   airbrakeDrag: 0.14,     // extra drag coefficient with the speed brakes fully out
   airbrakeRate: 1.5,      // fraction of full travel per second
-  gearDrag: 0.03,         // extra drag coefficient with the landing gear down
+  gearDrag: 0.05,         // extra drag coefficient with the landing gear down
   gearTime: 4,            // s for the gear to go fully up or down
+  gearMaxKt: 260,         // kt IAS: above this the gear retracts by itself
   afterburner: 'spray',   // 'spray' (this jet) or 'diamonds' (shock diamonds after the first flame)
 
   // sideslip rolls the jet away from the yaw (dihedral / sweep effect): rudder right rolls right
