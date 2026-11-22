@@ -4,6 +4,15 @@ import { loadGltfJson } from './gltf.js';
 import { Damage, attachToPart } from './damage.js';
 import { FOG_GLSL, fogUniforms } from './world/sky.js';
 
+// the renderer's tone mapping and output colour space, as a function (so opacity can be applied after it)
+const ENCODE_GLSL = `
+vec3 encode(vec3 c) {
+#ifdef TONE_MAPPING
+  c = toneMapping(c);
+#endif
+  return linearToOutputTexel(vec4(c, 1.0)).rgb;
+}`;
+
 // Guns, missiles, their effects, and a target drone to shoot at.
 //
 // Effects follow the usual sim/arcade approach rather than particle confetti:
@@ -73,7 +82,7 @@ class Sprites {
       fragmentShader: /* glsl */`
         uniform float uAdd;
         varying vec2 vUv; varying vec4 vCol; varying float vStreak; varying vec3 vWorld; varying float vSeed;
-        ${FOG_GLSL}
+        ${FOG_GLSL}${ENCODE_GLSL}
         float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
@@ -101,14 +110,14 @@ class Sprites {
             shade = 0.62 + 0.55 * (f2 * 0.6 + f3 * 0.4) + 0.22 * vUv.y;      // lumpy self-shading, lighter on top
           }
           vec3 col = vCol.rgb * shade;
-          if (uAdd < 0.5) {                                // smoke: lit and hazed like the rest of the world (half strength, or dark smoke turns blue)
-            col = mix(col, applyFog(col, cameraPosition, vWorld), 0.5);
-            gl_FragColor = vec4(col * a * vCol.a, a * vCol.a);
-          } else {
-            gl_FragColor = vec4(col * a * vCol.a, 0.0);
-          }
-          #include <tonemapping_fragment>
-          #include <colorspace_fragment>
+          float A = a * vCol.a;
+          if (uAdd > 0.5) { gl_FragColor = vec4(encode(col * A), 0.0); return; }   // glow: added light, its strength scales the colour
+          col = mix(col, applyFog(col, cameraPosition, vWorld), 0.5);   // smoke: lit and hazed like the rest of the world (half strength, or dark smoke turns blue)
+          // Smoke is encoded as a colour first and only then weighted by its opacity: encoding an already-faded
+          // colour brightens it, so stacked faint layers would add up to a glowing white. Fire (warm: much more red
+          // than blue; smoke is neutral grey) is meant to glow, so it keeps the bright order.
+          float fire = smoothstep(0.12, 0.45, vCol.r - vCol.b);
+          gl_FragColor = vec4(mix(encode(col) * A, encode(col * A), fire), A);
         }`,
       transparent: true, depthWrite: false,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: additive ? THREE.OneFactor : THREE.OneMinusSrcAlphaFactor,
@@ -227,7 +236,7 @@ class Trails {
       uniforms: { ...fogUniforms },
       vertexShader: `attribute vec4 aInfo; varying vec4 vInfo; varying vec3 vWorld;
         void main(){ vInfo = aInfo; vWorld = position; gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: `varying vec4 vInfo; varying vec3 vWorld; ${FOG_GLSL}
+      fragmentShader: `varying vec4 vInfo; varying vec3 vWorld; ${FOG_GLSL}${ENCODE_GLSL}
         float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
@@ -246,12 +255,10 @@ class Trails {
           if (a < 0.003) discard;
           float lit = 0.5 + 0.5 * clamp(uSunDir.y * 0.8 + across * 0.35 + (n - 0.5) * 0.6 * puff, 0.0, 1.0);
           vec3 smoke = mix(vec3(0.2, 0.2, 0.2), vec3(0.42, 0.41, 0.4), lit);
-          vec3 white = mix(vec3(0.47, 0.47, 0.48), vec3(0.72, 0.72, 0.71), lit);   // off-white: lighter than the rope, never glowing
+          vec3 white = mix(vec3(0.55, 0.55, 0.56), vec3(0.8, 0.8, 0.79), lit);   // off-white: lighter than the rope, never glowing
           vec3 col = applyFog(mix(smoke, white, puff), cameraPosition, vWorld);
           col = mix(col, vec3(1.0, 0.78, 0.5) * 1.6, hot);             // glowing exhaust next to the motor
-          gl_FragColor = vec4(col * a, a);
-          #include <tonemapping_fragment>
-          #include <colorspace_fragment>
+          gl_FragColor = vec4(mix(encode(col) * a, encode(col * a), hot), a);   // opacity after encoding (see the sprites); the hot exhaust glows
         }`,
       transparent: true, depthWrite: false, side: THREE.DoubleSide,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
@@ -722,9 +729,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         glow.push(e.p, null, 1.0, 0.75, 0.45, 3.5 * (1 - k), e.s * (0.6 + k * 0.6), 0.3, 1);
       } else if (e.kind === 'smoke') {
         if (e.rise) e.v.y += dt * 0.6;
-        const g = e.dust ? 0.48 + 0.08 * e.seed : e.hit ? 0.3 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.42 + 0.1 * e.seed;     // dark sooty grey, with some near-black
+        const g = e.dust ? 0.56 + 0.08 * e.seed : e.hit ? 0.36 + 0.08 * e.seed : e.dark ? 0.055 + 0.06 * e.seed : 0.74 + 0.1 * e.seed;     // dark sooty grey, with some near-black
         const grow = e.spread ? 0.8 + 7 * (1 - Math.exp(-e.t * 0.9)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
-        smoke.push(e.p, null, g * 0.99, g, g * 1.03, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
+        smoke.push(e.p, null, g * 0.97, g, g * 1.04, 0.7 * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
       } else if (e.kind === 'flame') {
         glow.push(e.p, null, 1.0, 0.3 + 0.25 * (1 - k), 0.03, 0.75 * (1 - k), e.s * (0.8 + k * 0.8), Math.random());
       } else if (e.kind === 'ember') {
@@ -758,8 +765,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         at.x += (r1 - 0.5) * spread; at.z += (r2 - 0.5) * spread; at.y += (r1 * r2 - 0.25) * spread + age * 0.6;
         const grow = 2.2 + 11 * (1 - Math.exp(-(age - 0.9) / 2.6)) * (0.75 + 0.5 * r2);   // ~4 m across, billowing to ~25 m
         const op = THREE.MathUtils.smoothstep(age, 0.9, 2.2) * Math.pow(Math.max(0, 1 - age / 10), 1.1) * 0.8;
-        const tone = 0.4 + 0.12 * r1;                                    // pale grey, between the smoke rope and white
-        smoke.push(at, null, tone, tone, tone * 0.98, op, grow, (r1 + r2) % 1);
+        const tone = 0.72 + 0.12 * r1;                                    // off-white, a little greyer than a cloud
+        smoke.push(at, null, tone * 0.97, tone, tone * 1.04, op, grow, (r1 + r2) % 1);
       }
     }
     glow.end(); smoke.end(cam);
