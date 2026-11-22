@@ -171,6 +171,8 @@ function closeUp(model) {
   doors.innerL = swing(model, ['Object050'], 'z', 0); doors.innerR = swing(model, ['Object035'], 'z', 0);   // inner main doors
   brakes = [swing(model, ['Object049'], 'x', 0), swing(model, ['Object030'], 'x', 0)];        // speed brakes
   doors.legs = ['Object052', 'Object023', 'Object024'].map(n => model.getObjectByName(n));
+  // gear and doors aren't airframe structure (the bulkheads are shaped without them)
+  for (const d of Object.values(doors)) if (d?.isObject3D) d.traverse(o => { if (o.isMesh) o.userData.noBulk = true; });
   doors.noseLeg = swing(model, ['Object024'], 'x', 0, new THREE.Vector3(0, 1.33, 4.31));   // pivot: the top of the leg
   for (const n of ['Object052', 'Object023']) model.getObjectByName(n).traverse(o => {
     if (o.isMesh) { o.material = o.material.clone(); o.material.clippingPlanes = [legClip]; }
@@ -281,6 +283,12 @@ export async function loadJet(url, cfg) {
     flapL: hinge(model, 'Object028', 'front'), flapR: hinge(model, 'Object058', 'front'),   // trailing-edge flaps
   };
   splitAirframe(model, s);
+  // the main gear doors hang on the wing roots: they go with the wing if it breaks off
+  model.updateMatrixWorld(true);
+  for (const d of [doors.outerL, doors.outerR, doors.innerL, doors.innerR]) {
+    const w = d.getWorldPosition(new THREE.Vector3()); model.worldToLocal(w);
+    model.getObjectByName('part:wingInner' + (w.x > 0 ? 'L' : 'R'))?.attach(d);
+  }
   const lef = [...seatLEF(model, 'Object057', 'L', REGIONS.lightFighter), ...seatLEF(model, 'Object055', 'R', REGIONS.lightFighter)];
   const flaps = { le: 0, te: 0 };
   model.traverse(o => {

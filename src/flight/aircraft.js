@@ -95,7 +95,7 @@ export class Aircraft {
       _lift.crossVectors(_right, vdir).normalize().multiplyScalar(dyn * c.wingArea * clEff);
       _side.set(1, 0, 0).applyQuaternion(this.quat);
       _side.addScaledVector(vdir, -_side.dot(vdir)).normalize().multiplyScalar(-dyn * c.wingArea * c.sideForce * beta);
-      _a.add(_lift).add(_side).addScaledVector(vdir, -dyn * c.wingArea * cd);
+      _a.add(_lift).add(_side).addScaledVector(vdir, -dyn * c.wingArea * cd * (this.damageFx?.dragMul ?? 1));
     }
     // engine
     const spool = this.throttle > this.engine ? c.spoolUp : c.spoolDown;

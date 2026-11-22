@@ -20,15 +20,15 @@ function jagged(c, J) {
   return _jg.set(c.x + h(1) * J * 2, c.y + h(2) * J * 2, c.z + h(3) * J * 2);
 }
 
-export function classify(p, R = REGIONS.lightFighter) {
+export function classify(p, R = REGIONS.lightFighter, pj = p) {   // pj: a jittered point, used only for the nose / rear-fuselage cuts
   const ax = Math.abs(p.x), side = p.x > 0 ? 'L' : 'R';
   if (R.stab && ax > R.stab.x && p.y > R.stab.y && p.z < R.stab.z && (R.stab.yMax === undefined || p.y < R.stab.yMax)) return 'stab' + side;
-  if (p.z > R.noseZ) return 'nose';
+  if (pj.z > R.noseZ) return 'nose';
   if (p.y > R.fin.y && p.z < R.fin.z) return 'fin';
   const o = R.outer, n = R.inner;
   if (ax > o.x && p.y < o.y && p.z > o.z0 && p.z < o.z1) return 'wingOuter' + side;
   if (ax > n.x && p.y < n.y && p.z > n.z0 && p.z < n.z1) return 'wingInner' + side;
-  if (R.tail && p.z < R.tail.z) return 'tail';            // rear fuselage that can snap off (big aircraft)
+  if (R.tail && pj.z < R.tail.z) return 'tail';            // rear fuselage that can snap off (big aircraft)
   return 'body';
 }
 
@@ -73,7 +73,7 @@ export function splitAirframe(model, surfaces = {}, R = REGIONS.lightFighter, dr
       if (drop && drop(centre, nrm)) continue;
       // (each triangle is classified at a point nudged by a blocky random offset, so the cut lines wander in
       // chunks instead of running dead straight: torn, not sawn)
-      const name = classify(jagged(centre, R.jag || 0), R);
+      const name = classify(centre, R, jagged(centre.clone(), R.jag || 0));
       (groups[name] ||= []).push(idx[t], idx[t + 1], idx[t + 2]);
       (centres[name] ||= new THREE.Vector3()).add(centre);
       counts[name] = (counts[name] || 0) + 1;
@@ -135,25 +135,38 @@ function addBulkheads(model, parts, R) {
   const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
   // the plate goes a little behind the torn zone, where the airframe is still whole all the way round (the jagged cut
   // reaches up to 'jag' either side of the region line), so it never hangs off shards at the ragged edge
-  const depth = (R.jag || 0) + 0.15, band = 0.15, v = new THREE.Vector3();
+  const band = 0.15, v = new THREE.Vector3();
   for (const [name, pivot] of Object.entries(parts)) {
     const cp = cutPlane(name, R); if (!cp) continue;
+    const depth = name === 'nose' || name === 'tail' ? (R.jag || 0) + 0.15 : 0.05;   // (only the fuselage cuts are jagged)
     // structure that stays: everything outside this part (and outside anything hung on it)
-    const inPart = new Set(); pivot.traverse(o => inPart.add(o));
+    const inPart = new Set(); for (const P of Object.values(parts)) P.traverse(o => inPart.add(o));   // (body only)
+    let zr = null;
+    if (name === 'fin') {                                         // the fin's footprint along the spine
+      zr = [1e9, -1e9]; const M0 = new THREE.Matrix4();
+      pivot.traverse(o => { if (!o.isMesh || !o.geometry.attributes.position) return; M0.multiplyMatrices(inv, o.matrixWorld); const ps = o.geometry.attributes.position;
+        for (let k = 0; k < ps.count; k++) { v.fromBufferAttribute(ps, k).applyMatrix4(M0); if (v.y < R.fin.y + 0.5) { zr[0] = Math.min(zr[0], v.z); zr[1] = Math.max(zr[1], v.z); } } });
+    }
     const pts = [];
     model.traverse(o => {
-      if (!o.isMesh || inPart.has(o) || o.userData.noSplit || !o.visible) return;
+      if (!o.isMesh || inPart.has(o) || o.userData.noSplit || o.userData.noBulk || !o.visible) return;
       const pos = o.geometry.attributes.position; if (!pos) return;   // (a mesh emptied by the split)
       const M = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+      // the exact cross-section: where each triangle's edges cross the plate's plane
       const idx = o.geometry.index ? o.geometry.index.array : null, n = idx ? idx.length : pos.count;
-      for (let k = 0; k < n; k++) {
-        v.fromBufferAttribute(pos, idx ? idx[k] : k).applyMatrix4(M);
-        const d = v.dot(cp.n) - cp.d;
-        if (Math.abs(d + depth) > band || !cp.keep(v)) continue;
-        pts.push(v.clone());
+      const T = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], dd = [0, 0, 0];
+      for (let k = 0; k + 2 < n; k += 3) {
+        for (let j = 0; j < 3; j++) { T[j].fromBufferAttribute(pos, idx ? idx[k + j] : k + j).applyMatrix4(M); dd[j] = T[j].dot(cp.n) - cp.d + depth; }
+        for (let j = 0; j < 3; j++) {
+          const a = j, b = (j + 1) % 3;
+          if ((dd[a] > 0) === (dd[b] > 0)) continue;
+          v.copy(T[a]).lerp(T[b], dd[a] / (dd[a] - dd[b]));
+          if (!cp.keep(v) || (zr && (v.z < zr[0] + 0.05 || v.z > zr[1] - 0.05))) continue;
+          pts.push(v.clone());
+        }
       }
     });
-    if (pts.length < 6) continue;
+    if (pts.length < 3) continue;
     // 2D basis on the plane, convex hull of the projected points
     const u = Math.abs(cp.n.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
     const a = new THREE.Vector3().crossVectors(cp.n, u).normalize(), b = new THREE.Vector3().crossVectors(cp.n, a);
@@ -169,10 +182,19 @@ function addBulkheads(model, parts, R) {
     const cx = hull.reduce((s, p) => s + p[0], 0) / hull.length, cy = hull.reduce((s, p) => s + p[1], 0) / hull.length;
     for (const p of hull) { p[0] = cx + (p[0] - cx) * 0.95; p[1] = cy + (p[1] - cy) * 0.95; }   // just inside the skin
     const at = (x, y) => base.clone().addScaledVector(a, x).addScaledVector(b, y);
+    // flat plate, or for the nose a dome bulging forward (fills the back of the radome)
+    const rad = hull.reduce((m, p) => Math.max(m, Math.hypot(p[0] - cx, p[1] - cy)), 0);
+    const dome = name === 'nose' ? rad * 0.55 : 0, rings = dome ? 4 : 1;
+    const ringPt = (p, f) => { const w = at(cx + (p[0] - cx) * f, cy + (p[1] - cy) * f); return w.addScaledVector(cp.n, dome * Math.sqrt(Math.max(0, 1 - f * f))); };
     const verts = [];
     for (let i = 0; i < hull.length; i++) {
       const p = hull[i], q = hull[(i + 1) % hull.length];
-      for (const w of [at(cx, cy), at(p[0], p[1]), at(q[0], q[1])]) verts.push(w.x, w.y, w.z);
+      for (let r = 0; r < rings; r++) {
+        const f0 = r / rings, f1 = (r + 1) / rings;
+        const a0 = ringPt(p, f0), b0 = ringPt(q, f0), a1 = ringPt(p, f1), b1 = ringPt(q, f1);
+        if (r === 0) for (const w of [a0, a1, b1]) verts.push(w.x, w.y, w.z);
+        else for (const w of [a0, a1, b1, a0, b1, b0]) verts.push(w.x, w.y, w.z);
+      }
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3)); g.computeVertexNormals();
     const cap = new THREE.Mesh(g, capMat);
@@ -222,6 +244,7 @@ export class Damage {
       rollBias: (outerR - outerL) * 0.5,                       // rolls toward the missing wing tip
       rollMul: 1 - 0.35 * (outerL + outerR),
       pitchMul: 1 - 0.3 * (b('stabL') + b('stabR')),
+      dragMul: 1 + 0.2 * b('nose'),                            // a blunt, open front: +20% drag
       liftMul: 1 - 0.15 * (outerL + outerR + b('stabL') + b('stabR')),   // each lost outer wing or stabiliser costs ~15% of the turn
       yawMul: 1 - 0.7 * b('fin'),
       wobble: 0.25 * (b('stabL') + b('stabR')) + 0.4 * b('fin'),
