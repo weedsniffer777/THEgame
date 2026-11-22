@@ -777,8 +777,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   const toWorld = (x, y, z) => _vp.set(x, y - 1.9, z + 0.6).applyQuaternion(_bq).add(_bp);
   const sm = (a, b, x) => THREE.MathUtils.smoothstep(x, a, b);
   function vapour(dt, pos, quat) {
-    if (!jet.damage || jet.damage.burning || dt <= 0) return;
     _bp = pos; _bq = quat; _bdt = dt;
+    if (!jet.damage || jet.damage.burning || dt <= 0) return;
+    // riding puffs: kept at a spot on the airframe (body frame), drifting slowly aft, so they never lag or smear
+    const ride = (x, y, z, o) => S.fx.push({ kind: 'vapor', ride: 1, lx: x, ly: y, lz: z, p: toWorld(x, y, z).clone(), v: new THREE.Vector3(), t: 0, ...o });
     const back = (e) => { e.p.addScaledVector(e.v, -dt); S.fx.push(e); };
     const alt = ac.pos.y, humid = 1 - 0.6 * sm(3000, 9000, alt);            // more moisture low down
     const fast = sm(90, 150, ac.t.ias || 0);
@@ -786,15 +788,14 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     // wing vapour: from ~5 G, thick by 8 G
     const kw = Math.pow(sm(3.2, 8, ac.t.g || 0), 1.4) * fast * humid;   // creeps in from ~3.5 G, thick by 8 G
     if (kw > 0.02) {
-      const rate = (110 + 90 * kw) * kw * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);   // up to ~200 small puffs/s at full
+      const rate = (90 + 80 * kw) * kw * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);   // up to ~170 small puffs/s at full
       for (let i = 0; i < n; i++) {
         const sx = Math.random() < 0.5 ? 1 : -1, side = sx > 0 ? 'L' : 'R';
         const x = 1.3 + Math.random() * 2.6;
         if (gone('wingInner' + side) || (x > 2.45 && gone('wingOuter' + side))) continue;
         const le = -0.22 - 0.46 * (x - 1.6), z = le - Math.pow(Math.random(), 1.6) * 1.1;   // most of it near the leading edge
-        toWorld(sx * x, 1.6 + Math.random() * 0.18, z);                // just over the skin: it wraps the wing
-        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone().multiplyScalar(0.995), t: 0, life: 0.12 + Math.random() * 0.1,
-          s: 0.45 + Math.random() * 0.25, seed: Math.random(), op: Math.min(0.55, 0.5 * kw + 0.08), grow: 1.15 });
+        ride(sx * x, 1.6 + Math.random() * 0.16, z, { life: 0.28 + Math.random() * 0.14, drift: 2.5,     // just over the skin: it wraps the wing
+          s: 0.42 + Math.random() * 0.2, seed: Math.random(), op: Math.min(0.42, 0.36 * kw + 0.06), grow: 1.1 });
       }
     }
     // wingtip vortices: thin ribbons from each intact wingtip at high G (none from a tip that has broken off)
@@ -810,13 +811,12 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       // weak: a jittery scatter around the fuselage; at the peak the puffs settle onto a cone shell that opens
       // backward from just ahead of the canopy, bigger and denser
       const shell = sm(0.55, 0.95, km);
-      const rate = (90 + 520 * shell) * km * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
+      const rate = (160 + 600 * shell) * km * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
       for (let i = 0; i < n; i++) {
         const a = Math.random() * Math.PI * 2, aft = Math.sqrt(Math.random());
         const coneR = 0.7 + aft * (1.4 + 2.6 * shell), r = coneR * (1 + (Math.random() - 0.5) * (0.9 - 0.82 * shell));
-        toWorld(Math.cos(a) * r, 1.75 + Math.sin(a) * r * 0.95, 1.4 - aft * (2.4 + 2.2 * shell));
-        back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone(), t: 0, life: (0.09 + Math.random() * 0.08) * (1 + 0.8 * shell),
-          s: (0.9 + Math.random() * 0.5) * (1 + 0.5 * shell), seed: Math.random(), op: (0.4 + 0.25 * shell) * km, grow: 1.2 });
+        ride(Math.cos(a) * r, 1.75 + Math.sin(a) * r * 0.95, 1.4 - aft * (2.4 + 2.2 * shell), { life: 0.3 + Math.random() * 0.2, drift: 1.2,
+          s: (0.5 + Math.random() * 0.3) * (1 + 0.35 * shell), seed: Math.random(), op: (0.22 + 0.2 * shell) * km, grow: 1.1 });
       }
     }
   }
@@ -899,8 +899,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         const grow = e.spread ? 0.8 + 7 * (1 - Math.exp(-e.t * 0.9)) : 0.6 + k * 1.9;   // trail puffs swell quickly so they merge
         smoke.push(e.p, null, g * 0.97, g, g * 1.04, 0.7 * (e.fade || 1) * Math.min(1, e.t * 3) * Math.pow(1 - k, 1.4), e.s * grow * (e.scale || 1), e.seed, e.pri || 0);
       } else if (e.kind === 'vapor') {                        // condensation: fades in and out fast, swells a little
+        if (e.ride) e.p.copy(toWorld(e.lx, e.ly, e.lz - e.drift * e.t));
         const g = 0.76 + 0.1 * e.seed;
-        const env = e.soft ? Math.sin(Math.PI * Math.min(k * 1.2, 1)) : THREE.MathUtils.smoothstep(k, 0, 0.25) * (1 - THREE.MathUtils.smoothstep(k, 0.6, 1));   // fade in, hold, fade out
+        const env = e.soft ? Math.sin(Math.PI * Math.min(k * 1.2, 1)) : THREE.MathUtils.smoothstep(k, 0, 0.35) * (1 - THREE.MathUtils.smoothstep(k, 0.5, 1));   // fade in, hold, fade out (no popping)
         smoke.push(e.p, null, g * 0.97, g, g * 1.04, e.op * env, e.s * (1 + (e.grow - 1) * k), e.seed);
       } else if (e.kind === 'flame') {
         glow.push(e.p, null, 1.0, 0.3 + 0.25 * (1 - k), 0.03, 0.75 * (1 - k), e.s * (0.8 + k * 0.8), Math.random());
