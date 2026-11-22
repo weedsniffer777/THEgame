@@ -117,12 +117,40 @@ setRunning(wantStart);
 const aimPoint = new THREE.Vector3();
 let manual = false, recentre = 0;   // seconds left of easing the camera back onto the nose after keyboard flying
 // crash: the jet blows up and burns on the ground; the camera holds on it for a few seconds before respawning
+// crash: the airframe keeps its momentum and is simulated as a tumbling, bouncing, sliding body until it stops,
+// burning; a hard hit can tear the outer wings off. The camera holds on it, then the player respawns.
+const wreck = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), key: {} };
 function crash() {
   if (dead) return;
   dead = 1e-6;
-  weapons.crash(ac.pos, ac.vel, jet);
-  jet.object.visible = false;
+  weapons.crash(ac.pos, ac.vel);
+  wreck.pos.copy(ac.pos); wreck.vel.copy(ac.vel); wreck.quat.copy(ac.quat); wreck.key = {};
+  wreck.spin.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(4);
+  const speed = ac.vel.length();
+  for (const side of ['L', 'R']) if (speed > 90 && Math.random() < 0.6) jet.damage.breakPart('wingOuter' + side, ac.vel);
+  ac.throttle = ac.engine = 0;
   document.body.classList.remove('lost');
+}
+const _wn = new THREE.Vector3(), _wv = new THREE.Vector3(), _wq = new THREE.Quaternion();
+function wreckStep(dt) {
+  wreck.vel.y -= 9.81 * dt;
+  wreck.pos.addScaledVector(wreck.vel, dt);
+  const x = wreck.pos.x, z = wreck.pos.z, ground = terrain.heightAt(x, z);
+  if (wreck.pos.y < ground + 1.2) {
+    // terrain normal from the height field
+    _wn.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
+    wreck.pos.y = ground + 1.2;
+    const vn = wreck.vel.dot(_wn);
+    if (vn < 0) {
+      wreck.vel.addScaledVector(_wn, -1.1 * vn);                        // barely any bounce
+      if (-vn > 25) wreck.vel.multiplyScalar(0.45);                      // a hard hit tears most of the speed away
+      wreck.spin.addScaledVector(_wv.crossVectors(_wn, wreck.vel), 0.004 * Math.min(1, -vn / 20));   // a hard hit sets it tumbling
+    }
+    wreck.vel.multiplyScalar(Math.exp(-2.2 * dt));                      // scraping along the ground
+    wreck.spin.multiplyScalar(Math.exp(-2.5 * dt));
+  }
+  const w = wreck.spin.length();
+  if (w > 1e-4) { _wq.setFromAxisAngle(_wn.copy(wreck.spin).divideScalar(w), w * dt); wreck.quat.premultiply(_wq).normalize(); }
 }
 function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0); }
 
@@ -227,7 +255,7 @@ function hud(dt = 1 / 60) {
   // gun solution: square on the selected enemy, a line, and the lead circle, drawn as one SVG shape so they always join
   const showSel = W.target && running && W.target.alive && !W.target.falling;
   const a = showSel ? screenOf(W.target.obj.position) : null;
-  const b = showSel && W.lead && W.leadTime <= 2.5 ? screenOf(W.lead) : null;
+  const b = showSel && W.lead && W.target.pos.distanceTo(ac.pos) <= WEAPONS.gunRange ? screenOf(W.lead) : null;
   gunSvg.style.display = a ? '' : 'none';
   if (a) {
     const H = 11, R = 6.5;                                 // square half size, circle radius (px)
@@ -281,10 +309,14 @@ function frame(now) {
       if (off < 0.08) rig.recenter(toLead, Math.min(1, dt * 6 * WEAPONS.magnetism * (1 - off / 0.08)));
     }
     acc += dt;
-    if (dead) {                                                           // killed: watch the crash site, then respawn
+    if (dead) {                                                           // killed: watch the wreck, then respawn
       dead += dt; acc = 0;
+      for (let k = 0; k < 4; k++) wreckStep(dt / 4);
+      ac.pos.copy(wreck.pos); ac.quat.copy(wreck.quat); ac.vel.copy(wreck.vel);
+      prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
+      weapons.burn(wreck.pos, wreck.vel, wreck.key);
       weapons.step(dt, performance.now() / 1000);
-      if (dead > 4) spawn();
+      if (dead > 7) spawn();
     } else while (acc >= STEP) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }
   }
   mouseDX = mouseDY = 0;

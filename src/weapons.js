@@ -426,6 +426,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     const p = new THREE.Vector3(Math.cos(d.t) * d.R, Math.sin(d.t * 0.5) * 120, Math.sin(d.t) * d.R).add(d.centre);
     d.vel.subVectors(p, d.pos).divideScalar(Math.max(dt, 1e-3));
     d.pos.copy(p);
+    // flew into the terrain: it's a crash like any other
+    if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 3) { killDrone(d); d.pos.y = terrain.heightAt(d.pos.x, d.pos.z) + 1; return; }
     const fwd = new THREE.Vector3(-Math.sin(d.t) * d.dir, 0, Math.cos(d.t) * d.dir).normalize();
     const fx = d.dmg.effects();
     const wobble = fx.wobble * 0.25 * Math.sin(d.t * 9) + fx.rollBias * 0.6;   // damaged: rocks and leans toward the missing tip
@@ -497,7 +499,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         let aimDir = fwd;
         // aim assist: rounds fired with the nose near the gun solution are bent onto the predicted intercept,
         // fully inside the inner cone and fading out by the outer one; a target that breaks hard still makes them miss
-        if (S.lead && S.target) {
+        if (S.lead && S.target && S.target.pos.distanceTo(ac.pos) <= cfg.gunRange) {
           const toLead = _q2.subVectors(S.lead, muzzle).normalize();
           const ang = Math.acos(THREE.MathUtils.clamp(toLead.dot(fwd), -1, 1)) * 180 / Math.PI;
           const k = 1 - THREE.MathUtils.smoothstep(ang, cfg.assistFull * S.hitScale, cfg.assistAngle * S.hitScale);
@@ -760,15 +762,13 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     step, render,
     missileProto: proto,
     trails, smoke, cfg,   // (dev tests)
-    crash(p, v, jetRef) {
+    // the player's jet hit the ground: blast and a fire where it hit (the airframe itself is simulated by main.js)
+    crash(p, v) {
       explode(p, v, 2.0);
-      const wreck = jetRef.object.clone(true);
-      wreck.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); if (o.material.color) o.material.color.multiplyScalar(0.18); } });
-      wreck.position.set(p.x, terrain.heightAt(p.x, p.z) + 0.6, p.z);
-      wreck.rotation.set((Math.random() - 0.5) * 0.3, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.5);
-      scene.add(wreck); setTimeout(() => wreck.removeFromParent(), 40000);
-      emit('groundfire', wreck.position, new THREE.Vector3(1, 0, 0));
+      emit('groundfire', new THREE.Vector3(p.x, terrain.heightAt(p.x, p.z), p.z), new THREE.Vector3(1, 0, 0));
     },
+    // a burning wreck moving along: smoke and flame laid down by distance like any other burning thing
+    burn(p, v, key) { emit('smoke', p, v, key); emit('flame', p, v, key.flameKey || (key.flameKey = {})); },
     cycleTarget() {
       const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);
       S.target = nearestToNose(fwd, S.target) || S.target;
