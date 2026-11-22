@@ -296,7 +296,7 @@ function place(el, worldPoint) {
   el.style.display = vis ? '' : 'none';
   if (vis) el.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth}px, ${(-_p.y * 0.5 + 0.5) * innerHeight}px)`;
 }
-let gStrain = 0;
+let gStrain = 0, gTime = 0;
 // The player's shadow: each frame their jet alone is drawn white-on-black from the sun into a small texture; the
 // terrain darkens wherever that silhouette lands beyond them (softer and fainter the higher they are).
 const shadowRT = new THREE.WebGLRenderTarget(256, 256);
@@ -438,7 +438,9 @@ function hud(dt = 1 / 60) {
   const g = ac.t.g;
   // G strain (effect only, never a real blackout): builds over about a second of sustained G and eases off faster.
   // From ~6 G the view closes in and drains of colour; at the 9 G limit it is heavy.
-  const want = THREE.MathUtils.clamp((g - 6) / 3.5, 0, 1);
+  // it only starts after ~3 s spent above 6 G (short pulls never trigger it); the clock drains twice as fast as it fills
+  gTime = g > 6 ? gTime + dt : Math.max(0, gTime - 2 * dt);
+  const want = THREE.MathUtils.clamp((g - 6) / 3.5, 0, 1) * THREE.MathUtils.smoothstep(gTime, 3, 4);
   gStrain += (want - gStrain) * (1 - Math.exp(-dt / (want > gStrain ? 1.0 : 0.6)));
   const k = gStrain;
   vig.style.opacity = (0.95 * Math.pow(k, 1.2) + THREE.MathUtils.clamp((-g - 2.5) / 1, 0, 0.4)).toFixed(3);
