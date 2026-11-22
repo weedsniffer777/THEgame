@@ -182,8 +182,9 @@ function hud(dt = 1 / 60) {
     seekerEl.style.width = seekerEl.style.height = `${2 * r}px`; seekerEl.style.margin = `${-r}px 0 0 ${-r}px`;
     const tracking = W.seeker && !W.locked;
     place(lockEl, W.locked && W.seeker ? W.seeker.obj.position : nosePt);
-    lockEl.className = W.locked ? 'locked' : tracking && (performance.now() % 250 < 125) ? 'flash' : '';
-    seekerEl.className = W.locked ? 'locked' : '';
+    // searching: both circles flash white / red; locked: both solid red
+    const st = W.locked ? 'locked' : tracking ? (performance.now() % 250 < 125 ? 'flashW' : 'flashR') : '';
+    lockEl.className = st; seekerEl.className = st;
   }
   // enemies: a solid diamond above each one with its distance in km (counts down as you close)
   weapons.drones.forEach((d, k) => {
@@ -200,7 +201,7 @@ function hud(dt = 1 / 60) {
     const km = d.pos.distanceTo(ac.pos) / 1000;
     const txt = km < 10 ? km.toFixed(1) : Math.round(km).toString();
     if (txt !== el._txt) { el._b.innerHTML = `${txt}<small>KM</small>`; el._txt = txt; }
-    el.classList.toggle('sel', d === W.target && !msl);
+    el.classList.toggle('sel', d === W.target);
   });
   // gun-solution target: the enemy nearest the reticle on screen, weighted toward ones in gun range, and sticky:
   // the current target is kept while it stays near the reticle, so sweeping past other planes mid-fight doesn't steal it.
@@ -224,7 +225,7 @@ function hud(dt = 1 / 60) {
     } else tgtSwitch = 0;
   }
   // gun solution: square on the selected enemy, a line, and the lead circle, drawn as one SVG shape so they always join
-  const showSel = W.target && !msl && running && W.target.alive && !W.target.falling;
+  const showSel = W.target && running && W.target.alive && !W.target.falling;
   const a = showSel ? screenOf(W.target.obj.position) : null;
   const b = showSel && W.lead && W.leadTime <= 2.5 ? screenOf(W.lead) : null;
   gunSvg.style.display = a ? '' : 'none';

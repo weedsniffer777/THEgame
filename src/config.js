@@ -75,27 +75,25 @@ export const F5 = {
 
 // The mouse-aim "instructor": flies the jet toward wherever the camera points.
 export const INSTRUCTOR = {
-  pitchGain: 5.0,         // stick per radian of pitch error
-  pitchLead: 0.4,         // s: how far ahead the pitch controller looks at the closing error
-  yawGain: 1.8,
-  yawLead: 0.25,
-  rollGain: 2.4,
-  rollDamp: 0.42,
-  levelGain: 2.0,         // how hard it levels the wings when the target is dead ahead
-  levelAngle: 1.2,        // deg off target below which it only levels the wings
-  bankAngle: 7,            // deg off target above which it fully banks toward the target
-  pushAngle: 12,          // targets below and closer than this are reached by pushing, not rolling over
+  aimRate: 1.7,           // 1/s: turn rate commanded per radian of error (higher = snappier, too high = overshoot)
+  maxRate: 30,            // deg/s cap on the commanded turn rate
+  rateGain: 0.45,         // stick per rad/s of pitch-rate error (small trim on top of the lift-curve feed-forward)
+  rollGain: 5,            // roll rate (rad/s) per radian of bank error
+  yawGain: 2.0,           // rudder per radian of sideways error near the aim point
+  yawDamp: 0.5,
+  bankPerErr: 12,         // near the aim point: degrees of bank per degree of sideways error
+  maxSmallBank: 60,       // deg, most bank used for small corrections
+  levelAngle: 4,          // deg off the aim point below which it only makes small coordinated corrections
+  bankAngle: 14,          // deg off the aim point above which it fully rolls the lift onto it
+  pushAngle: 18,          // deg: aim points a little below are reached by pushing, not rolling over
   maxG: 9,                // game limit, between the real jet's 7.33 operating and ~11 ultimate
   maxNegG: 3,
   maxNegAoA: 12,          // deg
-  pitchLag: 0.07,         // s for each control to follow its command (smoothness)
-  rollLag: 0.06,
-  yawLag: 0.1,
-  aimSmooth: 0.06,        // s low-pass on the mouse aim the autopilot chases
-  rollSmooth: 0.08,       // s low-pass on the bank the autopilot wants
-  pullAfterRoll: 15,      // deg: full pull only once the lift vector is this close to the target
-  holdPull: 0.3,          // stick it keeps while still rolling toward the target         // s for controls to follow a command (smooths jitter)
   maxAoA: 20,             // deg
+  pitchLag: 0.06,         // s for each control to follow its command (smoothness)
+  rollLag: 0.05,
+  yawLag: 0.1,
+  aimSmooth: 0.05,        // s low-pass on the mouse aim the autopilot chases
 };
 
 export const CAMERA = {
