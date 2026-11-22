@@ -68,10 +68,11 @@ function spawn() {
   ac.reset(new THREE.Vector3(s.x, s.y, s.z), s.heading, s.speed);
   rig.reset(ac.quat);
   prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
-  if (typeof weapons !== 'undefined') { weapons.rearm(); jet.damage.repair(); }
+  if (typeof weapons !== 'undefined') { weapons.rearm(); jet.damage.repair(); weapons.placeDrones(); }
   dead = 0; jet.object.visible = true; document.body.classList.remove('lost');
 }
 let dead = 0;   // seconds since the player was killed (0 = alive)
+let tgtSwitch = 0;   // how long a better gun target has been waiting to take over
 spawn();
 
 // input
@@ -164,7 +165,7 @@ function place(el, worldPoint) {
   el.style.display = vis ? '' : 'none';
   if (vis) el.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth}px, ${(-_p.y * 0.5 + 0.5) * innerHeight}px)`;
 }
-function hud() {
+function hud(dt = 1 / 60) {
   const D = CAMERA.aimDistance;
   place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, D));
   aimEl.style.opacity = manual ? 0.25 : 1;
@@ -201,18 +202,26 @@ function hud() {
     if (txt !== el._txt) { el._b.innerHTML = `${txt}<small>KM</small>`; el._txt = txt; }
     el.classList.toggle('sel', d === W.target && !msl);
   });
-  // the gun-solution target is whichever enemy sits closest to the reticle on screen
+  // gun-solution target: the enemy nearest the reticle on screen, weighted toward ones in gun range, and sticky:
+  // the current target is kept while it stays near the reticle, so sweeping past other planes mid-fight doesn't steal it.
+  // A new one takes over only if it is clearly better for a moment. Nothing is chosen through terrain.
   {
     const c = screenOf(_p.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance));
-    let best = null, bestD = Infinity;
-    if (c) for (const d of weapons.drones) {
-      if (!d.alive || d.falling) continue;
+    const score = (d) => {
+      if (!d || !d.alive || d.falling || !weapons.clearLine(ac.pos, d.pos)) return Infinity;
       const q = screenOf(d.obj.position);
-      if (!q || q[0] < 0 || q[0] > innerWidth || q[1] < 0 || q[1] > innerHeight) continue;
-      const dd = Math.hypot(q[0] - c[0], q[1] - c[1]);
-      if (dd < bestD) { bestD = dd; best = d; }
-    }
-    if (best) W.target = best;
+      if (!q || q[0] < 0 || q[0] > innerWidth || q[1] < 0 || q[1] > innerHeight) return Infinity;
+      const px = Math.hypot(q[0] - c[0], q[1] - c[1]), km = d.pos.distanceTo(ac.pos) / 1000;
+      return px * (1 + km / 1.5);          // near the reticle and close by wins
+    };
+    let best = null, bestS = Infinity;
+    if (c) for (const d of weapons.drones) { const sc = score(d); if (sc < bestS) { bestS = sc; best = d; } }
+    const cur = W.target, curS = c ? score(cur) : Infinity;
+    if (!isFinite(curS)) { W.target = best; tgtSwitch = 0; }                 // current gone, hidden or off screen
+    else if (best && best !== cur && bestS < curS * 0.4) {                    // clearly better...
+      tgtSwitch += dt;
+      if (tgtSwitch > 0.35) { W.target = best; tgtSwitch = 0; }               // ...for a moment, not a sweep past
+    } else tgtSwitch = 0;
   }
   // gun solution: square on the selected enemy, a line, and the lead circle, drawn as one SVG shape so they always join
   const showSel = W.target && !msl && running && W.target.alive && !W.target.falling;
@@ -295,7 +304,7 @@ function frame(now) {
   camera.updateMatrixWorld();
   terrain.update(camera);
   cloudEl.style.opacity = clouds.update(camera);
-  hud();
+  hud(dt);
   renderer.render(scene, camera);
   window.__dev?.(dt);
   requestAnimationFrame(frame);

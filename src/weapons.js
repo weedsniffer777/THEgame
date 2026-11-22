@@ -100,8 +100,8 @@ class Sprites {
             shade = 0.62 + 0.55 * (f2 * 0.6 + f3 * 0.4) + 0.22 * vUv.y;      // lumpy self-shading, lighter on top
           }
           vec3 col = vCol.rgb * shade;
-          if (uAdd < 0.5) {                                // smoke: lit and hazed like the rest of the world
-            col = applyFog(col, cameraPosition, vWorld);
+          if (uAdd < 0.5) {                                // smoke: lit and hazed like the rest of the world (half strength, or dark smoke turns blue)
+            col = mix(col, applyFog(col, cameraPosition, vWorld), 0.5);
             gl_FragColor = vec4(col * a * vCol.a, a * vCol.a);
           } else {
             gl_FragColor = vec4(col * a * vCol.a, 0.0);
@@ -289,7 +289,7 @@ class Trails {
         const width = 0.22 + 0.9 * (1 - Math.exp(-age / 0.8)) + 3.6 * Math.max(0, age - 1.2) / (1 + Math.max(0, age - 1.2) * 0.3) + 0.8 * Math.sin(p.d * 0.21 + t.seed) * Math.min(1, Math.max(0, age - 1.5) / 3);   // tight near the missile, billowing and lumpy later
         const fromHead = (n - 1 - k);
         const fade = Math.pow(Math.max(0, 1 - age / LIFE), 1.5) * (age < 1.5 ? 0.85 : 0.85 - 0.45 * Math.min(1, (age - 1.5) / 2.5)) * Math.min(1, fromHead / 2 + 0.4)
-          * (1 - 0.85 * THREE.MathUtils.smoothstep(age, 1.8, 4.5));   // solid near the missile; the old end gives way to cloud puffs
+          * (1 - THREE.MathUtils.smoothstep(age, 1.0, 2.6));   // solid near the missile; by ~2.5 s the cloud puffs have taken over
         P.set([c.x + side.x * width, c.y + side.y * width, c.z + side.z * width], v * 3); A.set([fade, -1, p.d, age], v * 4); v++;
         P.set([c.x - side.x * width, c.y - side.y * width, c.z - side.z * width], v * 3); A.set([fade, 1, p.d, age], v * 4); v++;
         if (k < n - 1) { const a0 = base + k * 2; I.set([a0, a0 + 1, a0 + 2, a0 + 1, a0 + 3, a0 + 2], i); i += 6; }
@@ -462,6 +462,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
 
   // ---------------- per physics step
   function step(dt, now) {
+    S.simT = (S.simT || 0) + dt;   // game time: trails age with the simulation, independent of frame rate
     for (const d of drones) flyDrone(d, dt);
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);   // own vector: _v/_w are reused below
     // guns
@@ -516,7 +517,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       const half = cfg.seekerFov / 2;
       let best = null, bestAng = 1e9;
       for (const d of drones) {
-        if (!d.alive || d.falling) continue;
+        if (!d.alive || d.falling || !clearLine(ac.pos, d.pos)) continue;   // no locks through terrain
         const to = _w.subVectors(d.pos, ac.pos), dist = to.length();
         const ang = Math.acos(THREE.MathUtils.clamp(to.dot(fwd) / dist, -1, 1)) * 180 / Math.PI;
         const lim = S.locked && d === S.seeker ? half * 1.4 : half;
@@ -560,10 +561,23 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       } else if (speed > 1) m.dir.copy(m.v).normalize();
       m.p.addScaledVector(m.v, dt);
       if (m.p.y < terrain.heightAt(m.p.x, m.p.z)) { explode(m.p, new THREE.Vector3(), 0.6); m.t = 1e9; }
-      if (m.t > IGNITE && m.t < IGNITE + cfg.motorTime && now - m.lastPt > 0.03) { trails.add(m.trail, m.p, now); m.lastPt = now; }
+      if (m.t > IGNITE && m.t < IGNITE + cfg.motorTime) {                  // a trail point every 6 m of flight
+        const last = m.trail.pts[m.trail.pts.length - 1];
+        if (!last || last.p.distanceTo(m.p) > 6) trails.add(m.trail, m.p, S.simT);
+      }
     }
     for (const m of S.missiles) if (m.t >= cfg.missileLife || m.t >= 1e9) { if (m.t < 1e9) explode(m.p, m.v, 0.5); m.trail.live = false; scene.remove(m.obj); }
     S.missiles = S.missiles.filter(m => m.t < cfg.missileLife && m.t < 1e9);
+  }
+
+  // true if nothing of the terrain lies between a and b (sampled every ~60 m, a little margin above the ground)
+  function clearLine(a, b) {
+    const d = a.distanceTo(b), n = Math.max(2, Math.ceil(d / 60));
+    for (let i = 1; i < n; i++) {
+      const t = i / n, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t, z = a.z + (b.z - a.z) * t;
+      if (y < terrain.heightAt(x, z) + 5) return false;
+    }
+    return true;
   }
 
   // the live drone closest to the nose direction, skipping 'skip' (so repeated presses cycle through them)
@@ -586,7 +600,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     const p = RAILS[k].clone().applyQuaternion(ac.quat).add(ac.pos);
     const obj = proto.clone(true); scene.add(obj);
     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);
-    S.missiles.push({ obj, p, prev: p.clone(), v: ac.vel.clone().add(_v.set(0, -4, 0).applyQuaternion(ac.quat)), dir, t: 0, target: S.locked ? S.seeker : null, trail: trails.start(), lastPt: now });
+    S.missiles.push({ obj, p, prev: p.clone(), v: ac.vel.clone().add(_v.set(0, -4, 0).applyQuaternion(ac.quat)), dir, t: 0, target: S.locked ? S.seeker : null, trail: trails.start() });
     S.lock = 0;
   }
 
@@ -671,18 +685,25 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       } else glow.push(e.p, null, 1.0, 0.85, 0.55, 3.0 * (1 - k), e.s, 0.5);
     }
     S.fx = S.fx.filter(e => e.t < e.life);
-    trails.update(now, cam);
+    const simNow = S.simT || 0;
+    trails.update(simNow, cam);
     // the old end of each missile trail turns into billowing cloud: lumpy, self-shaded puffs along the path
     for (const t of trails.list) {
       let lastD = -1e9;
       for (let k = 0; k < t.pts.length; k++) {
-        const p = t.pts[k], age = now - p.t;
-        if (age < 1.4 || p.d - lastD < 5) continue;
+        const p = t.pts[k], age = simNow - p.t;
+        if (age < 0.9 || p.d - lastD < 4) continue;
         lastD = p.d;
-        const grow = 1.5 + 4.5 * (1 - Math.exp(-(age - 1.4) / 2.2));
-        const op = THREE.MathUtils.smoothstep(age, 1.4, 3.2) * Math.pow(Math.max(0, 1 - age / 10), 1.3) * 0.75;
-        const tone = 0.62 + 0.18 * Math.sin(p.d * 0.37 + t.seed);
-        smoke.push(trails.pointAt(t, k, now, tmpA), null, tone, tone, tone * 0.98, op, grow * (0.85 + 0.3 * Math.sin(p.d * 0.9 + t.seed)), (p.d * 0.0137 + t.seed) % 1);
+        // each puff sits a little off the line (seeded by its place along the trail), rises slowly and swells
+        const h1 = Math.sin(p.d * 12.9898 + t.seed) * 43758.5453, r1 = h1 - Math.floor(h1);
+        const h2 = Math.sin(p.d * 78.233 + t.seed * 3) * 12543.212, r2 = h2 - Math.floor(h2);
+        const spread = Math.min(1, (age - 0.9) / 3) * 4;
+        const at = trails.pointAt(t, k, simNow, tmpA);
+        at.x += (r1 - 0.5) * spread; at.z += (r2 - 0.5) * spread; at.y += (r1 * r2 - 0.25) * spread + age * 0.6;
+        const grow = 2.2 + 11 * (1 - Math.exp(-(age - 0.9) / 2.6)) * (0.75 + 0.5 * r2);   // ~4 m across, billowing to ~25 m
+        const op = THREE.MathUtils.smoothstep(age, 0.9, 2.2) * Math.pow(Math.max(0, 1 - age / 10), 1.1) * 0.8;
+        const tone = 0.66 + 0.22 * r1;
+        smoke.push(at, null, tone, tone, tone * 0.98, op, grow, (r1 + r2) % 1);
       }
     }
     glow.end(); smoke.end(cam);
@@ -695,10 +716,13 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       S.firing = on;
     },
     select(k) { S.selected = k; S.lock = 0; },
+    clearLine: (a, b) => clearLine(a, b),
+    placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now
     rearm() { S.loaded.fill(true); S.firing = false; },
     explode,   // (used by the dev tests)
     step, render,
     missileProto: proto,
+    trails, smoke,   // (dev tests)
     crash(p, v, jetRef) {
       explode(p, v, 2.0);
       const wreck = jetRef.object.clone(true);
