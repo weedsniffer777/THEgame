@@ -152,7 +152,7 @@ const aimEl = document.getElementById('aim'), noseEl = document.getElementById('
 const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementChild, vig = document.getElementById('vignette');
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
-const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [];
+const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], selEl = document.getElementById('selbox');
 const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles);
 const leadEl = document.getElementById('lead'), lineEl = document.getElementById('leadline');
 function screenOf(p) { _p.copy(p).project(camera); return _p.z < 1 ? [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight] : null; }
@@ -184,12 +184,26 @@ function hud() {
     lockEl.className = W.locked ? 'locked' : tracking && (performance.now() % 250 < 125) ? 'flash' : '';
     seekerEl.className = W.locked ? 'locked' : '';
   }
+  // enemies: a solid diamond above each one with its distance in nautical miles (counts down as you close)
   weapons.drones.forEach((d, k) => {
-    const el = tgtEls[k] || (tgtEls[k] = Object.assign(tgtEl.cloneNode(), { id: '', className: 'tgtc' }), tgtEl.parentNode.appendChild(tgtEls[k]), tgtEls[k]);
+    let el = tgtEls[k];
+    if (!el) {
+      el = tgtEls[k] = document.createElement('div');
+      el.className = 'mark'; el.innerHTML = '<i></i><b></b>';
+      tgtEl.parentNode.appendChild(el);
+      el._b = el.lastChild; el._txt = '';
+    }
     el.hidden = !d.alive || d.falling || !running;
+    if (el.hidden) return;
+    place(el, d.obj.position);
+    const nm = d.pos.distanceTo(ac.pos) / 1852;
+    const txt = nm < 10 ? nm.toFixed(1) : Math.round(nm).toString();
+    if (txt !== el._txt) { el._b.textContent = txt; el._txt = txt; }
     el.classList.toggle('sel', d === W.target && !msl);
-    if (!el.hidden) place(el, d.obj.position);
   });
+  // the selected enemy (gun solution) also gets a square around the aircraft itself
+  selEl.hidden = !W.target || msl || !running || !W.target.alive || W.target.falling;
+  if (!selEl.hidden) place(selEl, W.target.obj.position);
   // lead pip for the selected enemy (guns), red when the reticle is on it
   leadEl.hidden = !W.lead || msl || !running || W.leadTime > 2.5;
   lineEl.hidden = true;
