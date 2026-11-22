@@ -2,7 +2,7 @@
 
 ## Ground rules
 - Three.js + Vite, plain JavaScript. Target CrazyGames first, Poki later; must run well on Chromebooks.
-- Minimal text in the game. No labels, tooltips or explanatory copy; communicate visually. Allowed text so far: "CLICK TO START", the IAS (KT) and G readouts, the 1/2 weapon key hints, and enemy distances in km. Dev-only tools (the ` panel) are exempt.
+- Minimal text in the game. No labels, tooltips or explanatory copy; communicate visually. Allowed text so far: "CLICK TO START", the IAS (KT) and G readouts, the 1/2 weapon key hints, enemy distances in km, and enemy aircraft types in plain words ("Fighter", "Bomber"; never real names). Dev-only tools (the ` panel) are exempt.
 - No real aircraft names, manufacturers, countries, flags or insignia anywhere in the game or store pages. Repaint all models.
 - Every third-party asset must be commercial-use licensed (CC0, CC-BY, or a store license; never NC or ND) and listed in CREDITS.md.
 - No sound yet.

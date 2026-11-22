@@ -246,7 +246,7 @@ class Trails {
           if (a < 0.003) discard;
           float lit = 0.5 + 0.5 * clamp(uSunDir.y * 0.8 + across * 0.35 + (n - 0.5) * 0.6 * puff, 0.0, 1.0);
           vec3 smoke = mix(vec3(0.2, 0.2, 0.2), vec3(0.42, 0.41, 0.4), lit);
-          vec3 white = mix(vec3(0.55, 0.55, 0.56), vec3(0.9, 0.89, 0.86), lit);
+          vec3 white = mix(vec3(0.47, 0.47, 0.48), vec3(0.72, 0.72, 0.71), lit);   // off-white: lighter than the rope, never glowing
           vec3 col = applyFog(mix(smoke, white, puff), cameraPosition, vWorld);
           col = mix(col, vec3(1.0, 0.78, 0.5) * 1.6, hot);             // glowing exhaust next to the motor
           gl_FragColor = vec4(col * a, a);
@@ -345,7 +345,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     if (kind === 'impact') return explode(p, new THREE.Vector3(), 0.6);
     if (kind === 'groundfire') return fires.push({ p: p.clone(), t: 0, life: v ? 25 : 10, big: !!v, tS: 0, tF: 0 });
     let spacingNow = 1;
-    const make = kind === 'smoke' ? (q) => { puffSmoke(q); S.fx[S.fx.length - 1].scale = Math.sqrt(spacingNow); } : (q) => puffFlame(q, v);
+    // key.fade (0..1) shrinks the puffs: a fire dying down
+    const fade = key && key.fade !== undefined ? key.fade : 1;
+    const make = kind === 'smoke' ? (q) => { puffSmoke(q); const e = S.fx[S.fx.length - 1]; e.scale = Math.sqrt(spacingNow); e.s *= 0.4 + 0.6 * fade; }
+      : (q) => { puffFlame(q, v); S.fx[S.fx.length - 1].s *= fade; };
     // spacing grows with the object's speed (bigger, sparser puffs that still merge) and with how busy the pool is
     const busy = S.fx.length / 3000, speed = v ? v.length() : 0;
     if (busy > 1.2) return;
@@ -357,6 +360,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     let e = st[kind];
     if (!e) { st[kind] = { p: p.clone(), t: 0 }; make(p); return; }
     const d = e.p.distanceTo(p);
+    if (d > 300) { e.p.copy(p); e.t = 0; make(p); return; }   // a jump (respawned, teleported): start a new trail, don't fill the gap
     if (d >= spacing) {
       const n = Math.min(Math.floor(d / spacing), 40);
       for (let k = 1; k <= n; k++) make(e.p.clone().lerp(p, k / n));
@@ -389,6 +393,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   }
   function placeDrone(d, k = Math.random() * 8) {
     d.dmg.repair(); d.cr = null;
+    lastAt.delete(d); lastAt.delete(d.obj);   // its old smoke and flame trails ended where it went down
     // a circle somewhere around the player, 3 to 8 km away, at a similar height
     const a = (k / Math.max(drones.length || cfg.drones, 1)) * Math.PI * 2 + Math.random() * 0.6;
     const r = cfg.droneMinDist + Math.random() * (cfg.droneMaxDist - cfg.droneMinDist);
@@ -446,7 +451,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   }
   function killDrone(d) {
     if (d.falling) return;
-    d.falling = true;
+    d.falling = true; d.dmg.doomed = true;   // (every fire on it burns fully again)
     startCrippled(d, d.def.crippled);
     S.fx.push({ pri: 1, kind: 'fire', p: d.pos.clone(), v: d.vel.clone().multiplyScalar(0.3), t: 0, life: 0.3, s: 12 });
   }
@@ -645,7 +650,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     const p = RAILS[k].clone().applyQuaternion(ac.quat).add(ac.pos);
     const obj = proto.clone(true); scene.add(obj);
     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);
-    S.missiles.push({ obj, p, prev: p.clone(), v: ac.vel.clone().add(_v.set(0, -4, 0).applyQuaternion(ac.quat)), dir, t: 0, target: S.locked ? S.seeker : null, trail: trails.start() });
+    S.missiles.push({ obj, p, prev: p.clone(), v: ac.vel.clone().add(_v.set(0, -4, 0).applyQuaternion(ac.quat)), dir, t: 0, target: S.locked ? S.seeker : null, trail: trails.start(), owner: 'player' });
     S.lock = 0;
   }
 
@@ -753,7 +758,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         at.x += (r1 - 0.5) * spread; at.z += (r2 - 0.5) * spread; at.y += (r1 * r2 - 0.25) * spread + age * 0.6;
         const grow = 2.2 + 11 * (1 - Math.exp(-(age - 0.9) / 2.6)) * (0.75 + 0.5 * r2);   // ~4 m across, billowing to ~25 m
         const op = THREE.MathUtils.smoothstep(age, 0.9, 2.2) * Math.pow(Math.max(0, 1 - age / 10), 1.1) * 0.8;
-        const tone = 0.5 + 0.16 * r1;                                    // light grey, never pure white
+        const tone = 0.4 + 0.12 * r1;                                    // pale grey, between the smoke rope and white
         smoke.push(at, null, tone, tone, tone * 0.98, op, grow, (r1 + r2) % 1);
       }
     }

@@ -129,6 +129,8 @@ export class Damage {
   }
 
   get dead() { return this.bodyHp <= 0 || FATAL.some(n => this.parts[n]?.broken); }
+  // going down, by a fatal hit or otherwise (set by whoever flies it): everything burns at full strength
+  get burning() { return this.dead || !!this.doomed; }
 
   // effects on the flight model of whatever is missing
   effects() {
@@ -138,6 +140,7 @@ export class Damage {
       rollBias: (outerR - outerL) * 0.5,                       // rolls toward the missing wing tip
       rollMul: 1 - 0.35 * (outerL + outerR),
       pitchMul: 1 - 0.3 * (b('stabL') + b('stabR')),
+      liftMul: 1 - 0.15 * (outerL + outerR + b('stabL') + b('stabR')),   // each lost outer wing or stabiliser costs ~15% of the turn
       yawMul: 1 - 0.7 * b('fin'),
       wobble: 0.25 * (b('stabL') + b('stabR')) + 0.4 * b('fin'),
       pitchWobble: b('stabL') + b('stabR') === 1 ? 1 : 0,    // (enemies: one stabiliser left, it porpoises)
@@ -174,8 +177,8 @@ export class Damage {
     }
     // while the jet can still fly only torn wing sections (fuel) burn, and modestly; fin, stabilators and nose
     // don't burn at all. Once it's going down, every break burns fully (see update).
-    const burns = name.startsWith('wing') || this.dead;
-    this.fires.push({ at: part.breakAt.clone(), wing: name.startsWith('wing') });
+    const burns = name.startsWith('wing') || this.burning;
+    this.fires.push({ at: part.breakAt.clone(), wing: name.startsWith('wing'), t: 0, life: 5 + Math.random() * 10 });   // (a wing fire on a flyable aircraft burns out after life s)
     const edge = part.breakAt.clone().sub(part.local.elements.length ? new THREE.Vector3().setFromMatrixPosition(part.local) : o.position);   // torn edge, relative to the piece
     o.updateWorldMatrix(true, true);
     this.scene.attach(o);
@@ -200,7 +203,7 @@ export class Damage {
       p.local.decompose(p.obj.position, p.obj.quaternion, p.obj.scale);
     }
     for (const [o, m] of this.mats) o.material = m;
-    this.debris = []; this.fires = []; this.bodyHp = BODY_HP * (this.model.userData.toughness || 1);
+    this.debris = []; this.fires = []; this.doomed = false; this.bodyHp = BODY_HP * (this.model.userData.toughness || 1);
   }
 
   update(dt) {
@@ -225,12 +228,16 @@ export class Damage {
     }
     this.debris = this.debris.filter(d => { if (d.t > 40) { d.obj.removeFromParent(); return false; } return true; });
     // break points on the airframe keep burning
-    const dead = this.dead;
+    const dead = this.burning;
     for (const f of this.fires) {
       if (!dead && !f.wing) continue;                        // flyable: only wing breaks burn
+      // flyable: the fire dies down over its last couple of seconds and goes out; going down, it all burns again
+      f.t += dt;
+      f.fade = dead ? 1 : 1 - Math.min(Math.max((f.t - (f.life - 2.5)) / 2.5, 0), 1);
+      if (f.fade <= 0) continue;
       const w = this.model.localToWorld(f.at.clone());
-      this.emit('smoke', w, null, f);
-      if (dead || Math.random() < 0.35) this.emit('flame', w, null, f);   // flyable: a modest fire, not a blaze
+      if (dead || Math.random() < 0.3 + 0.7 * f.fade) this.emit('smoke', w, null, f);
+      if (dead || Math.random() < 0.35 * f.fade) this.emit('flame', w, null, f);   // flyable: a modest fire, not a blaze
     }
   }
 }

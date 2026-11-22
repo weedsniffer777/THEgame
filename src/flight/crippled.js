@@ -15,8 +15,11 @@ const _lift = new THREE.Vector3(), _side = new THREE.Vector3(), _fwd = new THREE
 
 // per type: moment per unit of asymmetry / instability (1/s²) and the damping against it (1/s), cruise lift/drag
 export const CRIPPLED = {
-  fighter: { roll: 7, rollDamp: 3, pitch: 10, pitchDamp: 3, yaw: 6, yawDamp: 2, ld: 10, gLimit: 9 },
-  bomber: { roll: 0.16, rollDamp: 0.6, pitch: 1.6, pitchDamp: 0.8, yaw: 1.0, yawDamp: 0.6, ld: 14, gLimit: 3 },
+  // span: how a wing half's lift is spread: the share on the outer panel, and where (as a fraction of the half-span)
+  // the inner and outer lift acts. A long, high-aspect wing carries much of its lift far out, so losing an outer
+  // panel takes most of that side's rolling moment with it.
+  fighter: { roll: 7, rollDamp: 3, pitch: 10, pitchDamp: 3, yaw: 6, yawDamp: 2, ld: 10, gLimit: 9, span: { outer: 0.4, inArm: 0.35, outArm: 0.75 } },
+  bomber: { roll: 0.24, rollDamp: 0.6, pitch: 1.6, pitchDamp: 0.8, yaw: 1.0, yawDamp: 0.6, ld: 14, gLimit: 3, span: { outer: 0.5, inArm: 0.3, outArm: 0.82 } },
 };
 
 // normalised lift curve: equals the AoA (rad) up to the stall, then falls away to a flat plate
@@ -35,9 +38,10 @@ export function startCrippled(d, type) {
 }
 
 // what is left of each lifting / stabilising surface (1 = intact)
-function surfaces(parts) {
+function surfaces(parts, sp) {
   const gone = (n) => !!parts[n]?.broken;
-  const side = (s) => gone('wingInner' + s) ? [0, 0] : gone('wingOuter' + s) ? [0.6, 0.35] : [1, 1];   // [lift, roll moment]
+  const full = (1 - sp.outer) * sp.inArm + sp.outer * sp.outArm;                // rolling moment of an intact half
+  const side = (s) => gone('wingInner' + s) ? [0, 0] : gone('wingOuter' + s) ? [1 - sp.outer, (1 - sp.outer) * sp.inArm / full] : [1, 1];   // [lift, roll moment]
   const [lL, mL] = side('L'), [lR, mR] = side('R');
   const tail = gone('tail');
   return { lift: (lL + lR) / 2, roll: mL - mR,
@@ -46,7 +50,7 @@ function surfaces(parts) {
 }
 
 export function stepCrippled(d, dt) {
-  const c = d.cr, k = c.k, s = surfaces(d.dmg.parts);
+  const c = d.cr, k = c.k, s = surfaces(d.dmg.parts, k.span);
   c.t += dt;
   const q = d.obj.quaternion;
   const V = Math.max(d.vel.length(), 1), vr = V / c.V0, qn = vr * vr;
@@ -74,7 +78,7 @@ export function stepCrippled(d, dt) {
   d.pos.addScaledVector(d.vel, dt);
 
   // moments: the remaining lift rolls it, the tail (if any) holds the nose to the flight path, the fin the heading
-  const w = c.w, trim = A0 - 0.004 * c.t;                                      // nobody flying it: the nose slowly drops
+  const w = c.w, trim = A0 * Math.max(0.5, 1 - 0.04 * c.t);                    // nobody flying it: the nose slowly drops (the wing still lifts)
   const pitchStab = s.stab - 0.45 * (1 - s.stab);                               // negative = unstable
   w.x += (k.pitch * qn * (s.stab * (alpha - trim) + (pitchStab - s.stab) * (alpha - c.kick)) - k.pitchDamp * vr * (0.35 + 0.65 * s.stab) * w.x) * dt;
   w.y += (k.yaw * qn * ((s.fin - 0.3 * (1 - s.fin)) * Math.sin(beta) + 0.06 * s.roll) - k.yawDamp * vr * (0.4 + 0.6 * s.fin) * w.y) * dt;

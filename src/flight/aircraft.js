@@ -76,10 +76,11 @@ export class Aircraft {
       const gFloor = c.gFloorMax * Math.pow(floorT, c.gFloorCurve);
       const clFull = this.liftCoef(c.gFloorAoA * DEG);
       const boost = Math.max(1, gFloor * c.mass * G / Math.max(dyn * c.wingArea * clFull, 1));
-      this.liftScale = boost;
-      const clEff = cl * boost;
+      const lm = this.damageFx?.liftMul ?? 1;                // missing lifting / stabilising surfaces: less G for a given AoA
+      this.liftScale = boost * lm;
+      const clEff = cl * boost * lm;
       const cd = c.cd0 + wave + c.inducedDrag * cl * cl + c.stallDrag * stall + c.airbrakeDrag * this.airbrake
-        + c.boostDrag * Math.abs(clEff - cl) * (1 + (c.lowSpeedBleed || 0) * (1 - smooth(c.gFloorStartIAS, c.lowSpeedBleedIAS || 80, ias)) ** 2);
+        + c.boostDrag * Math.max(0, clEff - cl) * (1 + (c.lowSpeedBleed || 0) * (1 - smooth(c.gFloorStartIAS, c.lowSpeedBleedIAS || 80, ias)) ** 2);
       _lift.crossVectors(_right, vdir).normalize().multiplyScalar(dyn * c.wingArea * clEff);
       _side.set(1, 0, 0).applyQuaternion(this.quat);
       _side.addScaledVector(vdir, -_side.dot(vdir)).normalize().multiplyScalar(-dyn * c.wingArea * c.sideForce * beta);

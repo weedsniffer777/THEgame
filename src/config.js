@@ -67,7 +67,7 @@ export const F5 = {
   boostDrag: 0.22,        // drag per unit of extra lift: what slow tight turns cost in speed
   lowSpeedBleed: 3,       // that drag is up to (1 + this) times higher near the stall, fading out by lowSpeedBleedIAS,
   lowSpeedBleedIAS: 90,   // m/s IAS (~175 kt): so a slow, gliding jet can't hold 2-3 G turns for free
-  airbrakeDrag: 0.08,     // extra drag coefficient with the speed brakes fully out
+  airbrakeDrag: 0.14,     // extra drag coefficient with the speed brakes fully out
   airbrakeRate: 1.5,      // fraction of full travel per second
   afterburner: 'spray',   // 'spray' (this jet) or 'diamonds' (shock diamonds after the first flame)
 

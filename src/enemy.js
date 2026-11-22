@@ -17,7 +17,7 @@ export const ENEMIES = {
       || (Math.abs(c.x) > 2.6 && Math.abs(c.x) < 3.4 && c.z > -1.95 && c.z < -0.45 && c.y < 1.3 && Math.abs(n.y) < 0.35)
       || (Math.abs(c.x) < 0.5 && c.z > 2.0 && c.z < 4.0 && c.y < 0.84)
       || (Math.abs(c.x) < 0.2 && c.z > 3.4 && c.z < 4.3 && c.y < 1.2 && Math.abs(n.y) < 0.35),
-    speed: [140, 220], radius: [500, 1400], hitRadius: 7, toughness: 1, crippled: 'fighter',
+    speed: [140, 220], radius: [500, 1400], hitRadius: 7, toughness: 1, crippled: 'fighter', label: 'Fighter',
   },
   // slow four-engine strategic bomber: big, tough, flies wide steady circles
   bomber: {
@@ -29,7 +29,7 @@ export const ENEMIES = {
     allMeshes: true,                     // built from many meshes: cut all of them
     dropMeshes: ['Object_11', 'Object_12', 'Object_13', 'Object_14', 'Object_15', 'Object_16'],   // main gear wheels and legs (modelled down)
     meta: 'models/jets/bomber.meta.json',   // leftover gear triangles to drop, and the propeller discs (made by an offline pass over the model)
-    speed: [120, 150], radius: [3000, 4500], hitRadius: 24, toughness: 4, crippled: 'bomber',
+    speed: [120, 150], radius: [3000, 4500], hitRadius: 24, toughness: 4, crippled: 'bomber', label: 'Bomber',
   },
 };
 

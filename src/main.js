@@ -129,34 +129,74 @@ function crash() {
     const o = _wv.subVectors(camera.position, ac.pos), L = Math.max(o.length(), 1);
     deathCam.yaw = Math.atan2(o.x, o.z); deathCam.pitch = Math.asin(THREE.MathUtils.clamp(o.y / L, -1, 1)); deathCam.dist = L;
   }
+  jet.damage.doomed = true;                                          // every fire on it burns fully again
   weapons.crash(ac.pos, ac.vel);
   wreck.pos.copy(ac.pos); wreck.vel.copy(ac.vel); wreck.quat.copy(ac.quat); wreck.key = {};
-  wreck.spin.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(4);
+  wreck.spin.set(-ac.q, -ac.r, ac.p).applyQuaternion(ac.quat);      // keeps the rotation it had (world axes)
   const speed = ac.vel.length();
   for (const side of ['L', 'R']) if (speed > 90 && Math.random() < 0.6) jet.damage.breakPart('wingOuter' + side, ac.vel);
   ac.throttle = ac.engine = 0;
   document.body.classList.remove('lost');
 }
 const _wn = new THREE.Vector3(), _wv = new THREE.Vector3(), _wq = new THREE.Quaternion();
+// The wreck is a rigid body that touches the ground at points on its airframe (body frame: +x left wing, +y up,
+// +z nose; points on parts that have broken off no longer count). Each touching point gets a normal impulse with
+// almost no bounce and a friction impulse, applied at that point, so it tumbles only as much as the contacts make it,
+// slides, settles on whatever it lands on and comes to rest.
+const WRECK_PTS = [
+  [[0, -0.2, 7.2]], [[0, 0.3, -7]], [[0, -1.0, 0.5]], [[0, -0.9, -3.5]], [[0, 1.2, 2.6]], [[0, 3.1, -6.4], 'fin'],
+  [[4.0, -0.1, -1.6], 'wingOuterL'], [[-4.0, -0.1, -1.6], 'wingOuterR'], [[2.0, -0.3, -0.6], 'wingInnerL'], [[-2.0, -0.3, -0.6], 'wingInnerR'],
+  [[2.6, 0.2, -5.6], 'stabL'], [[-2.6, 0.2, -5.6], 'stabR'],
+].map(([p, part]) => ({ p: new THREE.Vector3(...p), part }));
+const WRECK_I = new THREE.Vector3(1 / 16, 1 / 18, 1 / 4);   // inverse inertia per unit mass about body x (pitch), y (yaw), z (roll), 1/m²
+const _r = new THREE.Vector3(), _vc = new THREE.Vector3(), _t1 = new THREE.Vector3(), _t2 = new THREE.Vector3(), _qInv = new THREE.Quaternion();
+function invI(v, out) {   // world-space inverse inertia applied to a world vector
+  _qInv.copy(wreck.quat).invert();
+  out.copy(v).applyQuaternion(_qInv).multiply(WRECK_I).applyQuaternion(wreck.quat);
+  return out;
+}
 function wreckStep(dt) {
   wreck.vel.y -= 9.81 * dt;
   wreck.pos.addScaledVector(wreck.vel, dt);
-  const x = wreck.pos.x, z = wreck.pos.z, ground = terrain.heightAt(x, z);
-  if (wreck.pos.y < ground + 1.2) {
-    // terrain normal from the height field
+  const w0 = wreck.spin.length();
+  if (w0 > 1e-5) { _wq.setFromAxisAngle(_wn.copy(wreck.spin).divideScalar(w0), w0 * dt); wreck.quat.premultiply(_wq).normalize(); }
+  let touching = 0, lift = 0;
+  for (const c of WRECK_PTS) {
+    if (c.part && jet.damage.parts[c.part]?.broken) continue;
+    _r.copy(c.p).applyQuaternion(wreck.quat);
+    const x = wreck.pos.x + _r.x, z = wreck.pos.z + _r.z, ground = terrain.heightAt(x, z);
+    const pen = ground - (wreck.pos.y + _r.y);
+    if (pen <= 0) continue;
+    touching++; lift = Math.max(lift, pen);
     _wn.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
-    wreck.pos.y = ground + 1.2;
-    const vn = wreck.vel.dot(_wn);
+    // velocity of this point
+    _vc.crossVectors(wreck.spin, _r).add(wreck.vel);
+    const vn = _vc.dot(_wn);
     if (vn < 0) {
-      wreck.vel.addScaledVector(_wn, -1.1 * vn);                        // barely any bounce
-      if (-vn > 25) wreck.vel.multiplyScalar(0.45);                      // a hard hit tears most of the speed away
-      wreck.spin.addScaledVector(_wv.crossVectors(_wn, wreck.vel), 0.004 * Math.min(1, -vn / 20));   // a hard hit sets it tumbling
+      // normal impulse (restitution 0.1; a hard hit also crumples, taking extra energy out)
+      const k = 1 + _wn.dot(_t1.crossVectors(invI(_t2.crossVectors(_r, _wn), _t2), _r));
+      const jn = -(1 + (vn < -20 ? 0 : 0.1)) * vn / k;
+      if (vn < -12) wreck.vel.multiplyScalar(1 - Math.min(0.45, -vn / 120));   // a hard hit crumples the airframe: much of the speed goes
+      wreck.vel.addScaledVector(_wn, jn);
+      wreck.spin.add(invI(_t1.crossVectors(_r, _wn).multiplyScalar(jn), _t2));
+      // friction: oppose the sliding of this point, up to mu times the normal impulse
+      _vc.crossVectors(wreck.spin, _r).add(wreck.vel);
+      const vt = _t1.copy(_vc).addScaledVector(_wn, -_vc.dot(_wn)), sp = vt.length();
+      if (sp > 1e-4) {
+        const tdir = vt.divideScalar(sp);
+        const kt = 1 + tdir.dot(_vc.crossVectors(invI(_t2.crossVectors(_r, tdir), _t2), _r));
+        const jt = Math.min(sp / kt, 0.9 * jn);
+        wreck.vel.addScaledVector(tdir, -jt);
+        wreck.spin.add(invI(_t2.crossVectors(_r, tdir).multiplyScalar(-jt), _vc));
+      }
     }
-    wreck.vel.multiplyScalar(Math.exp(-2.2 * dt));                      // scraping along the ground
-    wreck.spin.multiplyScalar(Math.exp(-2.5 * dt));
   }
-  const w = wreck.spin.length();
-  if (w > 1e-4) { _wq.setFromAxisAngle(_wn.copy(wreck.spin).divideScalar(w), w * dt); wreck.quat.premultiply(_wq).normalize(); }
+  if (touching) {
+    wreck.pos.y += lift * 0.8;                                     // push out of the ground
+    wreck.vel.multiplyScalar(Math.exp(-0.8 * dt));                 // ground scraping and crumpling
+    wreck.spin.multiplyScalar(Math.exp(-2.5 * dt));
+    if (touching >= 3 && wreck.vel.lengthSq() < 0.15 && wreck.spin.lengthSq() < 0.01) { wreck.vel.set(0, 0, 0); wreck.spin.set(0, 0, 0); }   // at rest
+  }
 }
 function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0); }
 
@@ -187,7 +227,7 @@ const aimEl = document.getElementById('aim'), noseEl = document.getElementById('
 const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementChild, vig = document.getElementById('vignette');
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
-const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [];
+const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], mslEls = [];
 const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles);
 const gunSvg = document.getElementById('gunsol'), [gunBox, gunLine, gunCirc] = gunSvg.children;
 function screenOf(p) { _p.copy(p).project(camera); return _p.z < 1 ? [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight] : null; }
@@ -220,12 +260,13 @@ function hud(dt = 1 / 60) {
     const st = W.locked ? 'locked' : tracking ? (performance.now() % 250 < 125 ? 'flashW' : 'flashR') : '';
     lockEl.className = st; seekerEl.className = st;
   }
-  // enemies: a solid diamond above each one with its distance in km (counts down as you close)
+  // enemies: what kind of aircraft it is above it, its distance in km under that (counts down as you close)
   weapons.drones.forEach((d, k) => {
     let el = tgtEls[k];
     if (!el) {
       el = tgtEls[k] = document.createElement('div');
       el.className = 'mark'; el.innerHTML = '<i></i><b></b>';
+      el.firstChild.textContent = d.def.label || 'Fighter';
       tgtEl.parentNode.appendChild(el);
       el._b = el.lastChild; el._txt = '';
     }
@@ -237,6 +278,18 @@ function hud(dt = 1 / 60) {
     if (txt !== el._txt) { el._b.innerHTML = `${txt}<small>KM</small>`; el._txt = txt; }
     el.classList.toggle('sel', d === W.target);
   });
+  // missiles in flight: a diamond on each, blue for ours, red for the enemy's
+  {
+    const ms = weapons.S.missiles;
+    for (let k = 0; k < Math.max(ms.length, mslEls.length); k++) {
+      let el = mslEls[k];
+      if (!el) { el = mslEls[k] = document.createElement('div'); el.className = 'mmark'; tgtEl.parentNode.appendChild(el); }
+      const m = ms[k];
+      if (!m || !running) { el.style.display = 'none'; continue; }
+      if (el._own !== m.owner) { el.classList.toggle('foe', m.owner !== 'player'); el._own = m.owner; }
+      place(el, m.p);
+    }
+  }
   // gun-solution target: the enemy nearest the reticle on screen, weighted toward ones in gun range, and sticky:
   // the current target is kept while it stays near the reticle, so sweeping past other planes mid-fight doesn't steal it.
   // A new one takes over only if it is clearly better for a moment. Nothing is chosen through terrain.
@@ -337,7 +390,7 @@ function frame(now) {
       prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
       weapons.burn(wreck.pos, wreck.vel, wreck.key);
       weapons.step(dt, performance.now() / 1000);
-      if (dead > 7) spawn();
+      if (dead > 9 && !window.__holdWreck) spawn();   // (__holdWreck: dev tests watch the wreck to rest)
     } else while (acc >= STEP) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }
   }
   mouseDX = mouseDY = 0;
