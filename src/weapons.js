@@ -80,10 +80,13 @@ class Sprites {
           gl_Position = projectionMatrix * p;
           // smoke right at the camera (flying through a trail) fades out and is not drawn at all: those huge
           // overlapping close-up puffs were what made flying through smoke slow
-          if (uAdd < 0.5 && streak < 0.5) {
-            float near = smoothstep(asize.x * 0.9, asize.x * 2.2, -h.z);
-            vCol.a *= near;
-            if (near < 0.01) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+          if (streak < 0.5) {
+            // how big it is on screen (1 = half the screen height): puffs that would cover a large part of the
+            // screen fade out, so flying through smoke or a fireball never stacks full-screen layers (overdraw)
+            float scr = asize.x * 1.45 * projectionMatrix[1][1] / max(-h.z, 1e-3);
+            float k = (1.0 - smoothstep(0.28, 0.75, scr)) * smoothstep(asize.x * 0.9, asize.x * 2.2, -h.z);
+            if (uAdd < 0.5) vCol.a *= k; else vCol.a *= k;
+            if (k < 0.01) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           }
         }`,
       fragmentShader: /* glsl */`

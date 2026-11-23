@@ -6,8 +6,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8aa4c4; tou
 #hud { position: fixed; inset: 0; pointer-events: none; }
 #vignette { --inner: 35%; position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent var(--inner), #000 100%); }
 #aim, #nose { position: absolute; left: 0; top: 0; will-change: transform; }
-#aim { width: 4px; height: 4px; margin: -2px 0 0 -2px; background: rgba(255,255,255,0.9); border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.45); }   /* where you aim: a small dot */
-#aim.stall { background: #ff4a3a; }
+#aim { width: 10px; height: 10px; margin: -6.5px 0 0 -6.5px; border: 1.5px solid rgba(255,255,255,0.9); border-radius: 50%; box-shadow: 0 0 2px rgba(0,0,0,0.6); }   /* where you aim: the old circle at ~38% */
+#aim.stall { border-color: #ff4a3a; }
 #nose { width: 18px; height: 18px; margin: -9px 0 0 -9px; }
 #nose::before, #nose::after { content: ''; position: absolute; background: rgba(255,255,255,0.9); box-shadow: 0 0 3px rgba(0,0,0,0.5); }
 #nose::before { left: 8px; top: 0; width: 2px; height: 18px; }

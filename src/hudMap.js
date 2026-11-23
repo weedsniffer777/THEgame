@@ -58,27 +58,20 @@ export function createMap(root, terrain) {
     g.fillStyle = '#2b2e32'; g.fillRect(0, 0, px, px);
     g.drawImage(src, cx - sp / 2, cy - sp / 2, sp, sp, 0, 0, px, px);
     const s = px / sp, P = (x, z) => { const [a, b] = toPx(x, z); return [(a - cx) * s + px / 2, (b - cy) * s + px / 2]; };
-    // enemies: fighters a small dart like ours; bombers a wide, blunt chevron with a flat bar behind it
-    g.fillStyle = '#ff4a3c'; g.strokeStyle = '#ff4a3c'; g.lineWidth = 1.4 * dpr; g.lineJoin = 'round';
+    // enemies: the same dart as ours, red, a little smaller, with a dark outline so they read on any ground
+    g.fillStyle = '#ff4a3c'; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineWidth = 1.2 * dpr; g.lineJoin = 'round';
     for (const d of drones) {
       if (!d.alive || d.falling || d.hidden) continue;
       const [x, y] = P(d.pos.x, d.pos.z); if (x < -6 || y < -6 || x > px + 6 || y > px + 6) continue;
-      const hd = Math.atan2(d.vel.x, -d.vel.z);
+      const hd = Math.atan2(d.vel.x, -d.vel.z), L = 5.5 * dpr;
       g.save(); g.translate(x, y); g.rotate(hd);
-      if (d.def.label === 'Bomber') {
-        const L = 4.2 * dpr;
-        g.beginPath(); g.moveTo(-L * 1.3, L * 0.45); g.lineTo(0, -L * 0.55); g.lineTo(L * 1.3, L * 0.45); g.lineTo(0, L * 0.05); g.closePath(); g.fill();
-        g.beginPath(); g.moveTo(-L * 0.75, L * 1.05); g.lineTo(L * 0.75, L * 1.05); g.stroke();
-      } else {
-        const L = 4 * dpr;
-        g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); g.fill();
-      }
+      g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); g.stroke(); g.fill();
       g.restore();
     }
     // the player: an arrow along the heading
     const f = ac.vel, hd = Math.atan2(f.x, -f.z), L = 7 * dpr, [ax, ay] = P(ac.pos.x, ac.pos.z);
     g.save(); g.translate(ax, ay); g.rotate(hd);
-    g.fillStyle = '#ecf6ee'; g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); g.fill();
+    g.fillStyle = '#ecf6ee'; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); g.stroke(); g.fill();
     g.restore();
   };
   let held = false;
