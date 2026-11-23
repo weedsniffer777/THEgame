@@ -5,12 +5,13 @@ import * as THREE from 'three';
 // unflyable; losing a wing root is a kill. A lost nose is survivable (and doesn't burn while still flying).
 //
 // Regions are per aircraft type, in that model's own coordinates (+X is the left wing, +Z the nose).
-// stab: tailplane cut from the hull (T-tails etc.); jets with separate moving stabilators leave it out.
+// stab: tailplane cut from the hull (T-tails etc.); jets with separate moving stabilators leave it out. Each cut takes
+// the whole surface (measured from the models: root to tip, leading to trailing edge), so what breaks off is the piece.
 export const REGIONS = {
   lightFighter: { jag: 0.22, noseZ: 6.0, tail: { z: -3.6 }, fin: { y: 2.5, z: -2.4 }, outer: { x: 2.45, y: 1.8, z0: -3.4, z1: 1.4 }, inner: { x: 1.05, y: 1.62, z0: -3.0, z1: 1.8 } },
   // heavy four-engine bomber (model turned so its nose is +Z)
-  bomber: { jag: 0.9, noseZ: 15, tail: { z: -12 }, stab: { x: 1.0, y: -6, z: -19, yMax: 0.3 }, fin: { y: 0.3, z: -15 }, outer: { x: 13, y: 0.5, z0: -10, z1: 12 }, inner: { x: 1.6, y: 0.5, z0: -10, z1: 14 } },
-  earlyJet: { jag: 0.3, noseZ: 3.3, stab: { x: 0.3, y: 4.0, z: -9.2 }, fin: { y: 3.3, z: -6.8 }, outer: { x: 4.2, y: 3.2, z0: -6.5, z1: 1.0 }, inner: { x: 1.0, y: 3.1, z0: -6.5, z1: 1.3 } },
+  bomber: { jag: 0.9, noseZ: 15, tail: { z: -12 }, stab: { x: 0.9, y: -2, z: -15.5, yMax: 0.3 }, fin: { y: 0.3, z: -11 }, outer: { x: 11.2, y: 0.5, z0: -10, z1: 12 }, inner: { x: 1.6, y: 0.5, z0: -10, z1: 14 } },
+  earlyJet: { jag: 0.3, noseZ: 3.3, stab: { x: 0.28, y: 4.0, z: -7.9, yMax: 4.65 }, fin: { y: 3.3, z: -6.8 }, outer: { x: 4.2, y: 3.2, z0: -6.5, z1: 1.0 }, inner: { x: 1.0, y: 3.1, z0: -6.5, z1: 1.3 } },
 };
 
 const _jg = new THREE.Vector3();

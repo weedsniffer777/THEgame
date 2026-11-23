@@ -107,7 +107,7 @@ export function createMap(root, terrain) {
   let tick = 0;
   return (ac, drones, missiles) => {
     if ((tick = (tick + 1) % 2)) return;                      // every other frame is plenty
-    draw(mc, Math.round(Math.min(168, innerHeight * 0.3)), 9000, ac, drones, missiles);   // (smaller on short phone screens)
+    draw(mc, Math.round(Math.min(210, innerHeight * 0.27)), 9000, ac, drones, missiles);   // (smaller on short phone screens)
     if (held) draw(bc, Math.min(innerWidth, innerHeight) * 0.72, 1e9, ac, drones, missiles);
   };
 }

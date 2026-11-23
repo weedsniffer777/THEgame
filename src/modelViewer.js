@@ -5,7 +5,7 @@ import { Damage } from './damage.js';
 import { TUNABLE, saveTuning, resetGroup } from './config.js';
 
 // Dev kit model viewer: a separate, static scene (neutral studio light, ground grid) to inspect any model in the game.
-// Drag to orbit, wheel to zoom, pick the model from the list, Space hides the panel. It has everything the cinematic
+// Drag to orbit, wheel to zoom, pick the model (and its paint) from the list. It has everything the cinematic
 // camera has: the player jet is shown live (every animation, afterburner, gear, doors), and any model can have its
 // parts broken off and repaired (the pieces fall away in the viewer).
 const NO_GROUND = { heightAt: () => -1e9, isWater: () => false };
@@ -18,8 +18,8 @@ export function createModelViewer(renderer, canvas, environment, models, { anim,
   const grid = new THREE.GridHelper(40, 40, 0x56636f, 0x3a4550); grid.position.y = -3; scene.add(grid);
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 500);
   const holder = new THREE.Group(); scene.add(holder);
-  const st = { on: false, az: 2.3, el: 0.3, dist: 22, drag: null, name: Object.keys(models)[0] };
-  let gui = null, dmgFolder = null, animFolder = null, damage = null, live = null, last = performance.now();
+  const st = { on: false, az: 2.3, el: 0.3, dist: 22, drag: null, name: Object.keys(models)[0], paint: F5_DEFAULT_PAINT };
+  let gui = null, dmgFolder = null, animFolder = null, doorFolder = null, paintCtl = null, damage = null, live = null, last = performance.now();
   const props = [];
 
   // the live player jet is borrowed from the game scene while it is shown, and given back after
@@ -28,6 +28,17 @@ export function createModelViewer(renderer, canvas, environment, models, { anim,
     jet.damage.repair(); jet.damage.scene = live.scene; jet.damage.terrain = live.terrain;
     live.parent.add(jet.object); jet.object.position.copy(live.pos); jet.object.quaternion.copy(live.quat);
     anim.active = false; live = null;
+  }
+  // the paint list for what is shown: the player jet's schemes, or the model's own (standard / unmarked ...)
+  function paintsOf(name) { return models[name].live ? Object.keys(F5_PAINTS) : models[name].paints || []; }
+  function buildPaintUi(name) {
+    if (!gui) return;
+    paintCtl?.destroy(); paintCtl = null;
+    const list = paintsOf(name);
+    if (!list.length) return;
+    if (!list.includes(st.paint)) st.paint = models[name].live ? F5_DEFAULT_PAINT : list[0];
+    paintCtl = gui.add(st, 'paint', list).name('paint').onChange(v => { if (models[name].live) jet.setPaint(v); else show(name); });
+    paintCtl.domElement.parentElement.insertBefore(paintCtl.domElement, gui.controllers[0].domElement.nextSibling);   // (right under the model list)
   }
   function show(name) {
     giveBack();
@@ -39,7 +50,7 @@ export function createModelViewer(renderer, canvas, environment, models, { anim,
       jet.damage.scene = scene; jet.damage.terrain = NO_GROUND;
       damage = jet.damage; anim.active = true;
     } else {
-      o = models[name]().clone(true);
+      o = models[name](st.paint).clone(true);
       let hasParts = false; o.traverse(c => { if (c.userData.part) hasParts = true; });
       if (hasParts) { o.updateMatrixWorld(true); damage = new Damage(o.children[0] || o, scene, NO_GROUND, () => {}); }
       o.traverse(c => { if (c.userData.prop) props.push(c); });
@@ -53,6 +64,7 @@ export function createModelViewer(renderer, canvas, environment, models, { anim,
     st.dist = size * 1.3;
     buildDamageUi();
     if (animFolder) animFolder.domElement.style.display = live ? '' : 'none';
+    if (doorFolder) doorFolder.domElement.style.display = live ? '' : 'none';   // (player jet only)
   }
   function buildDamageUi() {
     if (!gui) return;
@@ -81,12 +93,8 @@ export function createModelViewer(renderer, canvas, environment, models, { anim,
       if (!gui) {
         gui = new GUI({ title: 'model viewer' });
         gui.domElement.style.top = '70px';
-        gui.add(st, 'name', Object.keys(models)).name('model').onChange(show);
+        gui.add(st, 'name', Object.keys(models)).name('model').onChange((n) => { buildPaintUi(n); show(n); });
         if (anim) {
-          if (jet?.setPaint) {                                 // paint scheme of the player's jet
-            const ps = { paint: F5_DEFAULT_PAINT };
-            gui.add(ps, 'paint', Object.keys(F5_PAINTS)).name('paint (player jet)').onChange(v => jet.setPaint(v));
-          }
           animFolder = gui.addFolder('animation (player jet)');
           animFolder.add(anim, 'cycle').name('play all');
           animFolder.add(anim, 'pitch', -1, 1, 0.01); animFolder.add(anim, 'roll', -1, 1, 0.01); animFolder.add(anim, 'yaw', -1, 1, 0.01);
@@ -96,13 +104,14 @@ export function createModelViewer(renderer, canvas, environment, models, { anim,
           animFolder.add(anim, 'canopy', 0, 1, 0.01).name('canopy open');
           animFolder.add(anim, 'aoa', 0, 20, 0.1).name('AoA (flaps)');
           for (const c of animFolder.controllers) c.listen();
-          const d = gui.addFolder('door angles (closed)').close();
+          const d = doorFolder = gui.addFolder('door angles (closed)').close();
           for (const k of Object.keys(TUNABLE.DOORS)) d.add(TUNABLE.DOORS, k, -180, 180, 0.5).onChange(saveTuning);
           d.add({ reset: () => { resetGroup('DOORS'); d.controllers.forEach(c => c.updateDisplay()); } }, 'reset').name('reset to game angles');
         }
         gui.add({ exit: () => { st.on = false; gui.hide(); giveBack(); holder.clear(); onExit(); } }, 'exit').name('exit viewer');
       }
       gui.show();
+      buildPaintUi(st.name);
       show(st.name);
     },
     toggleUi() { if (gui) gui.domElement.style.display = gui.domElement.style.display === 'none' ? '' : 'none'; },

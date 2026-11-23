@@ -1035,10 +1035,8 @@ paintEnemy(bomberProto, 'unmarked').then(o => { unmarked.bomber = o; });
 const liveJet = () => jet.object; liveJet.live = true;   // (shown live: animations, afterburner, gear, doors)
 const models = createModelViewer(renderer, canvas, scene.environment, {
   'player jet': liveJet,
-  'enemy: early jet': () => enemyProto,
-  'enemy: bomber': () => bomberProto,
-  'enemy: early jet (unmarked)': () => unmarked.earlyJet || enemyProto,
-  'enemy: bomber (unmarked)': () => unmarked.bomber || bomberProto,
+  'enemy: early jet': Object.assign((paint) => paint === 'unmarked' ? unmarked.earlyJet || enemyProto : enemyProto, { paints: ['standard', 'unmarked'] }),
+  'enemy: bomber': Object.assign((paint) => paint === 'unmarked' ? unmarked.bomber || bomberProto : bomberProto, { paints: ['standard', 'unmarked'] }),
   'missile': () => weapons.missileProto,
 }, { anim: viewerAnim, jet });
 function openModels() {
@@ -1049,9 +1047,9 @@ function openModels() {
   models.open(() => { document.body.classList.remove('viewing', 'clean'); if (started) pauseMenu.open(); else startEl.classList.add('show'); });
 }
 document.getElementById('kit-models').addEventListener('click', e => { e.stopPropagation(); kitMenu.hidden = true; openModels(); });
-// Space in the cinematic camera or model viewer: hide / show every overlay for clean shots
+// Space in the cinematic camera: hide / show every overlay for clean shots (not in the model viewer)
 addEventListener('keydown', e => {
-  if (e.code !== 'Space' || !(viewer.on || models.on)) return;
+  if (e.code !== 'Space' || !viewer.on) return;
   e.preventDefault();
   document.body.classList.toggle('clean');
 });

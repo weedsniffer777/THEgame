@@ -94,7 +94,7 @@ body.touch #throttle, #gauges { display: none !important; }
 .t-fire.on, .t-btn.on { background: rgba(255,255,255,0.3); }
 .t-fire.locked { border-color: #ff5541; }
 .t-brake { left: max(74px, calc(env(safe-area-inset-left) + 56px)); bottom: 28px; }
-.t-gear { left: max(14px, env(safe-area-inset-left)); bottom: calc(46vh + 48px); }
+.t-gear { left: max(74px, calc(env(safe-area-inset-left) + 56px)); bottom: calc(28px + 46vh - 54px); }   /* (beside the top of the throttle: the map has the corner above it) */
 .t-gear.down { border-color: #6eff96; color: #b8ffcc; }
 .t-zoom { right: max(39px, calc(env(safe-area-inset-right) + 15px)); bottom: 140px; }
 body.touch #arms { right: max(258px, calc(env(safe-area-inset-right) + 240px)); }
@@ -235,7 +235,7 @@ body.bigmap #ring { visibility: hidden; }
 #errbox { display: none; position: fixed; left: 8px; bottom: 8px; z-index: 70; max-width: 60vw; white-space: pre-wrap; font: 11px/1.35 ui-monospace, monospace; color: #ffd0cc; background: rgba(60,0,0,0.85); border: 1px solid #ff6a5a; padding: 6px 8px; user-select: text; -webkit-user-select: text; }
 
 /* map: a framed square in the top right (a thin white frame set slightly apart from the picture); hold M for big */
-#minimap { position: absolute; top: 54px; right: 16px; padding: 4px; border: 1.5px solid rgba(236,246,238,0.85); }
+#minimap { position: absolute; top: 16px; left: max(16px, env(safe-area-inset-left)); padding: 4px; border: 1.5px solid rgba(236,246,238,0.85); }
 #minimap canvas, #bigmap canvas { display: block; opacity: 0.92; }
 #bigmap { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 6px; border: 1.5px solid rgba(236,246,238,0.85); background: rgba(8,12,18,0.85); display: none; z-index: 5; }
 body.bigmap #hud .mark, body.bigmap #gunsol { visibility: hidden; }
