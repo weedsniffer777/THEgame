@@ -18,7 +18,7 @@ export function createPauseMenu({ onResume }) {
         <div class="tab" data-tab="controls"></div>
         <div class="tab on" data-tab="ui">
           <div class="row"><span>UNITS</span><span class="seg" data-set="units"><button data-v="imperial">IMPERIAL</button><button data-v="metric">METRIC</button></span></div>
-          <div class="row"><span>FRIENDLY</span><span class="seg" data-set="friendly"><button data-v="green">GREEN</button><button data-v="blue">BLUE</button></span></div>
+          <div class="row"><span>FRIENDLY</span><span class="seg" data-set="friendColor"><button data-v="blue">BLUE</button><button data-v="green">GREEN</button></span></div>
         </div>
         <div class="tab" data-tab="graphics"></div>
         <div class="tab" data-tab="audio"></div>

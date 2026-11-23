@@ -105,7 +105,7 @@ body.clean #devkit, body.clean #devmenu, body.clean .lil-gui, body.clean #hud, b
 body.clean #perf { display: none; }
 #devmenu { top: 84px; }
 /* missiles in flight: a hollow diamond (thick edge, see-through tinted middle) on each, blue = ours, red = the enemy's */
-#hud .mmark { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; --mc: var(--friend, #46e070); }
+#hud .mmark { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; --mc: var(--friend, #3d8fff); }
 #hud .mmark.foe { --mc: #ff4a3c; }
 #hud .mmark i { position: absolute; left: -9px; top: -7px; width: 18px; height: 14px; box-sizing: border-box; }
 #hud .mmark i::before, #hud .mmark i::after { content: ''; position: absolute; top: 0; bottom: 0; width: 4px; border: 2px solid var(--mc); filter: drop-shadow(0 0 1px rgba(0,0,0,0.8)); }
