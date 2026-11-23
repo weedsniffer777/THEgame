@@ -59,33 +59,35 @@ export function createMap(root, terrain) {
     g.fillStyle = '#2b2e32'; g.fillRect(0, 0, px, px);
     g.drawImage(src, cx - sp / 2, cy - sp / 2, sp, sp, 0, 0, px, px);
     const s = px / sp, P = (x, z) => { const [a, b] = toPx(x, z); return [(a - cx) * s + px / 2, (b - cy) * s + px / 2]; };
-    // enemies: the same dart as ours, red, a little smaller, with a dark outline so they read on any ground
-    g.fillStyle = '#ff4a3c'; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineWidth = 1.2 * dpr; g.lineJoin = 'round';
+    // icons: bright cores with a soft glow of their own colour (enemies red with a thin white rim, our missiles in the
+    // friendly colour, the player a bright green arrow); the glow is drawn first, then the crisp shape on top
+    const dart = (L) => { g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); };
+    const glowDart = (x, y, hd, L, fill, glow, rim) => {
+      g.save(); g.translate(x, y); g.rotate(hd);
+      dart(L);
+      g.shadowColor = glow; g.shadowBlur = 7 * dpr; g.fillStyle = glow; g.fill(); g.fill();   // (twice: a stronger halo)
+      g.shadowBlur = 0; g.fillStyle = fill; g.fill();
+      if (rim) { g.strokeStyle = rim; g.lineWidth = 0.9 * dpr; g.lineJoin = 'round'; g.stroke(); }
+      g.restore();
+    };
     for (const d of drones) {
       if (!d.alive || d.falling || d.hidden) continue;
-      const [x, y] = P(d.pos.x, d.pos.z); if (x < -6 || y < -6 || x > px + 6 || y > px + 6) continue;
-      const hd = Math.atan2(d.vel.x, -d.vel.z), L = 5.5 * dpr;
-      g.save(); g.translate(x, y); g.rotate(hd);
-      g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); g.stroke(); g.fill();
-      g.restore();
+      const [x, y] = P(d.pos.x, d.pos.z); if (x < -8 || y < -8 || x > px + 8 || y > px + 8) continue;
+      glowDart(x, y, Math.atan2(d.vel.x, -d.vel.z), 5.5 * dpr, '#ff4b3e', 'rgba(255,70,55,0.9)', 'rgba(255,255,255,0.9)');
     }
-    // missiles in flight: a short line along each one's path, ours in the friendly colour, the enemy's red
+    // missiles in flight: a short glowing line along each one's path
     g.lineCap = 'round';
     for (const m of missiles) {
       const [x, y] = P(m.p.x, m.p.z); if (x < -8 || y < -8 || x > px + 8 || y > px + 8) continue;
       const h = Math.hypot(m.v.x, m.v.z) || 1, L = 7 * dpr, dx = m.v.x / h * L, dy = m.v.z / h * L;
-      const col = m.owner === 'player' ? friendMapColor() : '#ff7466';
+      const ours = m.owner === 'player', glow = ours ? friendMapColor() : '#ff5a48';
       g.beginPath(); g.moveTo(x - dx, y - dy); g.lineTo(x, y);
-      g.shadowColor = col; g.shadowBlur = 5 * dpr;                                            // a soft glow
-      g.strokeStyle = col; g.lineWidth = 2 * dpr; g.stroke();
+      g.shadowColor = glow; g.shadowBlur = 7 * dpr; g.strokeStyle = glow; g.lineWidth = 2.4 * dpr; g.stroke(); g.stroke();
+      g.shadowBlur = 0; g.strokeStyle = ours ? '#eaf6ff' : '#ffd9d4'; g.lineWidth = 1 * dpr; g.stroke();   // white-hot core
     }
     g.shadowBlur = 0;
-    g.lineWidth = 1.2 * dpr;
-    // the player: an arrow along the heading
-    const f = ac.vel, hd = Math.atan2(f.x, -f.z), L = 7 * dpr, [ax, ay] = P(ac.pos.x, ac.pos.z);
-    g.save(); g.translate(ax, ay); g.rotate(hd);
-    g.fillStyle = '#ecf6ee'; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); g.stroke(); g.fill();
-    g.restore();
+    // the player: a bright green arrow along the heading
+    glowDart(...P(ac.pos.x, ac.pos.z), Math.atan2(ac.vel.x, -ac.vel.z), 7 * dpr, '#b4ff8c', 'rgba(110,255,90,0.85)', null);
   };
   let held = false;
   addEventListener('keydown', (e) => { if (e.code === 'KeyM' && !e.repeat) { held = true; big.classList.add('on'); document.body.classList.add('bigmap'); } });
@@ -94,7 +96,7 @@ export function createMap(root, terrain) {
   let tick = 0;
   return (ac, drones, missiles) => {
     if ((tick = (tick + 1) % 2)) return;                      // every other frame is plenty
-    draw(mc, 168, 9000, ac, drones, missiles);
+    draw(mc, Math.round(Math.min(168, innerHeight * 0.3)), 9000, ac, drones, missiles);   // (smaller on short phone screens)
     if (held) draw(bc, Math.min(innerWidth, innerHeight) * 0.72, 1e9, ac, drones, missiles);
   };
 }
