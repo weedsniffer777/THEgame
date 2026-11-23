@@ -596,14 +596,14 @@ function hud(dt = 1 / 60) {
     }
     ringHud(screenOf(_n.copy(camera.position).addScaledVector(rig.fwd, D)), items, camera);
   }
-  // missiles in flight: coloured brackets round each with a solid diamond above (ours blue, or green with the green HUD;
-  // the enemy's red); the enemy's have their distance above that
+  // missiles in flight: a bright solid diamond on each (ours blue, or green with the green HUD; the enemy's red), the
+  // enemy's with their distance above
   // (nm, then ft inside 1.5 nm; km, then m inside 2 km)
   {
     const ms = weapons.S.missiles;
     for (let k = 0; k < Math.max(ms.length, mslEls.length); k++) {
       let el = mslEls[k];
-      if (!el) { el = mslEls[k] = document.createElement('div'); el.className = 'mmark'; el.innerHTML = '<b></b><u></u><i></i>'; el._b = el.firstChild; el._txt = ''; tgtEl.parentNode.appendChild(el); }
+      if (!el) { el = mslEls[k] = document.createElement('div'); el.className = 'mmark'; el.innerHTML = '<b></b><u></u>'; el._b = el.firstChild; el._txt = ''; tgtEl.parentNode.appendChild(el); }
       const m = ms[k];
       if (!m || !running) { el.style.display = 'none'; continue; }
       if (el._own !== m.owner) { el.classList.toggle('foe', m.owner !== 'player'); el._own = m.owner; }

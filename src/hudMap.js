@@ -78,11 +78,11 @@ export function createMap(root, terrain) {
     g.lineCap = 'round';
     for (const m of missiles) {
       const [x, y] = P(m.p.x, m.p.z); if (x < -8 || y < -8 || x > px + 8 || y > px + 8) continue;
-      const h = Math.hypot(m.v.x, m.v.z) || 1, L = 7 * dpr, dx = m.v.x / h * L, dy = m.v.z / h * L;
+      const h = Math.hypot(m.v.x, m.v.z) || 1, L = 4.5 * dpr, dx = m.v.x / h * L, dy = m.v.z / h * L;
       const ours = m.owner === 'player', glow = ours ? 'rgba(255,255,255,0.8)' : '#ff5a48';   // ours white (like the player), the enemy's red
       g.beginPath(); g.moveTo(x - dx, y - dy); g.lineTo(x, y);
-      g.shadowColor = glow; g.shadowBlur = 7 * dpr; g.strokeStyle = glow; g.lineWidth = 2.4 * dpr; g.stroke(); g.stroke();
-      g.shadowBlur = 0; g.strokeStyle = ours ? '#ffffff' : '#ffd9d4'; g.lineWidth = 1 * dpr; g.stroke();   // white-hot core
+      g.shadowColor = glow; g.shadowBlur = 5 * dpr; g.strokeStyle = glow; g.lineWidth = 1.7 * dpr; g.stroke(); g.stroke();
+      g.shadowBlur = 0; g.strokeStyle = ours ? '#ffffff' : '#ffd9d4'; g.lineWidth = 0.7 * dpr; g.stroke();   // white-hot core
     }
     g.shadowBlur = 0;
     // the player: a white arrow along the heading
