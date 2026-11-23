@@ -63,7 +63,7 @@ function resume() {
   try { const lock = canvas.requestPointerLock?.(); lock?.catch?.(() => {}); } catch { /* no pointer lock here */ }
   setRunning(true);
 }
-const pauseMenu = createPauseMenu({ onResume: resume });
+const pauseMenu = createPauseMenu({ onResume: resume, onRestart: () => { spawn(); resume(); } });   // (spawn is hoisted: a fresh start of the level)
 startEl.addEventListener('click', resume);
 addEventListener('keydown', e => {                                       // P: pause / resume
   if (e.code !== 'KeyP' || e.repeat || viewer.on) return;
@@ -242,19 +242,11 @@ function tutorialStep(dt) {
       if (down(tut.gt)) { gunsDone(); break; }
       if (tut.gt.pos.distanceTo(ac.pos) <= WEAPONS.gunRange) tutGo(W.allow.gun ? 'kill' : 'aim', 0);
       break;
-    case 'aim': {    // lined up: the nose on the lead circle for a moment
-      if (first) { overlay.say('Aim by pointing the nose in the circle!'); overlay.spot([{ sel: gunCirc, round: true, pad: 8 }, { sel: '#nose', round: true, pad: 10 }], 0.2); tut.on = 0; }
-      if (down(tut.gt)) { gunsDone(); break; }
-      if (tut.gt.pos.distanceTo(ac.pos) > WEAPONS.gunRange * 1.2) { tutGo('close', 0); break; }
-      const lined = W.lead && _wv.subVectors(W.lead, ac.pos).normalize().angleTo(_n.set(0, 0, 1).applyQuaternion(ac.quat)) < 0.035;
-      tut.on = lined ? tut.on + dt : Math.max(0, tut.on - dt * 0.5);
-      if (tut.on > 0.35) { W.allow.gun = true; tutGo('shoot', 0); }
-      break;
-    }
-    case 'shoot':
-      if (first) { overlay.say('To shoot press'); overlay.keys(FIRE_KEYS()); overlay.spot([{ sel: gunCirc, round: true, pad: 8 }, ...(T ? [{ sel: '.t-fire', round: true, pad: 6 }] : [])], 0.15); }
+    case 'aim':      // aim and shoot, one step: two lines over the keys
+      if (first) { W.allow.gun = true; overlay.say('Aim by pointing the nose in the circle!\nShoot by pressing'); overlay.keys(FIRE_KEYS()); overlay.spot([{ sel: gunCirc, round: true, pad: 8 }, { sel: '#nose', round: true, pad: 10 }, ...(T ? [{ sel: '.t-fire', round: true, pad: 6 }] : [])], 0.15); }
       if (down(tut.gt)) { gunsDone(); break; }
       capsStep(dt, (dt) => W.firing && W.selected === 1 ? dt / 0.8 : 0, () => { overlay.clear(); tut.step = 'kill'; tut.t = 0; });
+      if (tut.doneT <= 0 && tut.gt.pos.distanceTo(ac.pos) > WEAPONS.gunRange * 1.2) tutGo('close', 0);
       break;
     case 'kill':     // shown how: now the fight is theirs (but "close in" comes back if they drift well out of range)
       if (down(tut.gt)) gunsDone();

@@ -1,14 +1,15 @@
 import { settings, setSetting } from '../settings.js';
 
 // Pause menu: the game blurs behind a slanted panel that slides in from the left (HUD hidden).
-// Resume / Settings; settings has four tabs (Controls, UI, Graphics, Audio), only UI has options so far: Units, HUD colour.
-export function createPauseMenu({ onResume }) {
+// Resume / Restart mission / Settings; settings has four tabs (Controls, UI, Graphics, Audio), only UI has options so far: Units, HUD colour.
+export function createPauseMenu({ onResume, onRestart }) {
   const root = document.createElement('div');
   root.id = 'pause';
   root.innerHTML = `
     <div class="panel">
       <div class="page main">
         <button class="item" data-act="resume">RESUME</button>
+        <button class="item" data-act="restart">RESTART MISSION</button>
         <button class="item" data-act="settings">SETTINGS</button>
       </div>
       <div class="page settings">
@@ -31,6 +32,7 @@ export function createPauseMenu({ onResume }) {
   root.addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.act === 'resume') onResume();
+    else if (b.dataset.act === 'restart') onRestart?.();
     else if (b.dataset.act === 'settings') show('settings');
     else if (b.dataset.act === 'back') show('main');
     else if (b.dataset.tab) {

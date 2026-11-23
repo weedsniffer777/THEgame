@@ -192,6 +192,7 @@ body.dead #hud, body.dead #touch { display: none; }
 #tut .rings > * { fill: none; stroke: rgba(236,246,238,0.9); stroke-width: 1.5; }
 #tut .card { position: absolute; left: 50%; top: max(96px, 18%); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; color: rgba(240,244,240,0.97); font: 600 17px/1.3 system-ui, sans-serif; text-shadow: 0 1px 3px rgba(0,0,0,0.85); white-space: nowrap; }
 #tut .card.notxt .txt, #tut .card.nokeys .keys { display: none; }
+#tut .txt { white-space: pre-line; text-align: center; line-height: 1.45; }
 #tut .keys { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 #tut .krow { display: flex; gap: 10px; }
 #tut .keys > .krow:has(.kgrp) { gap: 30px; }
