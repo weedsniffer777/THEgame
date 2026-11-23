@@ -589,7 +589,7 @@ function hud(dt = 1 / 60) {
     }
     ringHud(screenOf(_n.copy(camera.position).addScaledVector(rig.fwd, D)), items, camera);
   }
-  // missiles in flight: coloured brackets round each (ours in the friendly colour, the enemy's red), its distance above
+  // missiles in flight: coloured brackets round each (ours in the friendly colour, the enemy's red); the enemy's have their distance above
   // (nm, then ft inside 1.5 nm; km, then m inside 2 km)
   {
     const ms = weapons.S.missiles;
@@ -603,6 +603,7 @@ function hud(dt = 1 / 60) {
       const op = THREE.MathUtils.clamp((m.t - 0.2) / 0.5, 0, 1);
       el.style.opacity = op.toFixed(2);
       place(el, m.p);
+      if (m.owner === 'player') { if (el._txt) { el._b.innerHTML = ''; el._txt = ''; } continue; }   // (ours: no distance)
       const dm = m.p.distanceTo(ac.pos), metric = settings.units === 'metric';
       const far = metric ? dm >= 2000 : dm >= 1.5 * 1852;
       const txt = far ? `${units.dist(dm).toFixed(1)}<small>${units.distLabel()}</small>`
