@@ -105,7 +105,7 @@ const ending = { on: false, t: 0, d: null, focus: new THREE.Vector3(), cam: new 
 const _ec = new THREE.Vector3(), _el = new THREE.Vector3(), _ew = new THREE.Vector3();
 function startEnding() {
   const last = weapons.S.kills[weapons.S.kills.length - 1]?.d || weapons.drones[0];
-  Object.assign(ending, { on: true, t: 0, d: last, card: false });
+  Object.assign(ending, { on: true, t: 0, d: last, card: false, placed: false });
   ending.cam.copy(camera.position); ending.look.copy(last.obj.position);
   const away = _ew.subVectors(camera.position, last.obj.position); ending.yaw = Math.atan2(away.x, away.z);
   weapons.setFiring(false); rig.zooming = false;
@@ -124,10 +124,10 @@ function endingCamera(dt) {
   const d = ending.d, t = ending.t, P = d.obj.position;
   // where the wreck is (it stops at the ground), and a focus that drifts with it
   ending.focus.lerp(P, ending.t < 0.05 ? 1 : Math.min(1, dt * 1.5));
-  // close chase: a little behind and beside the falling enemy
+  // close in: ahead of it and off to one side (a front three-quarter view), a little above, looking down at it
   const v = _ew.copy(d.vel); if (v.lengthSq() < 1) v.set(0, 0, 1);
   v.normalize();
-  const chase = _ec.copy(P).addScaledVector(v, -55).add(_el.set(-v.z * 22, 14, v.x * 22));
+  const chase = _ec.copy(P).addScaledVector(v, 60).add(_el.set(-v.z * 42, 22, v.x * 42));
   // the wide shot: high above and well off to one side, drifting slowly round (a helicopter shot)
   ending.yaw += dt * 0.035;
   const wide = _el.set(Math.sin(ending.yaw) * 900, 0, Math.cos(ending.yaw) * 900).add(ending.focus);
@@ -135,22 +135,23 @@ function endingCamera(dt) {
   const k = THREE.MathUtils.smoothstep(t, 3, 9);                // 3 s riding along, then 6 s pulling out
   const want = chase.lerp(wide, k);
   want.y = Math.max(want.y, terrain.heightAt(want.x, want.z) + 25);
-  ending.cam.lerp(want, Math.min(1, dt * (k < 1 ? 4 : 0.8)));
+  const snap = !ending.placed; ending.placed = true;          // (the first frame cuts straight to the shot)
+  if (snap) { ending.cam.copy(want); ending.look.copy(P); } else ending.cam.lerp(want, Math.min(1, dt * (k < 1 ? 4 : 0.8)));
   ending.look.lerp(k < 0.5 ? P : ending.focus, Math.min(1, dt * 3));
   camera.position.copy(ending.cam); camera.up.set(0, 1, 0); camera.lookAt(ending.look);
-  const fov = CAMERA.fov - 8 * k;
-  if (Math.abs(camera.fov - fov) > 0.01) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 2); camera.updateProjectionMatrix(); }
+  const fov = THREE.MathUtils.lerp(34, CAMERA.fov - 8, k);   // narrow close in, wider as it pulls out
+  if (snap || Math.abs(camera.fov - fov) > 0.01) { camera.fov = snap ? fov : camera.fov + (fov - camera.fov) * Math.min(1, dt * 2); camera.updateProjectionMatrix(); }
 }
 function spawn() {
   const s = WORLD.spawn;
   weapons.rearm(); jet.damage.repair();
   if (mission) { mission.start(weapons.S.simT || 0, !!tutActive()); tutReset(); missionEnded = false; overlay.hideEnd(); }   // (a restart replays the whole mission)
   else { weapons.S.allow.gun = weapons.S.allow.missile = true; ac.reset(new THREE.Vector3(s.x, s.y, s.z), s.heading, s.speed); rig.reset(ac.quat); weapons.placeDrones(); }
-  ending.on = false; document.body.classList.remove('ending', 'ending-blur');
+  ending.on = false; deathShown = false; overlay.hideEnd(); document.body.classList.remove('ending', 'ending-blur', 'dead-blur');
   prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
   dead = 0; jet.object.visible = true; document.body.classList.remove('lost', 'dead');
 }
-let dead = 0;   // seconds since the player was killed (0 = alive)
+let dead = 0, deathShown = false;   // seconds since the player was killed (0 = alive)
 // Tutorial (Mission 1, first time only), choreographed; it never waits for a click and never stops the game. The main
 // group starts far ahead and hidden (no markers, no lock, not on the map); the weapons panel and the map are hidden
 // too, and nothing fires. Flying is taught with big keycaps that fill green while held (any key in a row will do),
@@ -626,7 +627,8 @@ function notes(dt) {
   if (ac.gearBlown) { gearWarnT = 2.5; ac.gearBlown = false; }
   gearWarnT = Math.max(0, gearWarnT - dt);
   // the selected weapon ran dry: back to guns, and say so
-  if (weapons.S.selected === 2 && weapons.S.stock === 0 && running && !dead) { weapons.select(1); outT = 2.5; }
+  // (the trigger is let go: still holding fire doesn't start the guns, it takes a fresh press)
+  if (weapons.S.selected === 2 && weapons.S.stock === 0 && running && !dead) { weapons.setFiring(false); weapons.select(1); outT = 2.5; }
   outT = Math.max(0, outT - dt);
   // warnings: high in the centre, light red, one per row; status: a little below the centre, white, one per row
   const warn = [];
@@ -894,7 +896,12 @@ function frameBody(now) {
       prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
       if (!wreck.inWater) weapons.burn(wreck.pos, wreck.vel, wreck.key);
       weapons.step(dt, performance.now() / 1000);
-      if (dead > 4.5 && !window.__holdWreck && !ending.on) spawn();   // (__holdWreck: dev tests watch the wreck to rest)
+      // a couple of seconds of the wreck, then the picture softens and the death screen comes up (retry waits for the player)
+      if (dead > 2.2 && !deathShown && !window.__holdWreck && !ending.on) {   // (__holdWreck: dev tests watch the wreck to rest)
+        deathShown = true; document.body.classList.add('dead-blur');
+        overlay.showDeath(() => { spawn(); resume(); });
+        if (document.pointerLockElement) document.exitPointerLock();
+      }
     } else while (acc >= STEP && !dead) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }   // (stop stepping the moment it crashes)
   }
   mouseDX = mouseDY = 0;

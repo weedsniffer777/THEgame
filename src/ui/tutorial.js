@@ -144,6 +144,12 @@ export function createOverlay() {
       end.classList.add('on');
       end.querySelector('.replay').addEventListener('click', () => { end.classList.remove('on'); onReplay(); });
     },
+    // the death screen: just the way back in for now (back to menu and the match's stats come later)
+    showDeath(onRetry) {
+      end.innerHTML = `<div class="box"><button class="replay">RETRY</button></div>`;
+      end.classList.add('on');
+      end.querySelector('.replay').addEventListener('click', () => { end.classList.remove('on'); onRetry(); });
+    },
     hideEnd() { end.classList.remove('on'); },
   };
 }

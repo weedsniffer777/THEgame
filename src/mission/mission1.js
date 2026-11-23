@@ -20,6 +20,15 @@ const BOMBER_SLOTS = [
   [-380, 60, 520], [-490, 30, 640], [-270, 30, 640],                             // left trailing box
   [380, -60, 520],                                                               // right
 ];
+// breaking away from a missile: how close it is seen (aimed at this bomber / at another), turn rate, angle, sink
+const EVADE = { seeAt: 1852, nearMiss: 600, rate: [4, 6], ang: [50, 100], sink: [8, 15] };
+const _r = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _m = new THREE.Vector3();
+// restart a bomber's track from where it is now, heading the way it's going (so a new turn starts from there)
+function rebase(d, simT) {
+  const T = d.track, h = new THREE.Vector3(d.vel.x, 0, d.vel.z);
+  if (h.lengthSq() < 1) return;
+  T.dir = h.normalize(); T.origin = d.pos.clone(); T.off = new THREE.Vector3(); T.t0 = simT; T.turn = null; T.weave = undefined;
+}
 // a hit bomber's peel-off: chance per hit taken, turn rate (deg/s), how far it turns (deg), how fast it sinks (m/s)
 const PEEL = { chance: 0.07, rate: [1.5, 3], ang: [35, 110], sink: [2, 7] };
 // the whole formation of ten (no stragglers), for the mission after the tutorial
@@ -52,10 +61,11 @@ export function createMission1({ weapons, ac, rig }) {
       if (tutorial) bombers.forEach((d, i) => { d.track = track(i < 2 ? STRAGGLER_SLOTS[i] : BOMBER_SLOTS[(i - 2) % BOMBER_SLOTS.length], i === 0 ? STRAGGLER_WEAVE : undefined); });
       else bombers.forEach((d, i) => { d.track = track(FULL_SLOTS[i % FULL_SLOTS.length]); });
       this.noBreak = true;
-      // AI (not in the tutorial): every bomber is on its own and on alert; one that is hit but still flying may peel
+      // AI (every bomber but the tutorial's two lesson stragglers): each is on its own and on alert; one that is hit but still flying may peel
       // off: a slow banked turn away from the formation, sinking as it goes (no orders, no word to the others)
-      weapons.S.onHit = tutorial ? null : (d) => {
-        if (!d.track || d.track.turn || d.def.label !== 'Bomber' || Math.random() > PEEL.chance) return;
+      this.tutorial = tutorial;
+      weapons.S.onHit = (d) => {
+        if (!this.thinks(d) || d.track.turn || Math.random() > PEEL.chance) return;
         const side = d.track.off.x === 0 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(d.track.off.x);   // (away from the middle)
         const deg = Math.PI / 180;
         d.track.turn = { t0: weapons.S.simT || 0, rate: side * (PEEL.rate[0] + Math.random() * (PEEL.rate[1] - PEEL.rate[0])) * deg,
@@ -71,8 +81,28 @@ export function createMission1({ weapons, ac, rig }) {
       state.t = 0; state.done = false; state.doneT = 0;
     },
     // true once everything is down (and a few seconds have passed to watch the last one go)
+    // does this bomber think for itself? (not the tutorial's two lesson stragglers: they fly the lessons)
+    thinks(d) { return !!d.track && d.alive && !d.falling && d.def.label === 'Bomber' && !(this.tutorial && (d === bombers[0] || d === bombers[1])); },
     update(dt) {
       state.t += dt;
+      // missile warning: a bomber sees a missile coming at it inside 1 nm (or one going for another aircraft passing
+      // within ~600 m) and breaks hard: a steep diving turn away from it (it won't outrun it, but the formation breaks up)
+      for (const m of weapons.S.missiles) {
+        if (m.owner !== 'player') continue;
+        for (const d of bombers) {
+          if (!this.thinks(d) || d.track.evading) continue;
+          const r = m.p.distanceTo(d.pos);
+          if (r > (m.target === d ? EVADE.seeAt : EVADE.nearMiss)) continue;
+          // turn away from the missile's side
+          const right = _r.crossVectors(d.track.dir, _up).normalize(), side = _m.subVectors(m.p, d.pos).dot(right) > 0 ? -1 : 1;
+          const deg = Math.PI / 180, simT = weapons.S.simT || 0;
+          // (a turn already under way: carry on from where it got to, by restarting the track there)
+          if (d.track.turn) rebase(d, simT);
+          d.track.turn = { t0: simT, rate: side * (EVADE.rate[0] + Math.random() * (EVADE.rate[1] - EVADE.rate[0])) * deg,
+            ang: (EVADE.ang[0] + Math.random() * (EVADE.ang[1] - EVADE.ang[0])) * deg, climb: -(EVADE.sink[0] + Math.random() * (EVADE.sink[1] - EVADE.sink[0])) };
+          d.track.evading = true;
+        }
+      }
       // the second straggler breaks away once the player closes on the first (the tutorial calls breakAway itself)
       const [A, B] = bombers;
       if (!this.noBreak && B.track && !B.track.turn && (A.pos.distanceTo(ac.pos) < 3000 || !A.alive || A.falling)) this.breakAway();
