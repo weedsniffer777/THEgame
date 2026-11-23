@@ -115,7 +115,7 @@ function startEnding(win = true) {
 }
 function endingStep(dt) {
   ending.t += dt;
-  if (ending.t > 0.6 && !ending.banner) { ending.banner = true; showBanner(ending.win ? 'Mission complete' : 'Mission failed', ending.win ? 'win' : 'fail', 4.2); }
+  if (ending.t > (ending.win ? 0.6 : 0.15) && !ending.banner) { ending.banner = true; showBanner(ending.win ? 'Mission complete' : 'Mission failed', ending.win ? 'win' : 'fail', 4.2); }
   if (ending.t > 5.5 && !ending.card) {                         // the results (or retry), over a softened picture
     ending.card = true; missionEnded = true;
     document.body.classList.add('ending-blur');
@@ -741,16 +741,9 @@ function playerShadow(time) {
 const flightHud = createFlightHud(document.getElementById('hud'));
 const mapHud = createMap(document.getElementById('hud'), terrain);
 const ringHud = createRing(document.getElementById('hud'));
-const timerEl = document.createElement('div'); timerEl.id = 'mtimer'; document.getElementById('hud').appendChild(timerEl);
 function hud(dt = 1 / 60) {
   notes(dt);
   if (bannerT > 0 && (bannerT -= dt) <= 0) hideBanner();
-  // the time left before the formation gets out of the mission area (by the map)
-  {
-    const t = mission && running && !dead && !ending.on ? mission.timeLeft() : Infinity;
-    const txt = isFinite(t) ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '';
-    if (txt !== timerEl.textContent) { timerEl.textContent = txt; timerEl.classList.toggle('low', isFinite(t) && t < 60); }
-  }
   if (mission) mapHud.setArea(mission.area);
   if (running && !dead) { flightHud(ac, camera, rig); mapHud(ac, weapons.drones, weapons.S.missiles); }
   const D = CAMERA.aimDistance;
@@ -982,7 +975,7 @@ function frameBody(now) {
       if (!wreck.inWater && !wreck.lake) weapons.burn(wreck.pos, wreck.vel, wreck.key);   // (on or in a lake: no fire)
       weapons.step(dt, performance.now() / 1000);
       // a couple of seconds of the wreck, then the picture softens and the death screen comes up (retry waits for the player)
-      if (dead > 0.8 && !deathBanner && !ending.on) { deathBanner = true; showBanner('Mission failed', 'fail', 4); }
+      if (dead > 0.15 && !deathBanner && !ending.on) { deathBanner = true; showBanner('Mission failed', 'fail', 4); }
       if (dead > 2.2 && !deathShown && !window.__holdWreck && !ending.on) {   // (__holdWreck: dev tests watch the wreck to rest)
         deathShown = true; document.body.classList.add('dead-blur');
         overlay.showDeath(() => { spawn(); resume(); });
