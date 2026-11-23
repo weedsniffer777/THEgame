@@ -28,3 +28,9 @@
 
 ## Run
 npm install, then npm run dev. Press ` in game for the tuning panel.
+
+## Next (planned)
+- Proper match-end screens (win / lose: stats, back to menu, retry).
+- A hangar and a reward system.
+- A second player aircraft.
+- Known: faint terrain "waves" up close are the terrain's LOD morph (detail levels blending, ~540-855 m out at the default 900 m detail); left as is (moving it further out costs triangles; a wider, gentler morph band in setDetail is the free option).
