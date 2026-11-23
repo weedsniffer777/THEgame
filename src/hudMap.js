@@ -59,8 +59,8 @@ export function createMap(root, terrain) {
     g.fillStyle = '#2b2e32'; g.fillRect(0, 0, px, px);
     g.drawImage(src, cx - sp / 2, cy - sp / 2, sp, sp, 0, 0, px, px);
     const s = px / sp, P = (x, z) => { const [a, b] = toPx(x, z); return [(a - cx) * s + px / 2, (b - cy) * s + px / 2]; };
-    // icons: bright cores with a soft glow of their own colour (enemies red with a thin white rim, our missiles in the
-    // friendly colour, the player a bright green arrow); the glow is drawn first, then the crisp shape on top
+    // icons: bright cores with a soft glow of their own colour (enemies red, with a thin white rim only when a priority
+    // target (d.priority); our missiles in the friendly colour; the player a white arrow); the glow is drawn first, then the crisp shape on top
     const dart = (L) => { g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); };
     const glowDart = (x, y, hd, L, fill, glow, rim) => {
       g.save(); g.translate(x, y); g.rotate(hd);
@@ -73,7 +73,7 @@ export function createMap(root, terrain) {
     for (const d of drones) {
       if (!d.alive || d.falling || d.hidden) continue;
       const [x, y] = P(d.pos.x, d.pos.z); if (x < -8 || y < -8 || x > px + 8 || y > px + 8) continue;
-      glowDart(x, y, Math.atan2(d.vel.x, -d.vel.z), 5.5 * dpr, '#ff4b3e', 'rgba(255,70,55,0.9)', 'rgba(255,255,255,0.9)');
+      glowDart(x, y, Math.atan2(d.vel.x, -d.vel.z), 5.5 * dpr, '#ff4b3e', 'rgba(255,70,55,0.9)', d.priority ? 'rgba(255,255,255,0.9)' : null);   // (white rim: priority targets only)
     }
     // missiles in flight: a short glowing line along each one's path
     g.lineCap = 'round';
@@ -86,8 +86,8 @@ export function createMap(root, terrain) {
       g.shadowBlur = 0; g.strokeStyle = ours ? '#eaf6ff' : '#ffd9d4'; g.lineWidth = 1 * dpr; g.stroke();   // white-hot core
     }
     g.shadowBlur = 0;
-    // the player: a bright green arrow along the heading
-    glowDart(...P(ac.pos.x, ac.pos.z), Math.atan2(ac.vel.x, -ac.vel.z), 7 * dpr, '#b4ff8c', 'rgba(110,255,90,0.85)', null);
+    // the player: a white arrow along the heading
+    glowDart(...P(ac.pos.x, ac.pos.z), Math.atan2(ac.vel.x, -ac.vel.z), 7 * dpr, '#ffffff', 'rgba(255,255,255,0.75)', null);
   };
   let held = false;
   addEventListener('keydown', (e) => { if (e.code === 'KeyM' && !e.repeat) { held = true; big.classList.add('on'); document.body.classList.add('bigmap'); } });
