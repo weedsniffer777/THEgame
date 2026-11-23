@@ -1,4 +1,4 @@
-import { friendColor } from './settings.js';
+import { friendMapColor } from './settings.js';
 // Map: the aerial photo in faint greyscale with sparse contour lines (every 250 m, heavier every 1000 m), lakes darker,
 // made once from the terrain data, then a crop of it drawn in a framed square in the top right each frame, north up, with the
 // player as an arrow and enemies as small red ticks. Hold M for the whole region.
@@ -74,10 +74,12 @@ export function createMap(root, terrain) {
     for (const m of missiles) {
       const [x, y] = P(m.p.x, m.p.z); if (x < -8 || y < -8 || x > px + 8 || y > px + 8) continue;
       const h = Math.hypot(m.v.x, m.v.z) || 1, L = 7 * dpr, dx = m.v.x / h * L, dy = m.v.z / h * L;
+      const col = m.owner === 'player' ? friendMapColor() : '#ff7466';
       g.beginPath(); g.moveTo(x - dx, y - dy); g.lineTo(x, y);
-      g.strokeStyle = 'rgba(255,255,255,0.45)'; g.lineWidth = 3.8 * dpr; g.stroke();      // a faint white outline
-      g.strokeStyle = m.owner === 'player' ? friendColor() : '#ff4a3c'; g.lineWidth = 2 * dpr; g.stroke();
+      g.shadowColor = col; g.shadowBlur = 5 * dpr;                                            // a soft glow
+      g.strokeStyle = col; g.lineWidth = 2 * dpr; g.stroke();
     }
+    g.shadowBlur = 0;
     g.lineWidth = 1.2 * dpr;
     // the player: an arrow along the heading
     const f = ac.vel, hd = Math.atan2(f.x, -f.z), L = 7 * dpr, [ax, ay] = P(ac.pos.x, ac.pos.z);
