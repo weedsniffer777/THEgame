@@ -282,3 +282,5 @@ body.ending-blur #game, body.dead-blur #game { filter: blur(6px) saturate(0.85) 
 #mtimer { position: absolute; top: 20px; left: calc(max(16px, env(safe-area-inset-left)) + min(210px, 27vh) + 22px); font: 700 18px/1 'B612 Mono', ui-monospace, monospace; color: rgba(255,255,255,0.92); text-shadow: 0 1px 3px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
 #mtimer.low { color: #ffb4a8; }
 body.hud-green #mtimer:not(.low) { color: var(--hg); }
+/* the tutorial's spotlights and prompts never sit over the big map, the pause menu or the death / results screens */
+body.bigmap #tut, body.paused #tut, body.dead-blur #tut, body.ending-blur #tut { display: none !important; }
