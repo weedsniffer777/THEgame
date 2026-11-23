@@ -41,7 +41,7 @@ body.viewing #game { cursor: grab; }
 #seeker, #lockc, #tgt, #hud .tgtc { position: absolute; left: 0; top: 0; will-change: transform; border-radius: 50%; }
 #seeker { border: 1.5px solid rgba(110,255,150,0.75); box-shadow: 0 0 3px rgba(0,0,0,0.5); }
 #seeker.locked { border-color: rgba(255,70,60,0.85); }
-#lockc { width: 20px; height: 20px; margin: -10px 0 0 -10px; border: 2px solid #6eff96; box-shadow: 0 0 3px rgba(0,0,0,0.5); border-radius: 2px !important; }   /* the lock box */
+#lockc { width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 2px solid #6eff96; box-shadow: 0 0 3px rgba(0,0,0,0.5); }   /* the lock circle */
 #lockc.flashW, #seeker.flashW { border-color: #fff; }
 #lockc.flashR, #seeker.flashR { border-color: #ff463c; }
 #lockc.locked { border-color: #ff463c; border-width: 2.5px; }

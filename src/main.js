@@ -559,7 +559,7 @@ function hud(dt = 1 / 60) {
     const r = Math.tan(WEAPONS.seekerFov / 2 * Math.PI / 180) / Math.tan(camera.fov / 2 * Math.PI / 180) * innerHeight / 2;
     seekerEl.style.width = seekerEl.style.height = `${2 * r}px`; seekerEl.style.margin = `${-r}px 0 0 ${-r}px`;
     const tracking = W.seeker && !W.locked;
-    // the lock box slides from the middle of the seeker onto the target as the lock builds (S.lock / lockTime)
+    // the lock circle slides from the middle of the seeker onto the target as the lock builds (S.lock / lockTime)
     const ns = screenOf(nosePt), ts = W.seeker ? screenOf(W.seeker.obj.position) : null;
     const k = W.seeker ? THREE.MathUtils.smoothstep(Math.min(W.lock / WEAPONS.lockTime, 1), 0, 1) : 0;
     const at = ns && ts ? [ns[0] + (ts[0] - ns[0]) * k, ns[1] + (ts[1] - ns[1]) * k] : ns;
