@@ -366,8 +366,10 @@ function toggleGear() {
   if (ac.gearCmd && ac.onGround) return;
   ac.gearCmd = ac.gearCmd ? 0 : 1;
 }
+let trackLock = null;   // the aircraft right click is tracking
 function trackTarget() {
   const ok = (d) => d && d.alive && !d.falling && !d.hidden;
+  if (weapons.S.selected === 2 && ok(weapons.S.seeker)) return weapons.S.seeker;
   if (ok(weapons.S.target)) return weapons.S.target;
   let best = null, bd = Infinity;
   for (const d of weapons.drones) if (ok(d)) { const dd = d.pos.distanceToSquared(ac.pos); if (dd < bd) { bd = dd; best = d; } }
@@ -707,8 +709,8 @@ function hud(dt = 1 / 60) {
     const st = W.locked ? 'locked' : tracking ? (performance.now() % 250 < 125 ? 'flashW' : 'flashR') : '';
     lockEl.className = st; seekerEl.className = st;
   }
-  // enemies: what kind of aircraft it is above each. The distance under that only on two: the nearest enemy and the
-  // one nearest the middle of the screen (nm, then ft inside 1.5 nm; km, then m inside 2 km, like missiles)
+  // enemies: what kind of aircraft it is above each. The distance under that only on a few: the nearest enemy, the
+  // one nearest the middle of the screen, and the gun or missile target (nm, then ft inside 1.5 nm; km, then m inside 2 km, like missiles)
   let nearD = null, nearM = Infinity, midD = null, midPx = Infinity;
   for (const d of weapons.drones) {
     if (!d.alive || d.falling || d.hidden) continue;
@@ -730,7 +732,8 @@ function hud(dt = 1 / 60) {
     el.hidden = !d.alive || d.falling || !running || d.hidden;
     if (el.hidden) return;
     place(el, d.obj.position);
-    const txt = d === nearD || d === midD ? distText(d.pos.distanceTo(ac.pos)) : '';
+    const sel = (W.selected === 1 && d === W.target) || (W.selected === 2 && d === W.seeker);   // (a selected target always shows it)
+    const txt = d === nearD || d === midD || sel ? distText(d.pos.distanceTo(ac.pos)) : '';
     if (txt !== el._txt) { el._b.innerHTML = txt; el._txt = txt; }
     el.classList.toggle('sel', d === W.target);
   });
@@ -926,7 +929,12 @@ function frameBody(now) {
   // gun target if there is one, otherwise the nearest
   {
     if (tut.camT > 0) tut.camT -= dt;
-    const want = running && !dead && (rig.zooming || tut.camT > 0) ? (tut.camT > 0 ? tut.camD : trackTarget()) : null;
+    // the aircraft is picked when the button goes down and kept while it's held (nothing else takes the view over);
+    // if it goes down, the view zooms back out and it takes a fresh press to track again
+    if (!rig.zooming) trackLock = null;
+    else if (!trackLock) trackLock = trackTarget();
+    if (trackLock && (!trackLock.alive || trackLock.falling)) { rig.zooming = false; trackLock = null; }
+    const want = running && !dead && (rig.zooming || tut.camT > 0) ? (tut.camT > 0 ? tut.camD : trackLock) : null;
     if (want) rig.trackPt = want.obj.position;
     rig.trackK += ((want ? 1 : 0) - rig.trackK) * Math.min(1, dt * 4);
   }
