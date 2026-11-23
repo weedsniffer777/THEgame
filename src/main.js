@@ -690,6 +690,7 @@ function hud(dt = 1 / 60) {
     const agl = ac.pos.y - terrain.heightAt(ac.pos.x, ac.pos.z);
     touchUi.setGear(running && !dead && (ac.t.ias * 1.944 < 250 || agl < 300 || ac.gearCmd > 0), ac.gearCmd > 0);
     touchUi.setLocked(msl && W.locked);
+    touchUi.setWeapon(W.selected);
   }
   aimEl.classList.toggle('stall', ac.t.stall > 0.3);
   thrFill.style.height = `${Math.min(ac.throttle, 1) * 100}%`;

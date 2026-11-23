@@ -57,8 +57,8 @@ body.tut-noarms #rngarc { visibility: hidden !important; }
 #arms .key { font: 700 11px/1 ui-monospace, monospace; width: 15px; height: 15px; display: grid; place-items: center; border: 1.5px solid rgba(255,255,255,0.85); border-radius: 3px; }
 #arms svg { display: block; fill: #fff; }
 /* the side-view silhouettes stood on end, nose up */
-#arms .gun { position: relative; width: 17px; height: 90px; }
-#arms .gun svg { position: absolute; left: 50%; top: 50%; width: 92px; height: 17px; transform: translate(-50%, -50%) rotate(-90deg); }
+#arms .gun { position: relative; width: 13px; height: 64px; }
+#arms .gun svg { position: absolute; left: 50%; top: 50%; width: 64px; height: 12px; transform: translate(-50%, -50%) rotate(-90deg); }
 #arms .msl { display: flex; gap: 3px; height: 64px; }
 #arms .msl i { position: relative; width: 10px; height: 64px; }
 #arms .msl i svg { position: absolute; left: 50%; top: 50%; width: 62px; height: 10.5px; transform: translate(-50%, -50%) rotate(-90deg); }
@@ -83,30 +83,31 @@ body.lost #game { filter: saturate(0.25) brightness(0.85); transition: filter 0.
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 #touch > * { pointer-events: auto; touch-action: none; }
 body.touch #throttle, #gauges { display: none !important; }
-.t-throttle { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: 28px; width: 38px; height: 46vh; border-radius: 10px; background: linear-gradient(90deg, rgba(0,0,0,0.38), rgba(20,26,34,0.32) 50%, rgba(0,0,0,0.38)); border: 1.5px solid rgba(255,255,255,0.45); box-shadow: inset 0 0 6px rgba(0,0,0,0.5); }
-.t-throttle .slot { position: absolute; left: 50%; top: 14px; bottom: 14px; width: 6px; margin-left: -3px; border-radius: 3px; background: rgba(0,0,0,0.65); box-shadow: inset 0 1px 2px rgba(0,0,0,0.8); overflow: hidden; }
-.t-throttle .slot s { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.55); }
-.t-throttle.ab .slot s { background: #ffa640; }
-.t-throttle .tk { position: absolute; left: 3px; width: 6px; height: 1px; background: rgba(255,255,255,0.55); transform: translateY(50%); }
-.t-throttle .tk.big { width: 9px; background: rgba(255,255,255,0.85); }
-.t-throttle .gate { position: absolute; left: 2px; right: 2px; height: 3px; transform: translateY(50%); border-top: 1.5px solid rgba(255,255,255,0.9); border-bottom: 1.5px solid rgba(255,255,255,0.9); }
-.t-throttle .ab { position: absolute; left: 2px; right: 2px; top: 4px; border-radius: 7px 7px 2px 2px; background: repeating-linear-gradient(135deg, rgba(255,166,64,0.35) 0 3px, transparent 3px 7px); }
-.t-throttle .grip { position: absolute; left: 50%; width: 34px; height: 26px; margin: 0 0 -13px -17px; pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6)); }
+.t-throttle { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: 28px; width: 44px; height: 46vh; border-radius: 9px;
+  background: linear-gradient(90deg, #7d838a 0%, #b9bfc5 22%, #dde1e4 46%, #c6cbd0 62%, #9aa0a7 84%, #757b82 100%);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -1px 0 rgba(0,0,0,0.25); opacity: 0.94; }
+.t-throttle::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, rgba(0,0,0,0.035) 1px 2px); pointer-events: none; }   /* brushed */
+.t-throttle .slot { position: absolute; left: 50%; top: 12px; bottom: 12px; width: 12px; margin-left: -6px; border-radius: 6px; background: #060708;
+  box-shadow: inset 0 0 0 2.5px #1b1d20, inset 0 0 0 3.5px #0a0b0c, inset 0 3px 4px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.45); }   /* rubber-lined */
+.t-throttle .tk { position: absolute; left: 5px; width: 6px; height: 1px; background: rgba(30,34,38,0.75); box-shadow: 0 1px 0 rgba(255,255,255,0.5); transform: translateY(50%); }
+.t-throttle .tk.big { width: 9px; }
+.t-throttle .gate { position: absolute; left: 3px; right: 3px; height: 4px; transform: translateY(50%); border-top: 1.5px solid rgba(25,28,32,0.85); border-bottom: 1.5px solid rgba(25,28,32,0.85); box-shadow: 0 1px 0 rgba(255,255,255,0.45); }
+.t-throttle .ab { position: absolute; left: 3px; right: 3px; top: 4px; border-radius: 7px 7px 2px 2px; background: repeating-linear-gradient(135deg, rgba(226,120,30,0.42) 0 3px, transparent 3px 7px); }
+.t-throttle .grip { position: absolute; left: 50%; width: 44px; height: 56px; margin: 0 0 -46px -22px; pointer-events: none; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.55)); }
 .t-throttle .grip svg { display: block; width: 100%; height: 100%; }
-.t-throttle .grip rect { fill: #d9dee4; stroke: rgba(0,0,0,0.5); stroke-width: 1; }
-.t-throttle .grip path { stroke: rgba(40,46,54,0.75); stroke-width: 1.6; stroke-linecap: round; fill: none; }
-.t-throttle.ab .grip rect { fill: #ffc27a; }
-.t-fire, .t-btn { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); background: rgba(0,0,0,0.3); display: grid; place-items: center; padding: 0; }
+.t-throttle.ab .grip { filter: drop-shadow(0 3px 3px rgba(0,0,0,0.55)) drop-shadow(0 0 4px rgba(255,150,50,0.7)); }
+.t-fire, .t-btn { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); background: rgba(0,0,0,0.3); display: grid; place-items: center; padding: 0; color: #fff; }
 .t-fire { right: max(24px, env(safe-area-inset-right)); bottom: 40px; width: 84px; height: 84px; }
-.t-btn { width: 50px; height: 50px; }
-.t-fire svg, .t-btn svg { width: 55%; height: 55%; stroke: #fff; fill: none; }
-.t-fire svg circle { fill: none; stroke: #fff; stroke-width: 2.4; }
+.t-btn { width: 54px; height: 54px; font: 700 11px/1 system-ui, sans-serif; letter-spacing: 0.04em; }
+.t-btn svg { width: 55%; height: 55%; stroke: #fff; fill: none; }
+.t-fire svg.wpn { width: 62%; height: auto; fill: #fff; transform: rotate(-45deg); overflow: visible; }
+.t-fire svg.wpn.msl { width: 82%; }
 .t-fire.on, .t-btn.on { background: rgba(255,255,255,0.3); }
 .t-fire.locked { border-color: #ff5541; }
-.t-brake { left: max(70px, calc(env(safe-area-inset-left) + 52px)); bottom: 28px; }
-.t-gear { left: max(14px, env(safe-area-inset-left)); bottom: calc(46vh + 44px); }
-.t-gear.down { border-color: #6eff96; }
-.t-zoom { right: max(41px, calc(env(safe-area-inset-right) + 17px)); bottom: 140px; }
+.t-brake { left: max(74px, calc(env(safe-area-inset-left) + 56px)); bottom: 28px; }
+.t-gear { left: max(14px, env(safe-area-inset-left)); bottom: calc(46vh + 48px); }
+.t-gear.down { border-color: #6eff96; color: #b8ffcc; }
+.t-zoom { right: max(39px, calc(env(safe-area-inset-right) + 15px)); bottom: 140px; }
 body.touch #arms { right: max(258px, calc(env(safe-area-inset-right) + 240px)); }
 #rotate { position: fixed; inset: 0; z-index: 30; display: none; place-items: center; background: #1b2635; }
 @media (orientation: portrait) and (pointer: coarse) { #rotate { display: grid; } }
