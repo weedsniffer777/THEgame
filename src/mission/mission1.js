@@ -10,7 +10,7 @@ export const MISSION1 = {
   playerAlt: 5000,
   speed: 140,             // m/s, the formation
   playerSpeed: 230,
-  startBack: 15000,       // m from the player's start to the lead bomber (stragglers much nearer)
+  startBack: 10000,       // m from the player's start to the lead bomber (the first straggler ~4.8 km ahead)
 };
 
 // slots: x right, y up, z behind the lead point (m)
@@ -20,7 +20,7 @@ const BOMBER_SLOTS = [
   [380, -60, 520],                                                               // right
 ];
 // two stragglers far behind the main group (the first one meets the player first)
-const STRAGGLER_SLOTS = [[60, -120, 10200], [-90, 40, 8400]];
+const STRAGGLER_SLOTS = [[60, -120, 5200], [-90, 40, 3400]];   // (the second one ~1.5 nm behind the main group's tail)
 const FIGHTER_SLOTS = [[-260, 420, -150], [0, 470, -250], [260, 420, -150]];   // escorts above the main group
 
 export function createMission1({ weapons, ac, rig }) {
