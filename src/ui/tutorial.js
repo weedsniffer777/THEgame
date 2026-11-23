@@ -73,32 +73,45 @@ export function createOverlay() {
     // ({ br: true } starts a new row, laid out like the keyboard)
     keys(list = []) {
       keysEl.innerHTML = '';
-      let row = null;
+      let row = null, g = 0;
       const newRow = () => { row = document.createElement('div'); row.className = 'krow'; keysEl.appendChild(row); };
       newRow();
-      // ({ text } is a few words between keycaps)
+      // ({ text } is a few words between keycaps; { group: 'Pitch', keys: [...] } is a labelled set of keycaps that
+      // fill together, side by side with the next group in the same row)
       caps = [];
-      for (const k of list) {
-        if (k.br) { newRow(); continue; }
-        if (k.text != null) { const t = document.createElement('span'); t.className = 'ktxt'; t.textContent = k.text; row.appendChild(t); continue; }
+      const cap = (k, parent, gi) => {
         const el = document.createElement('div');
         el.className = 'cap' + (k.wide || (k.label && k.label.length > 1) ? ' wide' : '') + (k.icon ? ' icon' : '');
         el.innerHTML = `<i></i><span>${k.icon ? ICONS[k.icon] : ''}</span>`;
         if (!k.icon) el.lastChild.textContent = k.label;
-        row.appendChild(el);
-        caps.push({ el, fill: el.firstChild, f: -1 });
+        parent.appendChild(el);
+        caps.push({ el, fill: el.firstChild, f: -1, g: gi });
+      };
+      for (const k of list) {
+        if (k.br) { newRow(); continue; }
+        if (k.text != null) { const t = document.createElement('span'); t.className = 'ktxt'; t.textContent = k.text; row.appendChild(t); continue; }
+        if (k.group) {
+          const box = document.createElement('div'); box.className = 'kgrp';
+          const lab = document.createElement('div'); lab.className = 'klabel'; lab.textContent = k.group;
+          const inner = document.createElement('div'); inner.className = 'krow';
+          box.append(lab, inner); row.appendChild(box);
+          const gi = g++; k.keys.forEach(c => cap(c, inner, gi));
+          continue;
+        }
+        cap(k, row, g++);
       }
       keysEl.classList.remove('done');
       cardEl.classList.toggle('nokeys', !caps.length);
       show();
     },
-    // how full keycap k is (0..1)
+    // how full keycap (or group of keycaps) k is (0..1)
     fill(k, f) {
-      const c = caps[k]; if (!c) return;
       f = Math.min(Math.max(f, 0), 1);
-      if (Math.abs(f - c.f) < 0.005) return;
-      c.f = f; c.fill.style.height = `${(f * 100).toFixed(1)}%`;
-      c.el.classList.toggle('full', f >= 1);
+      for (const c of caps) {
+        if (c.g !== k || Math.abs(f - c.f) < 0.005) continue;
+        c.f = f; c.fill.style.height = `${(f * 100).toFixed(1)}%`;
+        c.el.classList.toggle('full', f >= 1);
+      }
     },
     // the whole row is full: it pulses
     done() { keysEl.classList.add('done'); },

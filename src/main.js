@@ -114,6 +114,9 @@ let dead = 0;   // seconds since the player was killed (0 = alive)
 // straggler, zigzagging gently, with guns: put the gun cross on the lead circle. Then everything is revealed.
 const tut = { step: 'off', t: 0, wait: 0, entered: false, f: 0, doneT: 0, fwd: new THREE.Vector3(), thr: 0, stock: 0, lost: 0, gt: null };
 const isTouchDev = isTouch, tv = new THREE.Vector3();
+// what the player may use yet: each control is locked until the tutorial step that teaches it
+const tutAllow = { throttle: true, brake: true, gear: true, w1: true, w2: true };
+function tutUnlock() { for (const k in tutAllow) tutAllow[k] = true; }
 function tutActive() { return mission && !save.tutorialDone; }
 // tutorial: at least one bomber in every 1-3 bomber kills blows up (the usual chance applies in between), but never
 // one that would catch the player in its blast (checked when decided and again when it goes off)
@@ -129,12 +132,13 @@ let tutBlow = 1 + Math.floor(Math.random() * 3);
   };
   weapons.S.detonateOK = (d) => !tutActive() || d.pos.distanceTo(ac.pos) > (d.def.detonate?.radius || 100) + 20;
 }
-function tutGo(step, wait = 0.4) { tut.showT = 0; tut.after = null; tut.step = step; tut.t = 0; tut.wait = wait; tut.entered = false; tut.f = 0; tut.doneT = 0; tut.lost = 0; overlay.clear(); }
+function tutGo(step, wait = 0.4) { tut.fs = []; tut.showT = 0; tut.after = null; tut.step = step; tut.t = 0; tut.wait = wait; tut.entered = false; tut.f = 0; tut.doneT = 0; tut.lost = 0; overlay.clear(); }
 function tutReset() {
   overlay.hold(0, null); overlay.clear();
   const on = !!tutActive(), W = weapons.S;
   document.body.classList.toggle('tut-noarms', on); document.body.classList.toggle('tut-nomap', on);
-  if (!on) { tut.step = 'off'; W.allow.gun = W.allow.missile = true; return; }
+  if (!on) { tut.step = 'off'; W.allow.gun = W.allow.missile = true; tutUnlock(); return; }
+  for (const k in tutAllow) tutAllow[k] = false;   // (each is unlocked by the step that teaches it; gear: after the tutorial)
   for (const d of weapons.drones) { d.hidden = true; d.noLock = true; }
   W.allow.gun = W.allow.missile = false;
   tutGo('steer', 1.2);
@@ -153,6 +157,13 @@ function capsStep(dt, add, then) {
   tut.f = Math.min(1, tut.f + add(dt));
   for (let k = 0; k < 10; k++) overlay.fill(k, tut.f);
   if (tut.f >= 1) { overlay.done(); tut.doneT = 0.8; }
+}
+// several labelled keycap groups that fill separately (tut.fs); all full: the row pulses, then `then`
+function groupsStep(dt, adds, then) {
+  if (tut.doneT > 0) { if ((tut.doneT -= dt) <= 0) then(); return; }
+  tut.fs = tut.fs || [];
+  adds.forEach((add, k) => { tut.fs[k] = Math.min(1, (tut.fs[k] || 0) + add(dt)); overlay.fill(k, tut.fs[k]); });
+  if (adds.every((_, k) => tut.fs[k] >= 1)) { overlay.done(); tut.doneT = 0.8; }
 }
 const anyKey = (...codes) => (dt) => codes.some(c => keys.has(c)) ? dt / 0.5 : 0;
 // a new enemy: the map appears, the game freezes for a moment on the map and the enemy, then carries on
@@ -179,19 +190,27 @@ function tutorialStep(dt) {
       capsStep(dt, () => turn / 1.4, () => tutGo(T ? 'throttle' : 'keys'));
       break;
     }
-    case 'keys':     // the keys work too (any of them)
-      if (first) { overlay.say('You can also use'); overlay.keys([{ label: 'W' }, { br: true }, { label: 'A' }, { label: 'S' }, { label: 'D' }, { br: true }, { text: 'and' }, { label: 'Q' }, { label: 'E' }, { text: 'to yaw' }]); }
-      capsStep(dt, anyKey('KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'), () => tutGo('throttle'));
+    case 'keys':     // the keys work too: one from each column (pitch, roll, yaw)
+      if (first) { overlay.say('You can also use keyboard controls'); overlay.keys([{ group: 'Pitch', keys: [{ label: 'W' }, { label: 'S' }] }, { group: 'Roll', keys: [{ label: 'A' }, { label: 'D' }] }, { group: 'Yaw', keys: [{ label: 'Q' }, { label: 'E' }] }]); }
+      groupsStep(dt, [anyKey('KeyW', 'KeyS'), anyKey('KeyA', 'KeyD'), anyKey('KeyQ', 'KeyE')], () => tutGo('throttle'));
       break;
-    case 'throttle': {
-      if (first) { overlay.say('Throttle'); overlay.keys(T ? [{ icon: 'drag' }] : [{ label: 'Shift' }, { label: 'Tab' }]); overlay.spot([{ sel: T ? '.t-throttle' : '#thrScale', pad: 8 }], 0.3); tut.thr = ac.throttle; }
-      const d = Math.abs(ac.throttle - tut.thr); tut.thr = ac.throttle;
-      capsStep(dt, T ? () => d / 0.5 : anyKey('ShiftLeft', 'ShiftRight', 'Tab', 'KeyZ', 'KeyX'), () => tutGo('revealA', 1.5));
+    case 'throttle': {   // speed up and slow down, both
+      if (first) {
+        tutAllow.throttle = true;
+        overlay.keys([{ group: 'Speed up', keys: [T ? { icon: 'drag' } : { label: 'Tab' }] }, { br: true }, { group: 'Slow down', keys: [T ? { icon: 'drag' } : { label: 'Shift' }] }]);
+        overlay.spot([{ sel: T ? '.t-throttle' : '#thrScale', pad: 8 }], 0.3); tut.thr = ac.throttle;
+      }
+      const d = ac.throttle - tut.thr; tut.thr = ac.throttle;
+      groupsStep(dt, T ? [() => Math.max(0, d) / 0.25, () => Math.max(0, -d) / 0.25] : [anyKey('Tab', 'KeyX'), anyKey('ShiftLeft', 'ShiftRight', 'KeyZ')], () => tutGo('brake', 0.3));
       break;
     }
+    case 'brake':
+      if (first) { tutAllow.brake = true; overlay.say('Slow down faster with airbrakes'); overlay.keys([T ? { label: 'BRAKE' } : { label: 'B' }]); overlay.spot(T ? [{ sel: '.t-brake', round: true, pad: 6 }] : [], 0.3); }
+      capsStep(dt, (dt) => ac.airbrakeCmd > 0 ? dt / 0.6 : 0, () => tutGo('revealA', 1.5));
+      break;
     case 'revealA': if (first) { mission.breakAway(); tutReveal(A, 'A bomber is lagging behind', () => tutGo('select2', 0.2)); } break;
     case 'select2':
-      if (first) { document.body.classList.remove('tut-noarms'); overlay.say('Missiles'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]); overlay.spot([{ sel: '#arms .col[data-w="2"]', pad: 6 }], 0.35); }
+      if (first) { tutAllow.w2 = true; document.body.classList.remove('tut-noarms'); overlay.say('Missiles'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]); overlay.spot([{ sel: '#arms .col[data-w="2"]', pad: 6 }], 0.35); }
       capsStep(dt, (dt) => W.selected === 2 ? dt / 0.2 : 0, () => { A.noLock = false; tutGo('lock', 0.1); });
       break;
     case 'lock':
@@ -220,7 +239,7 @@ function tutorialStep(dt) {
     }
     case 'revealB': if (first) { W.allow.missile = false; tutReveal(B, 'Another one', () => { tut.gt = B; tutGo('select1', 0.2); }); } break;
     case 'select1':
-      if (first) { document.body.classList.remove('tut-noarms'); overlay.say('Guns'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '1' }]); overlay.spot([{ sel: '#arms .col[data-w="1"]', pad: 6 }], 0.35); }
+      if (first) { tutAllow.w1 = true; document.body.classList.remove('tut-noarms'); overlay.say('Guns'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '1' }]); overlay.spot([{ sel: '#arms .col[data-w="1"]', pad: 6 }], 0.35); }
       capsStep(dt, (dt) => W.selected === 1 ? dt / 0.2 : 0, () => { W.allow.gun = true; tutGo('close', 0.1); });
       break;
     case 'close':
@@ -241,7 +260,7 @@ function tutorialStep(dt) {
     case 'final':
       if (first) {
         for (const d of weapons.drones) { d.hidden = false; d.noLock = false; }
-        W.allow.gun = W.allow.missile = true;
+        W.allow.gun = W.allow.missile = true; tutUnlock();
         let near = null, nd = Infinity;
         for (const d of weapons.drones) if (d.alive && !d.falling) { const dd = d.pos.distanceTo(ac.pos); if (dd < nd) { nd = dd; near = d; } }
         weapons.setFiring(false);
@@ -265,10 +284,10 @@ addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) e.preventDefault()
 addEventListener('keyup', e => keys.delete(e.code));
 // weapons: 1 guns, 2 missiles; Space or left mouse fires
 addEventListener('keydown', e => {
-  if (e.code === 'Digit1') weapons.select(1);
-  if (e.code === 'Digit2') weapons.select(2);
+  if (e.code === 'Digit1' && tutAllow.w1) weapons.select(1);
+  if (e.code === 'Digit2' && tutAllow.w2) weapons.select(2);
   if (e.code === 'KeyR') weapons.cycleTarget();
-  if (e.code === 'KeyG' && !e.repeat) ac.gearCmd = ac.gearCmd ? 0 : 1;   // landing gear up / down
+  if (e.code === 'KeyG' && !e.repeat && tutAllow.gear) ac.gearCmd = ac.gearCmd ? 0 : 1;   // landing gear up / down
   if (e.code === 'Space' && running && !dead && !overlay.open && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
 });
 addEventListener('keyup', e => { if (e.code === 'Space') weapons.setFiring(false); });
@@ -427,9 +446,9 @@ function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 
 
 function physics(dt) {
   // throttle; holding throttle-up at full power lights the afterburner (Space stays free for guns)
-  ac.airbrakeCmd = keys.has('KeyB') || touchBrake ? 1 : 0;
+  ac.airbrakeCmd = (keys.has('KeyB') || touchBrake) && tutAllow.brake ? 1 : 0;
   // Tab (or X) up, Shift (or Z) down
-  const thUp = keys.has('Tab') || keys.has('KeyX'), thDown = keys.has('ShiftLeft') || keys.has('ShiftRight') || keys.has('KeyZ');
+  const thUp = tutAllow.throttle && (keys.has('Tab') || keys.has('KeyX')), thDown = tutAllow.throttle && (keys.has('ShiftLeft') || keys.has('ShiftRight') || keys.has('KeyZ'));
   const th = (thUp ? 1 : 0) - (thDown ? 1 : 0);
   // holding throttle-up at full dry power pushes the lever into the burner over ~0.25 s (the burner lights and
   // grows as it goes); let go before the end and it drops back to full dry
@@ -480,7 +499,7 @@ const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementC
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], mslEls = [];
-const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles, (k) => { if (running) weapons.select(k); });
+const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles, (k) => { if (running && tutAllow['w' + k]) weapons.select(k); });
 const gunSvg = document.getElementById('gunsol'), [gunBox, gunLine, gunCirc] = gunSvg.children;
 
 // a distance for the HUD: nm (km), then ft (m) close in: inside 1.5 nm (2 km)
@@ -687,7 +706,7 @@ function hud(dt = 1 / 60) {
   armsHud(W.selected, W.stock, msl && W.locked);
   if (touchUi) {                                         // the gear button: only when slow or low (or already down)
     const agl = ac.pos.y - terrain.heightAt(ac.pos.x, ac.pos.z);
-    touchUi.setGear(running && !dead && (ac.t.ias * 1.944 < 250 || agl < 300 || ac.gearCmd > 0), ac.gearCmd > 0);
+    touchUi.setGear(running && !dead && tutAllow.gear && (ac.t.ias * 1.944 < 250 || agl < 300 || ac.gearCmd > 0), ac.gearCmd > 0);
     touchUi.setLocked(msl && W.locked);
     touchUi.setWeapon(W.selected);
   }
@@ -910,11 +929,11 @@ if (isTouch) {
   weapons.S.hitScale = 1.5;
   touchUi = createTouch(document.getElementById('touch'), {
     onLook: (dx, dy) => { if (running) { mouseDX += dx; mouseDY += dy; } },
-    onThrottle: (v) => { ac.throttle = v; },
+    onThrottle: (v) => { if (tutAllow.throttle) ac.throttle = v; },
     onFire: (on) => { if (running && !dead && !overlay.open) weapons.setFiring(on, performance.now() / 1000); },
     onAirbrake: (on) => { touchBrake = on; },
     onZoom: (on) => { rig.zooming = on; },
-    onGear: () => { if (running && !dead) ac.gearCmd = ac.gearCmd ? 0 : 1; },
+    onGear: () => { if (running && !dead && tutAllow.gear) ac.gearCmd = ac.gearCmd ? 0 : 1; },
   });
 }
 
