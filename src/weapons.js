@@ -393,7 +393,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
 
   const S = {
     selected: 1, firing: false,
-    rounds: [], missiles: [], fx: [], kills: [], shots: 0, hits: 0,
+    rounds: [], missiles: [], fx: [], kills: [], shots: 0, hits: 0, allow: { gun: true, missile: true },
     stock: cfg.missiles, reload: 0, gunAcc: 0, gunSide: 0, flash: [0, 0],
     lock: 0, locked: false, seeker: null, target: null, lead: null, leadTime: 0, hitScale: 1,
     loaded: Array(RAILS.length).fill(true), lost: Array(RAILS.length).fill(false),
@@ -474,7 +474,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function placeDrone(d, k = Math.random() * 8) {
     d.dmg.repair(); d.cr = null;
     lastAt.delete(d); lastAt.delete(d.obj);   // its old smoke and flame trails ended where it went down
-    d.killedBy = null; d.lastHit = null; d.detonated = false; d.detonateAt = null;
+    d.killedBy = null; d.lastHit = null; d.detonated = false; d.detonateAt = null; d.fallT = 0; d.extra = 0;
     if (d.track) {                                             // a mission: on its track, from the track's start
       d.alive = true; d.falling = false; d.obj.visible = true; d.age = 0;
       trackPos(d, S.simT || 0, d.pos); d.vel.copy(d.track.dir).multiplyScalar(d.track.speed);
@@ -502,6 +502,13 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     }
     if (d.falling) {                          // going down: flown by what's left of the airframe, burning, until it hits
       if (d.detonateAt != null && (d.age >= d.detonateAt || d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 30)) detonate(d);
+      // coming apart on the way down: one or two more pieces over the next ~15 s (so nothing glides on intact)
+      d.fallT = (d.fallT || 0) + dt;
+      if ((d.extra || 0) < 2 && d.fallT > (d.extra ? 11 : 4) + (d.extraJit ??= Math.random() * 4)) {
+        const left = Object.keys(d.dmg.parts).filter(n => !d.dmg.parts[n].broken);
+        if (left.length) d.dmg.breakPart(left[Math.floor(Math.random() * left.length)], d.vel);
+        d.extra = (d.extra || 0) + 1; d.extraJit = Math.random() * 4;
+      }
       stepCrippled(d, dt);
       emit('smoke', d.pos, d.vel, d); if (d.dmg.dead || d.cr.t > 1.5) emit('flame', d.pos, d.vel, d.obj);
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 2 && terrain.isWater(d.pos.x, d.pos.z)) {   // into a lake: a big splash and it's gone
@@ -706,7 +713,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);   // own vector: _v/_w are reused below
     // guns
     S.flash[0] = Math.max(0, S.flash[0] - dt); S.flash[1] = Math.max(0, S.flash[1] - dt);
-    if (S.firing && S.selected === 1) {
+    if (S.firing && S.selected === 1 && S.allow.gun) {
       S.gunAcc += dt * cfg.gunRate;
       while (S.gunAcc >= 1) {
         S.gunAcc -= 1;
@@ -768,7 +775,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       const half = cfg.seekerFov / 2;
       let best = null, bestAng = 1e9;
       for (const d of drones) {
-        if (!d.alive || d.falling || !clearLine(ac.pos, d.pos)) continue;   // no locks through terrain or on aircraft already going down (missiles in flight keep after them)
+        if (!d.alive || d.falling || d.hidden || d.noLock || !clearLine(ac.pos, d.pos)) continue;   // no locks through terrain, on aircraft going down (missiles in flight keep after them) or on ones the mission hides
         const to = _w.subVectors(d.pos, ac.pos), dist = to.length();
         const ang = Math.acos(THREE.MathUtils.clamp(to.dot(fwd) / dist, -1, 1)) * 180 / Math.PI;
         const lim = S.locked && d === S.seeker ? half * 1.4 : half;
@@ -838,7 +845,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function nearestToNose(fwd, skip) {
     let best = null, bestA = 1e9;
     for (const d of drones) {
-      if (!d.alive || d.falling || d === skip) continue;
+      if (!d.alive || d.falling || d.hidden || d === skip) continue;
       const to = _v.subVectors(d.pos, ac.pos), dist = to.length();
       const a = Math.acos(THREE.MathUtils.clamp(to.dot(fwd) / dist, -1, 1)) + dist / 40000;
       if (a < bestA) { bestA = a; best = d; }
@@ -1116,7 +1123,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   return {
     S, drones,
     setFiring(on, now) {
-      if (on && !S.firing && S.selected === 2) fireMissile(now);
+      if (on && !S.firing && S.selected === 2 && S.allow.missile) fireMissile(now);
       S.firing = on;
     },
     select(k) { S.selected = k; S.lock = 0; },

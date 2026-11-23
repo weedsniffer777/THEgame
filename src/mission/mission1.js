@@ -10,16 +10,18 @@ export const MISSION1 = {
   playerAlt: 5000,
   speed: 140,             // m/s, the formation
   playerSpeed: 230,
-  startBack: 4000,        // m behind the lead bomber
+  startBack: 15000,       // m from the player's start to the lead bomber (stragglers much nearer)
 };
 
 // slots: x right, y up, z behind the lead point (m)
 const BOMBER_SLOTS = [
   [0, 0, 0], [-110, -30, 120], [110, -30, 120], [0, -60, 240],                  // lead box
   [-380, 60, 520], [-490, 30, 640], [-270, 30, 640],                             // left trailing box
-  [380, -60, 520], [270, -90, 640], [490, -90, 640],                             // right trailing box
+  [380, -60, 520],                                                               // right
 ];
-const FIGHTER_SLOTS = [[-260, 420, -150], [0, 470, -250], [260, 420, -150]];
+// two stragglers far behind the main group (the first one meets the player first)
+const STRAGGLER_SLOTS = [[60, -120, 10200], [-90, 40, 8400]];
+const FIGHTER_SLOTS = [[-260, 420, -150], [0, 470, -250], [260, 420, -150]];   // escorts above the main group
 
 export function createMission1({ weapons, ac, rig }) {
   const M = MISSION1;
@@ -29,12 +31,13 @@ export function createMission1({ weapons, ac, rig }) {
   const state = { t: 0, done: false, doneT: 0 };
 
   return {
-    state, bombers, fighters,
+    state, bombers, fighters, stragglers: bombers.slice(0, 2),
     // puts everyone in place (call on mission start and replay)
     start(simT) {
       const origin = new THREE.Vector3(M.start.x, M.formationAlt, M.start.z).addScaledVector(dir, M.startBack);
       const track = (off, weave) => ({ origin, dir, speed: M.speed, off: new THREE.Vector3(...off), t0: simT, weave });
-      bombers.forEach((d, i) => { d.track = track(BOMBER_SLOTS[i % BOMBER_SLOTS.length]); });
+      bombers.forEach((d, i) => { d.track = track(i < 2 ? STRAGGLER_SLOTS[i] : BOMBER_SLOTS[(i - 2) % BOMBER_SLOTS.length]); d.hidden = false; d.noLock = false; });
+      fighters.forEach(d => { d.hidden = false; d.noLock = false; });
       fighters.forEach((d, i) => { d.track = track(FIGHTER_SLOTS[i % FIGHTER_SLOTS.length], { a: 160, w: 0.22 + 0.05 * i, ph: i * 2.1 }); });
       weapons.placeDrones();
       weapons.resetStats();

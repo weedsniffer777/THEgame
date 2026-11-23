@@ -34,7 +34,7 @@ export const ENEMIES = {
     speed: [120, 150], radius: [3000, 4500], hitRadius: 24, toughness: 4, crippled: 'bomber', label: 'Bomber',
     paints: { standard: {}, unmarked: { 'bomber_0.png': 'models/jets/paints/bomber_0.unmarked.png' } },
     // on going down it may blow up (fuel and bombload): chance, blast radius (m), fireball size; any type can have this
-    detonate: { chance: 0.35, radius: 140, size: 5.5 },
+    detonate: { chance: 0.35, radius: 90, size: 2.4 },   // (fireball ~3/4 of the airframe)
   },
 };
 

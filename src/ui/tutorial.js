@@ -3,7 +3,8 @@
 export function createOverlay() {
   const root = document.createElement('div');
   root.id = 'tut';
-  root.innerHTML = `<div class="spot"></div><div class="card"><div class="txt"></div><div class="go">CLICK TO CONTINUE</div></div>`;
+  root.innerHTML = `<div class="spot"></div><div class="card"><div class="txt"></div><div class="go"></div></div>`;
+  root.querySelector('.go').textContent = matchMedia('(pointer: coarse)').matches ? 'Tap to continue' : 'Click to continue';
   document.body.appendChild(root);
   const spot = root.querySelector('.spot'), card = root.querySelector('.card'), txt = root.querySelector('.txt');
   const end = document.createElement('div');
@@ -12,7 +13,7 @@ export function createOverlay() {
   let onClose = null, armed = false;
 
   const close = () => { if (!onClose || !armed) return; root.classList.remove('on'); const f = onClose; onClose = null; f(); };
-  addEventListener('mouseup', (e) => { if (onClose) { e.preventDefault(); close(); } }, true);
+  addEventListener('pointerup', (e) => { if (onClose) { e.preventDefault(); close(); } }, true);
   addEventListener('keyup', (e) => { if (onClose && (e.code === 'Enter' || e.code === 'Space')) close(); }, true);
 
   return {
@@ -22,18 +23,13 @@ export function createOverlay() {
       txt.innerHTML = text;
       const el = target && document.querySelector(target);
       const r = el?.getBoundingClientRect?.();
-      if (r && r.width) {
-        const pad = 14;
-        Object.assign(spot.style, { display: 'block', left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + 2 * pad}px`, height: `${r.height + 2 * pad}px` });
-        // the card sits next to the spotlight, toward the middle of the screen
-        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-        card.style.left = `${Math.min(Math.max(cx < innerWidth / 2 ? r.right + 30 : r.left - 30 - 340, 16), innerWidth - 356)}px`;
-        card.style.top = `${Math.min(Math.max(cy - 50, 16), innerHeight - 140)}px`;
+      const onScreen = r && r.width && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight;
+      if (onScreen) {                                          // spotlight round the target
+        const pad = 10, size = Math.max(r.width, r.height) + 2 * pad, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        Object.assign(spot.style, { display: 'block', left: `${cx - size / 2}px`, top: `${cy - size / 2}px`, width: `${size}px`, height: `${size}px` });
         root.classList.remove('nospot');
-      } else {
-        spot.style.display = 'none'; root.classList.add('nospot');
-        card.style.left = `${innerWidth / 2 - 170}px`; card.style.top = `${innerHeight * 0.3}px`;
-      }
+      } else { spot.style.display = 'none'; root.classList.add('nospot'); }
+      card.classList.add('top'); card.style.left = ''; card.style.top = '';   // the card always sits high in the centre
       root.classList.add('on');
       onClose = done; armed = false;
       setTimeout(() => { armed = true; }, 350);              // (so the click that triggered nothing can't skip it)

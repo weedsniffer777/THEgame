@@ -98,51 +98,62 @@ const drawPos = new THREE.Vector3(), drawQuat = new THREE.Quaternion();
 function spawn() {
   const s = WORLD.spawn;
   weapons.rearm(); jet.damage.repair();
-  if (mission) { mission.start(weapons.S.simT || 0); tut.i = 0; tut.shown = false; tut.t = 0; tut.met = 0; tut.wait = 1.5; missionEnded = false; overlay.hideEnd(); }   // (a restart replays the whole mission)
-  else { ac.reset(new THREE.Vector3(s.x, s.y, s.z), s.heading, s.speed); rig.reset(ac.quat); weapons.placeDrones(); }
+  if (mission) { mission.start(weapons.S.simT || 0); tutReset(); missionEnded = false; overlay.hideEnd(); }   // (a restart replays the whole mission)
+  else { weapons.S.allow.gun = weapons.S.allow.missile = true; ac.reset(new THREE.Vector3(s.x, s.y, s.z), s.heading, s.speed); rig.reset(ac.quat); weapons.placeDrones(); }
   prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
   dead = 0; jet.object.visible = true; document.body.classList.remove('lost', 'dead');
 }
 let dead = 0;   // seconds since the player was killed (0 = alive)
-// tutorial (Mission 1, first time only): each step pauses on a card, then waits for the player to do the thing
-const tut = { i: 0, shown: false, t: 0, met: 0, wait: 1.5, gunKills0: 0, mslKills0: 0 };
-// tutorial: at least one bomber in every 1-3 bomber kills blows up, so the player sees it early
-let tutBlow = 1 + Math.floor(Math.random() * 3);
-{
-  const base = weapons.S.detonateChance;
-  weapons.S.detonateChance = (d) => {
-    if (!d.def.detonate) return false;
-    if (mission && !save.tutorialDone) {
-      const blow = --tutBlow <= 0 || base(d);                       // (the usual chance still applies in between)
-      if (blow) tutBlow = 1 + Math.floor(Math.random() * 3);
-      return blow;
-    }
-    return base(d);
-  };
+// Tutorial (Mission 1, first time only), choreographed. The main group starts far ahead and hidden (no markers, no
+// lock, not on the map). Steer, (PC) keys, throttle; then a straggler is revealed: select missiles, lock (the game
+// pauses on the lock), fire; then the second straggler, guns only; then everything is revealed. Every step pauses on
+// a short card before the player has to do something.
+const tut = { step: 'idle', wait: 0, t: 0, card: false, thr0: 1 };
+const isTouchDev = isTouch;
+function tutActive() { return mission && !save.tutorialDone; }
+function tutReset() {
+  tut.step = tutActive() ? 'steer' : 'off'; tut.wait = 1.2; tut.t = 0; tut.card = false;
+  const W = weapons.S;
+  if (tut.step === 'off') { W.allow.gun = W.allow.missile = true; return; }
+  for (const d of weapons.drones) { d.hidden = true; d.noLock = true; }
+  W.allow.gun = W.allow.missile = false;
 }
-const kills = (by) => weapons.S.kills.filter(k => k.by === by).length;
-const TUT = [
-  { text: 'MOVE THE MOUSE TO AIM.<br>YOUR JET FLIES TOWARD THE DOT.', target: '#aim', until: () => tut.t > 5 },
-  { text: 'TAB / SHIFT: THROTTLE.<br>AT FULL POWER, HOLD TAB FOR THE AFTERBURNER.', target: '#thrScale', until: () => ac.throttle >= 1.1, hold: 1 },
-  { text: 'PRESS 1 FOR GUNS.<br>CLOSE IN ON A BOMBER AND FIRE: LEFT CLICK OR SPACE.<br>SHOOT ITS PARTS OFF AND BRING IT DOWN.', target: '#arms', until: () => kills('gun') > tut.gunKills0, hold: 2, enter: () => { tut.gunKills0 = kills('gun'); } },
-  { text: 'PRESS 2 FOR MISSILES.<br>HOLD A TARGET IN THE CIRCLE UNTIL IT TURNS RED, THEN FIRE.', target: '#arms', until: () => kills('missile') > tut.mslKills0, hold: 2, enter: () => { tut.mslKills0 = kills('missile'); } },
-  { text: 'THE ESCORTS ARE COMING.<br>THE REST IS UP TO YOU.', target: null, last: true },
-];
+function card(text, target, then) { tut.card = true; weapons.setFiring(false); overlay.show(text, target, () => { tut.card = false; then?.(); }); }
 function tutorialStep(dt) {
-  if (!mission || save.tutorialDone || tut.i >= TUT.length) return;
+  if (!mission || tut.step === 'off' || tut.card) return;
   if ((tut.wait -= dt) > 0) return;
-  const st = TUT[tut.i];
-  if (!tut.shown) {
-    tut.shown = true; st.enter?.();
-    weapons.setFiring(false);
-    overlay.show(st.text, st.target, () => {
-      tut.t = 0; tut.met = 0;
-      if (st.last) { save.tutorialDone = true; writeSave(); tut.i++; }
-    });
-    return;
-  }
   tut.t += dt;
-  if (st.until?.()) { tut.met += dt; if (tut.met >= (st.hold || 0)) { tut.i++; tut.shown = false; tut.wait = 0.8; } }
+  const W = weapons.S, [A, B] = mission.stragglers, down = (d) => !d.alive || d.falling;
+  const reveal = (d, lock = true) => { d.hidden = false; d.noLock = !lock; };
+  const next = (step, wait = 0.6) => { tut.step = step; tut.t = 0; tut.wait = wait; tut.shown = false; };
+  if (!tut.shown) {                                         // each step opens with its card
+    tut.shown = true;
+    if (tut.step === 'steer') return card(isTouchDev ? 'Drag anywhere to steer.' : 'Move the mouse to steer.');
+    if (tut.step === 'keys') return card('You can also fly with <b>W A S D</b>, and <b>Q E</b> for rudder.');
+    if (tut.step === 'throttle') { tut.thr0 = ac.throttle; return card(isTouchDev ? 'Slide the bar on the left for throttle. The top is afterburner.' : '<b>Tab</b> / <b>Shift</b>: throttle. Hold <b>Tab</b> at full power for afterburner.'); }
+    if (tut.step === 'missiles') { reveal(A); return card(isTouchDev ? 'A bomber is lagging behind. Tap the missiles to select them.' : 'A bomber is lagging behind. Press <b>2</b> for missiles.'); }
+    if (tut.step === 'guns') { reveal(B, false); W.allow.gun = true; W.allow.missile = false; return card(isTouchDev ? 'Another one. Tap the guns, close in and fire.' : 'Another one. Press <b>1</b> for guns, close in and fire.'); }
+  }
+  switch (tut.step) {
+    case 'steer': if (tut.t > 4) next(isTouchDev ? 'throttle' : 'keys'); break;
+    case 'keys': if (tut.t > 5 || ['KeyW', 'KeyA', 'KeyS', 'KeyD'].some(k => keys.has(k)) && tut.t > 1.5) next('throttle'); break;
+    case 'throttle': if (tut.t > 6 || (Math.abs(ac.throttle - tut.thr0) > 0.15 && tut.t > 1.5)) next('missiles', 1); break;
+    case 'missiles':
+      if (W.selected === 2 && W.locked && W.seeker === A) {   // locked: pause on it, then allow the shot
+        tut.step = 'fire';
+        card(isTouchDev ? 'Locked: the circle turned red. Tap fire.' : 'Locked: the circle turned red. Fire with <b>left click</b> or <b>Space</b>.', '#seeker', () => { W.allow.missile = true; });
+      }
+      break;
+    case 'fire':
+      if (W.stock === 0 && !down(A)) W.allow.gun = true;      // (out of missiles: guns are fine too)
+      if (down(A)) next('guns', 2.5);
+      break;
+    case 'guns': if (down(B)) {
+      for (const d of weapons.drones) { d.hidden = false; d.noLock = false; }
+      W.allow.gun = W.allow.missile = true;
+      save.tutorialDone = true; writeSave(); tut.step = 'off';
+    } break;
+  }
 }
 let tgtSwitch = 0;   // how long a better gun target has been waiting to take over
 spawn();
@@ -370,7 +381,7 @@ const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementC
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], mslEls = [];
-const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles);
+const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles, (k) => { if (running) weapons.select(k); });
 const gunSvg = document.getElementById('gunsol'), [gunBox, gunLine, gunCirc] = gunSvg.children;
 function screenOf(p) { _p.copy(p).project(camera); return _p.z < 1 ? [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight] : null; }
 const xray = createXray(document.getElementById('xray'), jet.damage, { ...PART_HP, body: BODY_HP }, renderer, jet.model);
@@ -389,9 +400,9 @@ function notes(dt) {
   if (ac.gearBlown) { gearWarnT = 2.5; ac.gearBlown = false; }
   gearWarnT = Math.max(0, gearWarnT - dt);
   const list = [];
-  if (gearWarnT > 0) list.push('SLOW DOWN TO EXTEND LANDING GEAR!');
-  if (ac.airbrakeCmd > 0 && ac.airbrake > 0.05) list.push('AIRBRAKE ON');
-  if (ac.gearCmd && ac.gear > 0.05) list.push('LANDING GEAR EXTENDED');
+  if (gearWarnT > 0) list.push('Slow down to extend landing gear!');
+  if (ac.airbrakeCmd > 0 && ac.airbrake > 0.05) list.push('Airbrake on');
+  if (ac.gearCmd && ac.gear > 0.05) list.push('Landing gear extended');
   const html = running && !dead ? list.map(t => `<div>${t}</div>`).join('') : '';
   if (html !== lastNotes) { notesEl.innerHTML = html; lastNotes = html; }
 }
@@ -455,7 +466,7 @@ function hud(dt = 1 / 60) {
       tgtEl.parentNode.appendChild(el);
       el._b = el.lastChild; el._txt = '';
     }
-    el.hidden = !d.alive || d.falling || !running;
+    el.hidden = !d.alive || d.falling || !running || d.hidden;
     if (el.hidden) return;
     place(el, d.obj.position);
     const dist = units.dist(d.pos.distanceTo(ac.pos));
@@ -486,7 +497,7 @@ function hud(dt = 1 / 60) {
   {
     const c = screenOf(_p.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance));
     const score = (d) => {
-      if (!d || !d.alive || d.falling || !weapons.clearLine(ac.pos, d.pos)) return Infinity;
+      if (!d || !d.alive || d.falling || d.hidden || !weapons.clearLine(ac.pos, d.pos)) return Infinity;
       const q = screenOf(d.obj.position);
       if (!q || q[0] < 0 || q[0] > innerWidth || q[1] < 0 || q[1] > innerHeight) return Infinity;
       const px = Math.hypot(q[0] - c[0], q[1] - c[1]), km = d.pos.distanceTo(ac.pos) / 1000;
@@ -742,8 +753,7 @@ if (isTouch) {
     onLook: (dx, dy) => { if (running) { mouseDX += dx; mouseDY += dy; } },
     onThrottle: (v) => { ac.throttle = v; },
     onFire: (on) => { if (running && !dead && !overlay.open) weapons.setFiring(on, performance.now() / 1000); },
-    onSwitch: () => weapons.select(weapons.S.selected === 1 ? 2 : 1),
   });
 }
 
-window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck };
+window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut };

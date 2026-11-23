@@ -19,11 +19,12 @@ const GUN = `<svg viewBox="0 0 124 22" width="112" height="20" aria-hidden="true
 const INF = `<svg viewBox="0 0 24 12" width="22" height="11" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
   d="M12 6 C9.5 1.5 3 1.5 3 6 C3 10.5 9.5 10.5 12 6 C14.5 1.5 21 1.5 21 6 C21 10.5 14.5 10.5 12 6 Z"/></svg>`;
 
-export function createArmsHud(root, missileCount) {
+export function createArmsHud(root, missileCount, onSelect) {
   root.innerHTML = `
     <div class="row" data-w="1"><b class="key">1</b><span class="gun">${GUN}</span><span class="inf">${INF}</span></div>
     <div class="row" data-w="2"><b class="key">2</b><span class="msl">${Array.from({ length: missileCount }, () => `<i>${MISSILE}</i>`).join('')}</span></div>`;
   const rows = [...root.querySelectorAll('.row')];
+  rows.forEach(r => r.addEventListener('pointerdown', (e) => { e.preventDefault(); onSelect?.(+r.dataset.w); }));   // (touch screens: tap a weapon to select it)
   const mis = [...root.querySelectorAll('.msl i')];
   let lastSel = -1, lastStock = -1, lastLock = null;
   return (selected, stock, locked) => {

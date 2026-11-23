@@ -163,15 +163,16 @@ body.dead #hud, body.dead #touch { display: none; }
 
 /* notices: short red lines high in the centre, stacked */
 #notes { position: absolute; left: 0; right: 0; top: calc(7% + 72px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
-#notes div { font: 700 13px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.12em; color: #ff4a3c; text-shadow: 0 0 3px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.7); }
+#notes div { font: 500 17px/1 system-ui, sans-serif; color: #f0a796; text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9); }
 
 /* tutorial: darkened screen with a spotlight on one part of the HUD, and a short instruction card */
 #tut { position: fixed; inset: 0; z-index: 45; display: none; pointer-events: none; }
 #tut.on { display: block; }
-#tut.nospot { background: rgba(0,0,0,0.55); }
-#tut .spot { position: absolute; border-radius: 10px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.6); border: 1.5px solid rgba(236,246,238,0.8); }
-#tut .card { position: absolute; width: 340px; padding: 14px 16px; background: rgba(8,12,18,0.9); border-left: 3px solid #fff; color: rgba(236,246,238,0.95); font: 700 13px/1.5 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.04em; }
-#tut .go { margin-top: 10px; font-size: 10px; letter-spacing: 0.14em; opacity: 0.6; }
+#tut.nospot { background: rgba(0,0,0,0.3); }
+#tut .spot { position: absolute; border-radius: 50%; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); border: 1.5px solid rgba(236,246,238,0.85); }
+#tut .card { position: absolute; max-width: 420px; padding: 12px 16px 10px; background: rgba(10,14,20,0.82); border: 1px solid rgba(236,246,238,0.25); color: rgba(240,244,240,0.96); font: 500 16px/1.45 system-ui, sans-serif; }
+#tut .card.top { left: 50%; top: 15%; transform: translateX(-50%); text-align: center; }
+#tut .go { margin-top: 6px; font-size: 11px; opacity: 0.5; }
 #mend { position: fixed; inset: 0; z-index: 46; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.35); }
 #mend.on { display: flex; }
 #mend .box { min-width: 300px; padding: 22px 26px; background: rgba(8,12,18,0.9); border-left: 3px solid #fff; color: rgba(236,246,238,0.95); font: 700 13px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.12em; }
@@ -189,3 +190,4 @@ body.dead #hud, body.dead #touch { display: none; }
 #bigmap { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 6px; border: 1.5px solid rgba(236,246,238,0.85); background: rgba(8,12,18,0.85); display: none; z-index: 5; }
 body.bigmap #hud .mark, body.bigmap #gunsol { visibility: hidden; }
 #bigmap.on { display: block; }
+body.touch #arms .row { pointer-events: auto; cursor: pointer; }
