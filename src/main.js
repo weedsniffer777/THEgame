@@ -483,6 +483,13 @@ const seekerEl = document.getElementById('seeker'), lockEl = document.getElement
 const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles, (k) => { if (running) weapons.select(k); });
 const gunSvg = document.getElementById('gunsol'), [gunBox, gunLine, gunCirc] = gunSvg.children;
 
+// a distance for the HUD: nm (km), then ft (m) close in: inside 1.5 nm (2 km)
+function distText(m) {
+  const metric = settings.units === 'metric', far = metric ? m >= 2000 : m >= 1.5 * 1852;
+  if (far) { const v = units.dist(m); return `${v < 10 ? v.toFixed(1) : Math.round(v)}<small>${units.distLabel()}</small>`; }
+  const st = metric ? 10 : 50;
+  return `${Math.round(units.alt(m) / st) * st}<small>${units.altLabel()}</small>`;
+}
 function screenOf(p) { _p.copy(p).project(camera); return _p.z < 1 ? [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight] : null; }
 const xray = createXray(document.getElementById('xray'), jet.damage, { ...PART_HP, body: BODY_HP }, renderer, jet.model);
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
@@ -562,7 +569,17 @@ function hud(dt = 1 / 60) {
     const st = W.locked ? 'locked' : tracking ? (performance.now() % 250 < 125 ? 'flashW' : 'flashR') : '';
     lockEl.className = st; seekerEl.className = st;
   }
-  // enemies: what kind of aircraft it is above it, its distance in km under that (counts down as you close)
+  // enemies: what kind of aircraft it is above each. The distance under that only on two: the nearest enemy and the
+  // one nearest the middle of the screen (nm, then ft inside 1.5 nm; km, then m inside 2 km, like missiles)
+  let nearD = null, nearM = Infinity, midD = null, midPx = Infinity;
+  for (const d of weapons.drones) {
+    if (!d.alive || d.falling || d.hidden) continue;
+    const m = d.pos.distanceTo(ac.pos); if (m < nearM) { nearM = m; nearD = d; }
+    const q = screenOf(d.obj.position);
+    if (q && q[0] >= 0 && q[0] <= innerWidth && q[1] >= 0 && q[1] <= innerHeight) {
+      const px = Math.hypot(q[0] - innerWidth / 2, q[1] - innerHeight / 2); if (px < midPx) { midPx = px; midD = d; }
+    }
+  }
   weapons.drones.forEach((d, k) => {
     let el = tgtEls[k];
     if (!el) {
@@ -575,9 +592,8 @@ function hud(dt = 1 / 60) {
     el.hidden = !d.alive || d.falling || !running || d.hidden;
     if (el.hidden) return;
     place(el, d.obj.position);
-    const dist = units.dist(d.pos.distanceTo(ac.pos));
-    const txt = (dist < 10 ? dist.toFixed(1) : Math.round(dist).toString()) + units.distLabel();
-    if (txt !== el._txt) { el._b.innerHTML = `${txt.replace(/[A-Z]+$/, '')}<small>${units.distLabel()}</small>`; el._txt = txt; }
+    const txt = d === nearD || d === midD ? distText(d.pos.distanceTo(ac.pos)) : '';
+    if (txt !== el._txt) { el._b.innerHTML = txt; el._txt = txt; }
     el.classList.toggle('sel', d === W.target);
   });
   // the ring round the reticle: a pointer toward the nearest enemy, only while no enemy at all is on screen
@@ -591,8 +607,7 @@ function hud(dt = 1 / 60) {
     }
     const items = [];
     if (near && !seen) {
-      const dist = units.dist(Math.sqrt(nd));
-      items.push({ pos: near.obj.position, kind: 'foe', type: near.def.label || 'Fighter', dist: `${dist < 10 ? dist.toFixed(1) : Math.round(dist)}<small>${units.distLabel()}</small>` });
+      items.push({ pos: near.obj.position, kind: 'foe', type: near.def.label || 'Fighter', dist: distText(Math.sqrt(nd)) });
     }
     ringHud(screenOf(_n.copy(camera.position).addScaledVector(rig.fwd, D)), items, camera);
   }
@@ -612,10 +627,7 @@ function hud(dt = 1 / 60) {
       el.style.opacity = op.toFixed(2);
       place(el, m.p);
       if (m.owner === 'player') { if (el._txt) { el._b.innerHTML = ''; el._txt = ''; } continue; }   // (ours: no distance)
-      const dm = m.p.distanceTo(ac.pos), metric = settings.units === 'metric';
-      const far = metric ? dm >= 2000 : dm >= 1.5 * 1852;
-      const txt = far ? `${units.dist(dm).toFixed(1)}<small>${units.distLabel()}</small>`
-        : `${Math.round(units.alt(dm) / (metric ? 10 : 50)) * (metric ? 10 : 50)}<small>${units.altLabel()}</small>`;
+      const txt = distText(m.p.distanceTo(ac.pos));
       if (txt !== el._txt) { el._b.innerHTML = txt; el._txt = txt; }
     }
   }
