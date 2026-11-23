@@ -77,6 +77,15 @@ export const F5 = {
   gearTime: 4,            // s for the gear to go fully up or down
   gearMaxKt: 320,         // kt IAS: above this the gear retracts by itself (the real limit is ~260 kt; some leeway)
   afterburner: 'spray',   // 'spray' (this jet) or 'diamonds' (shock diamonds after the first flame)
+  // control surface travel (deg), per plane: the animation only (the flight model works in stick fractions)
+  surfaces: {
+    aileron: 18, rudder: 20,
+    stabUp: 17, stabDown: 5,         // stabilator, trailing edge up / down
+    stabFullAoA: 20, stabFullNegAoA: 12,   // AoA (deg) the stick holds when the stab shows full travel (the instructor's limits)
+    leFlap: 24, teFlap: 20, flapRate: 25,  // maneuvering / landing flaps: max deg, deg/s
+    flapAoA: [4, 14], flapKt: [320, 480],  // auto flaps: out with AoA between these, back in between these speeds
+    landFlapKt: [200, 260],                // gear down: full flaps below the first speed, half below the second
+  },
 
   // sideslip rolls the jet away from the yaw (dihedral / sweep effect): rudder right rolls right
   dihedral: 1.0,

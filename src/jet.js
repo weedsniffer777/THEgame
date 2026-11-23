@@ -305,6 +305,10 @@ export async function loadJet(url, cfg) {
   model.position.copy(CG).negate();
   const object = new THREE.Group().add(model);
 
+  const SF = cfg.surfaces;
+  // the stick that holds the stab's full-travel AoA (pitchControl * stick = pitchStability * sin(aoa), as the instructor uses)
+  const stabFullUp = Math.sin(SF.stabFullAoA * DEG) * cfg.pitchStability / cfg.pitchControl;
+  const stabFullDown = Math.sin(SF.stabFullNegAoA * DEG) * cfg.pitchStability / cfg.pitchControl;
   return {
     object, model,
     animate(acReal, time = performance.now() / 1000) {   // time: the game clock (stands still while paused)
@@ -319,23 +323,25 @@ export async function loadJet(url, cfg) {
       const ac = V.active ? { input: V, engine: V.engine, airbrake: V.airbrake, t: { aoa: V.aoa, ias: 100 }, gear: V.gear } : acReal;
       const gear = V.active ? V.gear : (acReal.gear || 0), canopy = V.active ? V.canopy : 0;
       const i = ac.input;
-      s.aileronL.rotation.x = -i.roll * 18 * DEG;
-      s.aileronR.rotation.x = i.roll * 18 * DEG;
-      s.stabL.rotation.x = s.stabR.rotation.x = i.pitch * (i.pitch > 0 ? 17 : 5) * DEG;   // stabilators: 17 deg trailing edge up, 5 down
-      s.rudder.rotation.y = i.yaw * 20 * DEG;
+      s.aileronL.rotation.x = -i.roll * SF.aileron * DEG;
+      s.aileronR.rotation.x = i.roll * SF.aileron * DEG;
+      // stabilators: the stick the flight model needs at the AoA limit shows as full travel (in the viewer: the raw input)
+      const sp = V.active ? i.pitch : i.pitch > 0 ? i.pitch / stabFullUp : i.pitch / stabFullDown;
+      s.stabL.rotation.x = s.stabR.rotation.x = THREE.MathUtils.clamp(sp, -1, 1) * (sp > 0 ? SF.stabUp : SF.stabDown) * DEG;
+      s.rudder.rotation.y = i.yaw * SF.rudder * DEG;
       object.updateMatrixWorld(true);
       legClip.copy(WING_UNDER).applyMatrix4(model.matrixWorld);
       setDoors(DOORS, ac.airbrake, gear, canopy);
-      // Flaps, F-5 style (leading edge up to 24 deg, trailing edge up to 20 deg):
+      // Flaps (travel and schedule from cfg.surfaces):
       //  - auto (maneuvering): out with angle of attack, most at high AoA and low speed, in at high speed;
       //  - gear down (landing): to their notches by airspeed: full below 200 kt, half below 260 kt, up above (blowback).
       const kt = (ac.t?.ias || 0) * 1.944, aoa = ac.t?.aoa || 0;
-      let k = THREE.MathUtils.smoothstep(aoa, 4, 14) * (1 - THREE.MathUtils.smoothstep(kt, 320, 480));
-      if (gear > 0.5) k = Math.max(k, kt < 200 ? 1 : kt < 260 ? 0.5 : 0);
+      let k = THREE.MathUtils.smoothstep(aoa, SF.flapAoA[0], SF.flapAoA[1]) * (1 - THREE.MathUtils.smoothstep(kt, SF.flapKt[0], SF.flapKt[1]));
+      if (gear > 0.5) k = Math.max(k, kt < SF.landFlapKt[0] ? 1 : kt < SF.landFlapKt[1] ? 0.5 : 0);
       if (V.active) k = V.flaps ?? k;
-      const rate = 25 * (1 / 60);                                               // deg per frame (~25 deg/s)
-      flaps.le += THREE.MathUtils.clamp(24 * k - flaps.le, -rate, rate);
-      flaps.te += THREE.MathUtils.clamp(20 * k - flaps.te, -rate, rate);
+      const rate = SF.flapRate * (1 / 60);                                      // deg per frame
+      flaps.le += THREE.MathUtils.clamp(SF.leFlap * k - flaps.le, -rate, rate);
+      flaps.te += THREE.MathUtils.clamp(SF.teFlap * k - flaps.te, -rate, rate);
       for (const t of lef) t.rotation.x = flaps.le * DEG;
       s.flapL.rotation.x = s.flapR.rotation.x = -flaps.te * DEG;
       const ab = THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1);

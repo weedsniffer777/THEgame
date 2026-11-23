@@ -105,9 +105,8 @@ body.clean #devkit, body.clean #devmenu, body.clean .lil-gui, body.clean #hud, b
 body.clean #perf { display: none; }
 #devmenu { top: 84px; }
 /* missiles in flight: a hollow diamond (thick edge, see-through tinted middle) on each, blue = ours, red = the enemy's */
-#hud .mmark { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; }
-#hud .mmark::after { content: ''; position: absolute; left: -5.5px; top: -5.5px; width: 11px; height: 11px; box-sizing: border-box; transform: rotate(45deg); border: 2.5px solid #3d8fff; background: rgba(61, 143, 255, 0.28); }
-#hud .mmark.foe::after { border-color: #d8352b; background: rgba(216, 53, 43, 0.28); }
+#hud .mmark { position: absolute; left: 0; top: 0; height: 3px; border-radius: 2px; background: #8fd4ff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35); transform-origin: 0 0; will-change: transform; }
+#hud .mmark.foe { background: #ff4a3c; }
 
 /* flight HUD: one SVG, thin single-colour strokes, cockpit-display typeface */
 #fhud { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.75)); }
@@ -168,11 +167,36 @@ body.dead #hud, body.dead #touch { display: none; }
 /* tutorial: darkened screen with a spotlight on one part of the HUD, and a short instruction card */
 #tut { position: fixed; inset: 0; z-index: 45; display: none; pointer-events: none; }
 #tut.on { display: block; }
-#tut.nospot { background: rgba(0,0,0,0.3); }
-#tut .spot { position: absolute; border-radius: 50%; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); border: 1.5px solid rgba(236,246,238,0.85); }
-#tut .card { position: absolute; max-width: 420px; padding: 12px 16px 10px; background: rgba(10,14,20,0.82); border: 1px solid rgba(236,246,238,0.25); color: rgba(240,244,240,0.96); font: 500 16px/1.45 system-ui, sans-serif; }
-#tut .card.top { left: 50%; top: 15%; transform: translateX(-50%); text-align: center; }
-#tut .go { margin-top: 6px; font-size: 11px; opacity: 0.5; }
+#tut svg.dim { position: absolute; left: 0; top: 0; }
+#tut .shade { fill: #000; transition: opacity 0.25s; }
+#tut .rings > * { fill: none; stroke: rgba(236,246,238,0.9); stroke-width: 1.5; }
+#tut .card { position: absolute; left: 50%; top: max(96px, 18%); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; color: rgba(240,244,240,0.97); font: 600 17px/1.3 system-ui, sans-serif; text-shadow: 0 1px 3px rgba(0,0,0,0.85); white-space: nowrap; }
+#tut .card.notxt .txt, #tut .card.nokeys .keys { display: none; }
+#tut .keys { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+#tut .krow { display: flex; gap: 10px; }
+#tut .ktxt { align-self: center; font: 600 17px/1 system-ui, sans-serif; margin: 0 4px; }
+#tut .cap { position: relative; width: 56px; height: 56px; border-radius: 9px; border: 2px solid rgba(255,255,255,0.88); border-bottom-width: 5px; background: rgba(12,16,22,0.72); overflow: hidden; display: grid; place-items: center; font: 700 22px/1 system-ui, sans-serif; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+#tut .cap.wide { width: 92px; font-size: 18px; }
+#tut .cap i { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(80,214,116,0.9); }
+#tut .cap span { position: relative; display: grid; place-items: center; }
+#tut .cap.full { border-color: #8dffb0; }
+#tut .keys.done .cap { animation: tutpulse 0.38s ease-out 2; }
+@keyframes tutpulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(120,255,160,0.75); } 45% { transform: scale(1.13); box-shadow: 0 0 0 9px rgba(120,255,160,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(120,255,160,0); } }
+/* the tutorial hides the weapons and the map until it introduces them */
+body.tut-noarms #arms, body.tut-noarms #seeker, body.tut-noarms #lockc, body.tut-noarms #gunsol, body.tut-noarms .t-fire { visibility: hidden !important; }
+body.tut-nomap #minimap { visibility: hidden; }
+/* the ring round the reticle: pointers toward what is outside it */
+#ring { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; pointer-events: none; }
+#ring .circ { position: absolute; left: -106px; top: -106px; overflow: visible; }
+#ring .circ circle { fill: none; stroke: rgba(255,255,255,0.22); stroke-width: 1.2; }
+#ring .ptr { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+#ring .ptr svg { position: absolute; left: 0; top: 0; overflow: visible; filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.7)); }
+#ring .ptr.foe svg path { fill: #ff5a4a; }
+#ring .ptr b { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.85); }
+#ring .ptr b i { font: 600 9px/1 ui-monospace, monospace; font-style: normal; color: #ff5a4a; }
+#ring .ptr b span { font: 700 10px/1 ui-monospace, monospace; color: #fff; font-variant-numeric: tabular-nums; }
+#ring .ptr b small { font-size: 8px; margin-left: 2px; opacity: 0.85; }
+body.bigmap #ring { visibility: hidden; }
 #mend { position: fixed; inset: 0; z-index: 46; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.35); }
 #mend.on { display: flex; }
 #mend .box { min-width: 300px; padding: 22px 26px; background: rgba(8,12,18,0.9); border-left: 3px solid #fff; color: rgba(236,246,238,0.95); font: 700 13px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.12em; }
