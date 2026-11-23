@@ -178,10 +178,11 @@ body.paused #hud, body.paused #touch { display: none; }
 body.dead #hud, body.dead #touch { display: none; }
 
 /* notices: short red lines high in the centre, stacked */
-#notes { position: absolute; left: 0; right: 0; top: calc(50% + 118px); display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 6px 22px; pointer-events: none; }
+#notes { position: absolute; left: 0; right: 0; top: calc(50% + 118px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 #notes div { font: 600 15px/1 system-ui, sans-serif; color: rgba(255,255,255,0.92); text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9); }
-#notes div.warn { animation: notewarn 0.5s steps(1) infinite; }
-@keyframes notewarn { 0% { color: #ff4a3c; } 50% { color: #fff; } }
+/* warnings: high in the centre, the old light red, a bit bigger, steady */
+#warns { position: absolute; left: 0; right: 0; top: calc(7% + 72px); display: flex; flex-direction: column; align-items: center; gap: 7px; pointer-events: none; }
+#warns div { font: 700 19px/1 system-ui, sans-serif; color: #f0a796; text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9); }
 
 /* tutorial: darkened screen with a spotlight on one part of the HUD, and a short instruction card */
 #tut { position: fixed; inset: 0; z-index: 45; display: none; pointer-events: none; }
@@ -256,4 +257,4 @@ body.hud-green #hud .mark b, body.hud-green #ring .ptr b span { color: var(--hg)
 body.hud-green #hud .mmark { --mc: #8affa8; }
 body.hud-green #hud .mmark.foe { --mc: #ff6a5a; }
 body.hud-green #hud .mmark b { color: var(--hg); }
-body.hud-green #notes div:not(.warn) { color: var(--hg); }
+body.hud-green #notes div { color: var(--hg); }

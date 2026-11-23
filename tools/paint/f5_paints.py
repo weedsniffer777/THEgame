@@ -66,18 +66,26 @@ def regions(pos, nrm):
     finband = finroot * smooth(0.11 - across, -soft, soft)
     # the join: from the end of the fuselage line, up into the fin band
     r['stripe'] = np.maximum(band * side, finband)
+    # two thin red rings round the rear fuselage, just ahead of the bare-metal tail cone (soft-edged)
+    body = (ax < 0.8) & (y < 2.5) & ~fin & ~((ax > 0.55) & (np.abs(nrm[..., 1]) > 0.8)) & ~((ax < 0.2) & (y > 2.25))   # (not the tailplanes or the fin root)
+    ring = lambda z0: smooth(0.022 - np.abs(z - z0), -0.006, 0.006)
+    r['rings'] = body * np.maximum(ring(-4.62), ring(-4.73))
+    # the top of the fin
+    r['fintip'] = (ax < 0.3) & (y > 3.84) & (z < -2.6)
     return r
 
-def scheme_proto(col, mr, skin, det, R):
-    """Prototype rollout: glossy light grey, navy stripe along the shoulder and up the fin, black radome and anti-glare,
-    bare metal round the nozzles."""
+def scheme_grey(col, mr, skin, det, R):
+    """Grey: a polished grey close to bare metal, black radome and anti-glare, two red rings round the rear fuselage,
+    a white fin tip, bare metal round the nozzles."""
     c = col.copy(); m = mr.copy()
-    base = np.array([166, 169, 172], np.float32)                    # mid grey lacquer, a little metallic
-    navy = np.array([28, 38, 78], np.float32)
+    base = np.array([168, 171, 174], np.float32)
+    red = np.array([176, 30, 26], np.float32)
     black = np.array([20, 21, 24], np.float32)
+    white = np.array([232, 233, 234], np.float32)
     metal = np.array([150, 154, 158], np.float32)
     paint = np.broadcast_to(base, c.shape).copy()
-    k = R['stripe'][..., None]; paint = paint * (1 - k) + navy * k
+    k = R['rings'][..., None]; paint = paint * (1 - k) + red * k
+    paint[R['fintip']] = white
     paint[R['antiglare']] = black
     paint[R['radome']] = black
     paint[R['aft']] = metal
@@ -85,9 +93,10 @@ def scheme_proto(col, mr, skin, det, R):
     rng = np.random.default_rng(7)
     var = ndi.gaussian_filter(rng.standard_normal(c.shape[:2]), 18); var = 1 + 0.045 * var / (np.abs(var).max() + 1e-6)
     c[skin] = (paint * det * var[..., None])[skin]
-    # gloss: a polished, slightly metallic lacquer (the stripe and black areas plain gloss paint); bare metal aft
-    m[..., 1][skin] = 62; m[..., 2][skin] = 110
-    flat = skin & ((R['stripe'] > 0.5) | R['antiglare'] | R['radome']); m[..., 1][flat] = 55; m[..., 2][flat] = 0
+    # gloss: reflective, most of the way to bare metal (the red, white and black areas plain gloss paint); bare metal aft
+    m[..., 1][skin] = 50; m[..., 2][skin] = 175
+    flat = skin & ((R['rings'] > 0.5) | R['antiglare'] | R['radome']); m[..., 1][flat] = 55; m[..., 2][flat] = 0
+    tip = skin & R['fintip']; m[..., 1][tip] = 105; m[..., 2][tip] = 0       # (white reads white when not too mirror-like)
     a = skin & R['aft']; m[..., 1][a] = 85; m[..., 2][a] = 210
     return c, m
 
@@ -119,7 +128,7 @@ if __name__ == '__main__':
     det = detail(col, med)
     R = regions(pos, nrm)
     Image.fromarray((skin * 255).astype(np.uint8)).save('/tmp/f5_skin.png')
-    for name, fn in (('proto', scheme_proto), ('aggressor', scheme_aggressor)):
+    for name, fn in (('grey', scheme_grey), ('aggressor', scheme_aggressor)):
         c, m = fn(col, mr, skin, det, R)
         Image.fromarray(np.clip(c, 0, 255).astype(np.uint8)).save(f'{OUT}f5_0.{name}.png', optimize=True)
         Image.fromarray(np.clip(m, 0, 255).astype(np.uint8)).save(f'{OUT}f5_1.{name}.png', optimize=True)

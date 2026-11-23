@@ -273,6 +273,13 @@ function tutorialStep(dt) {
       break;
   }
 }
+// selecting a weapon: not until the tutorial has taught it, and never an empty one (that says so instead)
+let outT = 0;   // how long the "out of missiles" notice still shows
+function pickWeapon(k) {
+  if (!tutAllow['w' + k]) return;
+  if (k === 2 && weapons.S.stock === 0) { outT = 2.5; return; }
+  weapons.select(k);
+}
 let touchBrake = false, touchUi = null;   // (touch screens: airbrake button held; the touch controls)
 let tgtSwitch = 0;   // how long a better gun target has been waiting to take over
 spawn();
@@ -285,8 +292,8 @@ addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) e.preventDefault()
 addEventListener('keyup', e => keys.delete(e.code));
 // weapons: 1 guns, 2 missiles; Space or left mouse fires
 addEventListener('keydown', e => {
-  if (e.code === 'Digit1' && tutAllow.w1) weapons.select(1);
-  if (e.code === 'Digit2' && tutAllow.w2) weapons.select(2);
+  if (e.code === 'Digit1') pickWeapon(1);
+  if (e.code === 'Digit2') pickWeapon(2);
   if (e.code === 'KeyR') weapons.cycleTarget();
   if (e.code === 'KeyG' && !e.repeat && tutAllow.gear) ac.gearCmd = ac.gearCmd ? 0 : 1;   // landing gear up / down
   if (e.code === 'Space' && running && !dead && !overlay.open && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
@@ -501,7 +508,7 @@ const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementC
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], mslEls = [];
-const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles, (k) => { if (running && tutAllow['w' + k]) weapons.select(k); });
+const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles, (k) => { if (running) pickWeapon(k); });
 const gunSvg = document.getElementById('gunsol'), [gunBox, gunLine, gunCirc] = gunSvg.children;
 
 // a distance for the HUD: nm (km), then ft (m) close in: inside 1.5 nm (2 km)
@@ -521,18 +528,26 @@ function place(el, worldPoint) {
   if (vis) el.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth}px, ${(-_p.y * 0.5 + 0.5) * innerHeight}px)`;
 }
 let gStrain = 0, gTime = 0, breakupT = 0.6;
-// notices (white, in a row a little below the centre): airbrake out, gear down; gear blown back by speed flashes red/white
-const notesEl = document.getElementById('notes');
-let gearWarnT = 0, lastNotes = '';
+// notices: warnings (gear blown back by speed, out of missiles) high in the centre in light red; status (airbrake out,
+// gear down) a little below the centre in white; one per row
+const notesEl = document.getElementById('notes'), warnsEl = document.getElementById('warns');
+let gearWarnT = 0, lastNotes = '', lastWarns = '';
 function notes(dt) {
   if (ac.gearBlown) { gearWarnT = 2.5; ac.gearBlown = false; }
   gearWarnT = Math.max(0, gearWarnT - dt);
-  const list = [];
-  if (gearWarnT > 0) list.push('<div class="warn">Slow down to extend landing gear!</div>');
-  if (ac.airbrakeCmd > 0 && ac.airbrake > 0.05) list.push('Airbrake on');
-  if (ac.gearCmd && ac.gear > 0.05) list.push('Landing gear extended');
-  const html = running && !dead ? list.map(t => t.startsWith('<') ? t : `<div>${t}</div>`).join('') : '';
-  if (html !== lastNotes) { notesEl.innerHTML = html; lastNotes = html; }
+  // the selected weapon ran dry: back to guns, and say so
+  if (weapons.S.selected === 2 && weapons.S.stock === 0 && running && !dead) { weapons.select(1); outT = 2.5; }
+  outT = Math.max(0, outT - dt);
+  // warnings: high in the centre, light red, one per row; status: a little below the centre, white, one per row
+  const warn = [], status = [];
+  if (gearWarnT > 0) warn.push('Slow down to extend landing gear!');
+  if (outT > 0) warn.push('Out of missiles!');
+  if (ac.airbrakeCmd > 0 && ac.airbrake > 0.05) status.push('Airbrake on');
+  if (ac.gearCmd && ac.gear > 0.05) status.push('Landing gear extended');
+  const show = running && !dead, row = (t) => `<div>${t}</div>`;
+  const w = show ? warn.map(row).join('') : '', st = show ? status.map(row).join('') : '';
+  if (w !== lastWarns) { warnsEl.innerHTML = w; lastWarns = w; }
+  if (st !== lastNotes) { notesEl.innerHTML = st; lastNotes = st; }
 }
 // The player's shadow: each frame their jet alone is drawn white-on-black from the sun into a small texture; the
 // terrain darkens wherever that silhouette lands beyond them (softer and fainter the higher they are).
@@ -570,6 +585,11 @@ function hud(dt = 1 / 60) {
   aimEl.style.opacity = manual ? 0.25 : weapons.S.selected === 1 ? 0.45 : 1;   // (guns: the gun cross is what aims, the steering circle steps back)
   place(noseEl, _n.set(0, 0, 1).applyQuaternion(drawQuat).multiplyScalar(D).add(drawPos));
   if (ac.t.speed > 5) place(fpvEl, _n.copy(ac.vel).normalize().multiplyScalar(D).add(drawPos));
+  {   // the flight path marker fades out as it closes on the gun cross, gone a little before they would overlap
+    const a = screenOf(_n.copy(ac.vel).normalize().multiplyScalar(D).add(drawPos)), b = screenOf(_p.set(0, 0, 1).applyQuaternion(drawQuat).multiplyScalar(D).add(drawPos));
+    const k = a && b ? THREE.MathUtils.smoothstep(Math.hypot(a[0] - b[0], a[1] - b[1]), 26, 70) : 1;
+    const o = k.toFixed(2); if (fpvEl.style.opacity !== o) fpvEl.style.opacity = o;
+  }
   // weapons HUD
   const W = weapons.S, msl = W.selected === 2;
   noseEl.style.visibility = msl ? 'hidden' : '';

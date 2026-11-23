@@ -140,6 +140,7 @@ function afterburner(kind) {
 import { loadGltfJson } from './gltf.js';
 import { splitAirframe, REGIONS } from './damage.js';
 import { tagTextures, loadTex } from './paint.js';
+import { DecalGeometry } from 'three/examples/jsm/geometries/DecalGeometry.js';
 
 // Paint schemes for the player's jet: repainted textures (texture file -> repainted file, made by
 // tools/paint/f5_paints.py) and decals: numbers and lettering projected onto the skin at run time (the texture atlas is
@@ -148,26 +149,48 @@ import { tagTextures, loadTex } from './paint.js';
 // height in metres, colours.
 const P = 'models/jets/paints/';
 export const F5_PAINTS = {
-  proto: {                                   // prototype rollout: glossy light grey, navy stripe, black radome
-    textures: { 'f5_0.png': P + 'f5_0.proto.png', 'f5_1.png': P + 'f5_1.proto.png' },
+  grey: {                                    // polished grey near bare metal, black radome and anti-glare, red rings aft, white fin tip
+    textures: { 'f5_0.png': P + 'f5_0.grey.png', 'f5_1.png': P + 'f5_1.grey.png' },
     decals: [
-      { text: '10527', at: [2.92, -5.05], side: true, h: 0.3, fill: '#15171b' },                        // on the fin, under the band
+      { text: '10527', at: [2.92, -5.05], side: true, h: 0.3, fill: '#15171b' },                        // low on the fin
       { lines: ['CAUTION', 'ENGINE INTAKE', 'DANGER AREA'], at: [1.9, 1.2], side: true, h: 0.16, fill: '#c8261d' },
       { lines: ['NO STEP'], at: [2.06, -3.35], side: true, h: 0.05, fill: '#2a2d32' },
     ],
   },
-  aggressor: {                               // aggressor: glossy black, red numbers outlined in yellow
+  aggressor: {                               // aggressor: glossy black, dark-red numbers thinly outlined in gold, dark-red stencils
     textures: { 'f5_0.png': P + 'f5_0.aggressor.png', 'f5_1.png': P + 'f5_1.aggressor.png' },
     decals: [
-      { text: '41', at: [1.58, 5.7], side: true, h: 0.62, fill: '#d3261b', stroke: '#f2c230' },            // on the nose
-      { text: '41', at: [4.0, -5.25], side: true, h: 0.2, fill: '#d3261b' },                                // near the fin tip
-      { text: '58-0841', at: [2.2, -4.2], side: true, h: 0.07, fill: '#b8241b' },                            // small serial
-      { lines: ['CAUTION', 'ENGINE INTAKE', 'DANGER AREA'], at: [1.9, 1.2], side: true, h: 0.16, fill: '#c8261d' },
+      { text: '41', at: [1.58, 5.7], side: true, h: 0.62, fill: '#a01c15', stroke: '#c99a2e', strokeW: 0.07 },   // on the nose
+      { text: '41', at: [3.95, -4.95], side: true, h: 0.2, fill: '#8e1812' },                                  // near the fin tip
+      { text: '58-0841', at: [2.2, -4.2], side: true, h: 0.07, fill: '#7a1510' },                              // small serial
+      { lines: ['CAUTION', 'ENGINE INTAKE', 'DANGER AREA'], at: [1.9, 1.2], side: true, h: 0.16, fill: '#7a1510' },
     ],
   },
   camo: {},                                  // the source model's own two-tone camo
 };
-export const F5_DEFAULT_PAINT = 'proto';
+export const F5_DEFAULT_PAINT = 'grey';
+
+// a stand-in for a mesh holding only its triangles that face direction n (world space), for projecting decals
+const _fa = new THREE.Vector3(), _fb = new THREE.Vector3(), _fc = new THREE.Vector3(), _nm = new THREE.Matrix3();
+function facingPart(mesh, n) {
+  const g = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+  if (!g.attributes.normal) g.computeVertexNormals();
+  const P = g.attributes.position, N = g.attributes.normal, keep = [];
+  _nm.getNormalMatrix(mesh.matrixWorld);
+  for (let t = 0; t < P.count; t += 3) {
+    _fa.set(0, 0, 0);
+    for (let k = 0; k < 3; k++) _fa.add(_fb.fromBufferAttribute(N, t + k));
+    _fa.applyMatrix3(_nm).normalize();
+    if (_fa.dot(n) > 0.15) keep.push(t);
+  }
+  const pos = new Float32Array(keep.length * 9), nor = new Float32Array(keep.length * 9);
+  keep.forEach((t, k) => { for (let v = 0; v < 3; v++) for (let c = 0; c < 3; c++) { pos[k * 9 + v * 3 + c] = P.getComponent(t + v, c); nor[k * 9 + v * 3 + c] = N.getComponent(t + v, c); } });
+  g.dispose();
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  const m = new THREE.Mesh(out); m.matrixWorld.copy(mesh.matrixWorld);
+  return m;
+}
 
 // a canvas texture with the decal's text: one bold line, or a few lines of small stencil text
 function decalTexture(d) {
@@ -180,7 +203,7 @@ function decalTexture(d) {
   g.font = font; g.textBaseline = 'top'; g.lineJoin = 'round';
   lines.forEach((l, k) => {
     const y = px * 0.15 + k * px * 1.15, x = px * 0.25;
-    if (d.stroke) { g.strokeStyle = d.stroke; g.lineWidth = px * 0.16; g.strokeText(l, x, y); }
+    if (d.stroke) { g.strokeStyle = d.stroke; g.lineWidth = px * (d.strokeW || 0.16); g.strokeText(l, x, y); }
     g.fillStyle = d.fill; g.fillText(l, x, y);
     if (d.arrow && k === 0) {                         // a pointer after the word
       const ax = x + g.measureText(l).width + px * 0.3, ay = y + px * 0.45;
@@ -369,7 +392,7 @@ export async function loadJet(url, cfg) {
       }
       if (changed) m.needsUpdate = true;
     });
-    for (const d of decals.splice(0)) { d.removeFromParent(); d.geometry.dispose(); d.material.map?.dispose(); d.material.dispose(); }
+    for (const d of decals.splice(0)) { d.removeFromParent(); d.geometry.dispose(); d.material.dispose(); }
     model.updateMatrixWorld(true);
     const hull = []; model.traverse(o => { if (o.isMesh && !o.userData.noSplit && !o.userData.decal && o.material.name !== 'glass' && o.visible) hull.push(o); });
     for (const d of sc.decals || []) {
@@ -388,16 +411,23 @@ export async function loadJet(url, cfg) {
         if (n.dot(_o.copy(hit.point).sub(c)) < 0) n.negate();
         const up = new THREE.Vector3(0, 1, 0).transformDirection(model.matrixWorld);
         const yv = up.sub(n.clone().multiplyScalar(up.dot(n))).normalize(), xv = new THREE.Vector3().crossVectors(yv, n);
-        // a flat card on the skin (fin and nose sides are near enough flat at these sizes), a hair off it
+        // projected onto the skin so it wraps the curves, but only onto the triangles that face the projector (the decal
+        // box is deeper than a fin is thick: otherwise it would print through onto the far side, mirrored)
         const h = d.h * (d.lines ? (d.lines.length * 1.15 + 0.3) / (d.lines.length * 1.15) : 1.15);
-        const world = new THREE.Matrix4().makeBasis(xv, yv, n).setPosition(hit.point.clone().addScaledVector(n, 0.012));
-        const geo = new THREE.PlaneGeometry(h * aspect, h);
-        const mat = new THREE.MeshStandardMaterial({ map, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.35, metalness: 0 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.matrixAutoUpdate = false;
-        mesh.matrix.copy(hit.object.matrixWorld).invert().multiply(world);              // (in the part's own space)
-        mesh.userData.decal = mesh.userData.noSplit = mesh.userData.noBulk = true;
-        hit.object.add(mesh); decals.push(mesh);
+        const proj = new THREE.Euler().setFromRotationMatrix(new THREE.Matrix4().makeBasis(xv, yv, n));
+        // every skin mesh under the decal gets its piece (a number can run across the fin and the rudder)
+        for (const part of hull) {
+          const facing = facingPart(part, n);
+          if (!facing.geometry.attributes.position.count) { facing.geometry.dispose(); continue; }
+          const geo = new DecalGeometry(facing, hit.point, proj, new THREE.Vector3(h * aspect, h, 0.6));
+          facing.geometry.dispose();
+          if (!geo.attributes.position.count) { geo.dispose(); continue; }
+          geo.applyMatrix4(new THREE.Matrix4().copy(part.matrixWorld).invert());     // (into that part's own space)
+          const mat = new THREE.MeshStandardMaterial({ map, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.3, metalness: 0 });
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.userData.decal = mesh.userData.noSplit = mesh.userData.noBulk = true;
+          part.add(mesh); decals.push(mesh);
+        }
       }
     }
   }
