@@ -122,26 +122,27 @@ function endingStep(dt) {
 }
 function endingCamera(dt) {
   const d = ending.d, t = ending.t, P = d.obj.position;
-  // where the wreck is (it stops at the ground), and a focus that drifts with it
-  ending.focus.lerp(P, ending.t < 0.05 ? 1 : Math.min(1, dt * 1.5));
-  // close in: ahead of its nose and off to one side (a front three-quarter view), a little above, looking down at it;
-  // the nose direction is smoothed so a tumbling wreck doesn't whip the camera round
+  if (!ending.placed) ending.focus.copy(P);
+  ending.focus.lerp(P, Math.min(1, dt * 1.5));                  // (the wide shot's centre drifts after it)
+  // close in: held at a fixed offset off its nose (a front three-quarter view, a little above, looking down at it),
+  // so it can't fall behind however fast it falls; only the nose direction is smoothed, so a tumble doesn't whip it
   const nose = _ew.set(0, 0, 1).applyQuaternion(d.obj.quaternion);
-  if (!ending.placed || !ending.nose) ending.nose = nose.clone(); else ending.nose.lerp(nose, Math.min(1, dt * 1.5)).normalize();
-  const v = _ew.copy(ending.nose);
-  const chase = _ec.copy(P).addScaledVector(v, 60).add(_el.set(-v.z * 42, 22, v.x * 42));
+  if (!ending.placed || !ending.nose) ending.nose = nose.clone(); else ending.nose.lerp(nose, Math.min(1, dt * 3)).normalize();
+  const n = ending.nose, flat = Math.hypot(n.x, n.z) > 0.2;
+  const sx = flat ? -n.z : 1, sz = flat ? n.x : 0, sl = Math.hypot(sx, sz);
+  const close = _ec.copy(P).addScaledVector(n, 60).add(_el.set(sx / sl * 42, 22, sz / sl * 42));
   // the wide shot: high above and well off to one side, drifting slowly round (a helicopter shot)
   ending.yaw += dt * 0.035;
-  const wide = _el.set(Math.sin(ending.yaw) * 900, 0, Math.cos(ending.yaw) * 900).add(ending.focus);
+  const wide = _ew.set(Math.sin(ending.yaw) * 900, 0, Math.cos(ending.yaw) * 900).add(ending.focus);
   wide.y = Math.max(ending.focus.y, terrain.heightAt(ending.focus.x, ending.focus.z)) + 420;
-  const k = THREE.MathUtils.smoothstep(t, 3, 9);                // 3 s riding along, then 6 s pulling out
-  const want = chase.lerp(wide, k);
-  want.y = Math.max(want.y, terrain.heightAt(want.x, want.z) + 25);
-  const snap = !ending.placed; ending.placed = true;          // (the first frame cuts straight to the shot)
-  if (snap) { ending.cam.copy(want); ending.look.copy(P); } else ending.cam.lerp(want, Math.min(1, dt * (k < 1 ? 4 : 0.8)));
-  ending.look.lerp(k < 0.5 ? P : ending.focus, Math.min(1, dt * 3));
+  const k = THREE.MathUtils.smoothstep(t, 3, 9);                // 3 s close in, then 6 s pulling out
+  const cam = close.lerp(wide, k);
+  cam.y = Math.max(cam.y, terrain.heightAt(cam.x, cam.z) + 25);
+  ending.cam.copy(cam);
+  ending.look.copy(P).lerp(ending.focus, k);
+  const snap = !ending.placed; ending.placed = true;
   camera.position.copy(ending.cam); camera.up.set(0, 1, 0); camera.lookAt(ending.look);
-  const fov = THREE.MathUtils.lerp(34, CAMERA.fov - 8, k);   // narrow close in, wider as it pulls out
+  const fov = THREE.MathUtils.lerp(34, CAMERA.fov - 8, k);     // narrow close in, wider as it pulls out
   if (snap || Math.abs(camera.fov - fov) > 0.01) { camera.fov = snap ? fov : camera.fov + (fov - camera.fov) * Math.min(1, dt * 2); camera.updateProjectionMatrix(); }
 }
 function spawn() {

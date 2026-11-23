@@ -17,7 +17,8 @@ export const ENEMIES = {
       || (Math.abs(c.x) > 2.4 && Math.abs(c.x) < 3.6 && c.z > -2.1 && c.z < -0.6 && c.y < 1.0)
       || (Math.abs(c.x) > 2.6 && Math.abs(c.x) < 3.4 && c.z > -1.95 && c.z < -0.45 && c.y < 1.3 && Math.abs(n.y) < 0.35)
       || (Math.abs(c.x) < 0.5 && c.z > 2.0 && c.z < 4.0 && c.y < 0.84)
-      || (Math.abs(c.x) < 0.2 && c.z > 3.4 && c.z < 4.3 && c.y < 1.2 && Math.abs(n.y) < 0.35),
+      || (Math.abs(c.x) < 0.2 && c.z > 3.4 && c.z < 4.3 && c.y < 1.2 && Math.abs(n.y) < 0.35)
+      || (Math.abs(c.x) > 3.25 && Math.abs(c.x) < 3.45 && c.z > -0.95 && c.z < -0.5 && c.y < 1.42),   // (a leftover scrap of the main-gear door)
     speed: [140, 220], radius: [500, 1400], hitRadius: 7, toughness: 0.8, crippled: 'fighter', label: 'Fighter',
     paints: { standard: {}, unmarked: { 'mig15_0.png': 'models/jets/paints/mig15_0.unmarked.png' } },
   },
@@ -35,6 +36,8 @@ export const ENEMIES = {
     paints: { standard: {}, unmarked: { 'bomber_0.png': 'models/jets/paints/bomber_0.unmarked.png' } },
     // on going down it may blow up (fuel and bombload): chance, blast radius (m), fireball size; any type can have this
     detonate: { chance: 0.35, radius: 90, size: 2.4 },   // (fireball ~3/4 of the airframe)
+    // the bomb bay: doors made to fit the belly (model space after the turn: half-width, from z0 to z1)
+    bombBay: { w: 0.85, z0: -5.5, z1: 2.5, open: 78 },
   },
 };
 
@@ -75,6 +78,48 @@ function applyMeta(root, meta) {
   }
 }
 
+// A bomb bay cut into the belly: the source model has none, so the doors are built here, shaped to the belly by
+// casting rays up at it (two curved panels, each hinged along its outer edge, swinging down and out), with the dark
+// bay just inside them. The doors are named 'bayL' / 'bayR' (pivots): setBombBay(object, k) opens them (0 shut, 1 open).
+const BAY_DOOR = new THREE.MeshStandardMaterial({ color: 0xaeb3b8, metalness: 0.35, roughness: 0.5 });
+const BAY_DARK = new THREE.MeshStandardMaterial({ color: 0x0b0c0e, metalness: 0, roughness: 1, side: THREE.DoubleSide });
+function buildBombBay(model, B) {
+  model.updateMatrixWorld(true);
+  const hull = []; model.traverse(o => { if (o.isMesh && !o.userData.noSplit) hull.push(o); });
+  const ray = new THREE.Raycaster(), up = new THREE.Vector3(0, 1, 0), inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
+  let skinMat = null, lastUv = null;
+  const skinY = (x, z) => { ray.set(new THREE.Vector3(x, -20, z).applyMatrix4(model.matrixWorld), up); const h = ray.intersectObjects(hull, false)[0]; if (h) { lastUv = h.uv || null; skinMat ||= [].concat(h.object.material)[0]; } return h ? h.point.applyMatrix4(inv).y : null; };
+  const NX = 6, NZ = 12;
+  // a curved strip under the belly from x0 to x1, z0 to z1, offset (m) below the skin
+  const strip = (x0, x1, off) => {
+    const pos = [], idx = [], uv = [];
+    for (let j = 0; j <= NZ; j++) for (let i = 0; i <= NX; i++) {
+      const x = x0 + (x1 - x0) * i / NX, z = B.z0 + (B.z1 - B.z0) * j / NZ, y = skinY(x, z) ?? skinY(0, z) ?? -3.8;
+      pos.push(x, y - off, z); uv.push(lastUv ? lastUv.x : 0, lastUv ? lastUv.y : 0);   // (the skin's own texture there)
+    }
+    for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
+      const a = j * (NX + 1) + i, b = a + 1, c = a + NX + 1, d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  };
+  const mark = (m) => { m.userData.noSplit = m.userData.noBulk = true; return m; };
+  model.add(mark(new THREE.Mesh(strip(-B.w, B.w, 0.03), BAY_DARK)));                   // the bay (behind the doors)
+  for (const [side, sgn] of [['L', 1], ['R', -1]]) {
+    const hingeX = sgn * B.w, hy = skinY(hingeX, (B.z0 + B.z1) / 2) ?? -3.8;
+    const pivot = new THREE.Object3D(); pivot.name = 'bay' + side; pivot.position.set(hingeX, hy - 0.06, 0);
+    pivot.userData.bay = sgn * (B.open * Math.PI / 180);
+    const door = mark(new THREE.Mesh(strip(sgn > 0 ? 0 : -B.w, sgn > 0 ? B.w : 0, 0.06), BAY_DOOR));
+    door.material = (skinMat || BAY_DOOR).clone(); door.material.side = THREE.DoubleSide;   // (wearing the belly's skin)
+    door.position.set(-hingeX, -(hy - 0.06), 0);
+    pivot.add(door); model.add(pivot);
+  }
+}
+export function setBombBay(object, k) {
+  for (const n of ['bayL', 'bayR']) { const p = object.getObjectByName(n); if (p) p.rotation.z = p.userData.bay * k; }
+}
+
 // Returns a prototype to clone per enemy: Group > scaled model (already split into parts).
 export async function loadEnemy(type) {
   const T = ENEMIES[type];
@@ -93,6 +138,7 @@ export async function loadEnemy(type) {
     const w = p.getWorldPosition(new THREE.Vector3());
     model.getObjectByName('part:wingInner' + (w.x > 0 ? 'L' : 'R'))?.attach(p);
   }
+  if (T.bombBay) buildBombBay(model, T.bombBay);
   model.userData.toughness = T.toughness;
   model.traverse(o => { if (o.isMesh && o.material.map) o.material.map.anisotropy = 4; });
   model.scale.setScalar(T.scale);

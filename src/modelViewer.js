@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { F5_PAINTS, F5_DEFAULT_PAINT } from './jet.js';
 import GUI from 'lil-gui';
 import { Damage } from './damage.js';
+import { setBombBay } from './enemy.js';
 import { TUNABLE, saveTuning, resetGroup } from './config.js';
 
 // Dev kit model viewer: a separate, static scene (neutral studio light, ground grid) to inspect any model in the game.
@@ -18,8 +19,8 @@ export function createModelViewer(renderer, canvas, environment, models, { anim,
   const grid = new THREE.GridHelper(40, 40, 0x56636f, 0x3a4550); grid.position.y = -3; scene.add(grid);
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 500);
   const holder = new THREE.Group(); scene.add(holder);
-  const st = { on: false, az: 2.3, el: 0.3, dist: 22, drag: null, name: Object.keys(models)[0], paint: F5_DEFAULT_PAINT };
-  let gui = null, dmgFolder = null, animFolder = null, doorFolder = null, paintCtl = null, damage = null, live = null, last = performance.now();
+  const st = { bay: 0, on: false, az: 2.3, el: 0.3, dist: 22, drag: null, name: Object.keys(models)[0], paint: F5_DEFAULT_PAINT };
+  let bayCtl = null, gui = null, dmgFolder = null, animFolder = null, doorFolder = null, paintCtl = null, damage = null, live = null, last = performance.now();
   const props = [];
 
   // the live player jet is borrowed from the game scene while it is shown, and given back after
@@ -63,6 +64,9 @@ export function createModelViewer(renderer, canvas, environment, models, { anim,
     grid.position.y = -box.getSize(new THREE.Vector3()).y / 2 - 0.5;
     st.dist = size * 1.3;
     buildDamageUi();
+    // a bomb bay to open (the bomber)
+    bayCtl?.destroy(); bayCtl = null;
+    if (gui && o.getObjectByName('bayL')) { st.bay = 0; bayCtl = gui.add(st, 'bay', 0, 1, 0.01).name('bomb bay').onChange(v => setBombBay(o, v)); }
     if (animFolder) animFolder.domElement.style.display = live ? '' : 'none';
     if (doorFolder) doorFolder.domElement.style.display = live ? '' : 'none';   // (player jet only)
   }
