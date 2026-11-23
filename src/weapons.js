@@ -681,7 +681,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     d.killedBy = d.lastHit || 'other'; S.kills.push({ d, by: d.killedBy });
     // will it blow up? Lost a wing: it tumbles for a while first (the tanks go as it comes apart); anything else
     // (fuselage, tail, fire): it goes at once
-    if (S.detonateChance(d) && S.detonateOK(d)) {
+    // the last one standing: it never just blows apart, and it always goes down burning (the ending watches it)
+    const last = drones.every(o => o === d || !o.alive || o.falling);
+    if (last) d.dmg.ablaze();
+    if (!last && S.detonateChance(d) && S.detonateOK(d)) {
       const P = d.dmg.parts, wing = ['wingInnerL', 'wingInnerR', 'wingOuterL', 'wingOuterR'].some(n => P[n]?.broken);
       if (wing) d.detonateAt = (d.age || 0) + 1.5 + Math.random() * 2.5; else detonate(d);
     }

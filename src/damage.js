@@ -215,6 +215,10 @@ export function attachToPart(model, obj) {
 }
 
 // Per-aircraft damage state.
+// which part a break point sits on (what is left holding it): the outer wing is held by the inner wing, the tail
+// surfaces by the rear fuselage; everything else by the fuselage itself (null)
+const HOST = { wingOuterL: 'wingInnerL', wingOuterR: 'wingInnerR', stabL: 'tail', stabR: 'tail', fin: 'tail' };
+
 export class Damage {
   constructor(model, scene, terrain, emit) {
     this.model = model; this.scene = scene; this.terrain = terrain; this.emit = emit;
@@ -235,6 +239,11 @@ export class Damage {
   }
   // going down, by a fatal hit or otherwise (set by whoever flies it): everything burns at full strength
   get burning() { return this.dead || !!this.doomed; }
+  // set it well alight (the mission's last kill): fires at both wing roots that burn for as long as it falls
+  ablaze() {
+    this.quenched = false;
+    for (const n of ['wingInnerL', 'wingInnerR']) { const p = this.parts[n]; if (p) this.fires.push({ at: p.breakAt.clone(), wing: true, host: null, t: 0, life: 1e9 }); }
+  }
 
   // effects on the flight model of whatever is missing
   effects() {
@@ -286,7 +295,10 @@ export class Damage {
     // while the jet can still fly only torn wing sections (fuel) burn, and modestly; fin, stabilators and nose
     // don't burn at all. Once it's going down, every break burns fully (see update).
     const burns = !this.quenched && (name.startsWith('wing') || this.burning);
-    this.fires.push({ at: part.breakAt.clone(), wing: name.startsWith('wing'), t: 0, life: 5 + Math.random() * 10 });   // (a wing fire on a flyable aircraft burns out after life s)
+    // a fire burning on the piece that just came off (e.g. at the outer-wing joint, on the inner wing) moves to where
+    // this piece was attached (the wing root): it would otherwise float in the air where the wing used to be
+    for (const f of this.fires) if (f.host === name) { f.at.copy(part.breakAt); f.host = HOST[name] || null; }
+    this.fires.push({ at: part.breakAt.clone(), wing: name.startsWith('wing'), host: HOST[name] || null, t: 0, life: 5 + Math.random() * 10 });   // (a wing fire on a flyable aircraft burns out after life s)
     const edge = part.breakAt.clone().sub(part.local.elements.length ? new THREE.Vector3().setFromMatrixPosition(part.local) : o.position);   // torn edge, relative to the piece
     o.updateWorldMatrix(true, true);
     this.scene.attach(o);

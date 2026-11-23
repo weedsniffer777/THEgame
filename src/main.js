@@ -124,9 +124,11 @@ function endingCamera(dt) {
   const d = ending.d, t = ending.t, P = d.obj.position;
   // where the wreck is (it stops at the ground), and a focus that drifts with it
   ending.focus.lerp(P, ending.t < 0.05 ? 1 : Math.min(1, dt * 1.5));
-  // close in: ahead of it and off to one side (a front three-quarter view), a little above, looking down at it
-  const v = _ew.copy(d.vel); if (v.lengthSq() < 1) v.set(0, 0, 1);
-  v.normalize();
+  // close in: ahead of its nose and off to one side (a front three-quarter view), a little above, looking down at it;
+  // the nose direction is smoothed so a tumbling wreck doesn't whip the camera round
+  const nose = _ew.set(0, 0, 1).applyQuaternion(d.obj.quaternion);
+  if (!ending.placed || !ending.nose) ending.nose = nose.clone(); else ending.nose.lerp(nose, Math.min(1, dt * 1.5)).normalize();
+  const v = _ew.copy(ending.nose);
   const chase = _ec.copy(P).addScaledVector(v, 60).add(_el.set(-v.z * 42, 22, v.x * 42));
   // the wide shot: high above and well off to one side, drifting slowly round (a helicopter shot)
   ending.yaw += dt * 0.035;
@@ -433,6 +435,9 @@ const wreck = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), quat: new TH
 const deathCam = { yaw: 0, pitch: 0, dist: 0, far: 85 };
 function crash(ditched = false, airborne = false) {   // ditched: worn out after a water landing (sinks whole); airborne: broke up in the air
   if (dead) return;
+  // the last enemy went down: if the player dies too in those first moments, it's a loss after all; once the ending is
+  // under way the jet flying on by itself can't die
+  if (ending.on) { if (ending.t >= 3) return; ending.on = false; document.body.classList.remove('ending', 'ending-blur'); }
   weapons.setFiring(false); document.body.classList.add('dead');   // dead: no shooting, no HUD
   deathCam.far = airborne ? 190 : 85;                                   // broken up: pull right back over the spreading debris
   wreck.airborne = airborne;                                          // (the fuselage still has to hit the ground)
