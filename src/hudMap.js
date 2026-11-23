@@ -75,7 +75,7 @@ export function createMap(root, terrain) {
       const h = Math.hypot(m.v.x, m.v.z) || 1, L = 7 * dpr, dx = m.v.x / h * L, dy = m.v.z / h * L;
       g.beginPath(); g.moveTo(x - dx, y - dy); g.lineTo(x, y);
       g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineWidth = 3.6 * dpr; g.stroke();
-      g.strokeStyle = m.owner === 'player' ? '#8fd4ff' : '#ff4a3c'; g.lineWidth = 1.8 * dpr; g.stroke();
+      g.strokeStyle = m.owner === 'player' ? '#3d8fff' : '#ff4a3c'; g.lineWidth = 1.8 * dpr; g.stroke();
     }
     g.lineWidth = 1.2 * dpr;
     // the player: an arrow along the heading
