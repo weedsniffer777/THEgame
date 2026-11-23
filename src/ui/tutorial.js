@@ -5,9 +5,10 @@
 // for a moment to show something (a new enemy on the map and in the air), then carries on on its own.
 const MOUSE = `<svg viewBox="0 0 24 34" width="22" height="31" aria-hidden="true"><rect x="2" y="2" width="20" height="30" rx="10" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2v11" stroke="currentColor" stroke-width="2"/></svg>`;
 const LMB = `<svg viewBox="0 0 24 34" width="22" height="31" aria-hidden="true"><path d="M12 2 A10 10 0 0 0 2 12 V13 H12 Z" fill="currentColor"/><rect x="2" y="2" width="20" height="30" rx="10" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2v11M2 13h20" stroke="currentColor" stroke-width="2"/></svg>`;
+const RMB = `<svg viewBox="0 0 24 34" width="22" height="31" aria-hidden="true"><path d="M12 2 A10 10 0 0 1 22 12 V13 H12 Z" fill="currentColor"/><rect x="2" y="2" width="20" height="30" rx="10" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2v11M2 13h20" stroke="currentColor" stroke-width="2"/></svg>`;
 const DRAG = `<svg viewBox="0 0 34 34" width="30" height="30" aria-hidden="true"><circle cx="17" cy="17" r="5" fill="currentColor"/><path d="M17 3v6M17 25v6M3 17h6M25 17h6M17 3l-3 3M17 3l3 3M17 31l-3-3M17 31l3-3M3 17l3-3M3 17l3 3M31 17l-3-3M31 17l-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 const TAP = `<svg viewBox="0 0 34 34" width="30" height="30" aria-hidden="true"><circle cx="17" cy="17" r="6" fill="currentColor"/><circle cx="17" cy="17" r="12" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6"/></svg>`;
-const ICONS = { mouse: MOUSE, lmb: LMB, drag: DRAG, tap: TAP };
+const ICONS = { mouse: MOUSE, lmb: LMB, rmb: RMB, drag: DRAG, tap: TAP };
 const SVGNS = 'http://www.w3.org/2000/svg';
 
 export function createOverlay() {

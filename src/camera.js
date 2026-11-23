@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 
-// Third-person aim camera: the mouse turns the camera, the instructor turns the jet to follow it.
+// Third-person aim camera: the mouse turns the camera, the instructor turns the jet to follow it. Held right click
+// (or the tutorial) turns the view toward a target instead, without changing where the jet is steered.
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 const _q = new THREE.Quaternion(), _a = new THREE.Vector3(), _m = new THREE.Matrix4(), _o = new THREE.Vector3();
+const _vf = new THREE.Vector3(), _vu = new THREE.Vector3();
 const FLIP = new THREE.Quaternion().setFromAxisAngle(Y, Math.PI);
 
 export class CameraRig {
@@ -11,6 +13,9 @@ export class CameraRig {
     this.aim = new THREE.Quaternion();
     this.fwd = new THREE.Vector3(); this.up = new THREE.Vector3(); this.right = new THREE.Vector3();
     this.zoom = 0;
+    // target tracking: the view (not the aim the jet follows) turns toward trackPt, blended in by trackK (0..1)
+    this.trackPt = null; this.trackK = 0;
+    this.view = new THREE.Quaternion(); this._vq = new THREE.Quaternion();
   }
 
   reset(planeQuat) { this.aim.copy(planeQuat).multiply(FLIP); this.axes(); }
@@ -48,8 +53,18 @@ export class CameraRig {
     const w = 1 - THREE.MathUtils.smoothstep(Math.abs(this.fwd.y), 0.85, 0.98);
     this.aim.premultiply(_q.setFromAxisAngle(this.fwd, bank * Math.min(1, c.levelRate * dt) * w)).normalize();
     this.axes();
-    this.camera.position.copy(target).addScaledVector(this.up, c.height * (0.4 + 0.6 * this.distK)).addScaledVector(this.fwd, -c.distance * this.distK);
-    this.camera.quaternion.copy(this.aim);
+    // the view: the aim, turned toward the tracked target by trackK (the jet stays framed between camera and target)
+    const q = this.view.copy(this.aim);
+    if (this.trackK > 0.001 && this.trackPt) {
+      _a.subVectors(this.trackPt, target);
+      if (_a.lengthSq() > 1) {
+        _m.lookAt(_o, _a.normalize(), Y);
+        q.slerp(this._vq.setFromRotationMatrix(_m), Math.min(this.trackK, 1));
+      }
+    }
+    _vf.set(0, 0, -1).applyQuaternion(q); _vu.set(0, 1, 0).applyQuaternion(q);
+    this.camera.position.copy(target).addScaledVector(_vu, c.height * (0.4 + 0.6 * this.distK)).addScaledVector(_vf, -c.distance * this.distK);
+    this.camera.quaternion.copy(q);
     const fov = THREE.MathUtils.lerp(c.fov + c.speedFov * speedFrac, c.zoomFov, this.zoom);
     if (Math.abs(fov - this.camera.fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
   }
