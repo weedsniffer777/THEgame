@@ -19,7 +19,7 @@ export function tagTextures(gltf) {
 }
 
 const texCache = new Map();
-function loadTex(url, like) {
+export function loadTex(url, like) {
   if (!texCache.has(url)) texCache.set(url, new THREE.TextureLoader().loadAsync(url).then(t => {
     t.flipY = like.flipY; t.colorSpace = like.colorSpace; t.wrapS = like.wrapS; t.wrapT = like.wrapT;
     t.anisotropy = like.anisotropy; t.channel = like.channel; t.userData.src = url; return t;

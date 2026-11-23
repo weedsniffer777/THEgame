@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-// Mission 1: intercept a bomber formation. Ten bombers in three boxes on one straight, endless track, three escort
-// fighters weaving above them; the player starts behind and a little above, closing. The mission is complete once
+// Mission 1: intercept a bomber formation. Ten bombers in three boxes on one straight, endless track (no escorts:
+// the fighter slots below are kept for a later mission); the player starts behind and a little above, closing. The mission is complete once
 // all of them are down. (No enemy AI yet: everything flies its track.)
 export const MISSION1 = {
   heading: 48,            // deg, the track's direction (same as the free-flight spawn)

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { F5_PAINTS, F5_DEFAULT_PAINT } from './jet.js';
 import GUI from 'lil-gui';
 import { Damage } from './damage.js';
 import { TUNABLE, saveTuning, resetGroup } from './config.js';
@@ -82,6 +83,10 @@ export function createModelViewer(renderer, canvas, environment, models, { anim,
         gui.domElement.style.top = '70px';
         gui.add(st, 'name', Object.keys(models)).name('model').onChange(show);
         if (anim) {
+          if (jet?.setPaint) {                                 // paint scheme of the player's jet
+            const ps = { paint: F5_DEFAULT_PAINT };
+            gui.add(ps, 'paint', Object.keys(F5_PAINTS)).name('paint (player jet)').onChange(v => jet.setPaint(v));
+          }
           animFolder = gui.addFolder('animation (player jet)');
           animFolder.add(anim, 'cycle').name('play all');
           animFolder.add(anim, 'pitch', -1, 1, 0.01); animFolder.add(anim, 'roll', -1, 1, 0.01); animFolder.add(anim, 'yaw', -1, 1, 0.01);

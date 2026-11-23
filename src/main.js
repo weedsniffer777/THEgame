@@ -88,7 +88,8 @@ const haze = createHeatHaze(renderer, jet.model, NOZZLES);
 // what we fly: Mission 1 (default) or free flight (?mode=free, dev kit)
 let devMode = null; try { devMode = localStorage.getItem('thegame.devmode'); } catch { /* */ }
 const MODE = (params.get('mode') || devMode) === 'free' ? 'free' : 'mission1';   // (dev kit level selector; kept in this browser)
-const roster = MODE === 'mission1' ? [{ proto: enemyProto, count: 3 }, { proto: bomberProto, count: 10 }] : [{ proto: enemyProto, count: WEAPONS.drones - 1 }, { proto: bomberProto, count: 1 }];
+const roster = MODE === 'mission1' ? [{ proto: bomberProto, count: 10 }] :   // (Mission 1: the bomber formation alone, no escorts)
+  [{ proto: enemyProto, count: WEAPONS.drones - 1 }, { proto: bomberProto, count: 1 }];
 const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, roster);
 const rig = new CameraRig(camera, CAMERA);
 const overlay = createOverlay();

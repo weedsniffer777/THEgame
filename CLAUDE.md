@@ -15,6 +15,7 @@
 - `src/damage.js`: break-apart damage model shared by every aircraft (parts, hit points, debris, flight effects); per-type region tables (REGIONS).
 - `src/enemy.js`: enemy aircraft types (first: the early swept-wing jet, gear removed, split into parts).
 - `src/weapons.js`: guns (tracer per round), missiles (6 stations, no reload), seeker/lock, explosions, target drone.
+- Player jet paints (`F5_PAINTS` in jet.js; default 'proto', switchable in the model viewer): textures made by `tools/paint/f5_paints.py` from the texel-to-airframe map of `tools/paint/posmap.py` (the atlas is shared by both sides, so numbers and lettering are runtime decal cards, never painted into it).
 - `src/paint.js`: paint schemes (per type in enemy.js / jet.js: texture file -> repainted file in `public/models/jets/paints/`). Enemies currently use 'standard'; 'unmarked' (no stars) is ready.
 - `src/save.js`: the one save file (tutorialDone, settings, ...). `src/mission/mission1.js`: Mission 1 (formation on a straight track, completion). `src/ui/tutorial.js`: tutorial overlay (line + keycaps that fill and pulse, multi-hole spotlight; never freezes the game), mission-complete card; the steps live in `main.js` (tutorialStep). Default mode is Mission 1; `?mode=free` (dev kit level selector) is free flight.
 - `src/settings.js`: player settings (units; HUD colour DEFAULT or GREEN: green turns every HUD element of ours green, enemy red stays; on the map we and our missiles are white) and unit conversions; `src/ui/pauseMenu.js`: pause menu with settings tabs.

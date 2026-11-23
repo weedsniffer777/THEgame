@@ -139,10 +139,58 @@ function afterburner(kind) {
 
 import { loadGltfJson } from './gltf.js';
 import { splitAirframe, REGIONS } from './damage.js';
-import { tagTextures } from './paint.js';
+import { tagTextures, loadTex } from './paint.js';
 
-// paint schemes for the player's jet (texture file -> repainted file); only the standard one so far
-export const F5_PAINTS = { standard: {} };
+// Paint schemes for the player's jet: repainted textures (texture file -> repainted file, made by
+// tools/paint/f5_paints.py) and decals: numbers and lettering projected onto the skin at run time (the texture atlas is
+// shared by both sides of the jet, so text painted into it would read backwards on one side).
+// A decal: text (or lines of small stencil text), where (model space: x left, y up, z nose; 'side' = both sides),
+// height in metres, colours.
+const P = 'models/jets/paints/';
+export const F5_PAINTS = {
+  proto: {                                   // prototype rollout: glossy light grey, navy stripe, black radome
+    textures: { 'f5_0.png': P + 'f5_0.proto.png', 'f5_1.png': P + 'f5_1.proto.png' },
+    decals: [
+      { text: '10527', at: [2.92, -5.05], side: true, h: 0.3, fill: '#15171b' },                        // on the fin, under the band
+      { lines: ['CAUTION', 'ENGINE INTAKE', 'DANGER AREA'], at: [1.9, 1.2], side: true, h: 0.16, fill: '#c8261d' },
+      { lines: ['NO STEP'], at: [2.06, -3.35], side: true, h: 0.05, fill: '#2a2d32' },
+    ],
+  },
+  aggressor: {                               // aggressor: glossy black, red numbers outlined in yellow
+    textures: { 'f5_0.png': P + 'f5_0.aggressor.png', 'f5_1.png': P + 'f5_1.aggressor.png' },
+    decals: [
+      { text: '41', at: [1.58, 5.7], side: true, h: 0.62, fill: '#d3261b', stroke: '#f2c230' },            // on the nose
+      { text: '41', at: [4.0, -5.25], side: true, h: 0.2, fill: '#d3261b' },                                // near the fin tip
+      { text: '58-0841', at: [2.2, -4.2], side: true, h: 0.07, fill: '#b8241b' },                            // small serial
+      { lines: ['CAUTION', 'ENGINE INTAKE', 'DANGER AREA'], at: [1.9, 1.2], side: true, h: 0.16, fill: '#c8261d' },
+    ],
+  },
+  camo: {},                                  // the source model's own two-tone camo
+};
+export const F5_DEFAULT_PAINT = 'proto';
+
+// a canvas texture with the decal's text: one bold line, or a few lines of small stencil text
+function decalTexture(d) {
+  const lines = d.lines || [d.text], big = !d.lines;
+  const px = big ? 128 : 40, font = `${big ? 800 : 700} ${px}px "Arial Narrow", "Roboto Condensed", system-ui, sans-serif`;
+  const c = document.createElement('canvas'), g = c.getContext('2d');
+  g.font = font;
+  const w = Math.max(...lines.map(l => g.measureText(l).width)) + (d.arrow ? px * 1.6 : 0) + px * 0.5;
+  c.width = Math.ceil(w); c.height = Math.ceil(px * 1.15 * lines.length + px * 0.3);
+  g.font = font; g.textBaseline = 'top'; g.lineJoin = 'round';
+  lines.forEach((l, k) => {
+    const y = px * 0.15 + k * px * 1.15, x = px * 0.25;
+    if (d.stroke) { g.strokeStyle = d.stroke; g.lineWidth = px * 0.16; g.strokeText(l, x, y); }
+    g.fillStyle = d.fill; g.fillText(l, x, y);
+    if (d.arrow && k === 0) {                         // a pointer after the word
+      const ax = x + g.measureText(l).width + px * 0.3, ay = y + px * 0.45;
+      g.fillRect(ax, ay - px * 0.06, px * 0.9, px * 0.12);
+      g.beginPath(); g.moveTo(ax + px * 1.2, ay); g.lineTo(ax + px * 0.8, ay - px * 0.3); g.lineTo(ax + px * 0.8, ay + px * 0.3); g.fill();
+    }
+  });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return { tex: t, aspect: c.width / c.height, lines: lines.length };
+}
 
 // The source model is posed for the ground: canopy open, gear doors open. Close it up for flight.
 function swing(model, names, axis, deg, at) {
@@ -305,12 +353,62 @@ export async function loadJet(url, cfg) {
   model.position.copy(CG).negate();
   const object = new THREE.Group().add(model);
 
+  // paint: swap the airframe's textures for a scheme's and project its decals onto the skin
+  const origTex = new Map(), decals = [], _ray = new THREE.Raycaster(), _o = new THREE.Vector3(), _dir = new THREE.Vector3();
+  model.traverse(o => { if (o.isMesh && !o.userData.noSplit) for (const k of ['map', 'roughnessMap', 'metalnessMap']) { const t = o.material[k]; if (t?.userData.src) origTex.set(t.userData.src, t); } });
+  async function setPaint(name) {
+    const sc = F5_PAINTS[name] || {};
+    const tex = {};
+    for (const [src, t] of origTex) { tex[src] = sc.textures?.[src] ? await loadTex(sc.textures[src], t) : t; tex[src].userData.orig = src; }
+    model.traverse(o => {
+      if (!o.isMesh || o.userData.decal) return;
+      const m = o.material; let changed = false;
+      for (const k of ['map', 'roughnessMap', 'metalnessMap']) {
+        const base = m[k] && (m[k].userData.orig || m[k].userData.src);
+        if (base && tex[base] && m[k] !== tex[base]) { m[k] = tex[base]; changed = true; }
+      }
+      if (changed) m.needsUpdate = true;
+    });
+    for (const d of decals.splice(0)) { d.removeFromParent(); d.geometry.dispose(); d.material.map?.dispose(); d.material.dispose(); }
+    model.updateMatrixWorld(true);
+    const hull = []; model.traverse(o => { if (o.isMesh && !o.userData.noSplit && !o.userData.decal && o.material.name !== 'glass' && o.visible) hull.push(o); });
+    for (const d of sc.decals || []) {
+      const { tex: map, aspect } = decalTexture(d);
+      for (const sgn of d.side ? [1, -1] : [1]) {
+        // find the skin: a ray in from the side at the given height and station
+        _o.set(sgn * 4, d.at[0], d.at[1]); model.localToWorld(_o);
+        _dir.set(-sgn, 0, 0).transformDirection(model.matrixWorld);
+        _ray.set(_o, _dir);
+        const hit = _ray.intersectObjects(hull, false)[0];
+        if (!hit) continue;
+        // the projector's frame: z out of the skin (mirrored parts can report inward normals: forced outward, away from
+        // the centreline), y the airframe's up, x across: text reads upright and the right way round from outside
+        const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+        const c = new THREE.Vector3(0, d.at[0], d.at[1]); model.localToWorld(c);
+        if (n.dot(_o.copy(hit.point).sub(c)) < 0) n.negate();
+        const up = new THREE.Vector3(0, 1, 0).transformDirection(model.matrixWorld);
+        const yv = up.sub(n.clone().multiplyScalar(up.dot(n))).normalize(), xv = new THREE.Vector3().crossVectors(yv, n);
+        // a flat card on the skin (fin and nose sides are near enough flat at these sizes), a hair off it
+        const h = d.h * (d.lines ? (d.lines.length * 1.15 + 0.3) / (d.lines.length * 1.15) : 1.15);
+        const world = new THREE.Matrix4().makeBasis(xv, yv, n).setPosition(hit.point.clone().addScaledVector(n, 0.012));
+        const geo = new THREE.PlaneGeometry(h * aspect, h);
+        const mat = new THREE.MeshStandardMaterial({ map, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.35, metalness: 0 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.matrixAutoUpdate = false;
+        mesh.matrix.copy(hit.object.matrixWorld).invert().multiply(world);              // (in the part's own space)
+        mesh.userData.decal = mesh.userData.noSplit = mesh.userData.noBulk = true;
+        hit.object.add(mesh); decals.push(mesh);
+      }
+    }
+  }
+  await setPaint(F5_DEFAULT_PAINT);
+
   const SF = cfg.surfaces;
   // the stick that holds the stab's full-travel AoA (pitchControl * stick = pitchStability * sin(aoa), as the instructor uses)
   const stabFullUp = Math.sin(SF.stabFullAoA * DEG) * cfg.pitchStability / cfg.pitchControl;
   const stabFullDown = Math.sin(SF.stabFullNegAoA * DEG) * cfg.pitchStability / cfg.pitchControl;
   return {
-    object, model,
+    object, model, setPaint,
     animate(acReal, time = performance.now() / 1000) {   // time: the game clock (stands still while paused)
       const frozen = time === this._t; this._t = time;
       const V = viewerAnim;
