@@ -10,7 +10,7 @@ export const MISSION1 = {
   playerAlt: 5000,
   speed: 140,             // m/s, the formation
   playerSpeed: 230,
-  startBack: 10000,       // m from the player's start to the lead bomber (the first straggler ~4.8 km ahead)
+  startBack: 8500,        // m from the player's start to the lead bomber (the first straggler ~4.8 km ahead)
 };
 
 // slots: x right, y up, z behind the lead point (m)
@@ -19,10 +19,13 @@ const BOMBER_SLOTS = [
   [-380, 60, 520], [-490, 30, 640], [-270, 30, 640],                             // left trailing box
   [380, -60, 520],                                                               // right
 ];
-// two stragglers far behind the main group (the first one meets the player first)
-const STRAGGLER_SLOTS = [[60, -120, 5200], [-90, 40, 3400]];   // (the second one ~1.5 nm behind the main group's tail)
+// two stragglers behind the main group, close together (the first one meets the player first): the second ~0.85 nm
+// behind the main group's tail and off to the right, the first ~0.9 nm behind the second
+const STRAGGLER_SLOTS = [[60, -120, 3700], [700, 40, 2200]];
+// once the first one is engaged, the second breaks off into a steady 65 deg turn to the right (a crossing gun shot)
+const STRAGGLER_TURN = { rate: 2.5 * Math.PI / 180, ang: 65 * Math.PI / 180 };   // (~32 deg of bank, 26 s)
 // the second straggler (the guns lesson) zigzags slowly, banking into each turn: something to practise the lead on
-const STRAGGLER_WEAVE = { a: 260, w: 0.15, ph: 0, phys: true };
+const STRAGGLER_WEAVE = { a: 180, w: 0.15, ph: 0, phys: true };   // (up to ~22 deg of bank)
 const FIGHTER_SLOTS = [[-260, 420, -150], [0, 470, -250], [260, 420, -150]];   // escorts above the main group
 
 export function createMission1({ weapons, ac, rig }) {
@@ -50,11 +53,15 @@ export function createMission1({ weapons, ac, rig }) {
     // true once everything is down (and a few seconds have passed to watch the last one go)
     update(dt) {
       state.t += dt;
+      // the second straggler breaks away once the player closes on the first (the tutorial calls breakAway itself)
+      const [A, B] = bombers;
+      if (B.track && !B.track.turn && (A.pos.distanceTo(ac.pos) < 3000 || !A.alive || A.falling)) this.breakAway();
       const left = weapons.drones.filter(d => d.alive && !d.falling).length;
       if (!left && !state.done) { state.done = true; state.doneT = 0; }
       if (state.done) state.doneT += dt;
       return state.done && state.doneT > 3;
     },
+    breakAway() { const B = bombers[1]; if (B.track && !B.track.turn) B.track.turn = { ...STRAGGLER_TURN, t0: weapons.S.simT || 0 }; },
     stats() {
       const S = weapons.S;
       return { kills: S.kills.length, total: weapons.drones.length, time: state.t, accuracy: S.shots ? S.hits / S.shots : 0 };

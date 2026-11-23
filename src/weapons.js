@@ -544,8 +544,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 3) { killDrone(d); d.pos.y = terrain.heightAt(d.pos.x, d.pos.z) + 1; return; }
       const fx = d.dmg.effects(), T = d.track, tt = (S.simT || 0) - T.t0;
       const Wv = T.weave;
-      const bankW = !Wv ? 0 : Wv.phys ? Math.atan(Wv.a * Wv.w * Wv.w * Math.sin(tt * Wv.w + Wv.ph) / 9.81)   // banked for its sideways acceleration
-        : -Math.cos(tt * Wv.w + Wv.ph) * Wv.a * Wv.w * Wv.w * 0.012;                                    // banks into its weave
+      // (+ banks right; the weave's sideways acceleration is -a w^2 sin, so it banks the opposite way to its offset)
+      const bankW = (T._bank || 0) + (!Wv ? 0 : Wv.phys ? -Math.atan(Wv.a * Wv.w * Wv.w * Math.sin(tt * Wv.w + Wv.ph) / 9.81)   // banked for its sideways acceleration
+        : -Math.cos(tt * Wv.w + Wv.ph) * Wv.a * Wv.w * Wv.w * 0.012);                                   // banks into its weave
       _m.lookAt(new THREE.Vector3(), d.vel.lengthSq() > 1 ? _w.copy(d.vel).normalize().negate() : T.dir.clone().negate(), new THREE.Vector3(0, 1, 0));
       d.obj.quaternion.setFromRotationMatrix(_m).multiply(_q.setFromAxisAngle(_v.set(0, 0, 1), bankW + fx.wobble * 0.25 * Math.sin(d.age * 1.8)));
       if (fx.pitchWobble) d.obj.quaternion.multiply(_q.setFromAxisAngle(_v.set(1, 0, 0), fx.pitchWobble * (0.13 * Math.sin(d.age * 1.3) + 0.05 * Math.sin(d.age * 3.1))));
@@ -570,11 +571,28 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // where a drone on a track is at time t: the formation's lead point moving straight on, plus its slot (x right, y up,
   // z behind), plus a gentle weave for escorts
   const _tr = new THREE.Vector3(), _tu = new THREE.Vector3(0, 1, 0);
+  // A track can also break off into a steady level turn (T.turn = { t0, rate rad/s (+ right), ang rad }): a constant-
+  // radius arc, then straight on along the new heading. The weave (if any) is applied across the current heading.
+  const _th = new THREE.Vector3(), _trr = new THREE.Vector3();
   function trackPos(d, t, out) {
     const T = d.track, tt = t - T.t0;
     _tr.crossVectors(T.dir, _tu).normalize();
-    out.copy(T.origin).addScaledVector(T.dir, T.speed * tt).addScaledVector(_tr, T.off.x).addScaledVector(_tu, T.off.y).addScaledVector(T.dir, -T.off.z);
-    if (T.weave) { out.addScaledVector(_tr, Math.sin(tt * T.weave.w + T.weave.ph) * T.weave.a); out.y += Math.sin(tt * T.weave.w * 0.7 + T.weave.ph) * T.weave.a * 0.25; }
+    T._bank = 0;
+    const tn = T.turn ? Math.max(0, t - T.turn.t0) : 0;
+    if (!tn) {
+      out.copy(T.origin).addScaledVector(T.dir, T.speed * tt).addScaledVector(_tr, T.off.x).addScaledVector(_tu, T.off.y).addScaledVector(T.dir, -T.off.z);
+      _th.copy(T.dir); _trr.copy(_tr);
+    } else {
+      const U = T.turn, w = Math.abs(U.rate), sg = Math.sign(U.rate), ta = Math.abs(U.ang) / w, R = T.speed / w;
+      out.copy(T.origin).addScaledVector(T.dir, T.speed * (U.t0 - T.t0)).addScaledVector(_tr, T.off.x).addScaledVector(_tu, T.off.y).addScaledVector(T.dir, -T.off.z);
+      const sa = Math.min(tn, ta), ph = w * sa;
+      out.addScaledVector(T.dir, R * Math.sin(ph)).addScaledVector(_tr, sg * R * (1 - Math.cos(ph)));           // the arc
+      _th.copy(T.dir).multiplyScalar(Math.cos(ph)).addScaledVector(_tr, sg * Math.sin(ph));                       // current heading
+      if (tn > ta) out.addScaledVector(_th, T.speed * (tn - ta));                                                 // then straight on
+      else T._bank = sg * Math.atan(T.speed * w / 9.81);                                                          // banked through the turn
+      _trr.crossVectors(_th, _tu).normalize();
+    }
+    if (T.weave) { out.addScaledVector(_trr, Math.sin(tt * T.weave.w + T.weave.ph) * T.weave.a); out.y += Math.sin(tt * T.weave.w * 0.7 + T.weave.ph) * T.weave.a * 0.25; }
     return out;
   }
   // A bomber that goes down can blow up: its fuel and bombload go at once. Every part is flung off, a much bigger

@@ -189,7 +189,7 @@ function tutorialStep(dt) {
       capsStep(dt, T ? () => d / 0.5 : anyKey('ShiftLeft', 'ShiftRight', 'Tab', 'KeyZ', 'KeyX'), () => tutGo('revealA', 1.5));
       break;
     }
-    case 'revealA': if (first) tutReveal(A, 'A bomber is lagging behind', () => tutGo('select2', 0.2)); break;
+    case 'revealA': if (first) { mission.breakAway(); tutReveal(A, 'A bomber is lagging behind', () => tutGo('select2', 0.2)); } break;
     case 'select2':
       if (first) { document.body.classList.remove('tut-noarms'); overlay.say('Missiles'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]); overlay.spot([{ sel: '#arms .row[data-w="2"]', pad: 6 }], 0.35); }
       capsStep(dt, (dt) => W.selected === 2 ? dt / 0.2 : 0, () => { A.noLock = false; tutGo('lock', 0.1); });
