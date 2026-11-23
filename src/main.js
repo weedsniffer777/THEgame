@@ -890,4 +890,4 @@ if (isTouch) {
   });
 }
 
-window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut };
+window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut, overlay, state: () => ({ running, locked, started, dead }) };

@@ -23,7 +23,7 @@ export function createOverlay() {
   end.id = 'mend';
   document.body.appendChild(end);
 
-  let spots = [], dim = 0, holdT = 0, onHold = null, caps = [];
+  let spots = [], dim = 0, holdT = 0, onHold = null, caps = [], size = '';
 
   // a spot: { sel, pad, round } (an element), or { at: () => [x, y, r] | null } (a moving point, a circle)
   function shapeOf(s) {
@@ -49,18 +49,24 @@ export function createOverlay() {
         if (h) { h.replaceWith(nh); o.replaceWith(no); } else { holes.appendChild(nh); rings.appendChild(no); }
         h = nh; o = no;
       }
+      // (only touched when it moved: every change re-renders the full-screen mask)
+      const key = tag === 'circle' ? `${s.x.toFixed(0)},${s.y.toFixed(0)},${s.r.toFixed(0)}` : `${s.x.toFixed(0)},${s.y.toFixed(0)},${s.w.toFixed(0)},${s.h.toFixed(0)}`;
+      if (h._key === key) return;
+      h._key = key;
       for (const e of [h, o]) {
-        if (tag === 'circle') { e.setAttribute('cx', s.x); e.setAttribute('cy', s.y); e.setAttribute('r', s.r); }
-        else { e.setAttribute('x', s.x); e.setAttribute('y', s.y); e.setAttribute('width', s.w); e.setAttribute('height', s.h); e.setAttribute('rx', 6); }
+        if (tag === 'circle') { e.setAttribute('cx', s.x.toFixed(0)); e.setAttribute('cy', s.y.toFixed(0)); e.setAttribute('r', s.r.toFixed(0)); }
+        else { e.setAttribute('x', s.x.toFixed(0)); e.setAttribute('y', s.y.toFixed(0)); e.setAttribute('width', s.w.toFixed(0)); e.setAttribute('height', s.h.toFixed(0)); e.setAttribute('rx', 6); }
       }
     });
-    shade.style.opacity = dim;
+    const op = String(dim);
+    if (shade.style.opacity !== op) shade.style.opacity = op;
   }
   const show = () => root.classList.toggle('on', !!(spots.length || txt.textContent || caps.length));
 
   return {
     // the game stands still while true (a hold, or the end card)
     get open() { return holdT > 0 || end.classList.contains('on'); },
+    get holdLeft() { return holdT; },
     // a short line high in the centre ('' for none)
     say(text) { txt.textContent = text || ''; cardEl.classList.toggle('notxt', !text); show(); },
     // a row of keycaps: { label } or { icon: 'mouse' | 'lmb' | 'drag' | 'tap', wide }; replaces the row
@@ -104,9 +110,13 @@ export function createOverlay() {
     // every frame, in real time (also while the game is frozen)
     tick(dt) {
       if (holdT > 0 && (holdT -= dt) <= 0) { holdT = 0; const f = onHold; onHold = null; f?.(); }
-      svg.setAttribute('width', innerWidth); svg.setAttribute('height', innerHeight);
-      for (const r of root.querySelectorAll('.all')) { r.setAttribute('width', innerWidth); r.setAttribute('height', innerHeight); }
-      if (spots.length) drawSpots();
+      if (!spots.length) return;
+      if (size !== innerWidth + 'x' + innerHeight) {
+        size = innerWidth + 'x' + innerHeight;
+        svg.setAttribute('width', innerWidth); svg.setAttribute('height', innerHeight);
+        for (const r of root.querySelectorAll('.all')) { r.setAttribute('width', innerWidth); r.setAttribute('height', innerHeight); }
+      }
+      drawSpots();
     },
     // the end-of-mission card
     showEnd(stats, onReplay) {
