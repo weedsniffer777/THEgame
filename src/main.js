@@ -256,6 +256,7 @@ function tutorialStep(dt) {
     case 'spotB':
       if (first) {
         W.allow.gun = W.allow.missile = false; weapons.setFiring(false); weapons.select(0);
+        tutAllow.w1 = false;                                 // (missiles only now: no switching back to guns)
         // put it well beyond gun range (but inside missile range) ahead of the player
         const ahead = _wv.subVectors(B.pos, ac.pos).dot(B.track.dir);
         if (ahead < 4300) mission.shiftOne(B, 4300 - ahead);
@@ -269,7 +270,7 @@ function tutorialStep(dt) {
     case 'lock':
       if (first) { overlay.say('Wait for the missile to lock on the target'); overlay.spot([{ sel: '#seeker', round: true, pad: 4 }], 0.25); }
       if (down(B)) { tutGo('final', 2.5); break; }
-      if (W.selected !== 2) { if (W.stock > 0) tutGo('spotB2', 0); else { W.allow.gun = true; tut.gt = B; tutGo('close', 0.3); } break; }
+      if (W.selected !== 2) { if (W.stock > 0) tutGo('spotB2', 0); else { tutAllow.w1 = W.allow.gun = true; tut.gt = B; tutGo('close', 0.3); } break; }
       if (W.locked && W.seeker === B) { W.allow.missile = true; tutGo('fire', 0); }
       break;
     case 'spotB2':   // (switched away from missiles: back to them)
@@ -287,7 +288,7 @@ function tutorialStep(dt) {
       if (down(B)) tutGo('final', 2.5);
       else if (!flying && tut.t > 0.5) {
         if (W.stock > 0) tutGo('lock', 0.3);                 // missed: again
-        else { W.allow.gun = true; tut.gt = B; tutGo('close', 0.3); }   // out of missiles (it switched to guns): finish it with those
+        else { tutAllow.w1 = W.allow.gun = true; tut.gt = B; tutGo('close', 0.3); }   // out of missiles (it switched to guns): finish it with those
       }
       break;
     }
@@ -295,11 +296,11 @@ function tutorialStep(dt) {
       if (first) {
         for (const d of weapons.drones) { d.hidden = false; d.noLock = false; }
         W.allow.gun = W.allow.missile = true; tutUnlock();
-        let near = null, nd = Infinity;
-        for (const d of weapons.drones) if (d.alive && !d.falling) { const dd = d.pos.distanceTo(ac.pos); if (dd < nd) { nd = dd; near = d; } }
         weapons.setFiring(false);
-        overlay.say('The rest of the formation is ahead');
-        overlay.spot([{ sel: '#minimap', pad: 4 }, foeSpot(near)], 0.35);
+        overlay.say('Destroy the remaining enemies!');
+        // no spotlight while any of them is in view; if none is, the map and the ring's pointer to the nearest
+        const inView = weapons.drones.some(d => { if (!d.alive || d.falling) return false; const c = screenOf(d.obj.position); return c && c[0] > 0 && c[0] < innerWidth && c[1] > 0 && c[1] < innerHeight; });
+        overlay.spot(inView ? [] : [{ sel: '#minimap', pad: 4 }, { at: () => { const q = ringPointer(); return q && [q[0], q[1], 36]; } }], 0.3);
         save.tutorialDone = true; writeSave();
         tut.showT = 3; tut.after = () => { tut.step = 'off'; };
       }
