@@ -538,7 +538,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       return;
     }
     if (d.track) {                                             // a mission: flying its straight track in formation
-      const p = trackPos(d, S.simT || 0, _v);
+      // (out of formation, d.track.free: flown step by step so the turn, bank and sink ease in and out)
+      const p = d.track.free ? freeStep(d, dt, _v) : trackPos(d, S.simT || 0, _v);
       d.vel.subVectors(p, d.pos).divideScalar(Math.max(dt, 1e-3));
       d.pos.copy(p);
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 3) { killDrone(d); d.pos.y = terrain.heightAt(d.pos.x, d.pos.z) + 1; return; }
@@ -574,6 +575,50 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // A track can also break off into a steady level turn (T.turn = { t0, rate rad/s (+ right), ang rad }): a constant-
   // radius arc, then straight on along the new heading. The weave (if any) is applied across the current heading.
   const _th = new THREE.Vector3(), _trr = new THREE.Vector3();
+  // A bomber that has left the formation (peeling off, breaking from a missile): heading turned at a rate that eases
+  // toward its target and back to nothing once it has turned far enough; the sink rate eases in the same way; the bank
+  // follows the turn. F: { dir (horizontal), rate, rateT (rad/s, + right), ang (rad to turn), turned, sink, sinkT (m/s) }
+  // F.rejoin: steering back to its place in the formation (turn toward a point a little ahead of it, match its height,
+  // a bit faster to catch up), re-attached once there. Out of formation it also keeps clear of the ground: anything
+  // within ~600 m under its path ahead and it climbs away, whatever it was doing.
+  const _fy = new THREE.Vector3(0, 1, 0), _ft = new THREE.Vector3(), _fa = new THREE.Vector3();
+  function freeStep(d, dt, out) {
+    const T = d.track, F = T.free, deg = Math.PI / 180;
+    let V = T.speed, sinkT = F.sinkT;
+    if (F.rejoin) {
+      T.free = null; trackPos(d, S.simT || 0, _ft); T.free = F;            // (where its slot is now)
+      const gap = _ft.distanceTo(d.pos);
+      if (gap < 40) { T.free = null; T.weave = F.weave; T.evading = false; return trackPos(d, S.simT || 0, out); }
+      _fa.copy(_ft).addScaledVector(T.dir, 300).sub(d.pos); _fa.y = 0;
+      const want = Math.atan2(_fa.x, -_fa.z), have = Math.atan2(F.dir.x, -F.dir.z);
+      let err = want - have; err = Math.atan2(Math.sin(err), Math.cos(err));    // (+ = it lies to the right)
+      F.rateT = THREE.MathUtils.clamp(err * 0.6, -3 * deg, 3 * deg); F.turned = 0; F.ang = 1e9;
+      sinkT = THREE.MathUtils.clamp((d.pos.y - _ft.y) * 0.08, -6, 6);
+      V *= 1 + THREE.MathUtils.clamp(gap / 3000, 0, 0.18);
+    }
+    // the ground ahead (now, in ~6 s and ~12 s)
+    const lo = Math.max(terrain.heightAt(d.pos.x, d.pos.z), terrain.heightAt(d.pos.x + F.dir.x * V * 6, d.pos.z + F.dir.z * V * 6), terrain.heightAt(d.pos.x + F.dir.x * V * 12, d.pos.z + F.dir.z * V * 12));
+    const clear = d.pos.y - lo;
+    if (clear < 600) sinkT = Math.min(sinkT, -THREE.MathUtils.clamp((600 - clear) / 30, 2, 15));
+    F.rate += (F.rateT - F.rate) * Math.min(1, dt * 0.9);
+    F.sink += (sinkT - F.sink) * Math.min(1, dt * 0.6);
+    const dh = F.rate * dt;
+    F.turned += Math.abs(dh); if (F.turned >= F.ang) F.rateT = 0;
+    F.dir.applyAxisAngle(_fy, -dh).normalize();
+    out.copy(d.pos).addScaledVector(F.dir, V * dt); out.y -= F.sink * dt;
+    T._bank = Math.atan(V * F.rate / 9.81);
+    return out;
+  }
+  // leave the formation (or change what it's doing out of it): turn by ang at up to rate (+ right), sinking at sink
+  function breakOff(d, rate, ang, sink) {
+    const T = d.track; if (!T) return;
+    if (!T.free) {
+      const h = new THREE.Vector3(d.vel.x, 0, d.vel.z); if (h.lengthSq() < 1) h.copy(T.dir);
+      T.free = { dir: h.normalize(), rate: 0, sink: Math.max(0, -d.vel.y), weave: T.weave };
+      T.weave = undefined; T.turn = null;
+    }
+    Object.assign(T.free, { rateT: rate, ang, turned: 0, sinkT: sink, rejoin: false });
+  }
   function trackPos(d, t, out) {
     const T = d.track, tt = t - T.t0;
     _tr.crossVectors(T.dir, _tu).normalize();
@@ -1161,6 +1206,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       S.firing = on;
     },
     select(k) { S.selected = k; S.lock = 0; },
+    breakOff,
     clearLine: (a, b) => clearLine(a, b),
     placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now (or on their tracks)
     resetStats() { S.kills.length = 0; S.shots = 0; S.hits = 0; },
