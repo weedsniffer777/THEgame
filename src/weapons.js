@@ -596,13 +596,13 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // build a rounded square through point S heading along dir: a superellipse (|u|^n + |v|^n = 1, n ~4.5: long nearly
   // straight sides, corners whose curvature builds and fades smoothly) of half-size a, on whichever side of S is
   // toward the middle of the map, shrunk until it fits inside the map (margin m)
-  function makeLoop(S, dir, a = 8000, n = 4.5, m = 1500) {
+  function makeLoop(S, dir, a = 8000, n = 4.5, m = 1500, fitsAt = null) {
     const fwd = new THREE.Vector3(dir.x, 0, dir.z).normalize(), right = new THREE.Vector3(-fwd.z, 0, fwd.x);
     const half = (terrain.w * terrain.s) / 2 - m, cx0 = terrain.ox + terrain.w * terrain.s / 2, cz0 = terrain.oz + terrain.h * terrain.s / 2;
     const sideOf = (sg) => new THREE.Vector3(S.x - right.x * a * sg, 0, S.z - right.z * a * sg);   // centre if S is on its +sg side
     let sg = sideOf(1).distanceToSquared(new THREE.Vector3(cx0, 0, cz0)) < sideOf(-1).distanceToSquared(new THREE.Vector3(cx0, 0, cz0)) ? 1 : -1;
     const N = 2048, f = (c) => Math.sign(c) * Math.abs(c) ** (2 / n);
-    for (let tries = 0; tries < 12; tries++, a *= 0.9) {
+    for (let tries = 0; tries < 16; tries++, a *= 0.88) {
       const c = sideOf(sg), x = new Float32Array(N + 1), z = new Float32Array(N + 1);
       let fits = true;
       for (let i = 0; i <= N; i++) {
@@ -610,9 +610,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         // other way round the loop)
         const th = (i / N) * Math.PI * 2, u = a * f(Math.cos(th)) * sg, v = a * f(Math.sin(th));
         x[i] = c.x + right.x * u + fwd.x * v; z[i] = c.z + right.z * u + fwd.z * v;
-        if (Math.abs(x[i] - cx0) > half || Math.abs(z[i] - cz0) > half) fits = false;
+        if (Math.abs(x[i] - cx0) > half || Math.abs(z[i] - cz0) > half || (fitsAt && !fitsAt(x[i], z[i]))) fits = false;
       }
-      if (!fits && tries < 11) continue;
+      if (!fits && tries < 15) continue;
       const cum = new Float32Array(N + 1), h = new Float32Array(N + 1), k = new Float32Array(N + 1);
       for (let i = 1; i <= N; i++) cum[i] = cum[i - 1] + Math.hypot(x[i] - x[i - 1], z[i] - z[i - 1]);
       for (let i = 0; i <= N; i++) { const j = Math.min(i + 1, N), i0 = Math.max(i - 1, 0); h[i] = Math.atan2(x[j] - x[i0], -(z[j] - z[i0])); }
@@ -621,10 +621,10 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     }
   }
   // put every bomber flying a straight track onto a rounded square through where its lead point is now
-  function toLoop(list, simT) {
+  function toLoop(list, simT, fitsAt) {
     const ref = list.find(d => d.track && !d.track.loop); if (!ref) return;
     const T0 = ref.track, S = T0.origin.clone().addScaledVector(T0.dir, T0.speed * (simT - T0.t0));
-    const L = makeLoop(S, T0.dir);
+    const L = makeLoop(S, T0.dir, 8000, 4.5, 1500, fitsAt);
     for (const d of list) if (d.track && !d.track.loop) {
       const T = d.track;
       if (T.origin !== T0.origin) continue;                       // (only the ones in that formation)
@@ -776,6 +776,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // War Thunder-style blast: a short flash, a cluster of irregular fire puffs that roll outward and up and
   // cool from white-yellow through orange and deep red to brown smoke, lingering smoke, and burning debris.
   function explode(p, vel, scale = 1, embers = false) {
+    S.onBoom?.(p, scale);                                         // (the camera may shake: main.js)
     const carry = vel.clone().multiplyScalar(0.25);
     S.fx.push({ pri: 1, kind: 'fire', p: p.clone(), v: carry.clone(), t: 0, life: 0.18, s: 18 * scale });
     const n = Math.round(14 + 10 * scale);

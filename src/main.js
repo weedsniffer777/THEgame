@@ -14,6 +14,7 @@ import { createPauseMenu } from './ui/pauseMenu.js';
 import { paintEnemy } from './enemy.js';
 import { createMission1 } from './mission/mission1.js';
 import { createRing, ringPointer } from './hudRing.js';
+import { edgeDistance } from './mission/area.js';
 import { createOverlay } from './ui/tutorial.js';
 import { save, writeSave, clearSave } from './save.js';
 import { units, settings } from './settings.js';
@@ -101,60 +102,107 @@ const drawPos = new THREE.Vector3(), drawQuat = new THREE.Quaternion();
 // The ending ("last air-to-air kill"): the HUD goes, the camera rides with the last enemy as it falls for a few
 // seconds, then slowly pulls out and up into a wide, drifting shot from high above; the picture softens and the
 // results come up over it. The jet flies on by itself.
-const ending = { on: false, t: 0, d: null, focus: new THREE.Vector3(), cam: new THREE.Vector3(), look: new THREE.Vector3(), yaw: 0, card: false };
+const ending = { on: false, win: true, t: 0, d: null, focus: new THREE.Vector3(), cam: new THREE.Vector3(), cv: new THREE.Vector3(), look: new THREE.Vector3(), yaw: 0, card: false };
 const _ec = new THREE.Vector3(), _el = new THREE.Vector3(), _ew = new THREE.Vector3();
-function startEnding() {
-  const last = weapons.S.kills[weapons.S.kills.length - 1]?.d || weapons.drones[0];
-  Object.assign(ending, { on: true, t: 0, d: last, card: false, placed: false });
-  ending.cam.copy(camera.position); ending.look.copy(last.obj.position);
-  const away = _ew.subVectors(camera.position, last.obj.position); ending.yaw = Math.atan2(away.x, away.z);
+// win: the last enemy down (the camera on it); otherwise the mission is failed with the player still flying (the
+// camera on the player's jet, which levels off by itself)
+function startEnding(win = true) {
+  const d = win ? (weapons.S.kills[weapons.S.kills.length - 1]?.d || weapons.drones[0]) : { obj: jet.object, vel: ac.vel };
+  Object.assign(ending, { on: true, win, t: 0, d, card: false, placed: false, banner: false });
+  const away = _ew.subVectors(camera.position, d.obj.position); ending.yaw = Math.atan2(away.x, away.z);
   weapons.setFiring(false); rig.zooming = false;
   document.body.classList.add('ending');
 }
 function endingStep(dt) {
   ending.t += dt;
-  if (ending.t > 5.5 && !ending.card) {                         // the results, over a softened picture
+  if (ending.t > 0.6 && !ending.banner) { ending.banner = true; showBanner(ending.win ? 'Mission complete' : 'Mission failed', ending.win ? 'win' : 'fail', 4.2); }
+  if (ending.t > 5.5 && !ending.card) {                         // the results (or retry), over a softened picture
     ending.card = true; missionEnded = true;
     document.body.classList.add('ending-blur');
-    overlay.showEnd(mission.stats(), () => { spawn(); resume(); });
+    if (ending.win) overlay.showEnd(mission.stats(), () => { spawn(); resume(); });
+    else overlay.showDeath(() => { spawn(); resume(); });
     if (document.pointerLockElement) document.exitPointerLock();
   }
+  // the jet flies on by itself: levelling off slowly, climbing away from any ground ahead
+  if (!dead) {
+    const v = _el.set(ac.vel.x, 0, ac.vel.z); if (v.lengthSq() < 1) v.set(0, 0, 1).applyQuaternion(ac.quat).setY(0);
+    v.normalize();
+    let pitch = 0;
+    for (const sec of [3, 6, 10]) { const x = ac.pos.x + v.x * ac.vel.length() * sec, z = ac.pos.z + v.z * ac.vel.length() * sec; if (ac.pos.y - terrain.heightAt(x, z) < 500) pitch = 0.25; }
+    rig.recenter(v.multiplyScalar(Math.cos(pitch)).setY(Math.sin(pitch)).normalize(), Math.min(1, dt * 0.5));
+  }
 }
+// the banner across the screen: 'win' (faint green), 'fail' / 'warn' (faint red); white text in the middle
+let bannerEl = null, bannerT = 0;
+function showBanner(text, kind, sec = 0) {
+  bannerEl ||= Object.assign(document.createElement('div'), { id: 'banner' });
+  if (!bannerEl.isConnected) document.body.appendChild(bannerEl);
+  bannerEl.className = 'on ' + kind; bannerEl.innerHTML = text;
+  bannerT = sec;                                                // (0: stays until hidden)
+}
+function hideBanner() { if (bannerEl) bannerEl.className = ''; bannerT = 0; }
+// The camera: placed off the aircraft's nose (a front three-quarter view, a little above, looking down at it), it then
+// lets go of it: it keeps the aircraft's speed for a moment and slows, rising, so it falls away below and ahead; then it
+// pulls out to a slow, wide shot from high up, drifting round (a helicopter shot)
 function endingCamera(dt) {
   const d = ending.d, t = ending.t, P = d.obj.position;
-  if (!ending.placed) ending.focus.copy(P);
-  ending.focus.lerp(P, Math.min(1, dt * 1.5));                  // (the wide shot's centre drifts after it)
-  // close in: held at a fixed offset off its nose (a front three-quarter view, a little above, looking down at it),
-  // so it can't fall behind however fast it falls; only the nose direction is smoothed, so a tumble doesn't whip it
-  const nose = _ew.set(0, 0, 1).applyQuaternion(d.obj.quaternion);
-  if (!ending.placed || !ending.nose) ending.nose = nose.clone(); else ending.nose.lerp(nose, Math.min(1, dt * 3)).normalize();
-  const n = ending.nose, flat = Math.hypot(n.x, n.z) > 0.2;
-  const sx = flat ? -n.z : 1, sz = flat ? n.x : 0, sl = Math.hypot(sx, sz);
-  const close = _ec.copy(P).addScaledVector(n, 60).add(_el.set(sx / sl * 42, 22, sz / sl * 42));
-  // the wide shot: high above and well off to one side, drifting slowly round (a helicopter shot)
+  if (!ending.placed) {
+    ending.focus.copy(P);
+    const n = _ew.set(0, 0, 1).applyQuaternion(d.obj.quaternion), fl = Math.hypot(n.x, n.z) > 0.2;
+    const sx = fl ? -n.z : 1, sz = fl ? n.x : 0, sl = Math.hypot(sx, sz);
+    ending.cam.copy(P).addScaledVector(n, ending.win ? 60 : -45).add(_el.set(sx / sl * 42, ending.win ? 22 : 14, sz / sl * 42));
+    ending.cv.copy(d.vel);
+  }
+  if (ending.win) {
+    ending.focus.lerp(P, Math.min(1, dt * 1.2));
+    ending.cv.multiplyScalar(Math.exp(-dt * 0.55));              // let go: slowing...
+    ending.cv.y += dt * 7 * (1 - THREE.MathUtils.smoothstep(t, 4, 8));   // ...and rising
+    ending.cam.addScaledVector(ending.cv, dt);
+  } else {
+    // failed while still flying: the camera travels with the jet (it would fly out of the shot), drifting back and up
+    if (!ending.placed) ending.rel = _el.subVectors(ending.cam, P).clone();
+    ending.focus.copy(P);
+    ending.rel.multiplyScalar(1 + dt * 0.12); ending.rel.y += dt * 9;
+    ending.cam.copy(P).add(ending.rel);
+  }
   ending.yaw += dt * 0.035;
   const wide = _ew.set(Math.sin(ending.yaw) * 900, 0, Math.cos(ending.yaw) * 900).add(ending.focus);
   wide.y = Math.max(ending.focus.y, terrain.heightAt(ending.focus.x, ending.focus.z)) + 420;
-  const k = THREE.MathUtils.smoothstep(t, 3, 9);                // 3 s close in, then 6 s pulling out
-  const cam = close.lerp(wide, k);
-  cam.y = Math.max(cam.y, terrain.heightAt(cam.x, cam.z) + 25);
-  ending.cam.copy(cam);
+  const k = THREE.MathUtils.smoothstep(t, 2.5, 10);              // pulling out to the wide shot
+  if (ending.win) ending.cam.lerp(wide, Math.min(1, dt * 0.9 * k));
+  ending.cam.y = Math.max(ending.cam.y, terrain.heightAt(ending.cam.x, ending.cam.z) + 25);
   ending.look.copy(P).lerp(ending.focus, k);
   const snap = !ending.placed; ending.placed = true;
   camera.position.copy(ending.cam); camera.up.set(0, 1, 0); camera.lookAt(ending.look);
   const fov = THREE.MathUtils.lerp(34, CAMERA.fov - 8, k);     // narrow close in, wider as it pulls out
   if (snap || Math.abs(camera.fov - fov) > 0.01) { camera.fov = snap ? fov : camera.fov + (fov - camera.fov) * Math.min(1, dt * 2); camera.updateProjectionMatrix(); }
 }
+// the mission area: within 0.5 nm of its edge a warning across the screen; outside it, a countdown, and at the end of
+// it the mission is failed
+const AREA_GRACE = 20, AREA_WARN = 926;
+let areaT = AREA_GRACE, areaShown = '';
+function areaCheck(dt) {
+  const d = dead ? 1e9 : edgeDistance(mission.area, ac.pos.x, ac.pos.z);
+  let want = '';
+  if (d < 0) { areaT -= dt; want = `<b>${Math.max(0, Math.ceil(areaT))}</b>Outside mission area`; }
+  else { areaT = AREA_GRACE; if (d < AREA_WARN) want = 'Leaving mission area'; }
+  if (want !== areaShown) { areaShown = want; if (want) showBanner(want, 'warn'); else if (bannerEl?.classList.contains('warn')) hideBanner(); }
+}
 function spawn() {
   const s = WORLD.spawn;
   weapons.rearm(); jet.damage.repair();
   if (mission) { mission.start(weapons.S.simT || 0, !!tutActive()); tutReset(); missionEnded = false; overlay.hideEnd(); }   // (a restart replays the whole mission)
   else { weapons.S.allow.gun = weapons.S.allow.missile = true; ac.reset(new THREE.Vector3(s.x, s.y, s.z), s.heading, s.speed); rig.reset(ac.quat); weapons.placeDrones(); }
-  ending.on = false; deathShown = false; overlay.hideEnd(); document.body.classList.remove('ending', 'ending-blur', 'dead-blur');
+  ending.on = false; deathShown = false; deathBanner = false; areaT = AREA_GRACE; hideBanner(); overlay.hideEnd(); document.body.classList.remove('ending', 'ending-blur', 'dead-blur');
   prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
   dead = 0; jet.object.visible = true; document.body.classList.remove('lost', 'dead');
 }
-let dead = 0, deathShown = false;   // seconds since the player was killed (0 = alive)
+let dead = 0, deathShown = false, deathBanner = false;
+let shake = 0, shakeT = 0, machSide = null;   // (screen shake: how much, its clock; which side of Mach 1 the jet was)
+weapons.S.onBoom = (p, size) => {             // an explosion: shakes the view, more the bigger and nearer it is
+  const d = p.distanceTo(camera.position), reach = 260 + 220 * size;
+  if (d < reach) shake = Math.min(1, shake + size * 0.45 * (1 - d / reach) ** 2);
+};   // seconds since the player was killed (0 = alive)
 // Tutorial (Mission 1, first time only), choreographed; it never waits for a click and never stops the game. The main
 // group starts far ahead and hidden (no markers, no lock, not on the map); the weapons panel and the map are hidden
 // too, and nothing fires. Flying is taught with big keycaps that fill green while held (any key in a row will do),
@@ -693,8 +741,17 @@ function playerShadow(time) {
 const flightHud = createFlightHud(document.getElementById('hud'));
 const mapHud = createMap(document.getElementById('hud'), terrain);
 const ringHud = createRing(document.getElementById('hud'));
+const timerEl = document.createElement('div'); timerEl.id = 'mtimer'; document.getElementById('hud').appendChild(timerEl);
 function hud(dt = 1 / 60) {
   notes(dt);
+  if (bannerT > 0 && (bannerT -= dt) <= 0) hideBanner();
+  // the time left before the formation gets out of the mission area (by the map)
+  {
+    const t = mission && running && !dead && !ending.on ? mission.timeLeft() : Infinity;
+    const txt = isFinite(t) ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '';
+    if (txt !== timerEl.textContent) { timerEl.textContent = txt; timerEl.classList.toggle('low', isFinite(t) && t < 60); }
+  }
+  if (mission) mapHud.setArea(mission.area);
   if (running && !dead) { flightHud(ac, camera, rig); mapHud(ac, weapons.drones, weapons.S.missiles); }
   const D = CAMERA.aimDistance;
   place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, D));
@@ -899,7 +956,10 @@ function frameBody(now) {
     tutorialStep(dt);
     if (mission && !missionEnded) mission.update(dt);
     // the last enemy just went down: the ending
-    if (mission && !ending.on && !missionEnded && weapons.drones.length && weapons.drones.every(d => !d.alive || d.falling)) startEnding();
+    if (mission && !ending.on && !missionEnded && weapons.drones.length && weapons.drones.every(d => !d.alive || d.falling)) startEnding(true);
+    // failed: a bomber got out of the mission area, or the player stayed out of it too long
+    else if (mission && !ending.on && !missionEnded && (mission.state.escaped || areaT <= 0)) startEnding(false);
+    if (mission?.area && !ending.on) areaCheck(dt);
   }
   if (ending.on && running) endingStep(dt);
   if (running && !overlay.open) {
@@ -922,6 +982,7 @@ function frameBody(now) {
       if (!wreck.inWater && !wreck.lake) weapons.burn(wreck.pos, wreck.vel, wreck.key);   // (on or in a lake: no fire)
       weapons.step(dt, performance.now() / 1000);
       // a couple of seconds of the wreck, then the picture softens and the death screen comes up (retry waits for the player)
+      if (dead > 0.8 && !deathBanner && !ending.on) { deathBanner = true; showBanner('Mission failed', 'fail', 4); }
       if (dead > 2.2 && !deathShown && !window.__holdWreck && !ending.on) {   // (__holdWreck: dev tests watch the wreck to rest)
         deathShown = true; document.body.classList.add('dead-blur');
         overlay.showDeath(() => { spawn(); resume(); });
@@ -967,6 +1028,15 @@ function frameBody(now) {
     const fov = CAMERA.fov;
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov += (fov - camera.fov) * e; camera.updateProjectionMatrix(); }
   } else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1), ac.t.ias);
+  // screen shake: explosions near the camera (any shot: flying, the death camera, the ending) and going through the
+  // sound barrier; a small, quick wobble of the view that dies away
+  if (!dead && !ending.on && ac.t.mach > 0) { const sup = ac.t.mach >= 1; if (sup !== machSide) { if (machSide !== null) shake = Math.min(1, shake + 0.45); machSide = sup; } }
+  if (shake > 0.002 && !viewer.on && vdt > 0) {
+    shakeT += dt;
+    const a = 0.018 * shake, n = (k) => Math.sin(shakeT * (37 + k * 11) + k * 1.7) * 0.6 + Math.sin(shakeT * (61 + k * 7) + k) * 0.4;
+    camera.rotateX(n(1) * a); camera.rotateY(n(2) * a); camera.rotateZ(n(3) * a * 0.6);
+    shake *= Math.exp(-dt * 2.6);
+  }
   sun.position.copy(drawPos).addScaledVector(sunDir, 1000);
   sun.target.position.copy(drawPos);
   sky.position.copy(camera.position);
@@ -1093,4 +1163,4 @@ if (isTouch) {
   });
 }
 
-window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut, overlay, state: () => ({ running, locked, started, dead }) };
+window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut, overlay, mission, state: () => ({ running, locked, started, dead }) };

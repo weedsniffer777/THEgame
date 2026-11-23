@@ -131,12 +131,13 @@ export async function loadEnemy(type) {
   if (T.turn) { model.rotation.y = T.turn; model = new THREE.Group().add(model); }   // damage regions want the nose on +Z
   model.updateMatrixWorld(true);
   splitAirframe(model, {}, T.regions, T.dropGear, T.allMeshes);
-  // propellers ride on the inner wing sections (they come off with them)
+  // propellers ride on the wing section their engine is on (the outer ones go with the outer wing)
   const props = []; model.traverse(o => { if (o.userData.prop) props.push(o); });
   model.updateMatrixWorld(true);
   for (const p of props) {
-    const w = p.getWorldPosition(new THREE.Vector3());
-    model.getObjectByName('part:wingInner' + (w.x > 0 ? 'L' : 'R'))?.attach(p);
+    const w = p.getWorldPosition(new THREE.Vector3()), side = w.x > 0 ? 'L' : 'R';
+    const outer = T.regions?.outer && Math.abs(w.x) > T.regions.outer.x;
+    (model.getObjectByName('part:wing' + (outer ? 'Outer' : 'Inner') + side) || model.getObjectByName('part:wingInner' + side))?.attach(p);
   }
   if (T.bombBay) buildBombBay(model, T.bombBay);
   model.userData.toughness = T.toughness;

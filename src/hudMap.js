@@ -70,6 +70,19 @@ export function createMap(root, terrain) {
     g.fillStyle = '#2b2e32'; g.fillRect(0, 0, px, px);
     g.drawImage(src, cx - sp / 2, cy - sp / 2, sp, sp, 0, 0, px, px);
     const s = px / sp, P = (x, z) => { const [a, b] = toPx(x, z); return [(a - cx) * s + px / 2, (b - cy) * s + px / 2]; };
+    // the mission area: straight red lines round it, everything outside darkened
+    if (area?.length) {
+      g.beginPath(); g.rect(0, 0, px, px);
+      area.forEach(([x, z], i) => { const [a, b] = P(x, z); if (i) g.lineTo(a, b); else g.moveTo(a, b); }); g.closePath();
+      g.save(); g.clip('evenodd');                               // (outside the area: darker, with diagonal hatching)
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 0, px, px);
+      g.strokeStyle = 'rgba(255,72,56,0.22)'; g.lineWidth = 1 * dpr;
+      const step = 7 * dpr; g.beginPath();
+      for (let o = -px; o < px; o += step) { g.moveTo(o, 0); g.lineTo(o + px, px); }
+      g.stroke(); g.restore();
+      g.beginPath(); area.forEach(([x, z], i) => { const [a, b] = P(x, z); if (i) g.lineTo(a, b); else g.moveTo(a, b); }); g.closePath();
+      g.strokeStyle = 'rgba(255,72,56,0.9)'; g.lineWidth = 1.6 * dpr; g.lineJoin = 'miter'; g.stroke();
+    }
     // icons: bright cores with a soft glow of their own colour (enemies red, with a thin white rim only when a priority
     // target (d.priority); our missiles and the player white); the glow is drawn first, then the crisp shape on top
     const dart = (L) => { g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); };
@@ -100,14 +113,16 @@ export function createMap(root, terrain) {
     // the player: a white arrow along the heading
     glowDart(...P(ac.pos.x, ac.pos.z), Math.atan2(ac.vel.x, -ac.vel.z), 7 * dpr, '#ffffff', 'rgba(255,255,255,0.75)', null);
   };
-  let held = false;
+  let held = false, area = null;
   addEventListener('keydown', (e) => { if (e.code === 'KeyM' && !e.repeat) { held = true; big.classList.add('on'); document.body.classList.add('bigmap'); } });
   addEventListener('keyup', (e) => { if (e.code === 'KeyM') { held = false; big.classList.remove('on'); document.body.classList.remove('bigmap'); } });
   addEventListener('blur', () => { held = false; big.classList.remove('on'); document.body.classList.remove('bigmap'); });
   let tick = 0;
-  return (ac, drones, missiles) => {
+  const update = (ac, drones, missiles) => {
     if ((tick = (tick + 1) % 2)) return;                      // every other frame is plenty
     draw(mc, Math.round(Math.min(210, innerHeight * 0.27)), 9000, ac, drones, missiles);   // (smaller on short phone screens)
     if (held) draw(bc, Math.min(innerWidth, innerHeight) * 0.72, 1e9, ac, drones, missiles);
   };
+  update.setArea = (poly) => { area = poly; };   // the mission area (world [x, z] points), or null
+  return update;
 }

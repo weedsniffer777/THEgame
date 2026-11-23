@@ -267,3 +267,18 @@ body.ending #hud, body.ending #touch, body.ending #tut { display: none !importan
 #game { transition: filter 1.6s ease; }
 body.ending-blur #game, body.dead-blur #game { filter: blur(6px) saturate(0.85) !important; }
 #mend { background: rgba(0,0,0,0.12); }
+
+/* the banner across the screen (mission complete / failed, leaving the mission area): a band of faint glowing colour,
+   white text in the middle */
+#banner { position: fixed; left: -40px; right: -40px; top: 38%; height: 64px; display: none; align-items: center; justify-content: center; z-index: 44; pointer-events: none;
+  font: 700 30px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #fff; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
+#banner.on { display: flex; animation: bannerin 0.35s ease-out; }
+#banner.warn, #banner.fail { background: rgba(214,30,22,0.62); box-shadow: 0 0 22px rgba(235,40,30,0.55); }   /* (a solid band right across: off both edges of the screen) */
+#banner.win { background: rgba(28,178,74,0.58); box-shadow: 0 0 22px rgba(40,210,95,0.5); }
+#banner.warn { top: 30%; height: 48px; font-size: 20px; }
+#banner b { margin-right: 22px; font-size: 1.2em; }
+@keyframes bannerin { from { opacity: 0; transform: scaleY(0.4); } to { opacity: 1; transform: none; } }
+/* time left (mission), beside the minimap */
+#mtimer { position: absolute; top: 20px; left: calc(max(16px, env(safe-area-inset-left)) + min(210px, 27vh) + 22px); font: 700 18px/1 'B612 Mono', ui-monospace, monospace; color: rgba(255,255,255,0.92); text-shadow: 0 1px 3px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
+#mtimer.low { color: #ffb4a8; }
+body.hud-green #mtimer:not(.low) { color: var(--hg); }
