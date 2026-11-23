@@ -105,8 +105,9 @@ body.clean #devkit, body.clean #devmenu, body.clean .lil-gui, body.clean #hud, b
 body.clean #perf { display: none; }
 #devmenu { top: 84px; }
 /* missiles in flight: a hollow diamond (thick edge, see-through tinted middle) on each, blue = ours, red = the enemy's */
-#hud .mmark { position: absolute; left: 0; top: 0; height: 3px; border-radius: 2px; background: #8fd4ff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35); transform-origin: 0 0; will-change: transform; }
-#hud .mmark.foe { background: #ff4a3c; }
+#hud .mmark { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; }
+#hud .mmark::after { content: ''; position: absolute; left: -5.5px; top: -5.5px; width: 11px; height: 11px; box-sizing: border-box; transform: rotate(45deg); border: 2.5px solid #3d8fff; background: rgba(61, 143, 255, 0.28); }
+#hud .mmark.foe::after { border-color: #d8352b; background: rgba(216, 53, 43, 0.28); }
 
 /* flight HUD: one SVG, thin single-colour strokes, cockpit-display typeface */
 #fhud { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.75)); }

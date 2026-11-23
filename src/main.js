@@ -539,7 +539,7 @@ const mapHud = createMap(document.getElementById('hud'), terrain);
 const ringHud = createRing(document.getElementById('hud'));
 function hud(dt = 1 / 60) {
   notes(dt);
-  if (running && !dead) { flightHud(ac, camera, rig); mapHud(ac, weapons.drones); }
+  if (running && !dead) { flightHud(ac, camera, rig); mapHud(ac, weapons.drones, weapons.S.missiles); }
   const D = CAMERA.aimDistance;
   place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, D));
   aimEl.style.opacity = manual ? 0.25 : 1;
@@ -594,7 +594,7 @@ function hud(dt = 1 / 60) {
     }
     ringHud(screenOf(_n.copy(camera.position).addScaledVector(rig.fwd, D)), items, camera);
   }
-  // missiles in flight: a line on each, light blue for ours, red for the enemy's
+  // missiles in flight: a diamond on each, blue for ours, red for the enemy's
   {
     const ms = weapons.S.missiles;
     for (let k = 0; k < Math.max(ms.length, mslEls.length); k++) {
@@ -605,15 +605,8 @@ function hud(dt = 1 / 60) {
       if (el._own !== m.owner) { el.classList.toggle('foe', m.owner !== 'player'); el._own = m.owner; }
       // none for a moment after launch, then it fades in over half a second
       const op = THREE.MathUtils.clamp((m.t - 0.2) / 0.5, 0, 1);
-      // a short line along its flight path on screen; foreshortened toward a dot when it flies at or away from us
-      const q0 = screenOf(m.p), q1 = q0 && screenOf(_n.copy(m.p).addScaledVector(m.v, 0.02));
-      if (!q0 || !q1 || op <= 0) { el.style.display = 'none'; continue; }
-      const ray = _p.subVectors(m.p, camera.position).normalize(), vn = m.v.length() || 1;
-      const side = Math.sqrt(Math.max(0, 1 - (ray.dot(m.v) / vn) ** 2));   // sine of the angle between path and view
-      const len = 3 + 15 * side, ang = Math.atan2(q1[1] - q0[1], q1[0] - q0[0]);
-      el.style.display = ''; el.style.opacity = op.toFixed(2);
-      el.style.width = `${len.toFixed(1)}px`;
-      el.style.transform = `translate(${q0[0].toFixed(1)}px, ${q0[1].toFixed(1)}px) rotate(${ang.toFixed(3)}rad) translate(-50%, -50%)`;
+      el.style.opacity = op.toFixed(2);
+      place(el, m.p);
     }
   }
   // gun-solution target: the enemy nearest the reticle on screen, weighted toward ones in gun range, and sticky:

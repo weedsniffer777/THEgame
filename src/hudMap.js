@@ -47,7 +47,7 @@ export function createMap(root, terrain) {
   const toPx = (x, z) => [(x - terrain.ox) / extent * MAP, (z - terrain.oz) / extent * MAP];
   const mk = (id) => { const w = document.createElement('div'); w.id = id; const c = document.createElement('canvas'); w.append(c); root.append(w); return [w, c]; };
   const [mini, mc] = mk('minimap'), [big, bc] = mk('bigmap');
-  const draw = (cv, size, span, ac, drones) => {
+  const draw = (cv, size, span, ac, drones, missiles = []) => {
     const dpr = Math.min(devicePixelRatio || 1, 2), px = Math.round(size * dpr);
     if (cv.width !== px) { cv.width = cv.height = px; cv.style.width = cv.style.height = `${size}px`; }
     const g = cv.getContext('2d');
@@ -68,6 +68,16 @@ export function createMap(root, terrain) {
       g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); g.stroke(); g.fill();
       g.restore();
     }
+    // missiles in flight: a short line along each one's path, light blue for ours, red for the enemy's
+    g.lineCap = 'round';
+    for (const m of missiles) {
+      const [x, y] = P(m.p.x, m.p.z); if (x < -8 || y < -8 || x > px + 8 || y > px + 8) continue;
+      const h = Math.hypot(m.v.x, m.v.z) || 1, L = 7 * dpr, dx = m.v.x / h * L, dy = m.v.z / h * L;
+      g.beginPath(); g.moveTo(x - dx, y - dy); g.lineTo(x, y);
+      g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineWidth = 3.6 * dpr; g.stroke();
+      g.strokeStyle = m.owner === 'player' ? '#8fd4ff' : '#ff4a3c'; g.lineWidth = 1.8 * dpr; g.stroke();
+    }
+    g.lineWidth = 1.2 * dpr;
     // the player: an arrow along the heading
     const f = ac.vel, hd = Math.atan2(f.x, -f.z), L = 7 * dpr, [ax, ay] = P(ac.pos.x, ac.pos.z);
     g.save(); g.translate(ax, ay); g.rotate(hd);
@@ -79,9 +89,9 @@ export function createMap(root, terrain) {
   addEventListener('keyup', (e) => { if (e.code === 'KeyM') { held = false; big.classList.remove('on'); document.body.classList.remove('bigmap'); } });
   addEventListener('blur', () => { held = false; big.classList.remove('on'); document.body.classList.remove('bigmap'); });
   let tick = 0;
-  return (ac, drones) => {
+  return (ac, drones, missiles) => {
     if ((tick = (tick + 1) % 2)) return;                      // every other frame is plenty
-    draw(mc, 168, 9000, ac, drones);
-    if (held) draw(bc, Math.min(innerWidth, innerHeight) * 0.72, 1e9, ac, drones);
+    draw(mc, 168, 9000, ac, drones, missiles);
+    if (held) draw(bc, Math.min(innerWidth, innerHeight) * 0.72, 1e9, ac, drones, missiles);
   };
 }
