@@ -66,7 +66,8 @@ export function createOverlay() {
 
   return {
     // the game stands still while true (a hold, or the end card)
-    get open() { return holdT > 0 || end.classList.contains('on'); },
+    get open() { return holdT > 0; },                     // (the end card doesn't stop the game: the ending shot plays on behind it)
+    get endOpen() { return end.classList.contains('on'); },
     get holdLeft() { return holdT; },
     // a short line high in the centre ('' for none)
     say(text) { txt.textContent = text || ''; cardEl.classList.toggle('notxt', !text); show(); },

@@ -20,6 +20,8 @@ const BOMBER_SLOTS = [
   [-380, 60, 520], [-490, 30, 640], [-270, 30, 640],                             // left trailing box
   [380, -60, 520],                                                               // right
 ];
+// a hit bomber's peel-off: chance per hit taken, turn rate (deg/s), how far it turns (deg), how fast it sinks (m/s)
+const PEEL = { chance: 0.07, rate: [1.5, 3], ang: [35, 110], sink: [2, 7] };
 // the whole formation of ten (no stragglers), for the mission after the tutorial
 const FULL_SLOTS = [...BOMBER_SLOTS, [490, -90, 640], [270, -90, 640]];
 // two stragglers behind the main group, close together (the first one meets the player first): the second ~0.85 nm
@@ -28,7 +30,7 @@ const STRAGGLER_SLOTS = [[60, -120, 3700], [700, 40, 2200]];
 // once the first one is engaged, the second breaks off into a steady 65 deg turn to the right (a crossing gun shot)
 const STRAGGLER_TURN = { rate: 2.5 * Math.PI / 180, ang: 65 * Math.PI / 180 };   // (~32 deg of bank, 26 s)
 // the first straggler (the guns lesson) jinks from side to side, banking into each turn: something to practise the lead on
-const STRAGGLER_WEAVE = { a: 170, w: 0.2, ph: 0, phys: true };   // (up to ~35 deg of bank, a turn every ~16 s)
+const STRAGGLER_WEAVE = { a: 150, w: 0.26, ph: 0, phys: true };   // (~150 m each way, up to ~45 deg of bank, a reversal every ~12 s)
 const FIGHTER_SLOTS = [[-260, 420, -150], [0, 470, -250], [260, 420, -150]];   // escorts above the main group
 
 export function createMission1({ weapons, ac, rig }) {
@@ -46,10 +48,19 @@ export function createMission1({ weapons, ac, rig }) {
     // 2.5 nm ahead: a straight shoot
     start(simT, tutorial = false) {
       const origin = new THREE.Vector3(M.start.x, M.formationAlt, M.start.z).addScaledVector(dir, tutorial ? M.startBack : M.formationBack);
-      const track = (off, weave) => ({ origin, dir, speed: M.speed, off: new THREE.Vector3(...off), t0: simT, weave });
+      const track = (off, weave) => ({ origin, dir, speed: M.speed, off: new THREE.Vector3(...off), t0: simT, w0: simT, weave });
       if (tutorial) bombers.forEach((d, i) => { d.track = track(i < 2 ? STRAGGLER_SLOTS[i] : BOMBER_SLOTS[(i - 2) % BOMBER_SLOTS.length], i === 0 ? STRAGGLER_WEAVE : undefined); });
       else bombers.forEach((d, i) => { d.track = track(FULL_SLOTS[i % FULL_SLOTS.length]); });
-      this.noBreak = true;   // (the second straggler's break-away turn is kept for later missions, not used now)
+      this.noBreak = true;
+      // AI (not in the tutorial): every bomber is on its own and on alert; one that is hit but still flying may peel
+      // off: a slow banked turn away from the formation, sinking as it goes (no orders, no word to the others)
+      weapons.S.onHit = tutorial ? null : (d) => {
+        if (!d.track || d.track.turn || d.def.label !== 'Bomber' || Math.random() > PEEL.chance) return;
+        const side = d.track.off.x === 0 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(d.track.off.x);   // (away from the middle)
+        const deg = Math.PI / 180;
+        d.track.turn = { t0: weapons.S.simT || 0, rate: side * (PEEL.rate[0] + Math.random() * (PEEL.rate[1] - PEEL.rate[0])) * deg,
+          ang: (PEEL.ang[0] + Math.random() * (PEEL.ang[1] - PEEL.ang[0])) * deg, climb: -(PEEL.sink[0] + Math.random() * (PEEL.sink[1] - PEEL.sink[0])) };
+      };   // (the second straggler's break-away turn is kept for later missions, not used now)
       bombers.forEach(d => { d.hidden = false; d.noLock = false; });
       fighters.forEach(d => { d.hidden = false; d.noLock = false; });
       fighters.forEach((d, i) => { d.track = track(FIGHTER_SLOTS[i % FIGHTER_SLOTS.length], { a: 160, w: 0.22 + 0.05 * i, ph: i * 2.1 }); });

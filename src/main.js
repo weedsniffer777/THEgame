@@ -73,7 +73,7 @@ addEventListener('keydown', e => {                                       // P: p
 document.addEventListener('pointerlockchange', () => {
   const was = locked;
   locked = !!document.pointerLockElement;
-  if (was && !locked && !overlay?.open) setRunning(false);
+  if (was && !locked && !overlay?.open && !overlay?.endOpen) setRunning(false);   // (the end card frees the mouse without pausing)
 });
 
 const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadJet('models/jets/f5.gltf.json', F5)]);
@@ -98,11 +98,55 @@ let missionEnded = false;
 const prevPos = new THREE.Vector3(), prevQuat = new THREE.Quaternion();
 const drawPos = new THREE.Vector3(), drawQuat = new THREE.Quaternion();
 
+// The ending ("last air-to-air kill"): the HUD goes, the camera rides with the last enemy as it falls for a few
+// seconds, then slowly pulls out and up into a wide, drifting shot from high above; the picture softens and the
+// results come up over it. The jet flies on by itself.
+const ending = { on: false, t: 0, d: null, focus: new THREE.Vector3(), cam: new THREE.Vector3(), look: new THREE.Vector3(), yaw: 0, card: false };
+const _ec = new THREE.Vector3(), _el = new THREE.Vector3(), _ew = new THREE.Vector3();
+function startEnding() {
+  const last = weapons.S.kills[weapons.S.kills.length - 1]?.d || weapons.drones[0];
+  Object.assign(ending, { on: true, t: 0, d: last, card: false });
+  ending.cam.copy(camera.position); ending.look.copy(last.obj.position);
+  const away = _ew.subVectors(camera.position, last.obj.position); ending.yaw = Math.atan2(away.x, away.z);
+  weapons.setFiring(false); rig.zooming = false;
+  document.body.classList.add('ending');
+}
+function endingStep(dt) {
+  ending.t += dt;
+  if (ending.t > 5.5 && !ending.card) {                         // the results, over a softened picture
+    ending.card = true; missionEnded = true;
+    document.body.classList.add('ending-blur');
+    overlay.showEnd(mission.stats(), () => { spawn(); resume(); });
+    if (document.pointerLockElement) document.exitPointerLock();
+  }
+}
+function endingCamera(dt) {
+  const d = ending.d, t = ending.t, P = d.obj.position;
+  // where the wreck is (it stops at the ground), and a focus that drifts with it
+  ending.focus.lerp(P, ending.t < 0.05 ? 1 : Math.min(1, dt * 1.5));
+  // close chase: a little behind and beside the falling enemy
+  const v = _ew.copy(d.vel); if (v.lengthSq() < 1) v.set(0, 0, 1);
+  v.normalize();
+  const chase = _ec.copy(P).addScaledVector(v, -55).add(_el.set(-v.z * 22, 14, v.x * 22));
+  // the wide shot: high above and well off to one side, drifting slowly round (a helicopter shot)
+  ending.yaw += dt * 0.035;
+  const wide = _el.set(Math.sin(ending.yaw) * 900, 0, Math.cos(ending.yaw) * 900).add(ending.focus);
+  wide.y = Math.max(ending.focus.y, terrain.heightAt(ending.focus.x, ending.focus.z)) + 420;
+  const k = THREE.MathUtils.smoothstep(t, 3, 9);                // 3 s riding along, then 6 s pulling out
+  const want = chase.lerp(wide, k);
+  want.y = Math.max(want.y, terrain.heightAt(want.x, want.z) + 25);
+  ending.cam.lerp(want, Math.min(1, dt * (k < 1 ? 4 : 0.8)));
+  ending.look.lerp(k < 0.5 ? P : ending.focus, Math.min(1, dt * 3));
+  camera.position.copy(ending.cam); camera.up.set(0, 1, 0); camera.lookAt(ending.look);
+  const fov = CAMERA.fov - 8 * k;
+  if (Math.abs(camera.fov - fov) > 0.01) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 2); camera.updateProjectionMatrix(); }
+}
 function spawn() {
   const s = WORLD.spawn;
   weapons.rearm(); jet.damage.repair();
   if (mission) { mission.start(weapons.S.simT || 0, !!tutActive()); tutReset(); missionEnded = false; overlay.hideEnd(); }   // (a restart replays the whole mission)
   else { weapons.S.allow.gun = weapons.S.allow.missile = true; ac.reset(new THREE.Vector3(s.x, s.y, s.z), s.heading, s.speed); rig.reset(ac.quat); weapons.placeDrones(); }
+  ending.on = false; document.body.classList.remove('ending', 'ending-blur');
   prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
   dead = 0; jet.object.visible = true; document.body.classList.remove('lost', 'dead');
 }
@@ -268,7 +312,7 @@ function tutorialStep(dt) {
       break;
     case 'lock':
       if (first) { overlay.say('Wait for the missile to lock on the target'); overlay.spot([{ sel: '#seeker', round: true, pad: 4 }], 0.25); }
-      if (down(B)) { tutGo('final', 2.5); break; }
+      if (down(B)) { tutUnlock(); tutGo('final', 0.4); break; }
       if (W.selected !== 2) { if (W.stock > 0) tutGo('spotB2', 0); else { tutAllow.w1 = W.allow.gun = true; tut.gt = B; tutGo('close', 0.3); } break; }
       if (W.locked && W.seeker === B) { W.allow.missile = true; tutGo('fire', 0); }
       break;
@@ -278,13 +322,13 @@ function tutorialStep(dt) {
       break;
     case 'fire':
       if (first) { overlay.say('When the missile is locked, launch with'); overlay.keys(FIRE_KEYS()); overlay.spot([foeSpot(B), ...missileSpots(), ...(T ? [{ sel: '.t-fire', round: true, pad: 6 }] : [])], 0.2); tut.stock = W.stock; }
-      if (down(B)) { tutGo('final', 2.5); break; }
+      if (down(B)) { tutUnlock(); tutGo('final', 0.4); break; }
       capsStep(dt, () => W.stock < tut.stock ? 1 : 0, () => { tut.step = 'chase'; tut.t = 0; overlay.say(''); overlay.keys([]); });
       if (tut.doneT <= 0 && (tut.lost = W.locked ? 0 : tut.lost + dt) > 1) tutGo('lock', 0);   // lost the lock: find it again
       break;
     case 'chase': {  // a missile on its way (the enemy and the missile stay spotlit)
       const flying = W.missiles.some(m => m.owner === 'player');
-      if (down(B)) tutGo('final', 2.5);
+      if (down(B)) { tutUnlock(); tutGo('final', 0.4); }
       else if (!flying && tut.t > 0.5) {
         if (W.stock > 0) tutGo('lock', 0.3);                 // missed: again
         else { tutAllow.w1 = W.allow.gun = true; tut.gt = B; tutGo('close', 0.3); }   // out of missiles (it switched to guns): finish it with those
@@ -342,10 +386,10 @@ addEventListener('keydown', e => {
   if (e.code === 'Digit2') pickWeapon(2);
   if (e.code === 'KeyR') weapons.cycleTarget();
   if (e.code === 'KeyG' && !e.repeat) toggleGear();   // landing gear up / down
-  if (e.code === 'Space' && running && !dead && !overlay.open && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
+  if (e.code === 'Space' && running && !dead && !overlay.open && !ending.on && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
 });
 addEventListener('keyup', e => { if (e.code === 'Space') weapons.setFiring(false); });
-addEventListener('mousedown', e => { if (e.button === 0 && running && !dead && !overlay.open && e.target === canvas) weapons.setFiring(true, performance.now() / 1000); });
+addEventListener('mousedown', e => { if (e.button === 0 && running && !dead && !overlay.open && !ending.on && e.target === canvas) weapons.setFiring(true, performance.now() / 1000); });
 addEventListener('mouseup', e => { if (e.button === 0) weapons.setFiring(false); });
 addEventListener('blur', () => keys.clear());
 // With pointer lock the mouse turns the camera directly. Where the page can't lock the pointer
@@ -826,17 +870,18 @@ function frameBody(now) {
   if (models.on) { models.render(); requestAnimationFrame(frame); return; }   // dev model viewer: its own static scene
   if (running && !overlay.open && !dead) {
     tutorialStep(dt);
-    if (mission && !missionEnded && mission.update(dt)) {               // everything is down: the results
-      missionEnded = true; weapons.setFiring(false);
-      overlay.showEnd(mission.stats(), () => { spawn(); resume(); });
-      if (document.pointerLockElement) document.exitPointerLock();
-    }
+    if (mission && !missionEnded) mission.update(dt);
+    // the last enemy just went down: the ending
+    if (mission && !ending.on && !missionEnded && weapons.drones.length && weapons.drones.every(d => !d.alive || d.falling)) startEnding();
   }
+  if (ending.on && running) endingStep(dt);
   if (running && !overlay.open) {
+    if (!ending.on) {                                                     // (in the ending the jet flies on by itself)
     cursorSteer(dt);
     if (recentre > 0 && !manual) rig.recenter(_n.set(0, 0, 1).applyQuaternion(ac.quat), Math.min(1, dt * 12));
     rig.look(mouseDX, mouseDY);
-    if (isTouch && weapons.S.lead && weapons.S.selected === 1) {          // aim assist on touch screens
+    }
+    if (!ending.on && isTouch && weapons.S.lead && weapons.S.selected === 1) {          // aim assist on touch screens
       const toLead = _n.subVectors(weapons.S.lead, camera.position).normalize();
       const off = toLead.angleTo(rig.fwd);
       if (off < 0.08) rig.recenter(toLead, Math.min(1, dt * 6 * WEAPONS.magnetism * (1 - off / 0.08)));
@@ -849,7 +894,7 @@ function frameBody(now) {
       prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
       if (!wreck.inWater) weapons.burn(wreck.pos, wreck.vel, wreck.key);
       weapons.step(dt, performance.now() / 1000);
-      if (dead > 4.5 && !window.__holdWreck) spawn();   // (__holdWreck: dev tests watch the wreck to rest)
+      if (dead > 4.5 && !window.__holdWreck && !ending.on) spawn();   // (__holdWreck: dev tests watch the wreck to rest)
     } else while (acc >= STEP && !dead) { prevPos.copy(ac.pos); prevQuat.copy(ac.quat); physics(STEP); acc -= STEP; }   // (stop stepping the moment it crashes)
   }
   mouseDX = mouseDY = 0;
@@ -873,7 +918,7 @@ function frameBody(now) {
     if (want) rig.trackPt = want.obj.position;
     rig.trackK += ((want ? 1 : 0) - rig.trackK) * Math.min(1, dt * 4);
   }
-  if (viewer.on) viewer.place(); else if (dead) {
+  if (viewer.on) viewer.place(); else if (ending.on) endingCamera(dt); else if (dead) {
     const e = 1 - Math.exp(-dt / 1.1);
     deathCam.dist += ((deathCam.far || 85) - deathCam.dist) * e;
     deathCam.pitch += (0.32 - deathCam.pitch) * e * 0.6;

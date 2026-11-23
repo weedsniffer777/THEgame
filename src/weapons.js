@@ -542,7 +542,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       d.vel.subVectors(p, d.pos).divideScalar(Math.max(dt, 1e-3));
       d.pos.copy(p);
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 3) { killDrone(d); d.pos.y = terrain.heightAt(d.pos.x, d.pos.z) + 1; return; }
-      const fx = d.dmg.effects(), T = d.track, tt = (S.simT || 0) - T.t0;
+      const fx = d.dmg.effects(), T = d.track, tt = (S.simT || 0) - (T.w0 ?? T.t0);
       const Wv = T.weave;
       // (+ banks right; the weave's sideways acceleration is -a w^2 sin, so it banks the opposite way to its offset)
       const bankW = (T._bank || 0) + (!Wv ? 0 : Wv.phys ? -Math.atan(Wv.a * Wv.w * Wv.w * Math.sin(tt * Wv.w + Wv.ph) / 9.81)   // banked for its sideways acceleration
@@ -592,7 +592,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       else T._bank = sg * Math.atan(T.speed * w / 9.81);                                                          // banked through the turn
       _trr.crossVectors(_th, _tu).normalize();
     }
-    if (T.weave) { out.addScaledVector(_trr, Math.sin(tt * T.weave.w + T.weave.ph) * T.weave.a); out.y += Math.sin(tt * T.weave.w * 0.7 + T.weave.ph) * T.weave.a * 0.25; }
+    if (T.turn?.climb && tn) out.y += T.turn.climb * tn;                                                       // (a peel-off may sink away)
+    const tw = t - (T.w0 ?? T.t0);                                                                             // (the weave's own clock: shifting the track doesn't jolt it)
+    if (T.weave) { out.addScaledVector(_trr, Math.sin(tw * T.weave.w + T.weave.ph) * T.weave.a); out.y += Math.sin(tw * T.weave.w * 0.7 + T.weave.ph) * T.weave.a * 0.25; }
     return out;
   }
   // A bomber that goes down can blow up: its fuel and bombload go at once. Every part is flung off, a much bigger
@@ -769,7 +771,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       for (const d of drones) if (d.alive && segDist(r.prev, r.p, d.pos) < (d.def.hitRadius || cfg.hitRadius) * S.hitScale) {   // (going-down wrecks still take hits)
         r.t = 1e9; const at = closestOnSeg(r.prev, r.p, d.pos); hitFx(at, d.vel);
         d.dmg.hit(at, d.vel); d.lastHit = 'gun'; S.hits++;
-        if (d.dmg.dead) killDrone(d);
+        if (d.dmg.dead) killDrone(d); else S.onHit?.(d);   // (hit but flying: the mission's AI may react)
         break;
       }
       else if (r.p.y < terrain.heightAt(r.p.x, r.p.z)) {

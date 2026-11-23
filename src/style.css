@@ -261,3 +261,9 @@ body.hud-green #hud .mmark { --mc: #8affa8; }
 body.hud-green #hud .mmark.foe { --mc: #ff6a5a; }
 body.hud-green #hud .mmark b { color: var(--hg); }
 body.hud-green #notes div { color: var(--hg); }
+
+/* the ending: no HUD, then the picture softens behind the results */
+body.ending #hud, body.ending #touch, body.ending #tut { display: none !important; }
+#game { transition: filter 1.6s ease; }
+body.ending-blur #game { filter: blur(6px) saturate(0.85) !important; }
+#mend { background: rgba(0,0,0,0.18); }
