@@ -68,7 +68,19 @@ export function createMap(root, terrain) {
     const cx = whole ? MAP / 2 : px0, cy = whole ? MAP / 2 : py0, sp = Math.min(span, extent) / extent * MAP;
     g.imageSmoothingEnabled = true;
     g.fillStyle = '#2b2e32'; g.fillRect(0, 0, px, px);
-    g.drawImage(src, cx - sp / 2, cy - sp / 2, sp, sp, 0, 0, px, px);
+    // the map itself, and past its edges mirrored copies of it, the way the terrain continues (no grey void)
+    {
+      const sc = px / sp, i0 = Math.floor((cx - sp / 2) / MAP), i1 = Math.floor((cx + sp / 2) / MAP);
+      const j0 = Math.floor((cy - sp / 2) / MAP), j1 = Math.floor((cy + sp / 2) / MAP), T = MAP * sc;
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const mx = i & 1, mz = j & 1;
+        g.save();
+        g.translate((i * MAP - cx) * sc + px / 2 + (mx ? T : 0), (j * MAP - cy) * sc + px / 2 + (mz ? T : 0));
+        g.scale(mx ? -1 : 1, mz ? -1 : 1);
+        g.drawImage(src, 0, 0, MAP, MAP, 0, 0, T, T);
+        g.restore();
+      }
+    }
     const s = px / sp, P = (x, z) => { const [a, b] = toPx(x, z); return [(a - cx) * s + px / 2, (b - cy) * s + px / 2]; };
     // the mission area: straight red lines round it, everything outside darkened
     if (area?.length) {

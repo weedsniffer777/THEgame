@@ -108,7 +108,7 @@ const _ec = new THREE.Vector3(), _el = new THREE.Vector3(), _ew = new THREE.Vect
 // camera on the player's jet, which levels off by itself)
 function startEnding(win = true) {
   const d = win ? (weapons.S.kills[weapons.S.kills.length - 1]?.d || weapons.drones[0]) : { obj: jet.object, vel: ac.vel };
-  Object.assign(ending, { on: true, win, t: 0, d, card: false, placed: false, banner: false });
+  Object.assign(ending, { on: true, win, t: 0, d, card: false, placed: false, banner: false, keys: null });
   const away = _ew.subVectors(camera.position, d.obj.position); ending.yaw = Math.atan2(away.x, away.z);
   weapons.setFiring(false); rig.zooming = false;
   document.body.classList.add('ending');
@@ -122,6 +122,16 @@ function endingStep(dt) {
     if (ending.win) overlay.showEnd(mission.stats(), () => { spawn(); resume(); });
     else overlay.showDeath(() => { spawn(); resume(); });
     if (document.pointerLockElement) document.exitPointerLock();
+  }
+  // the last kill always burns, whatever took it down: fire and smoke from the middle of the fuselage and from both
+  // wing roots, laid down as it falls (until it hits the ground)
+  if (ending.win && ending.d?.alive && ending.d.obj.visible) {
+    const d = ending.d, sp = (d.def.hitRadius || 8) * 0.28;
+    ending.keys ||= [{}, {}, {}];
+    [[0, 0, 0], [sp, 0, -sp * 0.2], [-sp, 0, -sp * 0.2]].forEach(([x, y, z], k) => {
+      const at = _ec.set(x, y, z).applyQuaternion(d.obj.quaternion).add(d.obj.position);
+      weapons.burn(at, d.vel, ending.keys[k]);
+    });
   }
   // the jet flies on by itself: levelling off slowly, climbing away from any ground ahead
   if (!dead) {
