@@ -316,7 +316,7 @@ export async function loadJet(url, cfg) {
         V.airbrake = 0.5 + 0.5 * Math.sin(t * 0.5); V.engine = 1.05 + 0.05 * Math.sin(t * 0.7);
         V.gear = THREE.MathUtils.clamp(0.5 + 0.8 * Math.sin(t * 0.35), 0, 1); V.canopy = THREE.MathUtils.clamp(Math.sin(t * 0.25) * 1.5, 0, 1);
       }
-      const ac = V.active ? { input: V, engine: V.engine, airbrake: V.airbrake, t: { aoa: V.aoa, ias: 100 } } : acReal;
+      const ac = V.active ? { input: V, engine: V.engine, airbrake: V.airbrake, t: { aoa: V.aoa, ias: 100 }, gear: V.gear } : acReal;
       const gear = V.active ? V.gear : (acReal.gear || 0), canopy = V.active ? V.canopy : 0;
       const i = ac.input;
       s.aileronL.rotation.x = -i.roll * 18 * DEG;

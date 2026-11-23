@@ -720,14 +720,15 @@ canvas.addEventListener('wheel', e => { if (viewer.on) { viewer.dist = THREE.Mat
 const unmarked = {};
 paintEnemy(enemyProto, 'unmarked').then(o => { unmarked.earlyJet = o; });
 paintEnemy(bomberProto, 'unmarked').then(o => { unmarked.bomber = o; });
+const liveJet = () => jet.object; liveJet.live = true;   // (shown live: animations, afterburner, gear, doors)
 const models = createModelViewer(renderer, canvas, scene.environment, {
-  'player jet': () => jet.object,
+  'player jet': liveJet,
   'enemy: early jet': () => enemyProto,
   'enemy: bomber': () => bomberProto,
   'enemy: early jet (unmarked)': () => unmarked.earlyJet || enemyProto,
   'enemy: bomber (unmarked)': () => unmarked.bomber || bomberProto,
   'missile': () => weapons.missileProto,
-});
+}, { anim: viewerAnim, jet });
 function openModels() {
   if (viewer.on) { setViewer(false); document.querySelectorAll('.lil-gui').forEach(g => { if (g.querySelector('.title')?.textContent === 'cinematic camera') g.style.display = 'none'; }); }
   if (document.pointerLockElement) document.exitPointerLock();
