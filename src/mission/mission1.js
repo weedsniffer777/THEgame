@@ -10,7 +10,8 @@ export const MISSION1 = {
   playerAlt: 5000,
   speed: 140,             // m/s, the formation
   playerSpeed: 230,
-  startBack: 6800,        // m from the player's start to the lead bomber (the first straggler ~4.8 km ahead)
+  startBack: 6800,        // m from the player's start to the lead bomber, tutorial (the first straggler ~3.1 km ahead)
+  formationBack: 5300,    // m to the lead bomber after the tutorial (the formation's tail ~2.5 nm ahead)
 };
 
 // slots: x right, y up, z behind the lead point (m)
@@ -19,6 +20,8 @@ const BOMBER_SLOTS = [
   [-380, 60, 520], [-490, 30, 640], [-270, 30, 640],                             // left trailing box
   [380, -60, 520],                                                               // right
 ];
+// the whole formation of ten (no stragglers), for the mission after the tutorial
+const FULL_SLOTS = [...BOMBER_SLOTS, [490, -90, 640], [270, -90, 640]];
 // two stragglers behind the main group, close together (the first one meets the player first): the second ~0.85 nm
 // behind the main group's tail and off to the right, the first ~0.9 nm behind the second
 const STRAGGLER_SLOTS = [[60, -120, 3700], [700, 40, 2200]];
@@ -39,10 +42,15 @@ export function createMission1({ weapons, ac, rig }) {
     noBreak: false,          // (the tutorial keeps the second straggler on its track: it's the missile target)
     state, bombers, fighters, stragglers: bombers.slice(0, 2),
     // puts everyone in place (call on mission start and replay)
-    start(simT) {
-      const origin = new THREE.Vector3(M.start.x, M.formationAlt, M.start.z).addScaledVector(dir, M.startBack);
+    // tutorial: the two stragglers behind the group (the lessons); otherwise all ten in formation, the nearest about
+    // 2.5 nm ahead: a straight shoot
+    start(simT, tutorial = false) {
+      const origin = new THREE.Vector3(M.start.x, M.formationAlt, M.start.z).addScaledVector(dir, tutorial ? M.startBack : M.formationBack);
       const track = (off, weave) => ({ origin, dir, speed: M.speed, off: new THREE.Vector3(...off), t0: simT, weave });
-      bombers.forEach((d, i) => { d.track = track(i < 2 ? STRAGGLER_SLOTS[i] : BOMBER_SLOTS[(i - 2) % BOMBER_SLOTS.length], i === 0 ? STRAGGLER_WEAVE : undefined); d.hidden = false; d.noLock = false; });
+      if (tutorial) bombers.forEach((d, i) => { d.track = track(i < 2 ? STRAGGLER_SLOTS[i] : BOMBER_SLOTS[(i - 2) % BOMBER_SLOTS.length], i === 0 ? STRAGGLER_WEAVE : undefined); });
+      else bombers.forEach((d, i) => { d.track = track(FULL_SLOTS[i % FULL_SLOTS.length]); });
+      this.noBreak = true;   // (the second straggler's break-away turn is kept for later missions, not used now)
+      bombers.forEach(d => { d.hidden = false; d.noLock = false; });
       fighters.forEach(d => { d.hidden = false; d.noLock = false; });
       fighters.forEach((d, i) => { d.track = track(FIGHTER_SLOTS[i % FIGHTER_SLOTS.length], { a: 160, w: 0.22 + 0.05 * i, ph: i * 2.1 }); });
       weapons.placeDrones();

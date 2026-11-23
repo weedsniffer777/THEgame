@@ -101,7 +101,7 @@ const drawPos = new THREE.Vector3(), drawQuat = new THREE.Quaternion();
 function spawn() {
   const s = WORLD.spawn;
   weapons.rearm(); jet.damage.repair();
-  if (mission) { mission.start(weapons.S.simT || 0); tutReset(); missionEnded = false; overlay.hideEnd(); }   // (a restart replays the whole mission)
+  if (mission) { mission.start(weapons.S.simT || 0, !!tutActive()); tutReset(); missionEnded = false; overlay.hideEnd(); }   // (a restart replays the whole mission)
   else { weapons.S.allow.gun = weapons.S.allow.missile = true; ac.reset(new THREE.Vector3(s.x, s.y, s.z), s.heading, s.speed); rig.reset(ac.quat); weapons.placeDrones(); }
   prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
   dead = 0; jet.object.visible = true; document.body.classList.remove('lost', 'dead');
@@ -138,7 +138,6 @@ function tutReset() {
   overlay.hold(0, null); overlay.clear();
   const on = !!tutActive(), W = weapons.S;
   document.body.classList.toggle('tut-noarms', on); document.body.classList.toggle('tut-nomap', on);
-  if (mission) mission.noBreak = false;
   if (!on) { tut.step = 'off'; W.allow.gun = W.allow.missile = true; tutUnlock(); if (!W.selected) weapons.select(1); return; }
   mission.noBreak = true;
   for (const k in tutAllow) tutAllow[k] = false;   // (each is unlocked by the step that teaches it; gear: after the tutorial)
