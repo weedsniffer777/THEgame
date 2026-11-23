@@ -41,27 +41,37 @@ body.viewing #game { cursor: grab; }
 #seeker, #lockc, #tgt, #hud .tgtc { position: absolute; left: 0; top: 0; will-change: transform; border-radius: 50%; }
 #seeker { border: 1.5px solid rgba(110,255,150,0.75); box-shadow: 0 0 3px rgba(0,0,0,0.5); }
 #seeker.locked { border-color: rgba(255,70,60,0.85); }
-#lockc { width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 2px solid #6eff96; box-shadow: 0 0 3px rgba(0,0,0,0.5); }
+#lockc { width: 20px; height: 20px; margin: -10px 0 0 -10px; border: 2px solid #6eff96; box-shadow: 0 0 3px rgba(0,0,0,0.5); border-radius: 2px !important; }   /* the lock box */
 #lockc.flashW, #seeker.flashW { border-color: #fff; }
 #lockc.flashR, #seeker.flashR { border-color: #ff463c; }
 #lockc.locked { border-color: #ff463c; border-width: 2.5px; }
+#rngarc { position: absolute; left: 0; top: 0; overflow: visible; will-change: transform; pointer-events: none; filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.6)); }
+#rngarc circle { stroke: rgba(255,255,255,0.75); stroke-width: 2; }
+#rngarc line { stroke: rgba(255,255,255,0.9); stroke-width: 1.5; }
+#rngarc.in circle { stroke: #6eff96; }
+body.tut-noarms #rngarc { visibility: hidden !important; }
 #tgt, #hud .tgtc { width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 1px; border: none; }
-#arms { position: absolute; right: 46px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; color: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
-#arms .row { display: flex; align-items: center; gap: 9px; opacity: 0.62; padding: 3px 6px 3px 4px; border-left: 2px solid transparent; }
-#arms .row.sel { opacity: 1; border-left-color: #fff; }
+#arms { position: absolute; right: 148px; bottom: 22px; display: flex; align-items: flex-end; gap: 10px; color: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
+#arms .col { display: flex; flex-direction: column; align-items: center; gap: 7px; opacity: 0.66; padding: 4px 4px 3px; border-bottom: 2px solid transparent; }
+#arms .col.sel { opacity: 1; border-bottom-color: #fff; }
 #arms .key { font: 700 11px/1 ui-monospace, monospace; width: 15px; height: 15px; display: grid; place-items: center; border: 1.5px solid rgba(255,255,255,0.85); border-radius: 3px; }
 #arms svg { display: block; fill: #fff; }
-#arms .msl { display: grid; grid-template-columns: repeat(3, auto); gap: 4px 6px; }
+/* the side-view silhouettes stood on end, nose up */
+#arms .gun { position: relative; width: 17px; height: 90px; }
+#arms .gun svg { position: absolute; left: 50%; top: 50%; width: 92px; height: 17px; transform: translate(-50%, -50%) rotate(-90deg); }
+#arms .msl { display: flex; gap: 3px; height: 64px; }
+#arms .msl i { position: relative; width: 10px; height: 64px; }
+#arms .msl i svg { position: absolute; left: 50%; top: 50%; width: 62px; height: 10.5px; transform: translate(-50%, -50%) rotate(-90deg); }
 #arms .msl i svg path { fill: #fff; }
 #arms .msl i.spent svg path { fill-opacity: 0.22; }
-#arms.locked .row.sel .msl i:not(.spent) svg path { fill: #ff5a4a; }
+#arms.locked .col.sel .msl i:not(.spent) svg path { fill: #ff5a4a; }
 /* enemy diamonds; the selected one is bigger and brighter */
 /* gun lead pip: where to put the reticle to hit the selected enemy */
 /* gun solution: square on the target, a line, and the lead circle, all one red shape */
 #lead { position: absolute; left: 0; top: 0; width: 12px; height: 12px; margin: -7.6px 0 0 -7.6px; border: 1.6px solid #ff5541; border-radius: 50%; will-change: transform; box-shadow: 0 0 2px rgba(0,0,0,0.5); }
 #lead.on { background: rgba(255,85,65,0.35); }
 /* x-ray damage view */
-#xray { position: absolute; left: 14px; bottom: 50px; opacity: 0.95; filter: drop-shadow(0 0 2px rgba(90,255,150,0.55)) drop-shadow(0 0 1px rgba(0,0,0,0.5)); }
+#xray { position: absolute; right: 18px; bottom: 18px; opacity: 0.95; filter: drop-shadow(0 0 2px rgba(90,255,150,0.55)) drop-shadow(0 0 1px rgba(0,0,0,0.5)); }
 #xray canvas { display: block; }
 /* plane lost: colour drains, red edges */
 #lost { position: absolute; inset: 0; opacity: 0; transition: opacity 0.6s; background: radial-gradient(ellipse at center, transparent 40%, rgba(150,0,0,0.55) 100%); }
@@ -73,21 +83,34 @@ body.lost #game { filter: saturate(0.25) brightness(0.85); transition: filter 0.
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 #touch > * { pointer-events: auto; touch-action: none; }
 body.touch #throttle, #gauges { display: none !important; }
-.t-throttle { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: 28px; width: 46px; height: 46vh; border-radius: 23px; background: rgba(0,0,0,0.28); border: 1.5px solid rgba(255,255,255,0.5); overflow: hidden; }
-.t-throttle i { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.75); }
-.t-throttle.ab i { background: #ffa640; }
-.t-throttle b { position: absolute; left: 6px; right: 6px; top: 12%; height: 2px; background: rgba(255,255,255,0.8); }
-.t-fire, .t-switch { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); background: rgba(0,0,0,0.3); display: grid; place-items: center; padding: 0; }
+.t-throttle { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: 28px; width: 38px; height: 46vh; border-radius: 10px; background: linear-gradient(90deg, rgba(0,0,0,0.38), rgba(20,26,34,0.32) 50%, rgba(0,0,0,0.38)); border: 1.5px solid rgba(255,255,255,0.45); box-shadow: inset 0 0 6px rgba(0,0,0,0.5); }
+.t-throttle .slot { position: absolute; left: 50%; top: 14px; bottom: 14px; width: 6px; margin-left: -3px; border-radius: 3px; background: rgba(0,0,0,0.65); box-shadow: inset 0 1px 2px rgba(0,0,0,0.8); overflow: hidden; }
+.t-throttle .slot s { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.55); }
+.t-throttle.ab .slot s { background: #ffa640; }
+.t-throttle .tk { position: absolute; left: 3px; width: 6px; height: 1px; background: rgba(255,255,255,0.55); transform: translateY(50%); }
+.t-throttle .tk.big { width: 9px; background: rgba(255,255,255,0.85); }
+.t-throttle .gate { position: absolute; left: 2px; right: 2px; height: 3px; transform: translateY(50%); border-top: 1.5px solid rgba(255,255,255,0.9); border-bottom: 1.5px solid rgba(255,255,255,0.9); }
+.t-throttle .ab { position: absolute; left: 2px; right: 2px; top: 4px; border-radius: 7px 7px 2px 2px; background: repeating-linear-gradient(135deg, rgba(255,166,64,0.35) 0 3px, transparent 3px 7px); }
+.t-throttle .grip { position: absolute; left: 50%; width: 34px; height: 26px; margin: 0 0 -13px -17px; pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6)); }
+.t-throttle .grip svg { display: block; width: 100%; height: 100%; }
+.t-throttle .grip rect { fill: #d9dee4; stroke: rgba(0,0,0,0.5); stroke-width: 1; }
+.t-throttle .grip path { stroke: rgba(40,46,54,0.75); stroke-width: 1.6; stroke-linecap: round; fill: none; }
+.t-throttle.ab .grip rect { fill: #ffc27a; }
+.t-fire, .t-btn { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); background: rgba(0,0,0,0.3); display: grid; place-items: center; padding: 0; }
 .t-fire { right: max(24px, env(safe-area-inset-right)); bottom: 40px; width: 84px; height: 84px; }
-.t-switch { right: max(122px, calc(env(safe-area-inset-right) + 98px)); bottom: 34px; width: 52px; height: 52px; }
-.t-fire svg, .t-switch svg { width: 55%; height: 55%; stroke: #fff; fill: none; }
+.t-btn { width: 50px; height: 50px; }
+.t-fire svg, .t-btn svg { width: 55%; height: 55%; stroke: #fff; fill: none; }
 .t-fire svg circle { fill: none; stroke: #fff; stroke-width: 2.4; }
-.t-fire.on { background: rgba(255,255,255,0.3); }
+.t-fire.on, .t-btn.on { background: rgba(255,255,255,0.3); }
 .t-fire.locked { border-color: #ff5541; }
-body.touch #arms { right: max(220px, calc(env(safe-area-inset-right) + 200px)); }
+.t-brake { left: max(70px, calc(env(safe-area-inset-left) + 52px)); bottom: 28px; }
+.t-gear { left: max(14px, env(safe-area-inset-left)); bottom: calc(46vh + 44px); }
+.t-gear.down { border-color: #6eff96; }
+.t-zoom { right: max(41px, calc(env(safe-area-inset-right) + 17px)); bottom: 140px; }
+body.touch #arms { right: max(258px, calc(env(safe-area-inset-right) + 240px)); }
 #rotate { position: fixed; inset: 0; z-index: 30; display: none; place-items: center; background: #1b2635; }
 @media (orientation: portrait) and (pointer: coarse) { #rotate { display: grid; } }
-body.touch #xray { left: 84px; }
+body.touch #xray { right: max(128px, calc(env(safe-area-inset-right) + 110px)); }
 body.touch #gauges { left: 84px; }
 body.clean #devkit, body.clean #devmenu, body.clean .lil-gui, body.clean #hud, body.clean #dev { display: none !important; }
 #leadline { position: absolute; left: 0; top: 0; height: 1.6px; margin-top: -0.8px; background: #ff5541; transform-origin: 0 50%; will-change: transform; box-shadow: 0 0 2px rgba(0,0,0,0.5); }
@@ -222,4 +245,4 @@ body.bigmap #ring { visibility: hidden; }
 #bigmap { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 6px; border: 1.5px solid rgba(236,246,238,0.85); background: rgba(8,12,18,0.85); display: none; z-index: 5; }
 body.bigmap #hud .mark, body.bigmap #gunsol { visibility: hidden; }
 #bigmap.on { display: block; }
-body.touch #arms .row { pointer-events: auto; cursor: pointer; }
+body.touch #arms .col { pointer-events: auto; cursor: pointer; }

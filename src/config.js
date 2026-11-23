@@ -173,6 +173,7 @@ export const WEAPONS = {
   lockTime: 0.8,          // s on target to lock
   lockCentre: 4,          // deg: a target this close to the reticle is taken first, even one a missile is already after
   lockRange: 5556,        // m (3 nm)
+  missileMinRange: 300,   // m: closer than this the missile can't arm in time (the tick on the range arc)
   missileThrust: 230,     // m/s² while the motor burns
   motorTime: 4,           // s
   missileDrag: 4e-5,      // speed loss per second = this x speed²

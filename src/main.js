@@ -191,7 +191,7 @@ function tutorialStep(dt) {
     }
     case 'revealA': if (first) { mission.breakAway(); tutReveal(A, 'A bomber is lagging behind', () => tutGo('select2', 0.2)); } break;
     case 'select2':
-      if (first) { document.body.classList.remove('tut-noarms'); overlay.say('Missiles'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]); overlay.spot([{ sel: '#arms .row[data-w="2"]', pad: 6 }], 0.35); }
+      if (first) { document.body.classList.remove('tut-noarms'); overlay.say('Missiles'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]); overlay.spot([{ sel: '#arms .col[data-w="2"]', pad: 6 }], 0.35); }
       capsStep(dt, (dt) => W.selected === 2 ? dt / 0.2 : 0, () => { A.noLock = false; tutGo('lock', 0.1); });
       break;
     case 'lock':
@@ -220,7 +220,7 @@ function tutorialStep(dt) {
     }
     case 'revealB': if (first) { W.allow.missile = false; tutReveal(B, 'Another one', () => { tut.gt = B; tutGo('select1', 0.2); }); } break;
     case 'select1':
-      if (first) { document.body.classList.remove('tut-noarms'); overlay.say('Guns'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '1' }]); overlay.spot([{ sel: '#arms .row[data-w="1"]', pad: 6 }], 0.35); }
+      if (first) { document.body.classList.remove('tut-noarms'); overlay.say('Guns'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '1' }]); overlay.spot([{ sel: '#arms .col[data-w="1"]', pad: 6 }], 0.35); }
       capsStep(dt, (dt) => W.selected === 1 ? dt / 0.2 : 0, () => { W.allow.gun = true; tutGo('close', 0.1); });
       break;
     case 'close':
@@ -253,6 +253,7 @@ function tutorialStep(dt) {
       break;
   }
 }
+let touchBrake = false, touchUi = null;   // (touch screens: airbrake button held; the touch controls)
 let tgtSwitch = 0;   // how long a better gun target has been waiting to take over
 spawn();
 
@@ -426,7 +427,7 @@ function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 
 
 function physics(dt) {
   // throttle; holding throttle-up at full power lights the afterburner (Space stays free for guns)
-  ac.airbrakeCmd = keys.has('KeyB') ? 1 : 0;
+  ac.airbrakeCmd = keys.has('KeyB') || touchBrake ? 1 : 0;
   // Tab (or X) up, Shift (or Z) down
   const thUp = keys.has('Tab') || keys.has('KeyX'), thDown = keys.has('ShiftLeft') || keys.has('ShiftRight') || keys.has('KeyZ');
   const th = (thUp ? 1 : 0) - (thDown ? 1 : 0);
@@ -481,6 +482,12 @@ const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], mslEls = [];
 const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles, (k) => { if (running) weapons.select(k); });
 const gunSvg = document.getElementById('gunsol'), [gunBox, gunLine, gunCirc] = gunSvg.children;
+// the missile range arc (drawn round the lock box)
+const rngSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+rngSvg.id = 'rngarc'; rngSvg.setAttribute('width', 1); rngSvg.setAttribute('height', 1);
+rngSvg.innerHTML = '<circle r="17" transform="rotate(-90)" fill="none"/><line/>';
+document.getElementById('hud').appendChild(rngSvg);
+const [rngArc, rngMin] = rngSvg.children;
 function screenOf(p) { _p.copy(p).project(camera); return _p.z < 1 ? [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight] : null; }
 const xray = createXray(document.getElementById('xray'), jet.damage, { ...PART_HP, body: BODY_HP }, renderer, jet.model);
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
@@ -544,13 +551,29 @@ function hud(dt = 1 / 60) {
   const W = weapons.S, msl = W.selected === 2;
   noseEl.style.visibility = msl ? 'hidden' : '';
   seekerEl.hidden = lockEl.hidden = !msl;
+  if (!msl) rngSvg.style.display = 'none';
   if (msl) {
     const nosePt = _n.set(0, 0, 1).applyQuaternion(drawQuat).multiplyScalar(D).add(drawPos);
     place(seekerEl, nosePt);
     const r = Math.tan(WEAPONS.seekerFov / 2 * Math.PI / 180) / Math.tan(camera.fov / 2 * Math.PI / 180) * innerHeight / 2;
     seekerEl.style.width = seekerEl.style.height = `${2 * r}px`; seekerEl.style.margin = `${-r}px 0 0 ${-r}px`;
     const tracking = W.seeker && !W.locked;
-    place(lockEl, W.locked && W.seeker ? W.seeker.obj.position : nosePt);
+    // the lock box slides from the middle of the seeker onto the target as the lock builds (S.lock / lockTime)
+    const ns = screenOf(nosePt), ts = W.seeker ? screenOf(W.seeker.obj.position) : null;
+    const k = W.seeker ? THREE.MathUtils.smoothstep(Math.min(W.lock / WEAPONS.lockTime, 1), 0, 1) : 0;
+    const at = ns && ts ? [ns[0] + (ts[0] - ns[0]) * k, ns[1] + (ts[1] - ns[1]) * k] : ns;
+    if (at) { lockEl.style.display = ''; lockEl.style.transform = `translate(${at[0]}px, ${at[1]}px)`; } else lockEl.style.display = 'none';
+    // range arc round the box: how far the target is out of the missile's reach (full circle = max range, the tick
+    // at the bottom of the scale = min range), clockwise from the top; only with a target
+    const R = 17, C = 2 * Math.PI * R;
+    if (W.seeker && at) {
+      const dist = W.seeker.pos.distanceTo(ac.pos), f = Math.min(dist / WEAPONS.lockRange, 1), fm = WEAPONS.missileMinRange / WEAPONS.lockRange;
+      rngArc.setAttribute('stroke-dasharray', `${(f * C).toFixed(1)} ${C.toFixed(1)}`);
+      const a = fm * 2 * Math.PI; rngMin.setAttribute('x1', (Math.sin(a) * (R - 4)).toFixed(1)); rngMin.setAttribute('y1', (-Math.cos(a) * (R - 4)).toFixed(1));
+      rngMin.setAttribute('x2', (Math.sin(a) * (R + 4)).toFixed(1)); rngMin.setAttribute('y2', (-Math.cos(a) * (R + 4)).toFixed(1));
+      rngSvg.style.display = ''; rngSvg.style.transform = lockEl.style.transform;
+      rngSvg.classList.toggle('in', dist <= WEAPONS.lockRange && dist >= WEAPONS.missileMinRange);
+    } else rngSvg.style.display = 'none';
     // searching: both circles flash white / red; locked: both solid red
     const st = W.locked ? 'locked' : tracking ? (performance.now() % 250 < 125 ? 'flashW' : 'flashR') : '';
     lockEl.className = st; seekerEl.className = st;
@@ -663,6 +686,11 @@ function hud(dt = 1 / 60) {
   }
   xray();
   armsHud(W.selected, W.stock, msl && W.locked);
+  if (touchUi) {                                         // the gear button: only when slow or low (or already down)
+    const agl = ac.pos.y - terrain.heightAt(ac.pos.x, ac.pos.z);
+    touchUi.setGear(running && !dead && (ac.t.ias * 1.944 < 250 || agl < 300 || ac.gearCmd > 0), ac.gearCmd > 0);
+    touchUi.setLocked(msl && W.locked);
+  }
   aimEl.classList.toggle('stall', ac.t.stall > 0.3);
   thrFill.style.height = `${Math.min(ac.throttle, 1) * 100}%`;
   thrEl.classList.toggle('ab', ac.throttle > 1);
@@ -880,10 +908,13 @@ document.getElementById('kit-viewer').addEventListener('click', e => {
 if (isTouch) {
   document.body.classList.add('touch');
   weapons.S.hitScale = 1.5;
-  createTouch(document.getElementById('touch'), {
+  touchUi = createTouch(document.getElementById('touch'), {
     onLook: (dx, dy) => { if (running) { mouseDX += dx; mouseDY += dy; } },
     onThrottle: (v) => { ac.throttle = v; },
     onFire: (on) => { if (running && !dead && !overlay.open) weapons.setFiring(on, performance.now() / 1000); },
+    onAirbrake: (on) => { touchBrake = on; },
+    onZoom: (on) => { rig.zooming = on; },
+    onGear: () => { if (running && !dead) ac.gearCmd = ac.gearCmd ? 0 : 1; },
   });
 }
 
