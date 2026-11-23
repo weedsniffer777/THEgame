@@ -171,6 +171,7 @@ export const WEAPONS = {
   missiles: 6,            // one per station: 2 wingtips + 4 pylons, no reload
   seekerFov: 24,          // deg, full width of the seeker circle
   lockTime: 0.8,          // s on target to lock
+  lockCentre: 4,          // deg: a target this close to the reticle is taken first, even one a missile is already after
   lockRange: 5556,        // m (3 nm)
   missileThrust: 230,     // m/s² while the motor burns
   motorTime: 4,           // s

@@ -1,3 +1,4 @@
+import { friendColor } from './settings.js';
 // Map: the aerial photo in faint greyscale with sparse contour lines (every 250 m, heavier every 1000 m), lakes darker,
 // made once from the terrain data, then a crop of it drawn in a framed square in the top right each frame, north up, with the
 // player as an arrow and enemies as small red ticks. Hold M for the whole region.
@@ -68,14 +69,14 @@ export function createMap(root, terrain) {
       g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); g.stroke(); g.fill();
       g.restore();
     }
-    // missiles in flight: a short line along each one's path, light blue for ours, red for the enemy's
+    // missiles in flight: a short line along each one's path, ours in the friendly colour, the enemy's red
     g.lineCap = 'round';
     for (const m of missiles) {
       const [x, y] = P(m.p.x, m.p.z); if (x < -8 || y < -8 || x > px + 8 || y > px + 8) continue;
       const h = Math.hypot(m.v.x, m.v.z) || 1, L = 7 * dpr, dx = m.v.x / h * L, dy = m.v.z / h * L;
       g.beginPath(); g.moveTo(x - dx, y - dy); g.lineTo(x, y);
-      g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineWidth = 3.6 * dpr; g.stroke();
-      g.strokeStyle = m.owner === 'player' ? '#3d8fff' : '#ff4a3c'; g.lineWidth = 1.8 * dpr; g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,0.45)'; g.lineWidth = 3.8 * dpr; g.stroke();      // a faint white outline
+      g.strokeStyle = m.owner === 'player' ? friendColor() : '#ff4a3c'; g.lineWidth = 2 * dpr; g.stroke();
     }
     g.lineWidth = 1.2 * dpr;
     // the player: an arrow along the heading

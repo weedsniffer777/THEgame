@@ -16,7 +16,7 @@ import { createMission1 } from './mission/mission1.js';
 import { createRing, ringPointer } from './hudRing.js';
 import { createOverlay } from './ui/tutorial.js';
 import { save, writeSave, clearSave } from './save.js';
-import { units } from './settings.js';
+import { units, settings } from './settings.js';
 import { createClouds } from './world/clouds.js';
 import { createWeapons } from './weapons.js';
 import { loadEnemy } from './enemy.js';
@@ -106,12 +106,12 @@ function spawn() {
   dead = 0; jet.object.visible = true; document.body.classList.remove('lost', 'dead');
 }
 let dead = 0;   // seconds since the player was killed (0 = alive)
-// Tutorial (Mission 1, first time only), choreographed, and it never waits for a click. The main group starts far
-// ahead and hidden (no markers, no lock, not on the map); the weapons panel and the map are hidden too, and nothing
-// fires. Flying is taught with big keycaps that fill green while held (any of the keys in a row will do), pulse,
-// and move on. Then a straggler is revealed: the game freezes for a moment with the map and the bomber (or the ring
-// pointer toward it) spotlit; missiles: select, keep it in the circle, a short freeze on the lock, fire. Then the
-// second straggler, the same way, with guns. Then everything is revealed.
+// Tutorial (Mission 1, first time only), choreographed; it never waits for a click and never stops the game. The main
+// group starts far ahead and hidden (no markers, no lock, not on the map); the weapons panel and the map are hidden
+// too, and nothing fires. Flying is taught with big keycaps that fill green while held (any key in a row will do),
+// pulse, and move on. Then a straggler is revealed: the map appears and, for a moment, the map and the bomber (or the
+// ring pointer toward it) are spotlit; missiles: select, keep it in the circle, fire on the lock. Then the second
+// straggler, zigzagging gently, with guns: put the gun cross on the lead circle. Then everything is revealed.
 const tut = { step: 'off', t: 0, wait: 0, entered: false, f: 0, doneT: 0, fwd: new THREE.Vector3(), thr: 0, stock: 0, lost: 0, gt: null };
 const isTouchDev = isTouch, tv = new THREE.Vector3();
 function tutActive() { return mission && !save.tutorialDone; }
@@ -129,7 +129,7 @@ let tutBlow = 1 + Math.floor(Math.random() * 3);
   };
   weapons.S.detonateOK = (d) => !tutActive() || d.pos.distanceTo(ac.pos) > (d.def.detonate?.radius || 100) + 20;
 }
-function tutGo(step, wait = 0.4) { tut.step = step; tut.t = 0; tut.wait = wait; tut.entered = false; tut.f = 0; tut.doneT = 0; tut.lost = 0; overlay.clear(); }
+function tutGo(step, wait = 0.4) { tut.showT = 0; tut.after = null; tut.step = step; tut.t = 0; tut.wait = wait; tut.entered = false; tut.f = 0; tut.doneT = 0; tut.lost = 0; overlay.clear(); }
 function tutReset() {
   overlay.hold(0, null); overlay.clear();
   const on = !!tutActive(), W = weapons.S;
@@ -161,14 +161,15 @@ function tutReveal(d, text, then) {
   document.body.classList.remove('tut-nomap');
   weapons.setFiring(false);
   overlay.say(text);
-  overlay.spot([{ sel: '#minimap', pad: 4 }, foeSpot(d)], 0.55);
-  overlay.hold(3, () => { overlay.clear(); then(); });
+  overlay.spot([{ sel: '#minimap', pad: 4 }, foeSpot(d)], 0.35);
+  tut.showT = 3; tut.after = then;                          // shown for a moment while flying on (the game never stops)
 }
 const FIRE_KEYS = () => isTouchDev ? [{ icon: 'tap' }] : [{ icon: 'lmb' }, { label: 'Space' }];
 function tutorialStep(dt) {
   if (!mission || tut.step === 'off') return;
   if ((tut.wait -= dt) > 0) return;
   const W = weapons.S, [A, B] = mission.stragglers, down = (d) => !d.alive || d.falling, T = isTouchDev;
+  if (tut.showT > 0) { if ((tut.showT -= dt) <= 0) { overlay.clear(); const f = tut.after; tut.after = null; f?.(); } return; }
   const first = !tut.entered; tut.entered = true; tut.t += dt;
   const gunsDone = () => { W.allow.gun = false; tutGo(B.hidden ? 'revealB' : 'final', 2.5); };
   switch (tut.step) {
@@ -185,13 +186,9 @@ function tutorialStep(dt) {
     case 'throttle': {
       if (first) { overlay.say('Throttle'); overlay.keys(T ? [{ icon: 'drag' }] : [{ label: 'Shift' }, { label: 'Tab' }]); overlay.spot([{ sel: T ? '.t-throttle' : '#thrScale', pad: 8 }], 0.3); tut.thr = ac.throttle; }
       const d = Math.abs(ac.throttle - tut.thr); tut.thr = ac.throttle;
-      capsStep(dt, T ? () => d / 0.5 : anyKey('ShiftLeft', 'ShiftRight', 'Tab', 'KeyZ', 'KeyX'), () => tutGo('ab', 0.2));
+      capsStep(dt, T ? () => d / 0.5 : anyKey('ShiftLeft', 'ShiftRight', 'Tab', 'KeyZ', 'KeyX'), () => tutGo('revealA', 1.5));
       break;
     }
-    case 'ab':       // all the way up, and hold it there
-      if (first) { overlay.say(T ? 'Slide to the top for afterburner' : 'Hold for afterburner'); overlay.keys(T ? [{ icon: 'drag' }] : [{ label: 'Tab' }]); overlay.spot([{ sel: T ? '.t-throttle' : '#thrScale', pad: 8 }], 0.3); }
-      capsStep(dt, (dt) => ac.throttle > 1 ? dt / 0.7 : 0, () => tutGo('revealA', 1.5));
-      break;
     case 'revealA': if (first) tutReveal(A, 'A bomber is lagging behind', () => tutGo('select2', 0.2)); break;
     case 'select2':
       if (first) { document.body.classList.remove('tut-noarms'); overlay.say('Missiles'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]); overlay.spot([{ sel: '#arms .row[data-w="2"]', pad: 6 }], 0.35); }
@@ -203,14 +200,11 @@ function tutorialStep(dt) {
       if (W.selected !== 2) { tutGo('select2', 0); break; }
       if (W.locked && W.seeker === A) {
         if (W.allow.missile) { tutGo('fire', 0); break; }     // (seen once already)
-        weapons.setFiring(false);
-        overlay.say('Locked');
-        overlay.spot([{ sel: '#seeker', round: true, pad: 2 }, { sel: '#lockc', round: true, pad: 12 }], 0.5);
-        overlay.hold(1.3, () => { W.allow.missile = true; tutGo('fire', 0); });
+        W.allow.missile = true; tutGo('fire', 0);
       }
       break;
     case 'fire':
-      if (first) { overlay.say('Fire'); overlay.keys(FIRE_KEYS()); overlay.spot(T ? [{ sel: '.t-fire', round: true, pad: 6 }] : [], 0.3); tut.stock = W.stock; }
+      if (first) { overlay.say('Locked: fire'); overlay.keys(FIRE_KEYS()); overlay.spot([{ sel: '#lockc', round: true, pad: 10 }, ...(T ? [{ sel: '.t-fire', round: true, pad: 6 }] : [])], 0.2); tut.stock = W.stock; }
       if (down(A)) { tutGo('revealB', 2.5); break; }
       capsStep(dt, () => W.stock < tut.stock ? 1 : 0, () => tutGo('chase', 0));
       if (tut.doneT <= 0 && (tut.lost = W.locked ? 0 : tut.lost + dt) > 1) tutGo('lock', 0);   // lost the lock: find it again
@@ -235,7 +229,7 @@ function tutorialStep(dt) {
       if (tut.gt.pos.distanceTo(ac.pos) <= WEAPONS.gunRange) tutGo(tut.f ? 'kill' : 'aim', 0);
       break;
     case 'aim':
-      if (first) { overlay.say('Put the reticle on the circle'); overlay.keys(FIRE_KEYS()); overlay.spot([{ sel: gunCirc, round: true, pad: 8 }, aimSpot], 0.25); }
+      if (first) { overlay.say('Put the gun cross on the circle'); overlay.keys(FIRE_KEYS()); overlay.spot([{ sel: gunCirc, round: true, pad: 8 }, { sel: '#nose', round: true, pad: 10 }], 0.2); }
       if (down(tut.gt)) { gunsDone(); break; }
       capsStep(dt, (dt) => W.firing && W.selected === 1 ? dt / 1 : 0, () => { overlay.clear(); tut.step = 'kill'; tut.t = 0; });
       if (tut.doneT <= 0 && tut.gt.pos.distanceTo(ac.pos) > WEAPONS.gunRange * 1.2) tutGo('close', 0);
@@ -252,8 +246,9 @@ function tutorialStep(dt) {
         for (const d of weapons.drones) if (d.alive && !d.falling) { const dd = d.pos.distanceTo(ac.pos); if (dd < nd) { nd = dd; near = d; } }
         weapons.setFiring(false);
         overlay.say('The rest of the formation is ahead');
-        overlay.spot([{ sel: '#minimap', pad: 4 }, foeSpot(near)], 0.55);
-        overlay.hold(3, () => { overlay.clear(); save.tutorialDone = true; writeSave(); tut.step = 'off'; });
+        overlay.spot([{ sel: '#minimap', pad: 4 }, foeSpot(near)], 0.35);
+        save.tutorialDone = true; writeSave();
+        tut.showT = 3; tut.after = () => { tut.step = 'off'; };
       }
       break;
   }
@@ -496,17 +491,17 @@ function place(el, worldPoint) {
   if (vis) el.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth}px, ${(-_p.y * 0.5 + 0.5) * innerHeight}px)`;
 }
 let gStrain = 0, gTime = 0, breakupT = 0.6;
-// notices (red, high centre, stacked): airbrake out, gear down, gear blown back by speed
+// notices (white, in a row a little below the centre): airbrake out, gear down; gear blown back by speed flashes red/white
 const notesEl = document.getElementById('notes');
 let gearWarnT = 0, lastNotes = '';
 function notes(dt) {
   if (ac.gearBlown) { gearWarnT = 2.5; ac.gearBlown = false; }
   gearWarnT = Math.max(0, gearWarnT - dt);
   const list = [];
-  if (gearWarnT > 0) list.push('Slow down to extend landing gear!');
+  if (gearWarnT > 0) list.push('<div class="warn">Slow down to extend landing gear!</div>');
   if (ac.airbrakeCmd > 0 && ac.airbrake > 0.05) list.push('Airbrake on');
   if (ac.gearCmd && ac.gear > 0.05) list.push('Landing gear extended');
-  const html = running && !dead ? list.map(t => `<div>${t}</div>`).join('') : '';
+  const html = running && !dead ? list.map(t => t.startsWith('<') ? t : `<div>${t}</div>`).join('') : '';
   if (html !== lastNotes) { notesEl.innerHTML = html; lastNotes = html; }
 }
 // The player's shadow: each frame their jet alone is drawn white-on-black from the sun into a small texture; the
@@ -542,7 +537,7 @@ function hud(dt = 1 / 60) {
   if (running && !dead) { flightHud(ac, camera, rig); mapHud(ac, weapons.drones, weapons.S.missiles); }
   const D = CAMERA.aimDistance;
   place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, D));
-  aimEl.style.opacity = manual ? 0.25 : 1;
+  aimEl.style.opacity = manual ? 0.25 : weapons.S.selected === 1 ? 0.45 : 1;   // (guns: the gun cross is what aims, the steering circle steps back)
   place(noseEl, _n.set(0, 0, 1).applyQuaternion(drawQuat).multiplyScalar(D).add(drawPos));
   if (ac.t.speed > 5) place(fpvEl, _n.copy(ac.vel).normalize().multiplyScalar(D).add(drawPos));
   // weapons HUD
@@ -594,12 +589,13 @@ function hud(dt = 1 / 60) {
     }
     ringHud(screenOf(_n.copy(camera.position).addScaledVector(rig.fwd, D)), items, camera);
   }
-  // missiles in flight: a diamond on each, blue for ours, red for the enemy's
+  // missiles in flight: coloured brackets round each (ours in the friendly colour, the enemy's red), its distance above
+  // (nm, then ft inside 1.5 nm; km, then m inside 2 km)
   {
     const ms = weapons.S.missiles;
     for (let k = 0; k < Math.max(ms.length, mslEls.length); k++) {
       let el = mslEls[k];
-      if (!el) { el = mslEls[k] = document.createElement('div'); el.className = 'mmark'; tgtEl.parentNode.appendChild(el); }
+      if (!el) { el = mslEls[k] = document.createElement('div'); el.className = 'mmark'; el.innerHTML = '<b></b><i></i>'; el._b = el.firstChild; el._txt = ''; tgtEl.parentNode.appendChild(el); }
       const m = ms[k];
       if (!m || !running) { el.style.display = 'none'; continue; }
       if (el._own !== m.owner) { el.classList.toggle('foe', m.owner !== 'player'); el._own = m.owner; }
@@ -607,6 +603,11 @@ function hud(dt = 1 / 60) {
       const op = THREE.MathUtils.clamp((m.t - 0.2) / 0.5, 0, 1);
       el.style.opacity = op.toFixed(2);
       place(el, m.p);
+      const dm = m.p.distanceTo(ac.pos), metric = settings.units === 'metric';
+      const far = metric ? dm >= 2000 : dm >= 1.5 * 1852;
+      const txt = far ? `${units.dist(dm).toFixed(1)}<small>${units.distLabel()}</small>`
+        : `${Math.round(units.alt(dm) / (metric ? 10 : 50)) * (metric ? 10 : 50)}<small>${units.altLabel()}</small>`;
+      if (txt !== el._txt) { el._b.innerHTML = txt; el._txt = txt; }
     }
   }
   // gun-solution target: the enemy nearest the reticle on screen, weighted toward ones in gun range, and sticky:

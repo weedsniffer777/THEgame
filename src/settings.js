@@ -1,13 +1,19 @@
 // Player settings (the pause menu edits them; kept in this browser's storage when it is available).
 import { save, writeSave } from './save.js';
-export const settings = { units: 'imperial' };   // 'imperial' (kts, ft, nm) or 'metric' (km/h, m, km)
+export const settings = { units: 'imperial', friendly: 'green' };   // units: 'imperial' (kts, ft, nm) or 'metric' (km/h, m, km); friendly: our missiles etc. in 'green' or 'blue'
 Object.assign(settings, save.settings || {});      // (kept in the one save file)
 const listeners = [];
 export function setSetting(k, v) {
   settings[k] = v;
   save.settings = { ...settings }; writeSave();
   listeners.forEach(f => f(k, v));
+  applyFriendly();
 }
+// the colour for our own things on the HUD and map (missiles); also as the CSS variable --friend
+export const FRIENDLY = { green: '#46e070', blue: '#3d8fff' };
+export const friendColor = () => FRIENDLY[settings.friendly] || FRIENDLY.green;
+function applyFriendly() { document.documentElement.style.setProperty('--friend', friendColor()); }
+applyFriendly();
 export function onSetting(f) { listeners.push(f); }
 
 // unit conversions for display

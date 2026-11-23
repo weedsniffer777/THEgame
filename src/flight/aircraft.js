@@ -36,6 +36,14 @@ export class Aircraft {
     this.p = this.q = this.r = 0;
     this.throttle = this.engine = 1;
     this.gear = this.gearCmd = 0; this.gearHold = 0;
+    // start trimmed for level flight: nose up at the angle of attack that makes 1 G, the stick holding it there
+    // (otherwise the first moments fly at zero lift and the G readout starts near 0)
+    const c = this.cfg; atmosphere(pos.y, air);
+    const dyn = 0.5 * air.rho * speed * speed, cl = c.mass * G / Math.max(dyn * c.wingArea, 1);
+    const aoa = Math.min(c.clMax * Math.atanh(Math.min(cl / c.clMax, 0.95)) / c.clAlpha, 12 * DEG);
+    this.quat.multiply(_dq.setFromAxisAngle(_v.set(1, 0, 0), -aoa));
+    this.input.pitch = Math.sin(aoa) * c.pitchStability / c.pitchControl;
+    this.t.g = 1;
   }
 
   liftCoef(alpha) {

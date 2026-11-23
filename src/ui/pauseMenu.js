@@ -1,7 +1,7 @@
 import { settings, setSetting } from '../settings.js';
 
 // Pause menu: the game blurs behind a slanted panel that slides in from the left (HUD hidden).
-// Resume / Settings; settings has four tabs (Controls, UI, Graphics, Audio), only UI has an option so far: Units.
+// Resume / Settings; settings has four tabs (Controls, UI, Graphics, Audio), only UI has options so far: Units, Friendly colour.
 export function createPauseMenu({ onResume }) {
   const root = document.createElement('div');
   root.id = 'pause';
@@ -18,6 +18,7 @@ export function createPauseMenu({ onResume }) {
         <div class="tab" data-tab="controls"></div>
         <div class="tab on" data-tab="ui">
           <div class="row"><span>UNITS</span><span class="seg" data-set="units"><button data-v="imperial">IMPERIAL</button><button data-v="metric">METRIC</button></span></div>
+          <div class="row"><span>FRIENDLY</span><span class="seg" data-set="friendly"><button data-v="green">GREEN</button><button data-v="blue">BLUE</button></span></div>
         </div>
         <div class="tab" data-tab="graphics"></div>
         <div class="tab" data-tab="audio"></div>

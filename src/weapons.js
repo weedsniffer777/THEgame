@@ -543,7 +543,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       d.pos.copy(p);
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 3) { killDrone(d); d.pos.y = terrain.heightAt(d.pos.x, d.pos.z) + 1; return; }
       const fx = d.dmg.effects(), T = d.track, tt = (S.simT || 0) - T.t0;
-      const bankW = T.weave ? -Math.cos(tt * T.weave.w + T.weave.ph) * T.weave.a * T.weave.w * T.weave.w * 0.012 : 0;   // banks into its weave
+      const Wv = T.weave;
+      const bankW = !Wv ? 0 : Wv.phys ? Math.atan(Wv.a * Wv.w * Wv.w * Math.sin(tt * Wv.w + Wv.ph) / 9.81)   // banked for its sideways acceleration
+        : -Math.cos(tt * Wv.w + Wv.ph) * Wv.a * Wv.w * Wv.w * 0.012;                                    // banks into its weave
       _m.lookAt(new THREE.Vector3(), d.vel.lengthSq() > 1 ? _w.copy(d.vel).normalize().negate() : T.dir.clone().negate(), new THREE.Vector3(0, 1, 0));
       d.obj.quaternion.setFromRotationMatrix(_m).multiply(_q.setFromAxisAngle(_v.set(0, 0, 1), bankW + fx.wobble * 0.25 * Math.sin(d.age * 1.8)));
       if (fx.pitchWobble) d.obj.quaternion.multiply(_q.setFromAxisAngle(_v.set(1, 0, 0), fx.pitchWobble * (0.13 * Math.sin(d.age * 1.3) + 0.05 * Math.sin(d.age * 3.1))));
@@ -780,13 +782,18 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     if (S.selected !== 2) S.seeker = null;
     if (S.selected === 2 && S.stock > 0) {
       const half = cfg.seekerFov / 2;
+      // pick: anything right by the reticle first (nearest it); then aircraft no missile of ours is after yet; only then
+      // ones already being chased (so after a launch the seeker moves on to the next aircraft)
+      const chased = (d) => S.missiles.some(m => m.owner === 'player' && m.target === d);
       let best = null, bestAng = 1e9;
       for (const d of drones) {
         if (!d.alive || d.falling || d.hidden || d.noLock || !clearLine(ac.pos, d.pos)) continue;   // no locks through terrain, on aircraft going down (missiles in flight keep after them) or on ones the mission hides
         const to = _w.subVectors(d.pos, ac.pos), dist = to.length();
         const ang = Math.acos(THREE.MathUtils.clamp(to.dot(fwd) / dist, -1, 1)) * 180 / Math.PI;
         const lim = S.locked && d === S.seeker ? half * 1.4 : half;
-        if (dist < cfg.lockRange && ang < lim && ang < bestAng) { best = d; bestAng = ang; }
+        if (dist >= cfg.lockRange || ang >= lim) continue;
+        const score = ang + (ang < cfg.lockCentre ? 0 : chased(d) ? 2000 : 1000);
+        if (score < bestAng) { best = d; bestAng = score; }
       }
       if (best && best !== S.seeker) S.lock = 0;
       if (best) { S.seeker = best; S.lock = Math.min(S.lock + dt, cfg.lockTime); }

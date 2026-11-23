@@ -21,6 +21,8 @@ const BOMBER_SLOTS = [
 ];
 // two stragglers far behind the main group (the first one meets the player first)
 const STRAGGLER_SLOTS = [[60, -120, 5200], [-90, 40, 3400]];   // (the second one ~1.5 nm behind the main group's tail)
+// the second straggler (the guns lesson) zigzags slowly, banking into each turn: something to practise the lead on
+const STRAGGLER_WEAVE = { a: 260, w: 0.15, ph: 0, phys: true };
 const FIGHTER_SLOTS = [[-260, 420, -150], [0, 470, -250], [260, 420, -150]];   // escorts above the main group
 
 export function createMission1({ weapons, ac, rig }) {
@@ -36,7 +38,7 @@ export function createMission1({ weapons, ac, rig }) {
     start(simT) {
       const origin = new THREE.Vector3(M.start.x, M.formationAlt, M.start.z).addScaledVector(dir, M.startBack);
       const track = (off, weave) => ({ origin, dir, speed: M.speed, off: new THREE.Vector3(...off), t0: simT, weave });
-      bombers.forEach((d, i) => { d.track = track(i < 2 ? STRAGGLER_SLOTS[i] : BOMBER_SLOTS[(i - 2) % BOMBER_SLOTS.length]); d.hidden = false; d.noLock = false; });
+      bombers.forEach((d, i) => { d.track = track(i < 2 ? STRAGGLER_SLOTS[i] : BOMBER_SLOTS[(i - 2) % BOMBER_SLOTS.length], i === 1 ? STRAGGLER_WEAVE : undefined); d.hidden = false; d.noLock = false; });
       fighters.forEach(d => { d.hidden = false; d.noLock = false; });
       fighters.forEach((d, i) => { d.track = track(FIGHTER_SLOTS[i % FIGHTER_SLOTS.length], { a: 160, w: 0.22 + 0.05 * i, ph: i * 2.1 }); });
       weapons.placeDrones();
