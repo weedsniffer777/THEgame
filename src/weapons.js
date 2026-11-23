@@ -746,19 +746,19 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function splash(p, vel, scale = 1) {
     const at = new THREE.Vector3(p.x, terrain.heightAt(p.x, p.z) + 0.3, p.z);
     const fwd = new THREE.Vector3(vel.x, 0, vel.z).multiplyScalar(0.12);
-    for (let i = 0; i < 9 * Math.min(scale, 1.6); i++) {
+    for (let i = 0; i < 9 * Math.min(scale, 3); i++) {
       const a = Math.random() * Math.PI * 2, out = (2 + Math.random() * 6) * scale;
       S.fx.push({ pri: 1, kind: 'smoke', spray: 1, p: at.clone(), v: new THREE.Vector3(Math.cos(a) * out, (9 + Math.random() * 14) * Math.sqrt(scale), Math.sin(a) * out).add(fwd),
         t: -Math.random() * 0.25, life: 1.6 + Math.random() * 1.0, s: (1.6 + Math.random() * 1.6) * scale, seed: Math.random() });
     }
     // a big one also throws up a tall column of white water
-    if (scale > 1.2) for (let i = 0; i < 10; i++) {
+    if (scale > 1.2) for (let i = 0; i < (scale > 2.2 ? 18 : 10); i++) {
       const a = Math.random() * Math.PI * 2, out = Math.random() * 2.5;
       S.fx.push({ pri: 1, kind: 'smoke', spray: 1, col: 1, p: at.clone().add(new THREE.Vector3(Math.cos(a) * out, 0, Math.sin(a) * out)),
         v: new THREE.Vector3(Math.cos(a) * out * 0.6, (14 + i * 2.6 + Math.random() * 4) * Math.sqrt(scale / 1.9), Math.sin(a) * out * 0.6).add(fwd.clone().multiplyScalar(0.5)),
         t: -i * 0.03, life: 2.6 + Math.random() * 0.8, s: (2.2 + Math.random() * 1.2) * scale / 1.6, seed: Math.random() });
     }
-    for (let i = 0; i < 2 * Math.min(scale, 1.6); i++)
+    for (let i = 0; i < 2 * Math.min(scale, 3); i++)
       S.fx.push({ pri: 1, kind: 'smoke', mist: 1, p: at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 8 * scale, 1, (Math.random() - 0.5) * 8 * scale)), v: new THREE.Vector3((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2).add(fwd),
         t: -0.3 - Math.random() * 0.5, life: 3 + Math.random() * 1.5, s: (2.5 + Math.random() * 1.5) * scale, seed: Math.random() });
   }

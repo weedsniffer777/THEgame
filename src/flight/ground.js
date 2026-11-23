@@ -33,7 +33,7 @@ export function groundContact(ac, terrain, damage, dt, brake) {
   const invI = (v, out) => out.copy(v).applyQuaternion(_qi).multiply(INV_I).applyQuaternion(q);
   // body rates -> world angular velocity (the flight model rotates by (-q, -r, p) about body x, y, z)
   _w.set(-ac.q, -ac.r, ac.p).applyQuaternion(q);
-  let touching = 0, wheelsDown = 0, lift = 0, crash = false, water = false, noseDown = false;
+  let touching = 0, wheelsDown = 0, lift = 0, crash = false, water = false, noseDown = false, wet = 0;
   const wheels = ac.gear > 0.95;
 
   const contact = (local, kind, part) => {
@@ -49,14 +49,17 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     _vc.crossVectors(_w, _r).add(ac.vel);
     const vn = _vc.dot(_n);
     if (vn >= 0) return;
-    // water: like the ground but much less forgiving. Coming down faster than ~6 m/s, hitting at a steep angle, or
-    // touching at more than ~110 m/s is a crash; otherwise it skims, with heavy drag
+    // water: a shallow graze at up to ~300 kt is survivable: whatever touches takes damage (more the faster and harder),
+    // with heavy drag. Steeper than ~11 deg, faster than ~300 kt, coming down hard, or the canopy going in: a crash
     if (onWater) {
       water = true;
       const sp = _vc.length(), angle = Math.asin(Math.min(1, -vn / Math.max(sp, 1)));
-      if (vn < -6 || angle > 0.21 || sp > 110 || part === 'canopy') { crash = true; return; }
-      const hurt = Math.max(0, -vn - 0.5) * 1.5;                    // the hit itself hurts (fuselage and rear fuselage)
-      damage.bodyHp -= hurt; wearTail(damage, hurt);
+      if (angle > 0.2 || sp > 155 || vn < -20 || part === 'canopy') { crash = true; return; }
+      const hurt = ((sp / 50) ** 2 * 1.5 * dt + Math.max(0, -vn - 2) * 0.4) * (0.6 + 0.8 * Math.random());
+      const pt = part && damage.parts[part];
+      if (pt && !pt.broken) { pt.hp -= hurt; if (pt.hp <= 0) damage.breakPart(part, ac.vel); }
+      else { damage.bodyHp -= hurt; wearTail(damage, hurt); }
+      wet++;
     }
     // what the hit does
     if (vn < -22 || (part === 'canopy' && _vc.length() > 15)) crash = true;
@@ -83,7 +86,7 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     if (kind === 'wheel') {
       _fwd.set(0, 0, 1).applyQuaternion(q); _fwd.addScaledVector(_n, -_fwd.dot(_n)).normalize();
       const side = new THREE.Vector3().crossVectors(_n, _fwd).normalize();
-      fr(_fwd, brake ? 0.45 : 0.02);
+      fr(_fwd, brake ? 0.45 : 0.05);                                 // (rolling: tyres and runway take some speed off)
       fr(side, 0.8);
     } else {
       const sp = vt.length();
@@ -109,12 +112,8 @@ export function groundContact(ac, terrain, damage, dt, brake) {
     }
   }
   ac.onGround = touching > 0;
-  // on a lake the airframe keeps taking water: slowly while it skims, faster as it slows, until it's wrecked (then
-  // main.js calls it a crash and it sinks, in one piece)
-  if (water && !crash) {
-    const sp = ac.vel.length();
-    const hurt = (2 + 22 * (1 - Math.min(sp, 70) / 70)) * dt;
-    damage.bodyHp -= hurt; wearTail(damage, hurt);
-  }
-  return { touching, wheelsDown, crash, water };
+  // bogged down: on the water and slowed right down, it's no longer skimming but landing on it: it settles and sinks
+  // (main.js calls that a ditching)
+  const bogged = water && !crash && ac.vel.length() < 25;
+  return { touching, wheelsDown, crash, water, wet, bogged };
 }

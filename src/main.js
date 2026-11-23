@@ -449,20 +449,24 @@ function crash(ditched = false, airborne = false) {   // ditched: worn out after
     deathCam.yaw = Math.atan2(o.x, o.z); deathCam.pitch = Math.asin(THREE.MathUtils.clamp(o.y / L, -1, 1)); deathCam.dist = L;
   }
   jet.damage.doomed = true;                                          // every fire on it burns fully again
-  wreck.inWater = terrain.isWater(ac.pos.x, ac.pos.z) && ac.pos.y < terrain.heightAt(ac.pos.x, ac.pos.z) + 3;   // (over a lake but still high up: it falls first)
-  if (airborne) weapons.explode(ac.pos, ac.vel, 1.0); else weapons.crash(ac.pos, ac.vel, wreck.inWater, ditched);
+  // into a lake (judged by the lowest point of the airframe, up to ~8 m below the middle in a steep dive): steeply or
+  // slowly it goes straight under; at a shallow angle it skips and slides across the surface first (see wreckStep)
+  const onLake = terrain.isWater(ac.pos.x, ac.pos.z) && ac.pos.y < terrain.heightAt(ac.pos.x, ac.pos.z) + 9;
+  const spd = ac.vel.length(), steep = -ac.vel.y / Math.max(spd, 1);
+  wreck.inWater = onLake && (steep > 0.45 || spd < 20); wreck.lake = onLake;
+  if (airborne && !onLake) weapons.explode(ac.pos, ac.vel, 1.0); else weapons.crash(ac.pos, ac.vel, onLake, ditched);
   wreck.pos.copy(ac.pos); wreck.vel.copy(ac.vel); wreck.quat.copy(ac.quat); wreck.key = {};
   wreck.spin.set(-ac.q, -ac.r, ac.p).applyQuaternion(ac.quat);      // keeps the rotation it had (world axes)
   // hitting the ground tears off everything still attached (the rear fuselage can snap off too, on a hard
   // enough contact: see wreckStep)
   // (into the water it stays in one piece and sinks: no parts flung across the lake, no fire or smoke, just water)
-  if (!ditched && !wreck.inWater) for (const n of Object.keys(jet.damage.parts)) if (n !== 'tail') jet.damage.breakPart(n, ac.vel);
+  if (!ditched && !onLake) for (const n of Object.keys(jet.damage.parts)) if (n !== 'tail') jet.damage.breakPart(n, ac.vel);
   {
     const x = ac.pos.x, z = ac.pos.z;
     _wn.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
-    if (!ditched && !wreck.inWater && ac.vel.dot(_wn) < -20) jet.damage.breakPart('tail', ac.vel);   // into the ground hard: the fuselage snaps behind the wing
+    if (!ditched && !onLake && ac.vel.dot(_wn) < -20) jet.damage.breakPart('tail', ac.vel);   // into the ground hard: the fuselage snaps behind the wing
   }
-  if (wreck.inWater) jet.damage.quench();                              // into a lake: the water puts every fire out
+  if (onLake) jet.damage.quench();                                     // into a lake: the water puts every fire out
   ac.throttle = ac.engine = 0;
   document.body.classList.remove('lost');
 }
@@ -485,7 +489,8 @@ function invI(v, out) {   // world-space inverse inertia applied to a world vect
   return out;
 }
 function wreckStep(dt) {
-  if (!wreck.inWater && terrain.isWater(wreck.pos.x, wreck.pos.z) && wreck.pos.y < terrain.heightAt(wreck.pos.x, wreck.pos.z) + 1.5) {
+  const wsp = wreck.vel.length();
+  if (!wreck.inWater && terrain.isWater(wreck.pos.x, wreck.pos.z) && wreck.pos.y < terrain.heightAt(wreck.pos.x, wreck.pos.z) + 1.5 && (wsp < 20 || -wreck.vel.y / Math.max(wsp, 1) > 0.45)) {   // (skipping across it at speed: see the contacts)
     wreck.inWater = true; weapons.crash(wreck.pos, wreck.vel, true, false); jet.damage.quench();   // (falls into a lake: the big splash, fires out)
   }
   if (wreck.inWater) {                                                 // in a lake: dragged to a stop, then it sinks
@@ -517,10 +522,19 @@ function wreckStep(dt) {
     // velocity of this point
     _vc.crossVectors(wreck.spin, _r).add(wreck.vel);
     const vn = _vc.dot(_wn);
+    // the water: hit steeply or slowly it goes under; a glancing hit skips it off the surface, throwing spray
+    const wet = terrain.isWater(x, z);
+    if (wet && vn < 0) {
+      const sp = wreck.vel.length();
+      jet.damage.quench(); wreck.lake = true;
+      if (sp < 20 || -vn / Math.max(sp, 1) > 0.45) { wreck.inWater = true; weapons.crash(wreck.pos, wreck.vel, true, false); return; }
+      for (let k = 0; k < 3 + sp / 15; k++) weapons.spray(wreck.pos, wreck.vel);
+      if (-vn > 6) weapons.splash(wreck.pos, wreck.vel, Math.min(2.4, 0.6 + -vn / 15));
+    }
     if (vn < 0) {
       // normal impulse (restitution 0.1; a hard hit also crumples, taking extra energy out)
       const k = 1 + _wn.dot(_t1.crossVectors(invI(_t2.crossVectors(_r, _wn), _t2), _r));
-      const jn = -(1 + (vn < -20 ? 0 : 0.1)) * vn / k;
+      const jn = -(1 + (wet ? 0.3 : vn < -20 ? 0 : 0.1)) * vn / k;   // (water: it skips)
       if (vn < -12) wreck.vel.multiplyScalar(1 - Math.min(0.45, -vn / 120));   // a hard hit crumples the airframe: much of the speed goes
       if (vn < -22 && !jet.damage.parts.tail?.broken) jet.damage.breakPart('tail', wreck.vel);   // hard enough: the fuselage snaps behind the wing
       wreck.vel.addScaledVector(_wn, jn);
@@ -531,7 +545,7 @@ function wreckStep(dt) {
       if (sp > 1e-4) {
         const tdir = vt.divideScalar(sp);
         const kt = 1 + tdir.dot(_vc.crossVectors(invI(_t2.crossVectors(_r, tdir), _t2), _r));
-        const jt = Math.min(sp / kt, 0.9 * jn);
+        const jt = Math.min(sp / kt, (wet ? 0.3 : 0.9) * jn);   // (water: it slides)
         wreck.vel.addScaledVector(tdir, -jt);
         wreck.spin.add(invI(_t2.crossVectors(_r, tdir).multiplyScalar(-jt), _vc));
       }
@@ -596,8 +610,9 @@ function physics(dt) {
   weapons.step(dt, performance.now() / 1000);
   // touching the ground: roll, bounce, scrape and lose parts; only a really hard hit or a wrecked airframe is a crash
   const g = groundContact(ac, terrain, jet.damage, dt, keys.has('KeyB') && ac.throttle < 0.05);
-  if (g.crash) crash(); else if (g.touching && jet.damage.dead) crash(g.water);
-  if (g.water && !dead && Math.random() < dt * 12) weapons.spray(ac.pos, ac.vel);   // skimming: spray
+  if (g.crash) crash(); else if (g.touching && jet.damage.dead) crash(g.water); else if (g.bogged) crash(true);
+  // skimming: spray, a lot of it, more the faster it goes
+  if (g.water && !dead) { const n = 2 + ac.vel.length() / 18; for (let k = 0; k < n; k++) if (Math.random() < dt * 40) weapons.spray(ac.pos, ac.vel); }
 }
 
 // HUD
@@ -902,7 +917,7 @@ function frameBody(now) {
       for (let k = 0; k < 4; k++) wreckStep(dt / 4);
       ac.pos.copy(wreck.pos); ac.quat.copy(wreck.quat); ac.vel.copy(wreck.vel);
       prevPos.copy(ac.pos); prevQuat.copy(ac.quat);
-      if (!wreck.inWater) weapons.burn(wreck.pos, wreck.vel, wreck.key);
+      if (!wreck.inWater && !wreck.lake) weapons.burn(wreck.pos, wreck.vel, wreck.key);   // (on or in a lake: no fire)
       weapons.step(dt, performance.now() / 1000);
       // a couple of seconds of the wreck, then the picture softens and the death screen comes up (retry waits for the player)
       if (dead > 2.2 && !deathShown && !window.__holdWreck && !ending.on) {   // (__holdWreck: dev tests watch the wreck to rest)
