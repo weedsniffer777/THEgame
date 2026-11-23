@@ -1028,12 +1028,12 @@ function frameBody(now) {
     const fov = CAMERA.fov;
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov += (fov - camera.fov) * e; camera.updateProjectionMatrix(); }
   } else rig.update(dt, drawPos, THREE.MathUtils.clamp(ac.t.speed / 450, 0, 1), ac.t.ias);
-  // screen shake: explosions near the camera (any shot: flying, the death camera, the ending) and going through the
-  // sound barrier; a small, quick wobble of the view that dies away
-  if (!dead && !ending.on && ac.t.mach > 0) { const sup = ac.t.mach >= 1; if (sup !== machSide) { if (machSide !== null) shake = Math.min(1, shake + 0.45); machSide = sup; } }
+  // screen shake: explosions near the camera (any shot: flying, the death camera, the ending) and accelerating through
+  // the sound barrier; a small, quick wobble of the view that dies away
+  if (!dead && !ending.on && ac.t.mach > 0) { const sup = ac.t.mach >= 1; if (sup !== machSide) { if (machSide === false && sup) shake = Math.min(1, shake + 0.45); machSide = sup; } }   // (speeding up through it only)
   if (shake > 0.002 && !viewer.on && vdt > 0) {
     shakeT += dt;
-    const a = 0.018 * shake, n = (k) => Math.sin(shakeT * (37 + k * 11) + k * 1.7) * 0.6 + Math.sin(shakeT * (61 + k * 7) + k) * 0.4;
+    const a = 0.018 * shake * ({ off: 0, less: 0.45 }[settings.shake] ?? 1), n = (k) => Math.sin(shakeT * (37 + k * 11) + k * 1.7) * 0.6 + Math.sin(shakeT * (61 + k * 7) + k) * 0.4;
     camera.rotateX(n(1) * a); camera.rotateY(n(2) * a); camera.rotateZ(n(3) * a * 0.6);
     shake *= Math.exp(-dt * 2.6);
   }

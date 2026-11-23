@@ -1,6 +1,6 @@
 // Player settings (the pause menu edits them; kept in this browser's storage when it is available).
 import { save, writeSave } from './save.js';
-export const settings = { units: 'imperial', hudColor: 'default' };   // units: 'imperial' (kts, ft, nm) or 'metric' (km/h, m, km); hudColor: 'default' (white HUD, our missiles blue) or 'green' (the whole HUD green)
+export const settings = { units: 'imperial', hudColor: 'default', shake: 'default' };   // units: 'imperial' (kts, ft, nm) or 'metric' (km/h, m, km); hudColor: 'default' (white HUD, our missiles blue) or 'green' (the whole HUD green)
 Object.assign(settings, save.settings || {});      // (kept in the one save file)
 const listeners = [];
 export function setSetting(k, v) {

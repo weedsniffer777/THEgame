@@ -877,7 +877,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       r.t += dt;
       for (const d of drones) if (d.alive && segDist(r.prev, r.p, d.pos) < (d.def.hitRadius || cfg.hitRadius) * S.hitScale) {   // (going-down wrecks still take hits)
         r.t = 1e9; const at = closestOnSeg(r.prev, r.p, d.pos); hitFx(at, d.vel);
-        d.dmg.hit(at, d.vel); d.lastHit = 'gun'; S.hits++;
+        d.dmg.hit(at, d.vel, cfg.gunDamage || 1); d.lastHit = 'gun'; S.hits++;
         if (d.dmg.dead) killDrone(d); else S.onHit?.(d);   // (hit but flying: the mission's AI may react)
         break;
       }

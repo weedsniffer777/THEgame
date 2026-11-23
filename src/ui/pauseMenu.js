@@ -21,7 +21,9 @@ export function createPauseMenu({ onResume, onRestart }) {
           <div class="row"><span>UNITS</span><span class="seg" data-set="units"><button data-v="imperial">IMPERIAL</button><button data-v="metric">METRIC</button></span></div>
           <div class="row"><span>HUD COLOR</span><span class="seg" data-set="hudColor"><button data-v="default">DEFAULT</button><button data-v="green">GREEN</button></span></div>
         </div>
-        <div class="tab" data-tab="graphics"></div>
+        <div class="tab" data-tab="graphics">
+          <div class="row"><span>SCREEN SHAKE</span><span class="seg" data-set="shake"><button data-v="default">DEFAULT</button><button data-v="less">LESS</button><button data-v="off">OFF</button></span></div>
+        </div>
         <div class="tab" data-tab="audio"></div>
         <button class="item back" data-act="back">BACK</button>
       </div>

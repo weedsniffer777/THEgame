@@ -271,16 +271,23 @@ body.ending-blur #game, body.dead-blur #game { filter: blur(6px) saturate(0.85) 
 /* the banner across the screen (mission complete / failed, leaving the mission area): a band of faint glowing colour,
    white text in the middle */
 #banner { position: fixed; left: -40px; right: -40px; top: 38%; height: 64px; display: none; align-items: center; justify-content: center; z-index: 44; pointer-events: none;
-  font: 700 30px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #fff; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
-#banner.on { display: flex; animation: bannerin 0.35s ease-out; }
-#banner.warn, #banner.fail { background: rgba(214,30,22,0.62); box-shadow: 0 0 22px rgba(235,40,30,0.55); }   /* (a solid band right across: off both edges of the screen) */
-#banner.win { background: rgba(28,178,74,0.58); box-shadow: 0 0 22px rgba(40,210,95,0.5); }
+  font: 700 30px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #fff;
+  text-shadow: 0 0 8px rgba(255,255,255,0.9), 0 0 22px rgba(255,255,255,0.55); }
+#banner.on { display: flex; animation: bannerin 0.42s steps(1, end); }
+/* a solid band right across, pale and glowing: red for failure and warnings, green for success */
+#banner.warn, #banner.fail { background: rgba(255,150,140,0.62); box-shadow: 0 0 34px 6px rgba(255,90,75,0.75), inset 0 0 18px rgba(255,255,255,0.35); }
+#banner.win { background: rgba(160,250,185,0.58); box-shadow: 0 0 34px 6px rgba(70,235,120,0.7), inset 0 0 18px rgba(255,255,255,0.35); }
 #banner.warn { top: 30%; height: 48px; font-size: 20px; }
 #banner b { margin-right: 22px; font-size: 1.2em; }
-@keyframes bannerin { from { opacity: 0; transform: scaleY(0.4); } to { opacity: 1; transform: none; } }
+/* comes on with a single flicker, then stays */
+@keyframes bannerin { 0% { opacity: 0; } 18% { opacity: 1; } 34% { opacity: 0.15; } 52% { opacity: 1; } 100% { opacity: 1; } }
 /* time left (mission), beside the minimap */
 #mtimer { position: absolute; top: 20px; left: calc(max(16px, env(safe-area-inset-left)) + min(210px, 27vh) + 22px); font: 700 18px/1 'B612 Mono', ui-monospace, monospace; color: rgba(255,255,255,0.92); text-shadow: 0 1px 3px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
 #mtimer.low { color: #ffb4a8; }
 body.hud-green #mtimer:not(.low) { color: var(--hg); }
 /* the tutorial's spotlights and prompts never sit over the big map, the pause menu or the death / results screens */
 body.bigmap #tut, body.paused #tut, body.dead-blur #tut, body.ending-blur #tut { display: none !important; }
+
+/* banners stay out of the way of the pause menu */
+body.paused #banner { display: none !important; }
+#pause .seg button { padding-left: 7px; padding-right: 7px; }

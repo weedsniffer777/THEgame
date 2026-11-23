@@ -263,15 +263,15 @@ export class Damage {
   }
 
   // a round hit at a world point: returns what happened
-  hit(worldPoint, vel) {
+  hit(worldPoint, vel, dmg = 1) {
     const local = this.model.worldToLocal(worldPoint.clone());
     const name = classify(local, this.model.userData.regions);
     const part = this.parts[name];
     if (part && !part.broken) {
-      if (--part.hp <= 0) { this.breakPart(name, vel); return { part: name, broke: true }; }
+      if ((part.hp -= dmg) <= 0) { this.breakPart(name, vel); return { part: name, broke: true }; }
       return { part: name };
     }
-    this.bodyHp--;
+    this.bodyHp -= dmg;
     return { part: 'body' };
   }
 
