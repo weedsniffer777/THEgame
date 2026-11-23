@@ -575,6 +575,63 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // A track can also break off into a steady level turn (T.turn = { t0, rate rad/s (+ right), ang rad }): a constant-
   // radius arc, then straight on along the new heading. The weave (if any) is applied across the current heading.
   const _th = new THREE.Vector3(), _trr = new THREE.Vector3();
+  // A closed path (a rounded square): positions by distance along it. Each slot sits at its own distance back along
+  // the path (off.z), out to its right (off.x) and up (off.y), so the whole formation bends round the corners together;
+  // banked for the turn there.
+  function loopPos(d, t, out) {
+    const T = d.track, L = T.loop, n = L.x.length;
+    let s = (L.s0 + T.speed * (t - T.t0) - T.off.z) % L.len; if (s < 0) s += L.len;
+    let lo = 0, hi = n - 1;                                       // (binary search on the running length)
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (L.cum[m] <= s) lo = m; else hi = m; }
+    const f = (s - L.cum[lo]) / Math.max(L.cum[hi] - L.cum[lo], 1e-6);
+    const x = L.x[lo] + (L.x[hi] - L.x[lo]) * f, z = L.z[lo] + (L.z[hi] - L.z[lo]) * f;
+    const hd = L.h[lo] + Math.atan2(Math.sin(L.h[hi] - L.h[lo]), Math.cos(L.h[hi] - L.h[lo])) * f;
+    T.dir = (T._dirv ||= new THREE.Vector3()).set(Math.sin(hd), 0, -Math.cos(hd));
+    _trr.crossVectors(T.dir, _tu).normalize();
+    out.set(x, T.origin.y, z).addScaledVector(_trr, T.off.x).addScaledVector(_tu, T.off.y);
+    const k = L.k[lo] + (L.k[hi] - L.k[lo]) * f;                 // (curvature, + = turning right)
+    T._bank = Math.atan(T.speed * T.speed * k / 9.81);
+    return out;
+  }
+  // build a rounded square through point S heading along dir: a superellipse (|u|^n + |v|^n = 1, n ~4.5: long nearly
+  // straight sides, corners whose curvature builds and fades smoothly) of half-size a, on whichever side of S is
+  // toward the middle of the map, shrunk until it fits inside the map (margin m)
+  function makeLoop(S, dir, a = 8000, n = 4.5, m = 1500) {
+    const fwd = new THREE.Vector3(dir.x, 0, dir.z).normalize(), right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+    const half = (terrain.w * terrain.s) / 2 - m, cx0 = terrain.ox + terrain.w * terrain.s / 2, cz0 = terrain.oz + terrain.h * terrain.s / 2;
+    const sideOf = (sg) => new THREE.Vector3(S.x - right.x * a * sg, 0, S.z - right.z * a * sg);   // centre if S is on its +sg side
+    let sg = sideOf(1).distanceToSquared(new THREE.Vector3(cx0, 0, cz0)) < sideOf(-1).distanceToSquared(new THREE.Vector3(cx0, 0, cz0)) ? 1 : -1;
+    const N = 2048, f = (c) => Math.sign(c) * Math.abs(c) ** (2 / n);
+    for (let tries = 0; tries < 12; tries++, a *= 0.9) {
+      const c = sideOf(sg), x = new Float32Array(N + 1), z = new Float32Array(N + 1);
+      let fits = true;
+      for (let i = 0; i <= N; i++) {
+        // (S is at parameter 0: +right side of the centre; it runs forward along dir from there: for sg = -1 the
+        // other way round the loop)
+        const th = (i / N) * Math.PI * 2, u = a * f(Math.cos(th)) * sg, v = a * f(Math.sin(th));
+        x[i] = c.x + right.x * u + fwd.x * v; z[i] = c.z + right.z * u + fwd.z * v;
+        if (Math.abs(x[i] - cx0) > half || Math.abs(z[i] - cz0) > half) fits = false;
+      }
+      if (!fits && tries < 11) continue;
+      const cum = new Float32Array(N + 1), h = new Float32Array(N + 1), k = new Float32Array(N + 1);
+      for (let i = 1; i <= N; i++) cum[i] = cum[i - 1] + Math.hypot(x[i] - x[i - 1], z[i] - z[i - 1]);
+      for (let i = 0; i <= N; i++) { const j = Math.min(i + 1, N), i0 = Math.max(i - 1, 0); h[i] = Math.atan2(x[j] - x[i0], -(z[j] - z[i0])); }
+      for (let i = 0; i <= N; i++) { const j = Math.min(i + 1, N), i0 = Math.max(i - 1, 0); let dh = h[j] - h[i0]; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); k[i] = dh / Math.max(cum[j] - cum[i0], 1e-3); }
+      return { x, z, cum, h, k, len: cum[N], s0: 0 };
+    }
+  }
+  // put every bomber flying a straight track onto a rounded square through where its lead point is now
+  function toLoop(list, simT) {
+    const ref = list.find(d => d.track && !d.track.loop); if (!ref) return;
+    const T0 = ref.track, S = T0.origin.clone().addScaledVector(T0.dir, T0.speed * (simT - T0.t0));
+    const L = makeLoop(S, T0.dir);
+    for (const d of list) if (d.track && !d.track.loop) {
+      const T = d.track;
+      if (T.origin !== T0.origin) continue;                       // (only the ones in that formation)
+      Object.assign(T, { loop: L, t0: simT, w0: T.w0 ?? simT, turn: null, origin: T.origin.clone() });
+    }
+  }
+
   // A bomber that has left the formation (peeling off, breaking from a missile): heading turned at a rate that eases
   // toward its target and back to nothing once it has turned far enough; the sink rate eases in the same way; the bank
   // follows the turn. F: { dir (horizontal), rate, rateT (rad/s, + right), ang (rad to turn), turned, sink, sinkT (m/s) }
@@ -621,6 +678,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   }
   function trackPos(d, t, out) {
     const T = d.track, tt = t - T.t0;
+    if (T.loop) return loopPos(d, t, out);
     _tr.crossVectors(T.dir, _tu).normalize();
     T._bank = 0;
     const tn = T.turn ? Math.max(0, t - T.turn.t0) : 0;
@@ -1209,7 +1267,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       S.firing = on;
     },
     select(k) { S.selected = k; S.lock = 0; },
-    breakOff,
+    breakOff, toLoop,
     clearLine: (a, b) => clearLine(a, b),
     placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now (or on their tracks)
     resetStats() { S.kills.length = 0; S.shots = 0; S.hits = 0; },

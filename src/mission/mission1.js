@@ -68,6 +68,7 @@ export function createMission1({ weapons, ac, rig }) {
         d.track.peeled = true;
       };   // (the second straggler's break-away turn is kept for later missions, not used now)
       bombers.forEach(d => { d.hidden = false; d.noLock = false; });
+      if (!tutorial) weapons.toLoop(bombers, simT);   // (the formation flies a big rounded square, never leaving the map)
       fighters.forEach(d => { d.hidden = false; d.noLock = false; });
       fighters.forEach((d, i) => { d.track = track(FIGHTER_SLOTS[i % FIGHTER_SLOTS.length], { a: 160, w: 0.22 + 0.05 * i, ph: i * 2.1 }); });
       weapons.placeDrones();
@@ -119,6 +120,8 @@ export function createMission1({ weapons, ac, rig }) {
     // move the whole formation along its track by d metres (the tutorial keeps it just ahead while you learn to fly)
     shift(d) { for (const b of bombers) if (b.track) { b.track.t0 -= d / b.track.speed; if (b.track.turn) b.track.turn.t0 -= d / b.track.speed; } },
     shiftOne(b, d) { if (b.track) { b.track.t0 -= d / b.track.speed; if (b.track.turn) b.track.turn.t0 -= d / b.track.speed; } },
+    // the tutorial's over: whoever is left flies the rounded square too
+    toLoop() { weapons.toLoop(bombers.filter(d => d.alive && !d.falling), weapons.S.simT || 0); },
     breakAway() { const B = bombers[1]; if (B.track && !B.track.turn) B.track.turn = { ...STRAGGLER_TURN, t0: weapons.S.simT || 0 }; },
     stats() {
       const S = weapons.S;

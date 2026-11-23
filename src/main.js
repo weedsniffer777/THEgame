@@ -343,6 +343,7 @@ function tutorialStep(dt) {
       if (first) {
         for (const d of weapons.drones) { d.hidden = false; d.noLock = false; }
         W.allow.gun = W.allow.missile = true; tutUnlock();
+        mission.toLoop();
         weapons.setFiring(false);
         overlay.say('Destroy the remaining enemies!');
         // no spotlight while any of them is in view; if none is, the map and the ring's pointer to the nearest
