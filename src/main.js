@@ -482,12 +482,7 @@ const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], mslEls = [];
 const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles, (k) => { if (running) weapons.select(k); });
 const gunSvg = document.getElementById('gunsol'), [gunBox, gunLine, gunCirc] = gunSvg.children;
-// the missile range arc (drawn round the lock box)
-const rngSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-rngSvg.id = 'rngarc'; rngSvg.setAttribute('width', 1); rngSvg.setAttribute('height', 1);
-rngSvg.innerHTML = '<circle r="17" transform="rotate(-90)" fill="none"/><line/>';
-document.getElementById('hud').appendChild(rngSvg);
-const [rngArc, rngMin] = rngSvg.children;
+
 function screenOf(p) { _p.copy(p).project(camera); return _p.z < 1 ? [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight] : null; }
 const xray = createXray(document.getElementById('xray'), jet.damage, { ...PART_HP, body: BODY_HP }, renderer, jet.model);
 const iasEl = document.getElementById('ias'), gEl = document.getElementById('gload');
@@ -551,7 +546,6 @@ function hud(dt = 1 / 60) {
   const W = weapons.S, msl = W.selected === 2;
   noseEl.style.visibility = msl ? 'hidden' : '';
   seekerEl.hidden = lockEl.hidden = !msl;
-  if (!msl) rngSvg.style.display = 'none';
   if (msl) {
     const nosePt = _n.set(0, 0, 1).applyQuaternion(drawQuat).multiplyScalar(D).add(drawPos);
     place(seekerEl, nosePt);
@@ -563,17 +557,7 @@ function hud(dt = 1 / 60) {
     const k = W.seeker ? THREE.MathUtils.smoothstep(Math.min(W.lock / WEAPONS.lockTime, 1), 0, 1) : 0;
     const at = ns && ts ? [ns[0] + (ts[0] - ns[0]) * k, ns[1] + (ts[1] - ns[1]) * k] : ns;
     if (at) { lockEl.style.display = ''; lockEl.style.transform = `translate(${at[0]}px, ${at[1]}px)`; } else lockEl.style.display = 'none';
-    // range arc round the box: how far the target is out of the missile's reach (full circle = max range, the tick
-    // at the bottom of the scale = min range), clockwise from the top; only with a target
-    const R = 17, C = 2 * Math.PI * R;
-    if (W.seeker && at) {
-      const dist = W.seeker.pos.distanceTo(ac.pos), f = Math.min(dist / WEAPONS.lockRange, 1), fm = WEAPONS.missileMinRange / WEAPONS.lockRange;
-      rngArc.setAttribute('stroke-dasharray', `${(f * C).toFixed(1)} ${C.toFixed(1)}`);
-      const a = fm * 2 * Math.PI; rngMin.setAttribute('x1', (Math.sin(a) * (R - 4)).toFixed(1)); rngMin.setAttribute('y1', (-Math.cos(a) * (R - 4)).toFixed(1));
-      rngMin.setAttribute('x2', (Math.sin(a) * (R + 4)).toFixed(1)); rngMin.setAttribute('y2', (-Math.cos(a) * (R + 4)).toFixed(1));
-      rngSvg.style.display = ''; rngSvg.style.transform = lockEl.style.transform;
-      rngSvg.classList.toggle('in', dist <= WEAPONS.lockRange && dist >= WEAPONS.missileMinRange);
-    } else rngSvg.style.display = 'none';
+
     // searching: both circles flash white / red; locked: both solid red
     const st = W.locked ? 'locked' : tracking ? (performance.now() % 250 < 125 ? 'flashW' : 'flashR') : '';
     lockEl.className = st; seekerEl.className = st;
@@ -612,13 +596,14 @@ function hud(dt = 1 / 60) {
     }
     ringHud(screenOf(_n.copy(camera.position).addScaledVector(rig.fwd, D)), items, camera);
   }
-  // missiles in flight: coloured brackets round each (ours in the friendly colour, the enemy's red); the enemy's have their distance above
+  // missiles in flight: coloured brackets round each with a solid diamond above (ours blue, or green with the green HUD;
+  // the enemy's red); the enemy's have their distance above that
   // (nm, then ft inside 1.5 nm; km, then m inside 2 km)
   {
     const ms = weapons.S.missiles;
     for (let k = 0; k < Math.max(ms.length, mslEls.length); k++) {
       let el = mslEls[k];
-      if (!el) { el = mslEls[k] = document.createElement('div'); el.className = 'mmark'; el.innerHTML = '<b></b><i></i>'; el._b = el.firstChild; el._txt = ''; tgtEl.parentNode.appendChild(el); }
+      if (!el) { el = mslEls[k] = document.createElement('div'); el.className = 'mmark'; el.innerHTML = '<b></b><u></u><i></i>'; el._b = el.firstChild; el._txt = ''; tgtEl.parentNode.appendChild(el); }
       const m = ms[k];
       if (!m || !running) { el.style.display = 'none'; continue; }
       if (el._own !== m.owner) { el.classList.toggle('foe', m.owner !== 'player'); el._own = m.owner; }

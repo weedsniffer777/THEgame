@@ -45,11 +45,6 @@ body.viewing #game { cursor: grab; }
 #lockc.flashW, #seeker.flashW { border-color: #fff; }
 #lockc.flashR, #seeker.flashR { border-color: #ff463c; }
 #lockc.locked { border-color: #ff463c; border-width: 2.5px; }
-#rngarc { position: absolute; left: 0; top: 0; overflow: visible; will-change: transform; pointer-events: none; filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.6)); }
-#rngarc circle { stroke: rgba(255,255,255,0.75); stroke-width: 2; }
-#rngarc line { stroke: rgba(255,255,255,0.9); stroke-width: 1.5; }
-#rngarc.in circle { stroke: #6eff96; }
-body.tut-noarms #rngarc { visibility: hidden !important; }
 #tgt, #hud .tgtc { width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 1px; border: none; }
 #arms { position: absolute; right: 148px; bottom: 22px; display: flex; align-items: flex-end; gap: 10px; color: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
 #arms .col { display: flex; flex-direction: column; align-items: center; gap: 7px; opacity: 0.66; padding: 4px 4px 3px; border-bottom: 2px solid transparent; }
@@ -129,13 +124,14 @@ body.clean #devkit, body.clean #devmenu, body.clean .lil-gui, body.clean #hud, b
 body.clean #perf { display: none; }
 #devmenu { top: 84px; }
 /* missiles in flight: a hollow diamond (thick edge, see-through tinted middle) on each, blue = ours, red = the enemy's */
-#hud .mmark { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; --mc: var(--friend, #5ca8ff); }
+#hud .mmark { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; --mc: #5ca8ff; }
 #hud .mmark.foe { --mc: #ff4a3c; }
 #hud .mmark i { position: absolute; left: -9px; top: -7px; width: 18px; height: 14px; box-sizing: border-box; }
 #hud .mmark i::before, #hud .mmark i::after { content: ''; position: absolute; top: 0; bottom: 0; width: 4px; border: 2px solid var(--mc); filter: drop-shadow(0 0 1px rgba(0,0,0,0.8)); }
 #hud .mmark i::before { left: 0; border-right: none; }
 #hud .mmark i::after { right: 0; border-left: none; }
-#hud .mmark b { position: absolute; left: -30px; top: -21px; width: 60px; text-align: center; font: 700 10px/1 ui-monospace, monospace; color: #fff; opacity: 0.9; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
+#hud .mmark u { position: absolute; left: -4.5px; top: -20px; width: 9px; height: 9px; background: var(--mc); transform: rotate(45deg); }   /* the solid diamond */
+#hud .mmark b { position: absolute; left: -30px; top: -35px; width: 60px; text-align: center; font: 700 10px/1 ui-monospace, monospace; color: #fff; opacity: 0.9; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
 #hud .mmark b small { font-size: 8px; margin-left: 2px; opacity: 0.85; }
 
 /* flight HUD: one SVG, thin single-colour strokes, cockpit-display typeface */
@@ -247,3 +243,23 @@ body.bigmap #ring { visibility: hidden; }
 body.bigmap #hud .mark, body.bigmap #gunsol { visibility: hidden; }
 #bigmap.on { display: block; }
 body.touch #arms .col { pointer-events: auto; cursor: pointer; }
+
+/* green HUD (settings): everything of ours green; enemies, warnings and lock cues keep their red */
+body.hud-green { --hg: #4dff7c; --hgs: rgba(77,255,124,0.92); }
+body.hud-green #aim { border-color: var(--hg); }
+body.hud-green #nose::before, body.hud-green #nose::after { background: var(--hg); }
+body.hud-green #fpv { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 22'%3E%3Cg fill='none' stroke='%234dff7c' stroke-opacity='0.95' stroke-width='2'%3E%3Ccircle cx='22' cy='11' r='6.5'/%3E%3Cpath d='M1 11h14.5M28.5 11H43M22 4.5V0'/%3E%3C/g%3E%3C/svg%3E"); }
+body.hud-green #seeker:not(.locked):not(.flashR), body.hud-green #lockc:not(.locked):not(.flashR) { border-color: var(--hg); }
+body.hud-green #gunsol rect, body.hud-green #gunsol circle, body.hud-green #gunsol line { stroke: var(--hg); }
+body.hud-green #fhud .tk, body.hud-green #fhud .box { stroke: var(--hgs); }
+body.hud-green #fhud text, body.hud-green #fhud .chev:not(.ab), body.hud-green #fhud .eng { fill: var(--hgs); }
+body.hud-green #arms { color: var(--hg); }
+body.hud-green #arms svg, body.hud-green #arms .msl i svg path { fill: var(--hg); }
+body.hud-green #arms .key { border-color: var(--hg); }
+body.hud-green #arms .col.sel { border-bottom-color: var(--hg); }
+body.hud-green #ring .circ circle { stroke: rgba(77,255,124,0.3); }
+body.hud-green #hud .mark b, body.hud-green #ring .ptr b span { color: var(--hg); }
+body.hud-green #hud .mmark { --mc: var(--hg); }
+body.hud-green #hud .mmark.foe { --mc: #ff4a3c; }
+body.hud-green #hud .mmark b { color: var(--hg); }
+body.hud-green #notes div:not(.warn) { color: var(--hg); }
