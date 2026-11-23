@@ -85,7 +85,8 @@ const ac = new Aircraft(F5);
 const [enemyProto, bomberProto] = await Promise.all([loadEnemy('earlyJet'), loadEnemy('bomber')]);
 const haze = createHeatHaze(renderer, jet.model, NOZZLES);
 // what we fly: Mission 1 (default) or free flight (?mode=free, dev kit)
-const MODE = params.get('mode') === 'free' ? 'free' : 'mission1';
+let devMode = null; try { devMode = localStorage.getItem('thegame.devmode'); } catch { /* */ }
+const MODE = (params.get('mode') || devMode) === 'free' ? 'free' : 'mission1';   // (dev kit level selector; kept in this browser)
 const roster = MODE === 'mission1' ? [{ proto: enemyProto, count: 3 }, { proto: bomberProto, count: 10 }] : [{ proto: enemyProto, count: WEAPONS.drones - 1 }, { proto: bomberProto, count: 1 }];
 const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, roster);
 const rig = new CameraRig(camera, CAMERA);
@@ -748,9 +749,16 @@ const kitBtn = document.getElementById('devkit'), kitMenu = document.getElementB
 {
   const lv = document.getElementById('kit-level'), pl = document.getElementById('kit-plane');
   lv.value = MODE;
-  lv.addEventListener('change', () => { const q = new URLSearchParams(location.search); if (lv.value === 'free') q.set('mode', 'free'); else q.delete('mode'); location.search = q.toString(); });
+  lv.addEventListener('change', () => { try { localStorage.setItem('thegame.devmode', lv.value); } catch { /* */ } location.reload(); });
   pl.addEventListener('change', () => {});            // (only one aircraft so far)
-  document.getElementById('kit-clear').addEventListener('click', (e) => { e.stopPropagation(); if (confirm('Delete all player data (save file, settings, tutorial)?')) { clearSave(); location.href = location.pathname; }   /* a fresh start: Mission 1 with the tutorial */ });
+  // (two clicks: the browser's confirm dialog is blocked inside the page's frame)
+  const clr = document.getElementById('kit-clear'); let armedClear = 0;
+  clr.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (performance.now() - armedClear > 3000) { armedClear = performance.now(); clr.textContent = 'CLICK AGAIN TO DELETE'; setTimeout(() => { clr.textContent = 'CLEAR ALL PLAYER DATA'; }, 3000); return; }
+    clearSave(); try { localStorage.removeItem('thegame.devmode'); localStorage.removeItem('thegame.tune2'); } catch { /* */ }
+    location.reload();                                    // a fresh start: Mission 1 with the tutorial
+  });
   for (const el of [lv, pl]) el.addEventListener('click', (e) => e.stopPropagation());
 }
 kitBtn.addEventListener('click', e => { e.stopPropagation(); kitMenu.hidden = !kitMenu.hidden; });

@@ -54,7 +54,7 @@ class Sprites {
       vertexShader: /* glsl */`
         attribute vec3 ahead; attribute vec4 atail; attribute vec4 acol; attribute vec2 asize;
         uniform float uAdd;
-        varying vec2 vUv; varying vec4 vCol; varying float vStreak; varying vec3 vWorld; varying float vSeed;
+        varying vec2 vUv; varying vec4 vCol; varying float vStreak; varying vec3 vWorld; varying float vSeed; varying float vBig;
         void main() {
           vec4 h = viewMatrix * vec4(ahead, 1.0);
           vec4 p;
@@ -76,7 +76,7 @@ class Sprites {
           } else {
             p = h; p.xy += position.xy * asize.x * (uAdd > 0.5 ? 1.0 : 1.45);
           }
-          vUv = position.xy; vCol = acol; vStreak = streak; vWorld = ahead; vSeed = asize.y;
+          vUv = position.xy; vCol = acol; vStreak = streak; vWorld = ahead; vSeed = asize.y; vBig = 0.0;
           gl_Position = projectionMatrix * p;
           // smoke right at the camera (flying through a trail) fades out and is not drawn at all: those huge
           // overlapping close-up puffs were what made flying through smoke slow
@@ -84,14 +84,15 @@ class Sprites {
             // how big it is on screen (1 = half the screen height): puffs that would cover a large part of the
             // screen fade out, so flying through smoke or a fireball never stacks full-screen layers (overdraw)
             float scr = asize.x * 1.45 * projectionMatrix[1][1] / max(-h.z, 1e-3);
-            float k = (1.0 - smoothstep(0.28, 0.75, scr)) * smoothstep(asize.x * 0.9, asize.x * 2.2, -h.z);
+            float k = (1.0 - smoothstep(0.12, 0.34, scr)) * smoothstep(asize.x * 0.9, asize.x * 2.2, -h.z);
+            vBig = step(0.08, scr);                                  // big on screen: the cheap shading (one noise layer)
             if (uAdd < 0.5) vCol.a *= k; else vCol.a *= k;
             if (k < 0.01) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           }
         }`,
       fragmentShader: /* glsl */`
         uniform float uAdd;
-        varying vec2 vUv; varying vec4 vCol; varying float vStreak; varying vec3 vWorld; varying float vSeed;
+        varying vec2 vUv; varying vec4 vCol; varying float vStreak; varying vec3 vWorld; varying float vSeed; varying float vBig;
         ${FOG_GLSL}${ENCODE_GLSL}
         float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -112,7 +113,9 @@ class Sprites {
             // by its own seed; lumps come from layered noise, and the lumps are shaded so the puff reads as volume.
             float ang = vSeed * 6.2832, cs = cos(ang), sn = sin(ang);
             vec2 q = mat2(cs, -sn, sn, cs) * vUv * vec2(1.0, 0.8 + 0.4 * fract(vSeed * 7.3)) * 1.45;   // shape kept well inside the quad
-            float f1 = noise(q * 1.7 + vSeed * 31.0), f2 = noise(q * 3.6 - vSeed * 13.0), f3 = noise(q * 7.5 + vSeed * 5.0);
+            float f1 = noise(q * 1.7 + vSeed * 31.0), f2, f3;
+            if (vBig > 0.5) { f2 = 0.5 + 0.5 * sin(q.x * 3.1 + vSeed * 9.0) * sin(q.y * 2.7 - vSeed * 5.0); f3 = 0.5; }   // (big on screen: fine detail invisible anyway)
+            else { f2 = noise(q * 3.6 - vSeed * 13.0); f3 = noise(q * 7.5 + vSeed * 5.0); }
             float lumps = f1 * 0.55 + f2 * 0.3 + f3 * 0.15;
             float r = length(q) + (lumps - 0.5) * 0.95;
             if (r > 1.0) discard;
