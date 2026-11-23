@@ -350,11 +350,12 @@ function crash(ditched = false, airborne = false) {   // ditched: worn out after
   wreck.spin.set(-ac.q, -ac.r, ac.p).applyQuaternion(ac.quat);      // keeps the rotation it had (world axes)
   // hitting the ground tears off everything still attached (the rear fuselage can snap off too, on a hard
   // enough contact: see wreckStep)
-  if (!ditched) for (const n of Object.keys(jet.damage.parts)) if (n !== 'tail') jet.damage.breakPart(n, ac.vel);   // (a ditched jet sinks in one piece)
+  // (into the water it stays in one piece and sinks: no parts flung across the lake, no fire or smoke, just water)
+  if (!ditched && !wreck.inWater) for (const n of Object.keys(jet.damage.parts)) if (n !== 'tail') jet.damage.breakPart(n, ac.vel);
   {
     const x = ac.pos.x, z = ac.pos.z;
     _wn.set(terrain.heightAt(x - 2, z) - terrain.heightAt(x + 2, z), 4, terrain.heightAt(x, z - 2) - terrain.heightAt(x, z + 2)).normalize();
-    if (!ditched && ac.vel.dot(_wn) < -20) jet.damage.breakPart('tail', ac.vel);   // into the ground hard: the fuselage snaps behind the wing
+    if (!ditched && !wreck.inWater && ac.vel.dot(_wn) < -20) jet.damage.breakPart('tail', ac.vel);   // into the ground hard: the fuselage snaps behind the wing
   }
   if (wreck.inWater) jet.damage.quench();                              // into a lake: the water puts every fire out
   ac.throttle = ac.engine = 0;
@@ -380,7 +381,7 @@ function invI(v, out) {   // world-space inverse inertia applied to a world vect
 }
 function wreckStep(dt) {
   if (!wreck.inWater && terrain.isWater(wreck.pos.x, wreck.pos.z) && wreck.pos.y < terrain.heightAt(wreck.pos.x, wreck.pos.z) + 1.5) {
-    wreck.inWater = true; weapons.splash(wreck.pos, wreck.vel, 1.2);
+    wreck.inWater = true; weapons.crash(wreck.pos, wreck.vel, true, false); jet.damage.quench();   // (falls into a lake: the big splash, fires out)
   }
   if (wreck.inWater) {                                                 // in a lake: dragged to a stop, then it sinks
     wreck.vel.multiplyScalar(Math.exp(-2.5 * dt)); wreck.vel.y += (-1.4 - wreck.vel.y) * Math.min(1, 2 * dt);

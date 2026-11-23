@@ -1170,7 +1170,12 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     trails, smoke, cfg,   // (dev tests)
     // the player's jet hit the ground: blast and a fire where it hit (the airframe itself is simulated by main.js)
     crash(p, v, water = false, ditched = false) {
-      if (water) { splash(p, v, ditched ? 0.8 : 1.9); return; }   // (a crash into the water: the big splash; settling after a ditching: a small one)
+      if (water) {   // a crash into the water: a big splash and a second one where it skips on (no fire); settling after a ditching: a small one
+        if (ditched) { splash(p, v, 0.8); return; }
+        splash(p, v, 2.6);
+        splash(new THREE.Vector3().copy(p).addScaledVector(new THREE.Vector3(v.x, 0, v.z), 0.3), v, 1.9);
+        return;
+      }
       explode(p, v, 2.0);
       emit('groundfire', new THREE.Vector3(p.x, terrain.heightAt(p.x, p.z), p.z), new THREE.Vector3(1, 0, 0));
     },
