@@ -504,7 +504,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       if (gone('wingOuterL') || gone('wingOuterR') || gone('wingInnerL') || gone('wingInnerR') || gone('tail') || (P.stabL && gone('stabL') && gone('stabR'))) killDrone(d);
     }
     if (d.falling) {                          // going down: flown by what's left of the airframe, burning, until it hits
-      if (d.detonateAt != null && (d.age >= d.detonateAt || d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 30)) detonate(d);
+      if (d.detonateAt != null && (d.age >= d.detonateAt || d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 30)) { if (S.detonateOK(d)) detonate(d); else d.detonateAt = null; }
       // coming apart on the way down: one or two more pieces over the next ~15 s (so nothing glides on intact)
       d.fallT = (d.fallT || 0) + dt;
       if ((d.extra || 0) < 2 && d.fallT > (d.extra ? 11 : 4) + (d.extraJit ??= Math.random() * 4)) {
@@ -576,6 +576,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // fireball, and the blast tears into anything close (enemies and the player alike).
   // per type (def.detonate: chance, radius, size); the tutorial overrides the decision
   S.detonateChance = (d) => !!d.def.detonate && Math.random() < d.def.detonate.chance;
+  S.detonateOK = () => true;   // (the tutorial vetoes a blast that would catch the player)
   function detonate(d) {
     const c = d.pos.clone();
     const DT = d.def.detonate || {}, size = DT.size || 4;
@@ -610,7 +611,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     d.killedBy = d.lastHit || 'other'; S.kills.push({ d, by: d.killedBy });
     // will it blow up? Lost a wing: it tumbles for a while first (the tanks go as it comes apart); anything else
     // (fuselage, tail, fire): it goes at once
-    if (S.detonateChance(d)) {
+    if (S.detonateChance(d) && S.detonateOK(d)) {
       const P = d.dmg.parts, wing = ['wingInnerL', 'wingInnerR', 'wingOuterL', 'wingOuterR'].some(n => P[n]?.broken);
       if (wing) d.detonateAt = (d.age || 0) + 1.5 + Math.random() * 2.5; else detonate(d);
     }
