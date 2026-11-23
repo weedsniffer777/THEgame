@@ -912,7 +912,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   const sm = (a, b, x) => THREE.MathUtils.smoothstep(x, a, b);
   function vapour(dt, pos, quat) {
     _bp = pos; _bq = quat; _bdt = dt;
-    if (!jet.damage || jet.damage.burning || dt <= 0) return;
+    if (!jet.damage || jet.damage.burning || dt <= 0) { machShell.visible = false; return; }
     // riding puffs: kept at a spot on the airframe (body frame), drifting slowly aft, so they never lag or smear
     const ride = (x, y, z, o) => S.fx.push({ kind: 'vapor', ride: 1, lx: x, ly: y, lz: z, p: toWorld(x, y, z).clone(), v: new THREE.Vector3(), t: 0, ...o });
     const back = (e) => { e.p.addScaledVector(e.v, -dt); S.fx.push(e); };

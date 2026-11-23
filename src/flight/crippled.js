@@ -31,8 +31,8 @@ function cl(a) {
 
 export function startCrippled(d, type) {
   d.cr = { k: CRIPPLED[type] || CRIPPLED.fighter, w: new THREE.Vector3(), t: 0, V0: Math.max(d.speed || 150, 60),
-    // which way a tail-less airframe departs: mostly nose-up, sometimes tucks under
-    kick: (Math.random() - 0.65) * 0.16, thrust: 1 };
+    // which way a tail-less airframe departs
+    kick: (Math.random() < 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.06), thrust: 1 };   // (a tail-less airframe rears up or tucks under: even odds)
   // start in balanced flight at the trim angle of attack
   d.obj.quaternion.multiply(_dq.setFromAxisAngle(_ax.set(1, 0, 0), -A0));
 }

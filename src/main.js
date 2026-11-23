@@ -636,7 +636,7 @@ function frameBody(now) {
   jet.object.position.copy(drawPos);
   jet.object.quaternion.copy(drawQuat);
   jet.animate(ac, gameT);
-  if (running && !dead) weapons.vapour(vdt, drawPos, drawQuat);   // wing vapour / transonic collar, at the drawn jet
+  if (vdt > 0) weapons.vapour(dead ? -1 : vdt, drawPos, drawQuat);   // wing vapour / transonic collar, at the drawn jet (dead: all off)
   if (vdt > 0) weapons.contrailsStep(drawPos, drawQuat, running && !dead);
   weapons.render(camera, vdt, gameT, a, drawPos, drawQuat, renderer);
   jet.damage.update(vdt);
@@ -755,7 +755,7 @@ const kitBtn = document.getElementById('devkit'), kitMenu = document.getElementB
   const clr = document.getElementById('kit-clear'); let armedClear = 0;
   clr.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (performance.now() - armedClear > 3000) { armedClear = performance.now(); clr.textContent = 'CLICK AGAIN TO DELETE'; setTimeout(() => { clr.textContent = 'CLEAR ALL PLAYER DATA'; }, 3000); return; }
+    if (performance.now() - armedClear > 5000) { armedClear = performance.now(); clr.textContent = 'CLICK AGAIN TO DELETE'; setTimeout(() => { clr.textContent = 'CLEAR ALL PLAYER DATA'; }, 5000); return; }
     clearSave(); try { localStorage.removeItem('thegame.devmode'); localStorage.removeItem('thegame.tune2'); } catch { /* */ }
     location.reload();                                    // a fresh start: Mission 1 with the tutorial
   });
