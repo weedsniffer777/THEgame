@@ -1,4 +1,3 @@
-import { friendMapColor } from './settings.js';
 // Map: the aerial photo in faint greyscale with sparse contour lines (every 250 m, heavier every 1000 m), lakes darker,
 // made once from the terrain data, then a crop of it drawn in a framed square in the top right each frame, north up, with the
 // player as an arrow and enemies as small red ticks. Hold M for the whole region.
@@ -60,7 +59,7 @@ export function createMap(root, terrain) {
     g.drawImage(src, cx - sp / 2, cy - sp / 2, sp, sp, 0, 0, px, px);
     const s = px / sp, P = (x, z) => { const [a, b] = toPx(x, z); return [(a - cx) * s + px / 2, (b - cy) * s + px / 2]; };
     // icons: bright cores with a soft glow of their own colour (enemies red, with a thin white rim only when a priority
-    // target (d.priority); our missiles in the friendly colour; the player a white arrow); the glow is drawn first, then the crisp shape on top
+    // target (d.priority); our missiles and the player white); the glow is drawn first, then the crisp shape on top
     const dart = (L) => { g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.62, L * 0.7); g.lineTo(0, L * 0.35); g.lineTo(-L * 0.62, L * 0.7); g.closePath(); };
     const glowDart = (x, y, hd, L, fill, glow, rim) => {
       g.save(); g.translate(x, y); g.rotate(hd);
@@ -80,10 +79,10 @@ export function createMap(root, terrain) {
     for (const m of missiles) {
       const [x, y] = P(m.p.x, m.p.z); if (x < -8 || y < -8 || x > px + 8 || y > px + 8) continue;
       const h = Math.hypot(m.v.x, m.v.z) || 1, L = 7 * dpr, dx = m.v.x / h * L, dy = m.v.z / h * L;
-      const ours = m.owner === 'player', glow = ours ? friendMapColor() : '#ff5a48';
+      const ours = m.owner === 'player', glow = ours ? 'rgba(255,255,255,0.8)' : '#ff5a48';   // ours white (like the player), the enemy's red
       g.beginPath(); g.moveTo(x - dx, y - dy); g.lineTo(x, y);
       g.shadowColor = glow; g.shadowBlur = 7 * dpr; g.strokeStyle = glow; g.lineWidth = 2.4 * dpr; g.stroke(); g.stroke();
-      g.shadowBlur = 0; g.strokeStyle = ours ? '#eaf6ff' : '#ffd9d4'; g.lineWidth = 1 * dpr; g.stroke();   // white-hot core
+      g.shadowBlur = 0; g.strokeStyle = ours ? '#ffffff' : '#ffd9d4'; g.lineWidth = 1 * dpr; g.stroke();   // white-hot core
     }
     g.shadowBlur = 0;
     // the player: a white arrow along the heading
