@@ -180,20 +180,22 @@ function tutSpot(d, text, then) {
   tut.camD = d; tut.camT = 3.2;
   tut.showT = 3.4; tut.after = then;                        // (the game never stops)
 }
+// spotlights on our missiles in flight (up to three)
+const missileSpots = () => [0, 1, 2].map(k => ({ at: () => { const m = weapons.S.missiles.filter(m => m.owner === 'player')[k]; const c = m && screenOf(m.p); return c && c[0] > 0 && c[0] < innerWidth && c[1] > 0 && c[1] < innerHeight ? [c[0], c[1], 26] : null; } }));
 const FIRE_KEYS = () => isTouchDev ? [{ icon: 'tap' }] : [{ label: 'Space' }, { text: 'or' }, { icon: 'lmb' }];
 function tutorialStep(dt) {
   if (!mission || tut.step === 'off') return;
+  // during the flying lessons the (hidden) formation is on rails: the first straggler stays 2.2 km ahead along the
+  // track however fast or slow the player goes, so it is never close when the shooting starts
+  if (['steer', 'keys', 'throttle', 'brake'].includes(tut.step)) {
+    const A0 = mission.stragglers[0], ahead = _wv.subVectors(A0.pos, ac.pos).dot(A0.track.dir);
+    if (Math.abs(ahead - 2200) > 1) mission.shift(2200 - ahead);
+  }
   if ((tut.wait -= dt) > 0) return;
   const W = weapons.S, [A, B] = mission.stragglers, down = (d) => !d.alive || d.falling, T = isTouchDev;
   if (tut.showT > 0) { if ((tut.showT -= dt) <= 0) { overlay.clear(); const f = tut.after; tut.after = null; f?.(); } return; }
   const first = !tut.entered; tut.entered = true; tut.t += dt;
-  // until the first enemy is spotted, the (hidden) formation keeps pace: the first straggler stays 1.6-2.6 km ahead,
-  // so there's little chasing however long the flying lessons take
-  if (['steer', 'keys', 'throttle', 'brake'].includes(tut.step)) {
-    const ahead = _wv.subVectors(A.pos, ac.pos).dot(A.track.dir);
-    if (ahead < 1600) mission.shift(1600 - ahead); else if (ahead > 2600) mission.shift(2600 - ahead);
-  }
-  const gunsDone = () => tutGo(tut.gt === A && !down(B) ? 'spotB' : 'final', 2.5);
+  const gunsDone = () => { W.allow.gun = false; weapons.setFiring(false); tutGo(tut.gt === A && !down(B) ? 'spotB' : 'final', 2.5); };
   switch (tut.step) {
     case 'steer': {
       if (first) { overlay.say(T ? 'Drag anywhere to steer' : 'Move the mouse to steer'); overlay.keys([{ icon: T ? 'drag' : 'mouse' }]); overlay.spot([aimSpot], 0.3); tut.fwd.copy(rig.fwd); }
@@ -219,60 +221,81 @@ function tutorialStep(dt) {
       if (first) { tutAllow.brake = true; overlay.say('Slow down faster with airbrakes'); overlay.keys([T ? { label: 'BRAKE' } : { label: 'B' }]); overlay.spot(T ? [{ sel: '.t-brake', round: true, pad: 6 }] : [], 0.3); }
       capsStep(dt, (dt) => ac.airbrakeCmd > 0 ? dt / 0.6 : 0, () => tutGo('spotA', 1.2));
       break;
-    // ---- spotting: the first enemy, the map, tracking it ----
-    case 'spotA': if (first) { tutSpot(A, 'Enemy spotted', () => tutGo('map', 0.2)); } break;
-    case 'map':      // hold M for the map (touch: the map is always on the screen; straight on)
-      if (first) { document.body.classList.remove('tut-nomap'); if (T) { tutGo('track', 0.8); break; } overlay.say('Hold to see the map'); overlay.keys([{ label: 'M' }]); overlay.spot([{ sel: '#minimap', pad: 4 }], 0.3); }
-      capsStep(dt, anyKey('KeyM'), () => tutGo('track', 0.3));
+    // ---- spotting: the first enemy, tracking it (the map is mentioned, not required) ----
+    case 'spotA':    // the view swings to it once by itself, then: hold right click to track it
+      if (first) {
+        A.hidden = false; document.body.classList.remove('tut-nomap'); weapons.setFiring(false);
+        tut.camD = A; tut.camT = 2.6;
+        overlay.say(T ? 'Hold to track an enemy!' : 'Right click to track an enemy!');
+        overlay.keys([T ? { icon: 'tap' } : { icon: 'rmb' }, ...(T ? [] : [{ br: true }, { text: 'You can also check the map with' }, { label: 'M', small: true }])]);
+        overlay.spot([foeSpot(A), ...(T ? [{ sel: '.t-zoom', round: true, pad: 6 }] : [])], 0.2);
+      }
+      groupsStep(dt, [(dt) => rig.zooming ? dt / 0.9 : 0], () => { tut.gt = A; tutGo('select1', 0.3); });
       break;
-    case 'track':    // hold right click (touch: the zoom button) to keep the enemy in view
-      if (first) { overlay.say('Hold to track the enemy'); overlay.keys([T ? { icon: 'tap' } : { icon: 'rmb' }]); overlay.spot(T ? [{ sel: '.t-zoom', round: true, pad: 6 }] : [], 0.2); }
-      capsStep(dt, (dt) => rig.zooming ? dt / 0.9 : 0, () => { tut.gt = A; tutGo('select1', 0.3); });
-      break;
-    // ---- guns, on the first one (it jinks) ----
+    // ---- guns, on the first one (it jinks): select, aim (weapons still safe), then shoot ----
     case 'select1':
       if (first) { tutAllow.w1 = true; document.body.classList.remove('tut-noarms'); overlay.say('Select cannon to destroy the enemy'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '1' }]); overlay.spot([{ sel: '#arms .col[data-w="1"]', pad: 6 }], 0.35); }
-      capsStep(dt, (dt) => W.selected === 1 ? dt / 0.2 : 0, () => { W.allow.gun = true; tutGo('close', 0.1); });
+      capsStep(dt, (dt) => W.selected === 1 ? dt / 0.2 : 0, () => tutGo('close', 0.1));
       break;
     case 'close':
       if (first) { overlay.say('Close in'); overlay.spot([{ sel: gunBox, pad: 5 }], 0.2); }
       if (down(tut.gt)) { gunsDone(); break; }
-      if (tut.gt.pos.distanceTo(ac.pos) <= WEAPONS.gunRange) tutGo(tut.f ? 'kill' : 'aim', 0);
+      if (tut.gt.pos.distanceTo(ac.pos) <= WEAPONS.gunRange) tutGo(W.allow.gun ? 'kill' : 'aim', 0);
       break;
-    case 'aim':
-      if (first) { overlay.say('Aim by pointing the nose in the circle!'); overlay.keys(FIRE_KEYS()); overlay.spot([{ sel: gunCirc, round: true, pad: 8 }, { sel: '#nose', round: true, pad: 10 }], 0.2); }
+    case 'aim': {    // lined up: the nose on the lead circle for a moment
+      if (first) { overlay.say('Aim by pointing the nose in the circle!'); overlay.spot([{ sel: gunCirc, round: true, pad: 8 }, { sel: '#nose', round: true, pad: 10 }], 0.2); tut.on = 0; }
       if (down(tut.gt)) { gunsDone(); break; }
-      capsStep(dt, (dt) => W.firing && W.selected === 1 ? dt / 1 : 0, () => { overlay.clear(); tut.step = 'kill'; tut.t = 0; });
-      if (tut.doneT <= 0 && tut.gt.pos.distanceTo(ac.pos) > WEAPONS.gunRange * 1.2) tutGo('close', 0);
+      if (tut.gt.pos.distanceTo(ac.pos) > WEAPONS.gunRange * 1.2) { tutGo('close', 0); break; }
+      const lined = W.lead && _wv.subVectors(W.lead, ac.pos).normalize().angleTo(_n.set(0, 0, 1).applyQuaternion(ac.quat)) < 0.035;
+      tut.on = lined ? tut.on + dt : Math.max(0, tut.on - dt * 0.5);
+      if (tut.on > 0.35) { W.allow.gun = true; tutGo('shoot', 0); }
+      break;
+    }
+    case 'shoot':
+      if (first) { overlay.say('To shoot press'); overlay.keys(FIRE_KEYS()); overlay.spot([{ sel: gunCirc, round: true, pad: 8 }, ...(T ? [{ sel: '.t-fire', round: true, pad: 6 }] : [])], 0.15); }
+      if (down(tut.gt)) { gunsDone(); break; }
+      capsStep(dt, (dt) => W.firing && W.selected === 1 ? dt / 0.8 : 0, () => { overlay.clear(); tut.step = 'kill'; tut.t = 0; });
       break;
     case 'kill':     // shown how: now the fight is theirs (but "close in" comes back if they drift well out of range)
       if (down(tut.gt)) gunsDone();
-      else if (tut.gt.pos.distanceTo(ac.pos) > WEAPONS.gunRange * 1.5) { tutGo('close', 0); tut.f = 1; }
+      else if (tut.gt.pos.distanceTo(ac.pos) > WEAPONS.gunRange * 1.5) tutGo('close', 0);
       break;
-    // ---- missiles, on the second one ----
-    case 'spotB': if (first) tutSpot(B, 'Another one', () => tutGo('select2', 0.2)); break;
-    case 'select2':
-      if (first) { tutAllow.w2 = true; overlay.say('Select missiles'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]); overlay.spot([{ sel: '#arms .col[data-w="2"]', pad: 6 }], 0.35); }
+    // ---- missiles, on the second one: out of gun range on purpose ----
+    case 'spotB':
+      if (first) {
+        W.allow.gun = W.allow.missile = false; weapons.setFiring(false); weapons.select(0);
+        // put it well beyond gun range (but inside missile range) ahead of the player
+        const ahead = _wv.subVectors(B.pos, ac.pos).dot(B.track.dir);
+        if (ahead < 4300) mission.shiftOne(B, 4300 - ahead);
+        B.hidden = false; tut.camD = B; tut.camT = 2.6;
+        tutAllow.w2 = true;
+        overlay.say('Use missiles to destroy farther enemies!'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]);
+        overlay.spot([foeSpot(B), { sel: '#arms .col[data-w="2"]', pad: 6 }], 0.25);
+      }
       capsStep(dt, (dt) => W.selected === 2 ? dt / 0.2 : 0, () => { B.noLock = false; tutGo('lock', 0.1); });
       break;
     case 'lock':
-      if (first) { overlay.say('Keep the bomber in the circle'); overlay.spot([{ sel: '#seeker', round: true, pad: 2 }], 0.2); }
+      if (first) { overlay.say('Wait for the missile to lock on the target'); overlay.spot([{ sel: '#seeker', round: true, pad: 4 }], 0.25); }
       if (down(B)) { tutGo('final', 2.5); break; }
-      if (W.selected !== 2) { if (W.stock > 0) tutGo('select2', 0); else { tut.gt = B; tutGo('close', 0.3); } break; }
+      if (W.selected !== 2) { if (W.stock > 0) tutGo('spotB2', 0); else { W.allow.gun = true; tut.gt = B; tutGo('close', 0.3); } break; }
       if (W.locked && W.seeker === B) { W.allow.missile = true; tutGo('fire', 0); }
       break;
+    case 'spotB2':   // (switched away from missiles: back to them)
+      if (first) { overlay.say('Use missiles to destroy farther enemies!'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]); overlay.spot([{ sel: '#arms .col[data-w="2"]', pad: 6 }], 0.3); }
+      capsStep(dt, (dt) => W.selected === 2 ? dt / 0.2 : 0, () => tutGo('lock', 0.1));
+      break;
     case 'fire':
-      if (first) { overlay.say('Locked: fire'); overlay.keys(FIRE_KEYS()); overlay.spot([{ sel: '#lockc', round: true, pad: 10 }, ...(T ? [{ sel: '.t-fire', round: true, pad: 6 }] : [])], 0.2); tut.stock = W.stock; }
+      if (first) { overlay.say('When the missile is locked, launch with'); overlay.keys(FIRE_KEYS()); overlay.spot([foeSpot(B), ...missileSpots(), ...(T ? [{ sel: '.t-fire', round: true, pad: 6 }] : [])], 0.2); tut.stock = W.stock; }
       if (down(B)) { tutGo('final', 2.5); break; }
-      capsStep(dt, () => W.stock < tut.stock ? 1 : 0, () => tutGo('chase', 0));
+      capsStep(dt, () => W.stock < tut.stock ? 1 : 0, () => { tut.step = 'chase'; tut.t = 0; overlay.say(''); overlay.keys([]); });
       if (tut.doneT <= 0 && (tut.lost = W.locked ? 0 : tut.lost + dt) > 1) tutGo('lock', 0);   // lost the lock: find it again
       break;
-    case 'chase': {  // a missile on its way
+    case 'chase': {  // a missile on its way (the enemy and the missile stay spotlit)
       const flying = W.missiles.some(m => m.owner === 'player');
       if (down(B)) tutGo('final', 2.5);
       else if (!flying && tut.t > 0.5) {
         if (W.stock > 0) tutGo('lock', 0.3);                 // missed: again
-        else { tut.gt = B; tutGo('close', 0.3); }            // out of missiles (it switched to guns): finish it with those
+        else { W.allow.gun = true; tut.gt = B; tutGo('close', 0.3); }   // out of missiles (it switched to guns): finish it with those
       }
       break;
     }

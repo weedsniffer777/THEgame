@@ -200,6 +200,8 @@ body.dead #hud, body.dead #touch { display: none; }
 #tut .ktxt { align-self: center; font: 600 17px/1 system-ui, sans-serif; margin: 0 4px; }
 #tut .cap { position: relative; width: 56px; height: 56px; border-radius: 9px; border: 2px solid rgba(255,255,255,0.88); border-bottom-width: 5px; background: rgba(12,16,22,0.72); overflow: hidden; display: grid; place-items: center; font: 700 22px/1 system-ui, sans-serif; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
 #tut .cap.wide { width: 92px; font-size: 18px; }
+#tut .cap.small { width: 30px; height: 30px; border-radius: 6px; border-bottom-width: 3px; font-size: 14px; }   /* a hint, not a step */
+#tut .krow:has(.cap.small) .ktxt { font-size: 14px; font-weight: 500; opacity: 0.9; }
 #tut .cap i { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(80,214,116,0.9); }
 #tut .cap span { position: relative; display: grid; place-items: center; }
 #tut .cap.full { border-color: #8dffb0; }

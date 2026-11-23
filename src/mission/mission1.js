@@ -64,6 +64,7 @@ export function createMission1({ weapons, ac, rig }) {
     },
     // move the whole formation along its track by d metres (the tutorial keeps it just ahead while you learn to fly)
     shift(d) { for (const b of bombers) if (b.track) { b.track.t0 -= d / b.track.speed; if (b.track.turn) b.track.turn.t0 -= d / b.track.speed; } },
+    shiftOne(b, d) { if (b.track) { b.track.t0 -= d / b.track.speed; if (b.track.turn) b.track.turn.t0 -= d / b.track.speed; } },
     breakAway() { const B = bombers[1]; if (B.track && !B.track.turn) B.track.turn = { ...STRAGGLER_TURN, t0: weapons.S.simT || 0 }; },
     stats() {
       const S = weapons.S;

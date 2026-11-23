@@ -82,7 +82,7 @@ export function createOverlay() {
       caps = [];
       const cap = (k, parent, gi) => {
         const el = document.createElement('div');
-        el.className = 'cap' + (k.wide || (k.label && k.label.length > 1) ? ' wide' : '') + (k.icon ? ' icon' : '');
+        el.className = 'cap' + (k.wide || (k.label && k.label.length > 1) ? ' wide' : '') + (k.icon ? ' icon' : '') + (k.small ? ' small' : '');
         el.innerHTML = `<i></i><span>${k.icon ? ICONS[k.icon] : ''}</span>`;
         if (!k.icon) el.lastChild.textContent = k.label;
         parent.appendChild(el);
