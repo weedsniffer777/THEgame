@@ -611,7 +611,7 @@ function hud(dt = 1 / 60) {
     }
     ringHud(screenOf(_n.copy(camera.position).addScaledVector(rig.fwd, D)), items, camera);
   }
-  // missiles in flight: a bright solid diamond on each (ours blue, or green with the green HUD; the enemy's red), the
+  // missiles in flight: a bright solid diamond on each (ours white, or green with the green HUD; the enemy's red), the
   // enemy's with their distance above
   // (nm, then ft inside 1.5 nm; km, then m inside 2 km)
   {
@@ -622,8 +622,10 @@ function hud(dt = 1 / 60) {
       const m = ms[k];
       if (!m || !running) { el.style.display = 'none'; continue; }
       if (el._own !== m.owner) { el.classList.toggle('foe', m.owner !== 'player'); el._own = m.owner; }
-      // none for a moment after launch, then it fades in over half a second
-      const op = THREE.MathUtils.clamp((m.t - 0.2) / 0.5, 0, 1);
+      // ours: none while the motor burns (the smoke trail shows where it is), fading in as the trail ends; the enemy's:
+      // a moment after launch, fading in over half a second
+      const burnout = 0.12 + WEAPONS.motorTime;
+      const op = m.owner === 'player' ? THREE.MathUtils.clamp((m.t - burnout + 0.4) / 0.6, 0, 1) : THREE.MathUtils.clamp((m.t - 0.2) / 0.5, 0, 1);
       el.style.opacity = op.toFixed(2);
       place(el, m.p);
       if (m.owner === 'player') { if (el._txt) { el._b.innerHTML = ''; el._txt = ''; } continue; }   // (ours: no distance)

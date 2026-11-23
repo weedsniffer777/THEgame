@@ -118,7 +118,7 @@ body.clean #devkit, body.clean #devmenu, body.clean .lil-gui, body.clean #hud, b
 body.clean #perf { display: none; }
 #devmenu { top: 84px; }
 /* missiles in flight: a hollow diamond (thick edge, see-through tinted middle) on each, blue = ours, red = the enemy's */
-#hud .mmark { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; --mc: #8cc6ff; }
+#hud .mmark { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; --mc: #ffffff; }
 #hud .mmark.foe { --mc: #ff6a5a; }
 /* a solid, bright diamond on each missile with a soft glow of its own colour (like the map) */
 #hud .mmark u { position: absolute; left: -5.5px; top: -5.5px; width: 11px; height: 11px; background: var(--mc); transform: rotate(45deg); box-shadow: 0 0 8px var(--mc), 0 0 3px var(--mc); }
