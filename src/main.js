@@ -625,7 +625,7 @@ function hud(dt = 1 / 60) {
       // ours: none while the motor burns (the smoke trail shows where it is), fading in as the trail ends; the enemy's:
       // a moment after launch, fading in over half a second
       const burnout = 0.12 + WEAPONS.motorTime;
-      const op = m.owner === 'player' ? THREE.MathUtils.clamp((m.t - burnout + 0.4) / 0.6, 0, 1) : THREE.MathUtils.clamp((m.t - 0.2) / 0.5, 0, 1);
+      const op = m.owner === 'player' ? THREE.MathUtils.clamp((m.t - burnout + 1.1) / 0.6, 0, 1) : THREE.MathUtils.clamp((m.t - 0.2) / 0.5, 0, 1);
       el.style.opacity = op.toFixed(2);
       place(el, m.p);
       if (m.owner === 'player') { if (el._txt) { el._b.innerHTML = ''; el._txt = ''; } continue; }   // (ours: no distance)
