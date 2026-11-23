@@ -539,15 +539,15 @@ function notes(dt) {
   if (weapons.S.selected === 2 && weapons.S.stock === 0 && running && !dead) { weapons.select(1); outT = 2.5; }
   outT = Math.max(0, outT - dt);
   // warnings: high in the centre, light red, one per row; status: a little below the centre, white, one per row
-  const warn = [], status = [];
+  const warn = [];
   if (gearWarnT > 0) warn.push('Slow down to extend landing gear!');
   if (outT > 0) warn.push('Out of missiles!');
-  if (ac.airbrakeCmd > 0 && ac.airbrake > 0.05) status.push('Airbrake on');
-  if (ac.gearCmd && ac.gear > 0.05) status.push('Landing gear extended');
   const show = running && !dead, row = (t) => `<div>${t}</div>`;
-  const w = show ? warn.map(row).join('') : '', st = show ? status.map(row).join('') : '';
+  const w = show ? warn.map(row).join('') : '';
   if (w !== lastWarns) { warnsEl.innerHTML = w; lastWarns = w; }
-  if (st !== lastNotes) { notesEl.innerHTML = st; lastNotes = st; }
+  // status: each has its own row (airbrake first, gear below), so one coming or going never moves the other
+  const st2 = show ? `${+(ac.airbrakeCmd > 0 && ac.airbrake > 0.05)}${+(ac.gearCmd && ac.gear > 0.05)}` : '00';
+  if (st2 !== lastNotes) { notesEl.children[0].style.visibility = st2[0] === '1' ? 'visible' : 'hidden'; notesEl.children[1].style.visibility = st2[1] === '1' ? 'visible' : 'hidden'; lastNotes = st2; }
 }
 // The player's shadow: each frame their jet alone is drawn white-on-black from the sun into a small texture; the
 // terrain darkens wherever that silhouette lands beyond them (softer and fainter the higher they are).

@@ -181,7 +181,7 @@ body.dead #hud, body.dead #touch { display: none; }
 #notes { position: absolute; left: 0; right: 0; top: calc(50% + 118px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 #notes div { font: 600 15px/1 system-ui, sans-serif; color: rgba(255,255,255,0.92); text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9); }
 /* warnings: high in the centre, the old light red, a bit bigger, steady */
-#warns { position: absolute; left: 0; right: 0; top: calc(7% + 72px); display: flex; flex-direction: column; align-items: center; gap: 7px; pointer-events: none; }
+#warns { position: absolute; left: 0; right: 0; top: calc(7% + 84px); display: flex; flex-direction: column; align-items: center; gap: 7px; pointer-events: none; }
 #warns div { font: 700 19px/1 system-ui, sans-serif; color: #fbdcd6; text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9); }
 
 /* tutorial: darkened screen with a spotlight on one part of the HUD, and a short instruction card */
