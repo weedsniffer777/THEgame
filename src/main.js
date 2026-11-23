@@ -177,7 +177,7 @@ function tutSpot(d, text, then) {
   weapons.setFiring(false);
   overlay.say(text); overlay.keys([]);
   overlay.spot([foeSpot(d)], 0.2);
-  tut.camD = d; tut.camT = 3.2;
+  tut.camD = d;
   tut.showT = 3.4; tut.after = then;                        // (the game never stops)
 }
 // spotlights on our missiles in flight (up to three)
@@ -225,7 +225,7 @@ function tutorialStep(dt) {
     case 'spotA':    // the view swings to it once by itself, then: hold right click to track it
       if (first) {
         A.hidden = false; document.body.classList.remove('tut-nomap'); weapons.setFiring(false);
-        tut.camD = A; tut.camT = 2.6;
+        tut.camD = A;
         overlay.say(T ? 'Hold to track an enemy!' : 'Right click to track an enemy!');
         overlay.keys([T ? { icon: 'tap' } : { icon: 'rmb' }, ...(T ? [] : [{ br: true }, { text: 'You can also check the map with' }, { label: 'M', small: true }])]);
         overlay.spot([foeSpot(A), ...(T ? [{ sel: '.t-zoom', round: true, pad: 6 }] : [])], 0.2);
@@ -259,7 +259,7 @@ function tutorialStep(dt) {
         // put it well beyond gun range (but inside missile range) ahead of the player
         const ahead = _wv.subVectors(B.pos, ac.pos).dot(B.track.dir);
         if (ahead < 4300) mission.shiftOne(B, 4300 - ahead);
-        B.hidden = false; tut.camD = B; tut.camT = 2.6;
+        B.hidden = false;
         tutAllow.w2 = true;
         overlay.say('Use missiles to destroy farther enemies!'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]);
         overlay.spot([foeSpot(B), { sel: '#arms .col[data-w="2"]', pad: 6 }], 0.25);
