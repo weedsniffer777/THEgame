@@ -111,6 +111,20 @@ let dead = 0;   // seconds since the player was killed (0 = alive)
 const tut = { step: 'idle', wait: 0, t: 0, card: false, thr0: 1 };
 const isTouchDev = isTouch;
 function tutActive() { return mission && !save.tutorialDone; }
+// tutorial: at least one bomber in every 1-3 bomber kills blows up (the usual chance applies in between), but never
+// one that would catch the player in its blast (checked when decided and again when it goes off)
+let tutBlow = 1 + Math.floor(Math.random() * 3);
+{
+  const base = weapons.S.detonateChance;
+  weapons.S.detonateChance = (d) => {
+    if (!d.def.detonate) return false;
+    if (!tutActive()) return base(d);
+    const blow = --tutBlow <= 0 || base(d);
+    if (blow) tutBlow = 1 + Math.floor(Math.random() * 3);
+    return blow;
+  };
+  weapons.S.detonateOK = (d) => !tutActive() || d.pos.distanceTo(ac.pos) > (d.def.detonate?.radius || 100) + 20;
+}
 function tutReset() {
   tut.step = tutActive() ? 'steer' : 'off'; tut.wait = 1.2; tut.t = 0; tut.card = false;
   const W = weapons.S;
@@ -735,7 +749,7 @@ const kitBtn = document.getElementById('devkit'), kitMenu = document.getElementB
   lv.value = MODE;
   lv.addEventListener('change', () => { const q = new URLSearchParams(location.search); if (lv.value === 'free') q.set('mode', 'free'); else q.delete('mode'); location.search = q.toString(); });
   pl.addEventListener('change', () => {});            // (only one aircraft so far)
-  document.getElementById('kit-clear').addEventListener('click', (e) => { e.stopPropagation(); if (confirm('Delete all player data (save file, settings, tutorial)?')) { clearSave(); location.reload(); } });
+  document.getElementById('kit-clear').addEventListener('click', (e) => { e.stopPropagation(); if (confirm('Delete all player data (save file, settings, tutorial)?')) { clearSave(); location.href = location.pathname; }   /* a fresh start: Mission 1 with the tutorial */ });
   for (const el of [lv, pl]) el.addEventListener('click', (e) => e.stopPropagation());
 }
 kitBtn.addEventListener('click', e => { e.stopPropagation(); kitMenu.hidden = !kitMenu.hidden; });
