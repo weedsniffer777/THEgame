@@ -578,15 +578,17 @@ function hud(dt = 1 / 60) {
     if (txt !== el._txt) { el._b.innerHTML = `${txt.replace(/[A-Z]+$/, '')}<small>${units.distLabel()}</small>`; el._txt = txt; }
     el.classList.toggle('sel', d === W.target);
   });
-  // the ring round the reticle: a pointer toward the nearest enemy when it is outside the ring or off screen
+  // the ring round the reticle: a pointer toward the nearest enemy, only while no enemy at all is on screen
   {
-    let near = null, nd = Infinity;
+    let near = null, nd = Infinity, seen = false;
     if (running && !dead) for (const d of weapons.drones) {
       if (!d.alive || d.falling || d.hidden) continue;
+      const q = screenOf(d.obj.position);
+      if (q && q[0] >= 0 && q[0] <= innerWidth && q[1] >= 0 && q[1] <= innerHeight) { seen = true; break; }
       const dd = d.pos.distanceToSquared(ac.pos); if (dd < nd) { nd = dd; near = d; }
     }
     const items = [];
-    if (near) {
+    if (near && !seen) {
       const dist = units.dist(Math.sqrt(nd));
       items.push({ pos: near.obj.position, kind: 'foe', type: near.def.label || 'Fighter', dist: `${dist < 10 ? dist.toFixed(1) : Math.round(dist)}<small>${units.distLabel()}</small>` });
     }

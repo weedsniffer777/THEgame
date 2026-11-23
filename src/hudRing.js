@@ -34,7 +34,6 @@ export function createRing(root) {
         const s = _s.copy(_v).applyMatrix4(camera.projectionMatrix);
         const sx = (s.x * 0.5) * innerWidth, sy = -(s.y * 0.5) * innerHeight;
         const behind = _v.z > 0, scr = [innerWidth / 2 + sx - center[0], innerHeight / 2 + sy - center[1]];
-        if (!behind && Math.hypot(scr[0], scr[1]) < R) continue;              // inside the ring: the marker on it is enough
         const ang = behind ? Math.atan2(_v.x, _v.y) : Math.atan2(scr[0], -scr[1]);   // 0 = up, clockwise
         const p = ptr(n++);
         p.style.display = '';
