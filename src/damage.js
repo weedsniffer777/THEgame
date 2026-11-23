@@ -265,7 +265,7 @@ export class Damage {
     return { part: 'body' };
   }
 
-  breakPart(name, vel = new THREE.Vector3()) {
+  breakPart(name, vel = new THREE.Vector3(), fling = 0) {   // fling: extra outward speed (m/s), e.g. blown apart
     const part = this.parts[name];
     if (!part || part.broken) return;
     part.broken = true;
@@ -293,9 +293,9 @@ export class Damage {
     const out = o.getWorldPosition(new THREE.Vector3()).sub(this.model.getWorldPosition(new THREE.Vector3())).normalize();
     this.debris.push({
       obj: o, name,
-      v: vel.clone().multiplyScalar(0.9).addScaledVector(out, 8 + Math.random() * 10).add(new THREE.Vector3(0, 4 + Math.random() * 6, 0)),
+      v: vel.clone().multiplyScalar(0.9).addScaledVector(out, 8 + Math.random() * 10 + fling * (0.6 + 0.8 * Math.random())).add(new THREE.Vector3(0, 4 + Math.random() * 6, 0)),
       axis: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(),
-      spin: 2 + Math.random() * 5, t: 0, smokeT: 0, landed: false, edge, burns,
+      spin: fling ? 4 + Math.random() * 8 : 2 + Math.random() * 5, t: 0, smokeT: 0, landed: false, edge, burns,
     });
   }
 

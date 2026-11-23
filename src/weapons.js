@@ -474,7 +474,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function placeDrone(d, k = Math.random() * 8) {
     d.dmg.repair(); d.cr = null;
     lastAt.delete(d); lastAt.delete(d.obj);   // its old smoke and flame trails ended where it went down
-    d.killedBy = null; d.lastHit = null;
+    d.killedBy = null; d.lastHit = null; d.detonated = false; d.detonateAt = null;
     if (d.track) {                                             // a mission: on its track, from the track's start
       d.alive = true; d.falling = false; d.obj.visible = true; d.age = 0;
       trackPos(d, S.simT || 0, d.pos); d.vel.copy(d.track.dir).multiplyScalar(d.track.speed);
@@ -501,6 +501,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       if (gone('wingOuterL') || gone('wingOuterR') || gone('wingInnerL') || gone('wingInnerR') || gone('tail') || (P.stabL && gone('stabL') && gone('stabR'))) killDrone(d);
     }
     if (d.falling) {                          // going down: flown by what's left of the airframe, burning, until it hits
+      if (d.detonateAt != null && (d.age >= d.detonateAt || d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 30)) detonate(d);
       stepCrippled(d, dt);
       emit('smoke', d.pos, d.vel, d); if (d.dmg.dead || d.cr.t > 1.5) emit('flame', d.pos, d.vel, d.obj);
       if (d.pos.y < terrain.heightAt(d.pos.x, d.pos.z) + 2 && terrain.isWater(d.pos.x, d.pos.z)) {   // into a lake: a big splash and it's gone
@@ -561,9 +562,48 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     if (T.weave) { out.addScaledVector(_tr, Math.sin(tt * T.weave.w + T.weave.ph) * T.weave.a); out.y += Math.sin(tt * T.weave.w * 0.7 + T.weave.ph) * T.weave.a * 0.25; }
     return out;
   }
+  // A bomber that goes down can blow up: its fuel and bombload go at once. Every part is flung off, a much bigger
+  // fireball, and the blast tears into anything close (enemies and the player alike).
+  // per type (def.detonate: chance, radius, size); the tutorial overrides the decision
+  S.detonateChance = (d) => !!d.def.detonate && Math.random() < d.def.detonate.chance;
+  function detonate(d) {
+    const c = d.pos.clone();
+    const DT = d.def.detonate || {}, size = DT.size || 4;
+    explode(c, d.vel, size, true);
+    explode(c.clone().add(new THREE.Vector3((Math.random() - 0.5) * 20, 4, (Math.random() - 0.5) * 20)), d.vel, size * 0.64);
+    d.detonated = true; d.detonateAt = null;
+    for (const n of Object.keys(d.dmg.parts)) d.dmg.breakPart(n, d.vel, 45);
+    d.dmg.bodyHp = 0;
+    const R = DT.radius || 100;
+    for (const o of drones) {
+      if (o === d || !o.alive) continue;
+      const dist = o.pos.distanceTo(c); if (dist > R) continue;
+      const k = 1 - dist / R, near = Object.keys(o.dmg.parts).filter(n => !o.dmg.parts[n].broken)
+        .sort((a, b) => o.dmg.parts[a].obj.getWorldPosition(_v).distanceTo(c) - o.dmg.parts[b].obj.getWorldPosition(_w).distanceTo(c));
+      near.slice(0, Math.ceil(k * 4)).forEach(n => o.dmg.breakPart(n, o.vel, 10 * k));
+      o.dmg.bodyHp -= k * 30;
+      if (o.dmg.dead) { o.lastHit = d.lastHit || 'other'; killDrone(o); }
+    }
+    if (jet.damage && !jet.damage.burning) {
+      const dist = ac.pos.distanceTo(c);
+      if (dist < R) {
+        const k = 1 - dist / R, P = jet.damage.parts;
+        const near = Object.keys(P).filter(n => !P[n].broken).sort((a, b) => P[a].obj.getWorldPosition(_v).distanceTo(c) - P[b].obj.getWorldPosition(_w).distanceTo(c));
+        near.slice(0, Math.floor(k * 3.5)).forEach(n => jet.damage.breakPart(n, ac.vel, 6 * k));
+        jet.damage.bodyHp -= k * 26;
+        for (let i = 0; i < 6 * k; i++) hitFx(ac.pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 6)), ac.vel);
+      }
+    }
+  }
   function killDrone(d) {
     if (d.falling) return;
     d.killedBy = d.lastHit || 'other'; S.kills.push({ d, by: d.killedBy });
+    // will it blow up? Lost a wing: it tumbles for a while first (the tanks go as it comes apart); anything else
+    // (fuselage, tail, fire): it goes at once
+    if (S.detonateChance(d)) {
+      const P = d.dmg.parts, wing = ['wingInnerL', 'wingInnerR', 'wingOuterL', 'wingOuterR'].some(n => P[n]?.broken);
+      if (wing) d.detonateAt = (d.age || 0) + 1.5 + Math.random() * 2.5; else detonate(d);
+    }
     d.falling = true; d.dmg.doomed = true;   // (every fire on it burns fully again)
     startCrippled(d, d.def.crippled);
   }

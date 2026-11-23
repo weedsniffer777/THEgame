@@ -9,6 +9,7 @@ import { loadJet, viewerAnim , NOZZLES } from './jet.js';
 import { createHeatHaze } from './heatHaze.js';
 import { groundContact } from './flight/ground.js';
 import { createFlightHud } from './hudFlight.js';
+import { createMap } from './hudMap.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
 import { paintEnemy } from './enemy.js';
 import { createMission1 } from './mission/mission1.js';
@@ -105,9 +106,23 @@ function spawn() {
 let dead = 0;   // seconds since the player was killed (0 = alive)
 // tutorial (Mission 1, first time only): each step pauses on a card, then waits for the player to do the thing
 const tut = { i: 0, shown: false, t: 0, met: 0, wait: 1.5, gunKills0: 0, mslKills0: 0 };
+// tutorial: at least one bomber in every 1-3 bomber kills blows up, so the player sees it early
+let tutBlow = 1 + Math.floor(Math.random() * 3);
+{
+  const base = weapons.S.detonateChance;
+  weapons.S.detonateChance = (d) => {
+    if (!d.def.detonate) return false;
+    if (mission && !save.tutorialDone) {
+      const blow = --tutBlow <= 0 || base(d);                       // (the usual chance still applies in between)
+      if (blow) tutBlow = 1 + Math.floor(Math.random() * 3);
+      return blow;
+    }
+    return base(d);
+  };
+}
 const kills = (by) => weapons.S.kills.filter(k => k.by === by).length;
 const TUT = [
-  { text: 'MOVE THE MOUSE TO AIM.<br>YOUR JET FLIES TOWARD THE CIRCLE.', target: '#aim', until: () => tut.t > 5 },
+  { text: 'MOVE THE MOUSE TO AIM.<br>YOUR JET FLIES TOWARD THE DOT.', target: '#aim', until: () => tut.t > 5 },
   { text: 'TAB / SHIFT: THROTTLE.<br>AT FULL POWER, HOLD TAB FOR THE AFTERBURNER.', target: '#thrScale', until: () => ac.throttle >= 1.1, hold: 1 },
   { text: 'PRESS 1 FOR GUNS.<br>CLOSE IN ON A BOMBER AND FIRE: LEFT CLICK OR SPACE.<br>SHOOT ITS PARTS OFF AND BRING IT DOWN.', target: '#arms', until: () => kills('gun') > tut.gunKills0, hold: 2, enter: () => { tut.gunKills0 = kills('gun'); } },
   { text: 'PRESS 2 FOR MISSILES.<br>HOLD A TARGET IN THE CIRCLE UNTIL IT TURNS RED, THEN FIRE.', target: '#arms', until: () => kills('missile') > tut.mslKills0, hold: 2, enter: () => { tut.mslKills0 = kills('missile'); } },
@@ -319,6 +334,8 @@ function physics(dt) {
   manual = kb.active;
   aimPoint.copy(camera.position).addScaledVector(rig.fwd, CAMERA.aimDistance);
   const lost = jet.damage.dead;
+  // the fuselage is the real health bar: once it is gone the jet is destroyed on the spot (it blows apart in the air)
+  if (jet.damage.bodyHp <= 0) { crash(false, true); return; }
   if (lost) {                                                         // critically damaged: still flown (what's left of it)...
     const maxG = INSTRUCTOR.maxG; INSTRUCTOR.maxG = maxG * (1 - 0.4 * ac.gear);
     instruct(ac, aimPoint, INSTRUCTOR, kb, dt);
@@ -329,8 +346,7 @@ function physics(dt) {
       breakupT = 0.45 + Math.random() * 0.8;
       const left = Object.keys(jet.damage.parts).filter(n => !jet.damage.parts[n].broken);
       if (left.length) jet.damage.breakPart(left[Math.floor(Math.random() * left.length)], ac.vel);
-      jet.damage.bodyHp -= left.length ? 3 : 8;
-      if (!left.length && jet.damage.bodyHp <= 0) { crash(false, true); return; }
+      jet.damage.bodyHp -= left.length ? 3 : 8;                          // (the fuselage failing with it: at 0, see above)
     }
   } else {
     breakupT = 0.6;
@@ -405,9 +421,10 @@ function playerShadow(time) {
   U.uShadowSoft.value = 0.002 + Math.min(h, 900) * 0.000025;
 }
 const flightHud = createFlightHud(document.getElementById('hud'));
+const mapHud = createMap(document.getElementById('hud'), terrain);
 function hud(dt = 1 / 60) {
   notes(dt);
-  if (running && !dead) flightHud(ac, camera, rig);
+  if (running && !dead) { flightHud(ac, camera, rig); mapHud(ac, weapons.drones); }
   const D = CAMERA.aimDistance;
   place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, D));
   aimEl.style.opacity = manual ? 0.25 : 1;

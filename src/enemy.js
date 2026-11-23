@@ -33,6 +33,8 @@ export const ENEMIES = {
     meta: 'models/jets/bomber.meta.json',   // leftover gear triangles to drop, and the propeller discs (made by an offline pass over the model)
     speed: [120, 150], radius: [3000, 4500], hitRadius: 24, toughness: 4, crippled: 'bomber', label: 'Bomber',
     paints: { standard: {}, unmarked: { 'bomber_0.png': 'models/jets/paints/bomber_0.unmarked.png' } },
+    // on going down it may blow up (fuel and bombload): chance, blast radius (m), fireball size; any type can have this
+    detonate: { chance: 0.35, radius: 140, size: 5.5 },
   },
 };
 
