@@ -30,7 +30,19 @@ function drawContours(terrain) {
   // base: the aerial photo in faint greyscale, darkened; lakes darker still
   const photo = terrain.uniforms?.uColor?.value?.image;
   g.fillStyle = '#2b2e32'; g.fillRect(0, 0, MAP, MAP);
-  if (photo) { g.filter = 'grayscale(1) brightness(0.55) contrast(1.15)'; g.globalAlpha = 0.85; g.drawImage(photo, 0, 0, MAP, MAP); g.filter = 'none'; g.globalAlpha = 1; }
+  if (photo) {
+    // greyscale by hand (the canvas 'filter' is ignored by some phone browsers, which left the map in colour):
+    // luminance, darkened and given a little contrast, laid over the dark base at 85%
+    const tmp = document.createElement('canvas'); tmp.width = tmp.height = MAP;
+    const tg = tmp.getContext('2d'); tg.drawImage(photo, 0, 0, MAP, MAP);
+    const pi = tg.getImageData(0, 0, MAP, MAP), pd = pi.data;
+    for (let k = 0; k < pd.length; k += 4) {
+      const L = 0.299 * pd[k] + 0.587 * pd[k + 1] + 0.114 * pd[k + 2];
+      const v = Math.max(0, Math.min(255, ((L * 0.55 - 128) * 1.15 + 128) * 0.85 + 0x2b * 0.15));
+      pd[k] = pd[k + 1] = pd[k + 2] = v; pd[k + 3] = 255;
+    }
+    g.putImageData(pi, 0, 0);
+  }
   const lines = document.createElement('canvas'); lines.width = lines.height = MAP;
   lines.getContext('2d').putImageData(img, 0, 0);
   g.drawImage(lines, 0, 0);

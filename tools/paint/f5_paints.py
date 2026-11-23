@@ -71,7 +71,7 @@ def regions(pos, nrm):
     ring = lambda z0: smooth(0.022 - np.abs(z - z0), -0.006, 0.006)
     r['rings'] = body * np.maximum(ring(-4.62), ring(-4.73))
     # the top of the fin
-    r['fintip'] = (ax < 0.3) & (y > 3.84) & (z < -2.6)
+    r['fintip'] = (ax < 0.3) & (y > 4.012) & (z < -2.6)            # (above the panel line at y 4.00)
     return r
 
 def scheme_grey(col, mr, skin, det, R):

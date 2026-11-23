@@ -9,7 +9,7 @@ export function createPauseMenu({ onResume, onRestart }) {
     <div class="panel">
       <div class="page main">
         <button class="item" data-act="resume">RESUME</button>
-        <button class="item" data-act="restart">RESTART MISSION</button>
+        <button class="item" data-act="restart">RESTART</button>
         <button class="item" data-act="settings">SETTINGS</button>
       </div>
       <div class="page settings">
