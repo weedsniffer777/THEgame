@@ -300,6 +300,9 @@ function tutorialStep(dt) {
   const W = weapons.S, [A, B] = mission.stragglers, down = (d) => !d.alive || d.falling, T = isTouchDev;
   if (tut.showT > 0) { if ((tut.showT -= dt) <= 0) { overlay.clear(); const f = tut.after; tut.after = null; f?.(); } return; }
   const first = !tut.entered; tut.entered = true; tut.t += dt;
+  // skipping ahead: anyone who goes for the main formation (hits one, or brings one down) has had enough lessons;
+  // everything unlocks and it's the last step
+  if (tut.step !== 'final' && weapons.drones.some(d => d !== A && d !== B && d.def.label === 'Bomber' && (d.lastHit || down(d)))) { tutGo('final', 0); return; }
   const gunsDone = () => { W.allow.gun = false; weapons.setFiring(false); tutGo(tut.gt === A && !down(B) ? 'spotB' : 'final', 2.5); };
   switch (tut.step) {
     case 'steer': {
@@ -401,6 +404,7 @@ function tutorialStep(dt) {
       if (first) {
         for (const d of weapons.drones) { d.hidden = false; d.noLock = false; }
         W.allow.gun = W.allow.missile = true; tutUnlock();
+        document.body.classList.remove('tut-noarms', 'tut-nomap'); if (!W.selected) weapons.select(1);
         mission.toLoop();
         weapons.setFiring(false);
         overlay.say('Destroy the remaining enemies!');
