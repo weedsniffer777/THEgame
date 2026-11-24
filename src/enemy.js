@@ -32,7 +32,7 @@ export const ENEMIES = {
     allMeshes: true,                     // built from many meshes: cut all of them
     dropMeshes: ['Object_11', 'Object_12', 'Object_13', 'Object_14', 'Object_15', 'Object_16'],   // main gear wheels and legs (modelled down)
     meta: 'models/jets/bomber.meta.json',   // leftover gear triangles to drop, and the propeller discs (made by an offline pass over the model)
-    speed: [120, 150], radius: [3000, 4500], hitRadius: 24, toughness: 3.2, crippled: 'bomber', label: 'Bomber',
+    speed: [120, 150], radius: [3000, 4500], hitRadius: 24, toughness: 2.5, crippled: 'bomber', label: 'Bomber',
     paints: { standard: {}, unmarked: { 'bomber_0.png': 'models/jets/paints/bomber_0.unmarked.png' } },
     // on going down it may blow up (fuel and bombload): chance, blast radius (m), fireball size; any type can have this
     detonate: { chance: 0.35, radius: 90, size: 2.4 },   // (fireball ~3/4 of the airframe)
@@ -141,6 +141,7 @@ export async function loadEnemy(type) {
   }
   if (T.bombBay) buildBombBay(model, T.bombBay);
   model.userData.toughness = T.toughness;
+  model.userData.stabsFatal = true;   // (both horizontal stabilisers gone: a kill)
   model.traverse(o => { if (o.isMesh && o.material.map) o.material.map.anisotropy = 4; });
   model.scale.setScalar(T.scale);
   model.position.copy(T.cg).multiplyScalar(-T.scale);
