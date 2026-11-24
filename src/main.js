@@ -11,6 +11,8 @@ import { groundContact } from './flight/ground.js';
 import { createFlightHud } from './hudFlight.js';
 import { createMap } from './hudMap.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
+import { applyLayout } from './ui/touchLayout.js';
+import { held, press, release, releaseAll, actionsOf, isBound, codeOfMouse, capOf, primary, bindings, onBindings } from './controls.js';
 import { paintEnemy } from './enemy.js';
 import { createMission1 } from './mission/mission1.js';
 import { createRing, ringPointer } from './hudRing.js';
@@ -66,11 +68,11 @@ function resume() {
 }
 const pauseMenu = createPauseMenu({ onResume: resume, onRestart: () => { spawn(); resume(); } });   // (spawn is hoisted: a fresh start of the level)
 startEl.addEventListener('click', resume);
-addEventListener('keydown', e => {                                       // P: pause / resume
-  if (e.code !== 'KeyP' || e.repeat || viewer.on) return;
+function togglePause() {                                                 // the pause binding (P): pause / resume
+  if (viewer.on) return;
   if (running) { if (document.pointerLockElement) document.exitPointerLock(); else setRunning(false); }
   else if (started) resume();
-});
+}
 document.addEventListener('pointerlockchange', () => {
   const was = locked;
   locked = !!document.pointerLockElement;
@@ -239,7 +241,7 @@ let tutBlow = 1 + Math.floor(Math.random() * 3);
   };
   weapons.S.detonateOK = (d) => !tutActive() || d.pos.distanceTo(ac.pos) > (d.def.detonate?.radius || 100) + 20;
 }
-function tutGo(step, wait = 0.4) { tut.fs = []; tut.showT = 0; tut.after = null; tut.step = step; tut.t = 0; tut.wait = wait; tut.entered = false; tut.f = 0; tut.doneT = 0; tut.lost = 0; overlay.clear(); }
+function tutGo(step, wait = 0.4) { tut.redo = null; tut.fs = []; tut.showT = 0; tut.after = null; tut.step = step; tut.t = 0; tut.wait = wait; tut.entered = false; tut.f = 0; tut.doneT = 0; tut.lost = 0; overlay.clear(); }
 function tutReset() {
   overlay.hold(0, null); overlay.clear();
   const on = !!tutActive(), W = weapons.S;
@@ -274,7 +276,12 @@ function groupsStep(dt, adds, then) {
   adds.forEach((add, k) => { tut.fs[k] = Math.min(1, (tut.fs[k] || 0) + add(dt)); overlay.fill(k, tut.fs[k]); });
   if (adds.every((_, k) => tut.fs[k] >= 1)) { overlay.done(); tut.doneT = 0.8; }
 }
-const anyKey = (...codes) => (dt) => codes.some(c => keys.has(c)) ? dt / 0.5 : 0;
+const anyAct = (...ids) => (dt) => ids.some(held) ? dt / 0.5 : 0;
+// keycaps come from the player's bindings (Settings > Controls): a step shows them through `keysOf`, which runs again
+// if the bindings change while it's up
+const cap = (id, extra) => { const c = primary(id); return { ...(c ? capOf(c) : { label: '–' }), ...extra }; };
+function showKeys(f) { tut.redo = f; f(); }
+onBindings(() => tut.redo?.());
 // a new enemy: the map appears, the game freezes for a moment on the map and the enemy, then carries on
 // a new enemy: it appears, and for a moment the view swings round to it on its own (as right click does)
 function tutSpot(d, text, then) {
@@ -293,8 +300,18 @@ const steerBox = () => [innerWidth * 0.28, innerHeight * 0.34, innerWidth * 0.44
 const steerChevs = () => [0, 180].map(ang => ({ ang, at: () => { const b = steerBox(); return [b[0] + b[2] / 2 + (ang ? -30 : 30), b[1] + b[3] / 2]; }, len: () => steerBox()[2] / 2 - 56 }));
 const thrRect = () => document.querySelector('.t-throttle')?.getBoundingClientRect();
 // (beside the lever, above and below the arrow pointing at it: up to speed up, down to slow down)
-const thrChevs = () => [[270, 0], [90, 1]].map(([ang, g]) => ({ ang, g, at: () => { const r = thrRect(); return r && [r.right + 39, r.top + r.height / 2 + (ang === 90 ? 34 : -34)]; }, len: () => (thrRect()?.height || 200) / 2 - 50 }));
-const FIRE_KEYS = () => [{ label: 'Space' }, { text: 'or' }, { icon: 'lmb' }];
+const thrChevs = () => [[270, 0], [90, 1]].map(([ang, g]) => ({ ang, g, at: () => { const r = thrRect(); return r && [tutSide(r) > 0 ? r.right + 39 : r.left - 39, r.top + r.height / 2 + (ang === 90 ? 34 : -34)]; }, len: () => (thrRect()?.height || 200) / 2 - 50 }));
+const thrFrom = () => { const r = thrRect(); return r && tutSide(r) < 0 ? 180 : 0; };
+const FIRE_KEYS = () => { const c = bindings.fire.filter(Boolean).map(capOf); return c.length > 1 ? [c[0], { text: 'or' }, c[1]] : c.length ? c : [{ label: '–' }]; };
+// touch: which side an arrow comes from, by where the control sits (the layout can be changed in the settings)
+const fromFor = (sel) => () => {
+  const r = document.querySelector(sel)?.getBoundingClientRect(); if (!r) return 0;
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2, W = innerWidth;
+  const low = cy > innerHeight * 0.62;                     // (low in a corner: from above, clear of the buttons beside it)
+  if (cx < W * 0.3) return low ? 315 : 0; if (cx > W * 0.7) return low ? 225 : 180;
+  return cy > innerHeight / 2 ? (cx < W / 2 ? 225 : 315) : (cx < W / 2 ? 135 : 45);
+};
+const tutSide = (r) => r.left + r.width / 2 < innerWidth / 2 ? 1 : -1;   // the throttle on the left: arrows come from the right
 function tutorialStep(dt) {
   if (!mission || tut.step === 'off') return;
   // during the flying lessons the (hidden) formation is on rails: the first straggler stays 2.2 km ahead along the
@@ -323,24 +340,24 @@ function tutorialStep(dt) {
       break;
     }
     case 'keys':     // the keys work too: one from each column (pitch, roll, yaw)
-      if (first) { overlay.say('You can also use keyboard controls'); overlay.keys([{ group: 'Pitch', keys: [{ label: 'W' }, { label: 'S' }] }, { group: 'Roll', keys: [{ label: 'A' }, { label: 'D' }] }, { group: 'Yaw', keys: [{ label: 'Q' }, { label: 'E' }] }]); }
-      groupsStep(dt, [anyKey('KeyW', 'KeyS'), anyKey('KeyA', 'KeyD'), anyKey('KeyQ', 'KeyE')], () => tutGo('throttle'));
+      if (first) { overlay.say('You can also use keyboard controls'); showKeys(() => overlay.keys([{ group: 'Pitch', keys: [cap('pitchDown'), cap('pitchUp')] }, { group: 'Roll', keys: [cap('rollLeft'), cap('rollRight')] }, { group: 'Yaw', keys: [cap('yawLeft'), cap('yawRight')] }])); }
+      groupsStep(dt, [anyAct('pitchDown', 'pitchUp'), anyAct('rollLeft', 'rollRight'), anyAct('yawLeft', 'yawRight')], () => tutGo('throttle'));
       break;
     case 'throttle': {   // speed up and slow down, both
       if (first) {
         tutAllow.throttle = true;
-        if (T) { overlay.say('Slide to speed up and slow down'); overlay.spot([{ sel: '.t-throttle', pad: 8 }], TDIM); overlay.point([{ sel: '.t-throttle', pad: 8, from: 0 }]); overlay.chevrons(thrChevs()); }
-        else { overlay.keys([{ group: 'Speed up', keys: [{ label: 'Tab' }] }, { br: true }, { group: 'Slow down', keys: [{ label: 'Shift' }] }]); overlay.spot([{ sel: '#thrScale', pad: 8 }], 0.3); }
+        if (T) { overlay.say('Slide to speed up and slow down'); overlay.spot([{ sel: '.t-throttle', pad: 8 }], TDIM); overlay.point([{ sel: '.t-throttle', pad: 8, from: thrFrom }]); overlay.chevrons(thrChevs()); }
+        else { showKeys(() => overlay.keys([{ group: 'Speed up', keys: [cap('throttleUp')] }, { br: true }, { group: 'Slow down', keys: [cap('throttleDown')] }])); overlay.spot([{ sel: '#thrScale', pad: 8 }], 0.3); }
         tut.thr = ac.throttle;
       }
       const d = ac.throttle - tut.thr; tut.thr = ac.throttle;
-      groupsStep(dt, T ? [() => Math.max(0, d) / 0.25, () => Math.max(0, -d) / 0.25] : [anyKey('Tab', 'KeyX'), anyKey('ShiftLeft', 'ShiftRight', 'KeyZ')], () => tutGo('brake', 0.3));
+      groupsStep(dt, T ? [() => Math.max(0, d) / 0.25, () => Math.max(0, -d) / 0.25] : [anyAct('throttleUp'), anyAct('throttleDown')], () => tutGo('brake', 0.3));
       break;
     }
     case 'brake':
       if (first) { tutAllow.brake = true; document.body.classList.remove('tut-nobrake'); overlay.say('Slow down faster with airbrakes');
-        if (T) { overlay.spot([{ sel: '.t-brake', round: true, pad: 6 }], TDIM); overlay.point([{ sel: '.t-brake', round: true, pad: 6, from: 270 }]); }
-        else overlay.keys([{ label: 'B' }]);
+        if (T) { overlay.spot([{ sel: '.t-brake', round: true, pad: 6 }], TDIM); overlay.point([{ sel: '.t-brake', round: true, pad: 6, from: fromFor('.t-brake') }]); }
+        else showKeys(() => overlay.keys([cap('airbrake')]));
       }
       capsStep(dt, (dt) => ac.airbrakeCmd > 0 ? dt / 0.6 : 0, () => tutGo('spotA', 1.2));
       break;
@@ -349,9 +366,14 @@ function tutorialStep(dt) {
       if (first) {
         A.hidden = false; document.body.classList.remove('tut-nomap'); weapons.setFiring(false);
         tut.camD = A;
-        overlay.say(T ? 'Hold to track an enemy!' : 'Right click to track an enemy!');
-        if (T) { overlay.spot([foeSpot(A), { sel: '.t-zoom', round: true, pad: 6 }], 0.45); overlay.point([{ sel: '.t-zoom', round: true, pad: 6, from: 180 }]); }
-        else { overlay.keys([{ icon: 'rmb' }, { br: true }, { text: 'You can also check the map with' }, { label: 'M', small: true }]); overlay.spot([foeSpot(A)], 0.2); }
+        if (T) { overlay.say('Hold to track an enemy!'); overlay.spot([foeSpot(A), { sel: '.t-zoom', round: true, pad: 6 }], 0.45); overlay.point([{ sel: '.t-zoom', round: true, pad: 6, from: fromFor('.t-zoom') }]); }
+        else {
+          showKeys(() => {
+            overlay.say(primary('track') === 'Mouse2' ? 'Right click to track an enemy!' : 'Hold to track an enemy!');
+            overlay.keys([cap('track'), ...(primary('map') ? [{ br: true }, { text: 'You can also check the map with' }, cap('map', { small: true })] : [])]);
+          });
+          overlay.spot([foeSpot(A)], 0.2);
+        }
       }
       groupsStep(dt, [(dt) => rig.zooming ? dt / 0.9 : 0], () => { tut.gt = A; tutGo('select1', 0.3); });
       break;
@@ -359,7 +381,7 @@ function tutorialStep(dt) {
     case 'select1':
       if (first) { tutAllow.w1 = true; document.body.classList.remove('tut-noarms'); overlay.say('Select cannon to destroy the enemy');
         const col = { sel: '#arms .col[data-w="1"]', pad: 6 };
-        if (T) { overlay.spot([col], TDIM); overlay.point([{ ...col, from: 315 }]); } else { overlay.keys([{ label: '1' }]); overlay.spot([col], 0.35); }
+        if (T) { overlay.spot([col], TDIM); overlay.point([{ ...col, from: fromFor(col.sel) }]); } else { showKeys(() => overlay.keys([cap('guns')])); overlay.spot([col], 0.35); }
       }
       capsStep(dt, (dt) => W.selected === 1 ? dt / 0.2 : 0, () => tutGo('close', 0.1));
       break;
@@ -372,8 +394,8 @@ function tutorialStep(dt) {
       if (first) {
         W.allow.gun = true;
         const aimSpots = [{ sel: gunCirc, round: true, pad: 8 }, { sel: '#nose', round: true, pad: 10 }];
-        if (T) { overlay.say('Aim by pointing the nose in the circle!\nHold to shoot'); overlay.spot([...aimSpots, { sel: '.t-fire', round: true, pad: 6 }], 0.35); overlay.point([{ sel: '.t-fire', round: true, pad: 6, from: 205 }]); }
-        else { overlay.say('Aim by pointing the nose in the circle!\nShoot by pressing'); overlay.keys(FIRE_KEYS()); overlay.spot(aimSpots, 0.15); }
+        if (T) { overlay.say('Aim by pointing the nose in the circle!\nHold to shoot'); overlay.spot([...aimSpots, { sel: '.t-fire', round: true, pad: 6 }], 0.35); overlay.point([{ sel: '.t-fire', round: true, pad: 6, from: fromFor('.t-fire') }]); }
+        else { overlay.say('Aim by pointing the nose in the circle!\nShoot by pressing'); showKeys(() => overlay.keys(FIRE_KEYS())); overlay.spot(aimSpots, 0.15); }
       }
       if (down(tut.gt)) { gunsDone(); break; }
       capsStep(dt, (dt) => W.firing && W.selected === 1 ? dt / 0.8 : 0, () => { overlay.clear(); tut.step = 'kill'; tut.t = 0; });
@@ -395,8 +417,8 @@ function tutorialStep(dt) {
         tutAllow.w2 = true;
         overlay.say('Use missiles to destroy farther enemies!');
         const col = { sel: '#arms .col[data-w="2"]', pad: 6 };
-        if (T) { overlay.spot([foeSpot(B), col], 0.5); overlay.point([{ ...col, from: 315 }]); }
-        else { overlay.keys([{ label: '2' }]); overlay.spot([foeSpot(B), col], 0.25); }
+        if (T) { overlay.spot([foeSpot(B), col], 0.5); overlay.point([{ ...col, from: fromFor(col.sel) }]); }
+        else { showKeys(() => overlay.keys([cap('missiles')])); overlay.spot([foeSpot(B), col], 0.25); }
       }
       capsStep(dt, (dt) => W.selected === 2 ? dt / 0.2 : 0, () => { B.noLock = false; tutGo('lock', 0.1); });
       break;
@@ -410,15 +432,15 @@ function tutorialStep(dt) {
       if (first) {
         overlay.say('Use missiles to destroy farther enemies!');
         const col = { sel: '#arms .col[data-w="2"]', pad: 6 };
-        if (T) { overlay.spot([col], TDIM); overlay.point([{ ...col, from: 315 }]); } else { overlay.keys([{ label: '2' }]); overlay.spot([col], 0.3); }
+        if (T) { overlay.spot([col], TDIM); overlay.point([{ ...col, from: fromFor(col.sel) }]); } else { showKeys(() => overlay.keys([cap('missiles')])); overlay.spot([col], 0.3); }
       }
       capsStep(dt, (dt) => W.selected === 2 ? dt / 0.2 : 0, () => tutGo('lock', 0.1));
       break;
     case 'fire':
       if (first) {
         tut.stock = W.stock;
-        if (T) { overlay.say('When the missile is locked, tap to launch'); overlay.spot([foeSpot(B), ...missileSpots(), { sel: '.t-fire', round: true, pad: 6 }], 0.4); overlay.point([{ sel: '.t-fire', round: true, pad: 6, from: 205 }]); }
-        else { overlay.say('When the missile is locked, launch with'); overlay.keys(FIRE_KEYS()); overlay.spot([foeSpot(B), ...missileSpots()], 0.2); }
+        if (T) { overlay.say('When the missile is locked, tap to launch'); overlay.spot([foeSpot(B), ...missileSpots(), { sel: '.t-fire', round: true, pad: 6 }], 0.4); overlay.point([{ sel: '.t-fire', round: true, pad: 6, from: fromFor('.t-fire') }]); }
+        else { overlay.say('When the missile is locked, launch with'); showKeys(() => overlay.keys(FIRE_KEYS())); overlay.spot([foeSpot(B), ...missileSpots()], 0.2); }
       }
       if (down(B)) { tutUnlock(); tutGo('final', 0.4); break; }
       capsStep(dt, () => W.stock < tut.stock ? 1 : 0, () => { tut.step = 'chase'; tut.t = 0; overlay.say(''); overlay.keys([]); });
@@ -477,23 +499,37 @@ let tgtSwitch = 0;   // how long a better gun target has been waiting to take ov
 spawn();
 
 // input
-const keys = new Set();
+// every key and mouse button goes through the bindings (controls.js, rebindable in the settings); held actions are
+// read every frame (held('airbrake')), pressed ones act here
 let mouseDX = 0, mouseDY = 0, abHold = 0;
-const GAME_KEYS = new Set(['Space', 'Tab', 'ShiftLeft', 'ShiftRight', 'KeyZ', 'KeyX', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyB', 'Digit1', 'Digit2', 'KeyR', 'KeyG']);
-addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) e.preventDefault(); keys.add(e.code); if (e.code === 'Backquote') import('./dev.js').then(m => m.toggleDev({ ac, terrain, renderer, spawn })); });
-addEventListener('keyup', e => keys.delete(e.code));
-// weapons: 1 guns, 2 missiles; Space or left mouse fires
+function actDown(id) {
+  if (id === 'pause') togglePause();
+  else if (id === 'guns') pickWeapon(1);
+  else if (id === 'missiles') pickWeapon(2);
+  else if (id === 'nextTarget') weapons.cycleTarget();
+  else if (id === 'gear') toggleGear();
+  else if (id === 'fire') { if (running && !dead && !overlay.open && !ending.on) weapons.setFiring(true, performance.now() / 1000); }
+  else if (id === 'track') rig.zooming = true;
+  else if (id === 'map') mapHud.setBig(true);
+}
+function actUp(id) {
+  if (held(id)) return;                                  // (still held by its other binding)
+  if (id === 'fire') weapons.setFiring(false);
+  else if (id === 'track') rig.zooming = false;
+  else if (id === 'map') mapHud.setBig(false);
+}
+const inputDown = (code) => { press(code); for (const id of actionsOf(code)) actDown(id); };
+const inputUp = (code) => { release(code); for (const id of actionsOf(code)) actUp(id); };
 addEventListener('keydown', e => {
-  if (e.code === 'Digit1') pickWeapon(1);
-  if (e.code === 'Digit2') pickWeapon(2);
-  if (e.code === 'KeyR') weapons.cycleTarget();
-  if (e.code === 'KeyG' && !e.repeat) toggleGear();   // landing gear up / down
-  if (e.code === 'Space' && running && !dead && !overlay.open && !ending.on && !e.repeat) weapons.setFiring(true, performance.now() / 1000);
+  if (e.code === 'Backquote') import('./dev.js').then(m => m.toggleDev({ ac, terrain, renderer, spawn }));
+  if (isBound(e.code) || e.code === 'Tab') e.preventDefault();
+  if (!e.repeat) inputDown(e.code);
 });
-addEventListener('keyup', e => { if (e.code === 'Space') weapons.setFiring(false); });
-addEventListener('mousedown', e => { if (e.button === 0 && running && !dead && !overlay.open && !ending.on && e.target === canvas) weapons.setFiring(true, performance.now() / 1000); });
-addEventListener('mouseup', e => { if (e.button === 0) weapons.setFiring(false); });
-addEventListener('blur', () => keys.clear());
+addEventListener('keyup', e => inputUp(e.code));
+// mouse buttons count only on the game itself (not on menus and buttons over it)
+addEventListener('mousedown', e => { if (e.target === canvas || document.pointerLockElement) inputDown(codeOfMouse(e.button)); });
+addEventListener('mouseup', e => inputUp(codeOfMouse(e.button)));
+addEventListener('blur', () => { releaseAll(); weapons.setFiring(false); rig.zooming = false; });
 // With pointer lock the mouse turns the camera directly. Where the page can't lock the pointer
 // (some embedded views), the cursor's distance from the screen centre turns it like a joystick instead.
 let cursorX = null, cursorY = null;
@@ -509,8 +545,6 @@ function cursorSteer(dt) {
   mouseDX += dead((cursorX - innerWidth / 2) / s) * 900 * dt;
   mouseDY += dead((cursorY - innerHeight / 2) / s) * 900 * dt;
 }
-addEventListener('mousedown', e => { if (e.button === 2) rig.zooming = true; });
-addEventListener('mouseup', e => { if (e.button === 2) rig.zooming = false; });
 addEventListener('contextmenu', e => e.preventDefault());
 // compile every shader now, hidden things included (effects, wrecks, the vapour cone...), so nothing stalls the
 // first time it appears mid-game (a likely source of the rare hitches, worst on phones)
@@ -660,19 +694,18 @@ function wreckStep(dt) {
     if (touching >= 3 && wreck.vel.lengthSq() < 0.15 && wreck.spin.lengthSq() < 0.01) { wreck.vel.set(0, 0, 0); wreck.spin.set(0, 0, 0); }   // at rest
   }
 }
-function axis(neg, pos) { return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0); }
+function axis(neg, pos) { return (held(pos) ? 1 : 0) - (held(neg) ? 1 : 0); }
 
 function physics(dt) {
   // throttle; holding throttle-up at full power lights the afterburner (Space stays free for guns)
-  ac.airbrakeCmd = (keys.has('KeyB') || touchBrake) && tutAllow.brake ? 1 : 0;
-  // Tab (or X) up, Shift (or Z) down
-  const thUp = tutAllow.throttle && (keys.has('Tab') || keys.has('KeyX')), thDown = tutAllow.throttle && (keys.has('ShiftLeft') || keys.has('ShiftRight') || keys.has('KeyZ'));
+  ac.airbrakeCmd = (held('airbrake') || touchBrake) && tutAllow.brake ? 1 : 0;
+  const thUp = tutAllow.throttle && held('throttleUp'), thDown = tutAllow.throttle && held('throttleDown');
   const th = (thUp ? 1 : 0) - (thDown ? 1 : 0);
   // holding throttle-up at full dry power pushes the lever into the burner over ~0.25 s (the burner lights and
   // grows as it goes); let go before the end and it drops back to full dry
   if (th > 0 && ac.throttle >= 1) { if (ac.throttle < 1.1) { abHold += dt; ac.throttle = Math.min(1.1, 1 + 0.1 * abHold / 0.25); } }
   else { if (ac.throttle > 1 && ac.throttle < 1.1) ac.throttle = 1; abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 1.2 * dt, 0, 1); }
-  const kb = { pitch: axis('KeyW', 'KeyS'), roll: axis('KeyA', 'KeyD'), yaw: axis('KeyQ', 'KeyE') };
+  const kb = { pitch: axis('pitchDown', 'pitchUp'), roll: axis('rollLeft', 'rollRight'), yaw: axis('yawLeft', 'yawRight') };
   kb.active = !!(kb.pitch || kb.roll || kb.yaw);   // any flying key takes over from mouse aim (the camera eases back after)
   if (kb.active) recentre = 0.45; else if (recentre > 0) recentre -= dt;
   // letting go of the keys: the camera only eases back onto the nose if it was roughly looking along it (not when it
@@ -706,7 +739,7 @@ function physics(dt) {
   ac.step(dt);
   weapons.step(dt, performance.now() / 1000);
   // touching the ground: roll, bounce, scrape and lose parts; only a really hard hit or a wrecked airframe is a crash
-  const g = groundContact(ac, terrain, jet.damage, dt, keys.has('KeyB') && ac.throttle < 0.05);
+  const g = groundContact(ac, terrain, jet.damage, dt, held('airbrake') && ac.throttle < 0.05);
   if (g.crash) crash(); else if (g.touching && jet.damage.dead) crash(g.water); else if (g.bogged) crash(true);
   // skimming: spray, a lot of it, more the faster it goes
   if (g.water && !dead) { const n = 2 + ac.vel.length() / 18; for (let k = 0; k < n; k++) if (Math.random() < dt * 40) weapons.spray(ac.pos, ac.vel); }
@@ -1200,7 +1233,9 @@ if (isTouch) {
     onAirbrake: (on) => { touchBrake = on; },
     onZoom: (on) => { rig.zooming = on; },
     onGear: () => { if (running && !dead) toggleGear(); },
+    onPause: () => { if (running) { if (document.pointerLockElement) document.exitPointerLock(); else setRunning(false); } },   // (freeing the mouse pauses too)
   });
+  applyLayout();                                         // (the player's own button positions, if moved)
 }
 
 window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut, overlay, mission, state: () => ({ running, locked, started, dead }) };

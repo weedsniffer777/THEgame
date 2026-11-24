@@ -101,6 +101,7 @@ body.touch #thrScale { display: none; }
 .t-brake { left: max(92px, calc(env(safe-area-inset-left) + 74px)); bottom: 28px; }
 .t-gear { left: max(92px, calc(env(safe-area-inset-left) + 74px)); bottom: 94px; }   /* (just above the airbrake, clear of the speed box) */
 .t-gear.down { border-color: #6eff96; color: #b8ffcc; }
+.t-pause { width: 44px; height: 44px; top: max(16px, env(safe-area-inset-top)); left: calc(max(16px, env(safe-area-inset-left)) + min(210px, 27vh) + 26px); }   /* (just right of the minimap) */
 .t-zoom { right: max(39px, calc(env(safe-area-inset-right) + 15px)); bottom: 140px; }
 body.touch #arms { right: max(258px, calc(env(safe-area-inset-right) + 240px)); }
 #rotate { position: fixed; inset: 0; z-index: 30; display: none; place-items: center; background: #1b2635; }
@@ -154,27 +155,77 @@ body.viewing #fhud { display: none; }
 body.paused #pause { display: block; }
 body.paused #game { filter: blur(7px) !important; }
 body.paused #hud, body.paused #touch { display: none; }
-#pause .panel { position: absolute; left: -150px; top: 0; bottom: 0; width: min(520px, 86vw); padding-left: 190px; box-sizing: border-box;
+#pause .panel { position: absolute; left: -150px; top: 0; bottom: 0; width: min(520px, 86vw); padding-left: 190px; padding-right: 36px; box-sizing: border-box;
   display: flex; flex-direction: column; justify-content: center; transform: skewX(9deg); transform-origin: top left;
-  background: linear-gradient(90deg, rgba(8,12,18,0.86) 60%, rgba(8,12,18,0.6)); border-right: 2px solid rgba(236,246,238,0.65);
-  animation: pausein 0.22s ease-out; }
+  background: linear-gradient(90deg, rgba(8,12,18,0.88) 60%, rgba(8,12,18,0.7)); border-right: 2px solid rgba(236,246,238,0.65);
+  animation: pausein 0.22s ease-out; transition: width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1); }
+/* settings: the panel takes most of the screen, a full-height strip of the game left on the right (its slanted edge
+   ~10% of the width in from the right at the bottom) */
+#pause .panel.wide { width: calc(90vw + 150px - 15.84vh); }
 @keyframes pausein { from { transform: skewX(9deg) translateX(-60px); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { #pause .panel { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #pause .panel { animation: none; transition: none; } }
 #pause .page { display: none; transform: skewX(-9deg); transform-origin: 0 50%; }
 #pause .page.on { display: block; }
 #pause button { font-family: 'B612 Mono', ui-monospace, monospace; font-weight: 700; color: rgba(236,246,238,0.85); background: none; border: none; cursor: pointer; }
 #pause .item { display: block; font-size: 22px; letter-spacing: 0.16em; padding: 12px 0 12px 14px; border-left: 3px solid transparent; text-align: left; transition: transform 0.12s, color 0.12s; }
 #pause .item:hover, #pause .item:focus-visible { color: #fff; border-left-color: #fff; transform: translateX(6px); outline: none; }
-#pause .tabs { display: flex; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
-#pause .tabs button { font-size: 12px; letter-spacing: 0.12em; padding: 6px 0; border-bottom: 2px solid transparent; opacity: 0.7; }
+/* the settings page: big tabs along the top, the open tab scrolls, BACK at the bottom */
+#pause .page.settings.on { display: flex; flex-direction: column; height: calc(100vh - 56px); max-height: 900px; min-width: 0; }
+#pause .tabs { display: flex; gap: clamp(18px, 3.2vw, 44px); margin-bottom: 22px; flex-wrap: wrap; flex: none; }
+#pause .tabs button { font-size: clamp(15px, 1.9vw, 19px); letter-spacing: 0.14em; padding: 10px 2px 9px; border-bottom: 3px solid transparent; opacity: 0.6; transition: opacity 0.12s; }
+#pause .tabs button:hover { opacity: 0.9; }
 #pause .tabs button.on { opacity: 1; border-bottom-color: #fff; color: #fff; }
-#pause .tab { display: none; min-height: 90px; }
-#pause .tab.on { display: block; }
-#pause .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 300px; font: 700 12px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.12em; color: rgba(236,246,238,0.85); }
+#pause .tab { display: none; }
+#pause .tab.on { display: block; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding-right: 14px; scrollbar-width: thin; scrollbar-color: rgba(236,246,238,0.4) transparent; }
+#pause .row { display: flex; align-items: center; justify-content: space-between; gap: 20px; max-width: 620px; min-height: 52px; font: 700 15px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.12em; color: rgba(236,246,238,0.9); border-bottom: 1px solid rgba(236,246,238,0.12); }
 #pause .seg { display: inline-flex; border: 1.5px solid rgba(236,246,238,0.7); }
-#pause .seg button { font-size: 11px; letter-spacing: 0.1em; padding: 7px 10px; }
+#pause .seg button { font-size: 13px; letter-spacing: 0.1em; padding: 10px 14px; }
 #pause .seg button.on { background: rgba(236,246,238,0.92); color: #0a0e14; }
-#pause .back { font-size: 15px; margin-top: 14px; }
+#pause .back { font-size: 17px; margin-top: 14px; flex: none; }
+/* controls */
+#pause .sub { display: flex; align-items: center; justify-content: space-between; max-width: 900px; margin: 6px 0 12px; font: 700 13px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.18em; color: rgba(236,246,238,0.6); }
+#pause .sub:not(:first-child) { margin-top: 26px; }
+#pause button.small { font-size: 12px; letter-spacing: 0.14em; padding: 8px 12px; border: 1.5px solid rgba(236,246,238,0.55); }
+#pause button.small:hover { color: #fff; border-color: #fff; }
+#pause .grp { font: 700 11px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.2em; color: rgba(236,246,238,0.45); margin: 16px 0 6px; }
+#pause .binds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); column-gap: 40px; max-width: 900px; }
+#pause .bind { display: flex; align-items: center; gap: 10px; min-height: 46px; border-bottom: 1px solid rgba(236,246,238,0.1); font: 700 14px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.1em; color: rgba(236,246,238,0.9); }
+#pause .bind .name { flex: 1; min-width: 0; }
+#pause .slot { width: 96px; height: 34px; display: grid; place-items: center; border: 1.5px solid rgba(236,246,238,0.5); background: rgba(255,255,255,0.04); padding: 0; transition: border-color 0.12s, background 0.12s; }
+#pause .slot:hover { border-color: #fff; background: rgba(255,255,255,0.1); }
+#pause .slot b { font-size: 13px; letter-spacing: 0.06em; color: #fff; white-space: nowrap; }
+#pause .slot b.none { color: rgba(236,246,238,0.35); }
+#pause .slot svg { width: 17px; height: 24px; color: #fff; }
+#pause .slot.wait { border-color: #8dffb0; background: rgba(141,255,176,0.12); animation: slotwait 0.9s ease-in-out infinite; }
+#pause .slot.wait b { font-size: 9.5px; color: #c9ffd9; }
+@keyframes slotwait { 50% { border-color: rgba(141,255,176,0.35); } }
+#pause .bind.moved { animation: bindmoved 1.1s ease-out; }
+@keyframes bindmoved { 0%, 30% { background: rgba(255,200,80,0.22); } 100% { background: transparent; } }
+#pause .layout { position: relative; display: block; width: min(100%, 520px); aspect-ratio: 16 / 7.4; border: 1.5px solid rgba(236,246,238,0.55); padding: 0; background: center / cover no-repeat; }
+#pause .layout span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 16px; letter-spacing: 0.16em; color: #fff; background: rgba(6,10,16,0.45); text-shadow: 0 1px 4px rgba(0,0,0,0.8); transition: background 0.12s; }
+#pause .layout:hover span { background: rgba(6,10,16,0.25); }
+/* short (phone) screens: tighter */
+@media (max-height: 500px) {
+  #pause .page.settings.on { height: calc(100vh - 24px); }
+  #pause .tabs { margin-bottom: 10px; }
+  #pause .tabs button { padding: 8px 2px 7px; }
+  #pause .row { min-height: 44px; font-size: 13px; }
+  #pause .seg button { font-size: 12px; padding: 9px 10px; }
+  #pause .bind { min-height: 40px; font-size: 12px; }
+  #pause .layout { width: min(100%, 360px); }
+}
+
+/* touch layout editor: a picture of the game behind the real controls, each draggable */
+#layed { position: fixed; inset: 0; z-index: 51; background: #0a0e14 center / cover no-repeat; }
+#layed .bar { position: absolute; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translateX(-50%); display: flex; gap: 12px; z-index: 2; }
+#layed .bar button { font: 700 14px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.16em; color: #fff; background: rgba(6,10,16,0.72); border: 1.5px solid rgba(236,246,238,0.75); padding: 12px 18px; cursor: pointer; }
+#layed .bar button[data-act="done"] { background: rgba(236,246,238,0.92); color: #0a0e14; }
+body.layout-edit #touch, body.layout-edit #hud { display: block !important; z-index: 52; }
+body.layout-edit #hud > :not(#arms) { visibility: hidden !important; }
+html body.layout-edit #arms, html body.layout-edit .t-fire, html body.layout-edit .t-brake { visibility: visible !important; }   /* (whatever the tutorial has hidden so far) */
+html body.layout-edit .t-gear[hidden] { display: grid !important; }
+body.layout-edit :is(.t-throttle, .t-btn, .t-fire, #arms) { pointer-events: auto; cursor: grab; outline: 2px dashed rgba(255,255,255,0.75); outline-offset: 6px; }
+body.layout-edit .dragging { outline-color: #8dffb0 !important; cursor: grabbing; }
 
 /* the dev kit stays on top of every menu (pause included) and clickable */
 #devkit, #devmenu, #perf { z-index: 60 !important; }
@@ -301,4 +352,3 @@ body.bigmap #tut, body.paused #tut, body.dead-blur #tut, body.ending-blur #tut {
 
 /* banners stay out of the way of the pause menu */
 body.paused #banner { display: none !important; }
-#pause .seg button { padding-left: 7px; padding-right: 7px; }

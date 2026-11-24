@@ -1,7 +1,8 @@
-import { settings, setSetting } from '../settings.js';
+import { createSettingsPage } from './settingsPage.js';
 
 // Pause menu: the game blurs behind a slanted panel that slides in from the left (HUD hidden).
-// Resume / Restart mission / Settings; settings has four tabs (Controls, UI, Graphics, Audio), only UI has options so far: Units, HUD colour.
+// Resume / Restart mission / Settings. In the settings the panel widens over most of the screen (a strip of the
+// game is left on the right); the settings page itself (settingsPage.js) is shared with the main menu to come.
 export function createPauseMenu({ onResume, onRestart }) {
   const root = document.createElement('div');
   root.id = 'pause';
@@ -12,39 +13,26 @@ export function createPauseMenu({ onResume, onRestart }) {
         <button class="item" data-act="restart">RESTART</button>
         <button class="item" data-act="settings">SETTINGS</button>
       </div>
-      <div class="page settings">
-        <div class="tabs">
-          <button data-tab="controls">CONTROLS</button><button data-tab="ui" class="on">UI</button><button data-tab="graphics">GRAPHICS</button><button data-tab="audio">AUDIO</button>
-        </div>
-        <div class="tab" data-tab="controls"></div>
-        <div class="tab on" data-tab="ui">
-          <div class="row"><span>UNITS</span><span class="seg" data-set="units"><button data-v="imperial">IMPERIAL</button><button data-v="metric">METRIC</button></span></div>
-          <div class="row"><span>HUD COLOR</span><span class="seg" data-set="hudColor"><button data-v="default">DEFAULT</button><button data-v="green">GREEN</button></span></div>
-        </div>
-        <div class="tab" data-tab="graphics">
-          <div class="row"><span>SCREEN SHAKE</span><span class="seg" data-set="shake"><button data-v="default">DEFAULT</button><button data-v="less">LESS</button><button data-v="off">OFF</button></span></div>
-        </div>
-        <div class="tab" data-tab="audio"></div>
-        <button class="item back" data-act="back">BACK</button>
-      </div>
     </div>`;
   document.body.appendChild(root);
-  const show = (page) => root.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.classList.contains(page)));
-  const syncSeg = () => root.querySelectorAll('.seg').forEach(s => s.querySelectorAll('button').forEach(b => b.classList.toggle('on', settings[s.dataset.set] === b.dataset.v)));
-  root.addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.act === 'resume') onResume();
-    else if (b.dataset.act === 'restart') onRestart?.();
-    else if (b.dataset.act === 'settings') show('settings');
-    else if (b.dataset.act === 'back') show('main');
-    else if (b.dataset.tab) {
-      root.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x.dataset.tab === b.dataset.tab));
-    } else if (b.dataset.v) { setSetting(b.closest('.seg').dataset.set, b.dataset.v); syncSeg(); }
+  const panel = root.querySelector('.panel');
+  const settingsPage = createSettingsPage({ onBack: () => show('main') });
+  panel.appendChild(settingsPage.el);
+  function show(page) {
+    root.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.classList.contains(page)));
+    panel.classList.toggle('wide', page === 'settings');
+    if (page === 'settings') settingsPage.sync(); else settingsPage.stop();
+  }
+  root.querySelector('.page.main').addEventListener('click', (e) => {
+    const act = e.target.closest('button')?.dataset.act;
+    if (act === 'resume') onResume();
+    else if (act === 'restart') onRestart?.();
+    else if (act === 'settings') show('settings');
   });
-  show('main'); syncSeg();
+  show('main');
   return {
-    open() { show('main'); syncSeg(); document.body.classList.add('paused'); },
-    close() { document.body.classList.remove('paused'); },
+    open() { show('main'); document.body.classList.add('paused'); },
+    close() { settingsPage.stop(); document.body.classList.remove('paused'); },
     get isOpen() { return document.body.classList.contains('paused'); },
   };
 }

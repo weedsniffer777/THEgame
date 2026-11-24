@@ -15,7 +15,9 @@ const ZOOM = `<svg viewBox="0 0 24 24"><path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 2
 const BULLET = `<svg class="wpn" viewBox="0 0 48 16"><path d="M1 8h22" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.5"/><path d="M9 4.2h15M9 11.8h15" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.4"/><path d="M27 3.5h9c6 0 10.5 2.3 11.5 4.5c-1 2.2-5.5 4.5-11.5 4.5h-9z" fill="#fff"/></svg>`;
 const BOMB = `<svg class="wpn" viewBox="0 0 48 16"><path d="M10 4h22c8 0 14 2 15 4c-1 2-7 4-15 4H10z" fill="#fff"/><path d="M10 4L3 1v14l7-3z" fill="#fff"/></svg>`;
 
-export function createTouch(root, { onLook, onThrottle, onFire, onAirbrake, onGear, onZoom, sensitivity = 1.6 }) {
+const PAUSE = `<svg viewBox="0 0 24 24"><path d="M8.5 5v14M15.5 5v14" stroke-width="3.2" stroke-linecap="round"/></svg>`;
+
+export function createTouch(root, { onLook, onThrottle, onFire, onAirbrake, onGear, onZoom, onPause, sensitivity = 1.6 }) {
   // the throttle: a plain black bar, a square grey block that slides in it, and notches down one side for the detents
   // (idle, every 10 %, a long one at full dry power where the afterburner begins)
   const at = (f) => `bottom: calc(10px + (100% - 20px) * ${f.toFixed(3)})`;   // a point on the lever's travel
@@ -25,13 +27,14 @@ export function createTouch(root, { onLook, onThrottle, onFire, onAirbrake, onGe
     <button class="t-btn t-brake" aria-label="Airbrake">BRAKE</button>
     <button class="t-btn t-gear" aria-label="Landing gear" hidden>GEAR</button>
     <button class="t-btn t-zoom" aria-label="Zoom">${ZOOM}</button>
-    <button class="t-fire" aria-label="Fire">${BULLET}</button>`;
+    <button class="t-fire" aria-label="Fire">${BULLET}</button>
+    <button class="t-btn t-pause" aria-label="Pause">${PAUSE}</button>`;
   const thr = root.querySelector('.t-throttle'), grip = thr.querySelector('.grip'), pctEl = thr.querySelector('.pct');
   const looks = new Map();   // pointerId -> last x, y
 
   // aim: any touch that isn't on a control
   addEventListener('pointerdown', e => {
-    if (e.pointerType !== 'touch' || e.target.closest('.t-throttle, .t-fire, .t-btn, #arms, #devkit, #devmenu, .lil-gui, #tut, #mend, #pause')) return;
+    if (e.pointerType !== 'touch' || e.target.closest('.t-throttle, .t-fire, .t-btn, #arms, #devkit, #devmenu, .lil-gui, #tut, #mend, #pause, #layed')) return;
     looks.set(e.pointerId, [e.clientX, e.clientY]);
   });
   addEventListener('pointermove', e => {
@@ -69,6 +72,7 @@ export function createTouch(root, { onLook, onThrottle, onFire, onAirbrake, onGe
   hold(root.querySelector('.t-brake'), (on) => onAirbrake?.(on));
   hold(root.querySelector('.t-zoom'), (on) => onZoom?.(on));
   gear.addEventListener('pointerdown', e => { e.preventDefault(); onGear?.(); });
+  root.querySelector('.t-pause').addEventListener('click', () => onPause?.());
   root.hidden = false;
   return {
     // the engine power readout over the lever (the HUD's own throttle scale is hidden on touch)

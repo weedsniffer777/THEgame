@@ -8,7 +8,8 @@ const LMB = `<svg viewBox="0 0 24 34" width="22" height="31" aria-hidden="true">
 const RMB = `<svg viewBox="0 0 24 34" width="22" height="31" aria-hidden="true"><path d="M12 2 A10 10 0 0 1 22 12 V13 H12 Z" fill="currentColor"/><rect x="2" y="2" width="20" height="30" rx="10" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2v11M2 13h20" stroke="currentColor" stroke-width="2"/></svg>`;
 const DRAG = `<svg viewBox="0 0 34 34" width="30" height="30" aria-hidden="true"><circle cx="17" cy="17" r="5" fill="currentColor"/><path d="M17 3v6M17 25v6M3 17h6M25 17h6M17 3l-3 3M17 3l3 3M17 31l-3-3M17 31l3-3M3 17l3-3M3 17l3 3M31 17l-3-3M31 17l-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 const TAP = `<svg viewBox="0 0 34 34" width="30" height="30" aria-hidden="true"><circle cx="17" cy="17" r="6" fill="currentColor"/><circle cx="17" cy="17" r="12" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6"/></svg>`;
-const ICONS = { mouse: MOUSE, lmb: LMB, rmb: RMB, drag: DRAG, tap: TAP };
+const MMB = `<svg viewBox="0 0 24 34" width="22" height="31" aria-hidden="true"><rect x="2" y="2" width="20" height="30" rx="10" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M2 13h20" stroke="currentColor" stroke-width="2"/><rect x="9.5" y="4.5" width="5" height="7" rx="2.5" fill="currentColor"/></svg>`;
+export const ICONS = { mouse: MOUSE, lmb: LMB, rmb: RMB, mmb: MMB, drag: DRAG, tap: TAP };
 const SVGNS = 'http://www.w3.org/2000/svg';
 
 export function createOverlay() {
@@ -73,7 +74,8 @@ export function createOverlay() {
       a.el.style.display = '';
       const cx = s.r != null ? s.x : s.x + s.w / 2, cy = s.r != null ? s.y : s.y + s.h / 2;
       // which side it comes from: a.s.from (deg: 0 right, 90 below, 180 left, 270 above), else the screen's centre
-      const ang = a.s.from != null ? a.s.from * Math.PI / 180 : Math.atan2(innerHeight / 2 - cy, innerWidth / 2 - cx);
+      const from = typeof a.s.from === 'function' ? a.s.from() : a.s.from;
+      const ang = from != null ? from * Math.PI / 180 : Math.atan2(innerHeight / 2 - cy, innerWidth / 2 - cx);
       const ux = Math.cos(ang), uy = Math.sin(ang);
       const edge = s.r != null ? s.r : Math.min(Math.abs(ux) > 1e-3 ? s.w / 2 / Math.abs(ux) : 1e9, Math.abs(uy) > 1e-3 ? s.h / 2 / Math.abs(uy) : 1e9);
       const tf = `translate(${(cx + ux * (edge + 8)).toFixed(0)}px, ${(cy + uy * (edge + 8)).toFixed(0)}px) rotate(${(ang * 180 / Math.PI + 180).toFixed(0)}deg)`;

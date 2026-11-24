@@ -126,15 +126,16 @@ export function createMap(root, terrain) {
     glowDart(...P(ac.pos.x, ac.pos.z), Math.atan2(ac.vel.x, -ac.vel.z), 7 * dpr, '#ffffff', 'rgba(255,255,255,0.75)', null);
   };
   let held = false, area = null;
-  addEventListener('keydown', (e) => { if (e.code === 'KeyM' && !e.repeat) { held = true; big.classList.add('on'); document.body.classList.add('bigmap'); } });
-  addEventListener('keyup', (e) => { if (e.code === 'KeyM') { held = false; big.classList.remove('on'); document.body.classList.remove('bigmap'); } });
-  addEventListener('blur', () => { held = false; big.classList.remove('on'); document.body.classList.remove('bigmap'); });
+  // the big map, while its key is held (main.js: the 'map' binding)
+  const setBig = (on) => { held = !!on; big.classList.toggle('on', held); document.body.classList.toggle('bigmap', held); };
+  addEventListener('blur', () => setBig(false));
   let tick = 0;
   const update = (ac, drones, missiles) => {
     if ((tick = (tick + 1) % 2)) return;                      // every other frame is plenty
     draw(mc, Math.round(Math.min(210, innerHeight * 0.27)), 9000, ac, drones, missiles);   // (smaller on short phone screens)
     if (held) draw(bc, Math.min(innerWidth, innerHeight) * 0.72, 1e9, ac, drones, missiles);
   };
+  update.setBig = setBig;
   update.setArea = (poly) => { area = poly; };   // the mission area (world [x, z] points), or null
   return update;
 }
