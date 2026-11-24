@@ -243,7 +243,7 @@ function tutGo(step, wait = 0.4) { tut.fs = []; tut.showT = 0; tut.after = null;
 function tutReset() {
   overlay.hold(0, null); overlay.clear();
   const on = !!tutActive(), W = weapons.S;
-  document.body.classList.toggle('tut-noarms', on); document.body.classList.toggle('tut-nomap', on);
+  document.body.classList.toggle('tut-noarms', on); document.body.classList.toggle('tut-nomap', on); document.body.classList.toggle('tut-nobrake', on);
   if (!on) { tut.step = 'off'; W.allow.gun = W.allow.missile = true; tutUnlock(); if (!W.selected) weapons.select(1); return; }
   mission.noBreak = true;
   for (const k in tutAllow) tutAllow[k] = false;   // (each is unlocked by the step that teaches it; gear: after the tutorial)
@@ -287,7 +287,14 @@ function tutSpot(d, text, then) {
 }
 // spotlights on our missiles in flight (up to three)
 const missileSpots = () => [0, 1, 2].map(k => ({ at: () => { const m = weapons.S.missiles.filter(m => m.owner === 'player')[k]; const c = m && screenOf(m.p); return c && c[0] > 0 && c[0] < innerWidth && c[1] > 0 && c[1] < innerHeight ? [c[0], c[1], 26] : null; } }));
-const FIRE_KEYS = () => isTouchDev ? [{ icon: 'tap' }] : [{ label: 'Space' }, { text: 'or' }, { icon: 'lmb' }];
+// touch: no keycaps; the spotlight goes darker and an arrow points at the control to use
+const TDIM = 0.6;
+const steerBox = () => [innerWidth * 0.28, innerHeight * 0.34, innerWidth * 0.44, innerHeight * 0.44];
+const steerChevs = () => [0, 180].map(ang => ({ ang, at: () => { const b = steerBox(); return [b[0] + b[2] / 2 + (ang ? -30 : 30), b[1] + b[3] / 2]; }, len: () => steerBox()[2] / 2 - 56 }));
+const thrRect = () => document.querySelector('.t-throttle')?.getBoundingClientRect();
+// (beside the lever, above and below the arrow pointing at it: up to speed up, down to slow down)
+const thrChevs = () => [[270, 0], [90, 1]].map(([ang, g]) => ({ ang, g, at: () => { const r = thrRect(); return r && [r.right + 39, r.top + r.height / 2 + (ang === 90 ? 34 : -34)]; }, len: () => (thrRect()?.height || 200) / 2 - 50 }));
+const FIRE_KEYS = () => [{ label: 'Space' }, { text: 'or' }, { icon: 'lmb' }];
 function tutorialStep(dt) {
   if (!mission || tut.step === 'off') return;
   // during the flying lessons the (hidden) formation is on rails: the first straggler stays 2.2 km ahead along the
@@ -306,7 +313,11 @@ function tutorialStep(dt) {
   const gunsDone = () => { W.allow.gun = false; weapons.setFiring(false); tutGo(tut.gt === A && !down(B) ? 'spotB' : 'final', 2.5); };
   switch (tut.step) {
     case 'steer': {
-      if (first) { overlay.say(T ? 'Drag anywhere to steer' : 'Move the mouse to steer'); overlay.keys([{ icon: T ? 'drag' : 'mouse' }]); overlay.spot([aimSpot], 0.3); tut.fwd.copy(rig.fwd); }
+      if (first) {
+        tut.fwd.copy(rig.fwd);
+        if (T) { overlay.say('Drag to steer'); overlay.spot([{ at: steerBox }], TDIM); overlay.chevrons(steerChevs()); }
+        else { overlay.say('Move the mouse to steer'); overlay.keys([{ icon: 'mouse' }]); overlay.spot([aimSpot], 0.3); }
+      }
       const turn = rig.fwd.angleTo(tut.fwd); tut.fwd.copy(rig.fwd);
       capsStep(dt, () => turn / 1.4, () => tutGo(T ? 'throttle' : 'keys'));
       break;
@@ -318,15 +329,19 @@ function tutorialStep(dt) {
     case 'throttle': {   // speed up and slow down, both
       if (first) {
         tutAllow.throttle = true;
-        overlay.keys([{ group: 'Speed up', keys: [T ? { icon: 'drag' } : { label: 'Tab' }] }, { br: true }, { group: 'Slow down', keys: [T ? { icon: 'drag' } : { label: 'Shift' }] }]);
-        overlay.spot([{ sel: T ? '.t-throttle' : '#thrScale', pad: 8 }], 0.3); tut.thr = ac.throttle;
+        if (T) { overlay.say('Slide to speed up and slow down'); overlay.spot([{ sel: '.t-throttle', pad: 8 }], TDIM); overlay.point([{ sel: '.t-throttle', pad: 8, from: 0 }]); overlay.chevrons(thrChevs()); }
+        else { overlay.keys([{ group: 'Speed up', keys: [{ label: 'Tab' }] }, { br: true }, { group: 'Slow down', keys: [{ label: 'Shift' }] }]); overlay.spot([{ sel: '#thrScale', pad: 8 }], 0.3); }
+        tut.thr = ac.throttle;
       }
       const d = ac.throttle - tut.thr; tut.thr = ac.throttle;
       groupsStep(dt, T ? [() => Math.max(0, d) / 0.25, () => Math.max(0, -d) / 0.25] : [anyKey('Tab', 'KeyX'), anyKey('ShiftLeft', 'ShiftRight', 'KeyZ')], () => tutGo('brake', 0.3));
       break;
     }
     case 'brake':
-      if (first) { tutAllow.brake = true; overlay.say('Slow down faster with airbrakes'); overlay.keys([T ? { label: 'BRAKE' } : { label: 'B' }]); overlay.spot(T ? [{ sel: '.t-brake', round: true, pad: 6 }] : [], 0.3); }
+      if (first) { tutAllow.brake = true; document.body.classList.remove('tut-nobrake'); overlay.say('Slow down faster with airbrakes');
+        if (T) { overlay.spot([{ sel: '.t-brake', round: true, pad: 6 }], TDIM); overlay.point([{ sel: '.t-brake', round: true, pad: 6, from: 270 }]); }
+        else overlay.keys([{ label: 'B' }]);
+      }
       capsStep(dt, (dt) => ac.airbrakeCmd > 0 ? dt / 0.6 : 0, () => tutGo('spotA', 1.2));
       break;
     // ---- spotting: the first enemy, tracking it (the map is mentioned, not required) ----
@@ -335,14 +350,17 @@ function tutorialStep(dt) {
         A.hidden = false; document.body.classList.remove('tut-nomap'); weapons.setFiring(false);
         tut.camD = A;
         overlay.say(T ? 'Hold to track an enemy!' : 'Right click to track an enemy!');
-        overlay.keys([T ? { icon: 'tap' } : { icon: 'rmb' }, ...(T ? [] : [{ br: true }, { text: 'You can also check the map with' }, { label: 'M', small: true }])]);
-        overlay.spot([foeSpot(A), ...(T ? [{ sel: '.t-zoom', round: true, pad: 6 }] : [])], 0.2);
+        if (T) { overlay.spot([foeSpot(A), { sel: '.t-zoom', round: true, pad: 6 }], 0.45); overlay.point([{ sel: '.t-zoom', round: true, pad: 6, from: 180 }]); }
+        else { overlay.keys([{ icon: 'rmb' }, { br: true }, { text: 'You can also check the map with' }, { label: 'M', small: true }]); overlay.spot([foeSpot(A)], 0.2); }
       }
       groupsStep(dt, [(dt) => rig.zooming ? dt / 0.9 : 0], () => { tut.gt = A; tutGo('select1', 0.3); });
       break;
     // ---- guns, on the first one (it jinks): select, aim (weapons still safe), then shoot ----
     case 'select1':
-      if (first) { tutAllow.w1 = true; document.body.classList.remove('tut-noarms'); overlay.say('Select cannon to destroy the enemy'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '1' }]); overlay.spot([{ sel: '#arms .col[data-w="1"]', pad: 6 }], 0.35); }
+      if (first) { tutAllow.w1 = true; document.body.classList.remove('tut-noarms'); overlay.say('Select cannon to destroy the enemy');
+        const col = { sel: '#arms .col[data-w="1"]', pad: 6 };
+        if (T) { overlay.spot([col], TDIM); overlay.point([{ ...col, from: 315 }]); } else { overlay.keys([{ label: '1' }]); overlay.spot([col], 0.35); }
+      }
       capsStep(dt, (dt) => W.selected === 1 ? dt / 0.2 : 0, () => tutGo('close', 0.1));
       break;
     case 'close':
@@ -351,7 +369,12 @@ function tutorialStep(dt) {
       if (tut.gt.pos.distanceTo(ac.pos) <= WEAPONS.gunRange) tutGo(W.allow.gun ? 'kill' : 'aim', 0);
       break;
     case 'aim':      // aim and shoot, one step: two lines over the keys
-      if (first) { W.allow.gun = true; overlay.say('Aim by pointing the nose in the circle!\nShoot by pressing'); overlay.keys(FIRE_KEYS()); overlay.spot([{ sel: gunCirc, round: true, pad: 8 }, { sel: '#nose', round: true, pad: 10 }, ...(T ? [{ sel: '.t-fire', round: true, pad: 6 }] : [])], 0.15); }
+      if (first) {
+        W.allow.gun = true;
+        const aimSpots = [{ sel: gunCirc, round: true, pad: 8 }, { sel: '#nose', round: true, pad: 10 }];
+        if (T) { overlay.say('Aim by pointing the nose in the circle!\nHold to shoot'); overlay.spot([...aimSpots, { sel: '.t-fire', round: true, pad: 6 }], 0.35); overlay.point([{ sel: '.t-fire', round: true, pad: 6, from: 205 }]); }
+        else { overlay.say('Aim by pointing the nose in the circle!\nShoot by pressing'); overlay.keys(FIRE_KEYS()); overlay.spot(aimSpots, 0.15); }
+      }
       if (down(tut.gt)) { gunsDone(); break; }
       capsStep(dt, (dt) => W.firing && W.selected === 1 ? dt / 0.8 : 0, () => { overlay.clear(); tut.step = 'kill'; tut.t = 0; });
       if (tut.doneT <= 0 && tut.gt.pos.distanceTo(ac.pos) > WEAPONS.gunRange * 1.2) tutGo('close', 0);
@@ -370,8 +393,10 @@ function tutorialStep(dt) {
         if (ahead < 4300) mission.shiftOne(B, 4300 - ahead);
         B.hidden = false;
         tutAllow.w2 = true;
-        overlay.say('Use missiles to destroy farther enemies!'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]);
-        overlay.spot([foeSpot(B), { sel: '#arms .col[data-w="2"]', pad: 6 }], 0.25);
+        overlay.say('Use missiles to destroy farther enemies!');
+        const col = { sel: '#arms .col[data-w="2"]', pad: 6 };
+        if (T) { overlay.spot([foeSpot(B), col], 0.5); overlay.point([{ ...col, from: 315 }]); }
+        else { overlay.keys([{ label: '2' }]); overlay.spot([foeSpot(B), col], 0.25); }
       }
       capsStep(dt, (dt) => W.selected === 2 ? dt / 0.2 : 0, () => { B.noLock = false; tutGo('lock', 0.1); });
       break;
@@ -382,11 +407,19 @@ function tutorialStep(dt) {
       if (W.locked && W.seeker === B) { W.allow.missile = true; tutGo('fire', 0); }
       break;
     case 'spotB2':   // (switched away from missiles: back to them)
-      if (first) { overlay.say('Use missiles to destroy farther enemies!'); overlay.keys(T ? [{ icon: 'tap' }] : [{ label: '2' }]); overlay.spot([{ sel: '#arms .col[data-w="2"]', pad: 6 }], 0.3); }
+      if (first) {
+        overlay.say('Use missiles to destroy farther enemies!');
+        const col = { sel: '#arms .col[data-w="2"]', pad: 6 };
+        if (T) { overlay.spot([col], TDIM); overlay.point([{ ...col, from: 315 }]); } else { overlay.keys([{ label: '2' }]); overlay.spot([col], 0.3); }
+      }
       capsStep(dt, (dt) => W.selected === 2 ? dt / 0.2 : 0, () => tutGo('lock', 0.1));
       break;
     case 'fire':
-      if (first) { overlay.say('When the missile is locked, launch with'); overlay.keys(FIRE_KEYS()); overlay.spot([foeSpot(B), ...missileSpots(), ...(T ? [{ sel: '.t-fire', round: true, pad: 6 }] : [])], 0.2); tut.stock = W.stock; }
+      if (first) {
+        tut.stock = W.stock;
+        if (T) { overlay.say('When the missile is locked, tap to launch'); overlay.spot([foeSpot(B), ...missileSpots(), { sel: '.t-fire', round: true, pad: 6 }], 0.4); overlay.point([{ sel: '.t-fire', round: true, pad: 6, from: 205 }]); }
+        else { overlay.say('When the missile is locked, launch with'); overlay.keys(FIRE_KEYS()); overlay.spot([foeSpot(B), ...missileSpots()], 0.2); }
+      }
       if (down(B)) { tutUnlock(); tutGo('final', 0.4); break; }
       capsStep(dt, () => W.stock < tut.stock ? 1 : 0, () => { tut.step = 'chase'; tut.t = 0; overlay.say(''); overlay.keys([]); });
       if (tut.doneT <= 0 && (tut.lost = W.locked ? 0 : tut.lost + dt) > 1) tutGo('lock', 0);   // lost the lock: find it again
@@ -404,7 +437,7 @@ function tutorialStep(dt) {
       if (first) {
         for (const d of weapons.drones) { d.hidden = false; d.noLock = false; }
         W.allow.gun = W.allow.missile = true; tutUnlock();
-        document.body.classList.remove('tut-noarms', 'tut-nomap'); if (!W.selected) weapons.select(1);
+        document.body.classList.remove('tut-noarms', 'tut-nomap', 'tut-nobrake'); if (!W.selected) weapons.select(1);
         mission.toLoop();
         weapons.setFiring(false);
         overlay.say('Destroy the remaining enemies!');

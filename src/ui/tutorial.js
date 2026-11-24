@@ -15,20 +15,21 @@ export function createOverlay() {
   const root = document.createElement('div');
   root.id = 'tut';
   root.innerHTML = `<svg class="dim"><defs><mask id="tutmask" maskUnits="userSpaceOnUse"><rect class="all" fill="#fff"/><g class="holes"></g></mask></defs>
-    <rect class="shade all" mask="url(#tutmask)"/><g class="rings"></g></svg>
+    <rect class="shade all" mask="url(#tutmask)"/><g class="rings"></g></svg><div class="fx"></div>
     <div class="card"><div class="txt"></div><div class="keys"></div></div>`;
   document.body.appendChild(root);
   const svg = root.querySelector('svg'), holes = root.querySelector('.holes'), rings = root.querySelector('.rings');
+  const fx = root.querySelector('.fx');
   const shade = root.querySelector('.shade'), cardEl = root.querySelector('.card'), txt = root.querySelector('.txt'), keysEl = root.querySelector('.keys');
   const end = document.createElement('div');
   end.id = 'mend';
   document.body.appendChild(end);
 
-  let spots = [], dim = 0, holdT = 0, onHold = null, caps = [], size = '';
+  let spots = [], dim = 0, holdT = 0, onHold = null, caps = [], size = '', arrows = [], chevs = [];
 
   // a spot: { sel, pad, round } (an element), or { at: () => [x, y, r] | null } (a moving point, a circle)
   function shapeOf(s) {
-    if (s.at) { const c = s.at(); return c ? { x: c[0], y: c[1], r: c[2] } : null; }
+    if (s.at) { const c = s.at(); return !c ? null : c.length === 4 ? { x: c[0], y: c[1], w: c[2], h: c[3] } : { x: c[0], y: c[1], r: c[2] }; }
     const el = typeof s.sel === 'string' ? document.querySelector(s.sel) : s.sel;
     if (!el || el.hidden || !el.isConnected) return null;
     const r = el.getBoundingClientRect();
@@ -62,7 +63,34 @@ export function createOverlay() {
     const op = String(dim);
     if (shade.style.opacity !== op) shade.style.opacity = op;
   }
-  const show = () => root.classList.toggle('on', !!(spots.length || txt.textContent || caps.length));
+  const show = () => root.classList.toggle('on', !!(spots.length || txt.textContent || caps.length || arrows.length || chevs.length));
+  // arrows pointing at things (touch: the control to use) and chevrons streaming one way (which way to drag); placed
+  // every frame, as the spots are
+  function drawFx() {
+    for (const a of arrows) {
+      const s = shapeOf(a.s);
+      if (!s) { a.el.style.display = 'none'; continue; }
+      a.el.style.display = '';
+      const cx = s.r != null ? s.x : s.x + s.w / 2, cy = s.r != null ? s.y : s.y + s.h / 2;
+      // which side it comes from: a.s.from (deg: 0 right, 90 below, 180 left, 270 above), else the screen's centre
+      const ang = a.s.from != null ? a.s.from * Math.PI / 180 : Math.atan2(innerHeight / 2 - cy, innerWidth / 2 - cx);
+      const ux = Math.cos(ang), uy = Math.sin(ang);
+      const edge = s.r != null ? s.r : Math.min(Math.abs(ux) > 1e-3 ? s.w / 2 / Math.abs(ux) : 1e9, Math.abs(uy) > 1e-3 ? s.h / 2 / Math.abs(uy) : 1e9);
+      const tf = `translate(${(cx + ux * (edge + 8)).toFixed(0)}px, ${(cy + uy * (edge + 8)).toFixed(0)}px) rotate(${(ang * 180 / Math.PI + 180).toFixed(0)}deg)`;
+      if (a.el._tf !== tf) { a.el.style.transform = tf; a.el._tf = tf; }
+    }
+    for (const c of chevs) {
+      const p = c.s.at();
+      if (!p) { c.el.style.display = 'none'; continue; }
+      c.el.style.display = '';
+      const tf = `translate(${p[0].toFixed(0)}px, ${p[1].toFixed(0)}px) rotate(${c.s.ang}deg)`;
+      if (c.el._tf !== tf) { c.el.style.transform = tf; c.el._tf = tf; }
+      const len = Math.max(20, c.s.len()).toFixed(0) + 'px';
+      if (c.el._len !== len) { c.el.style.setProperty('--len', len); c.el._len = len; }
+    }
+  }
+  const ARROW = `<svg viewBox="0 0 46 30" width="46" height="30"><path d="M0 10h26V2l20 13-20 13v-8H0z"/></svg>`;
+  const CHEV = `<svg viewBox="0 0 16 24" width="16" height="24"><path d="M3 3l10 9-10 9"/></svg>`;
 
   return {
     // the game stands still while true (a hold, or the end card)
@@ -102,7 +130,7 @@ export function createOverlay() {
         }
         cap(k, row, g++);
       }
-      keysEl.classList.remove('done');
+      keysEl.classList.remove('done'); fx.classList.remove('done');
       cardEl.classList.toggle('nokeys', !caps.length);
       show();
     },
@@ -114,17 +142,36 @@ export function createOverlay() {
         c.f = f; c.fill.style.height = `${(f * 100).toFixed(1)}%`;
         c.el.classList.toggle('full', f >= 1);
       }
+      for (const c of chevs) if (c.s.g === k) c.el.classList.toggle('full', f >= 1);
+    },
+    // arrows: [{ sel, pad, round } | { at }, from?] each pointing at that, bobbing toward it
+    point(list = []) {
+      for (const a of arrows) a.el.remove();
+      arrows = list.map(s => { const el = document.createElement('div'); el.className = 'tarrow'; el.innerHTML = ARROW; fx.appendChild(el); return { s, el }; });
+      drawFx(); show();
+    },
+    // chevrons: [{ at: () => [x, y], ang (deg, 0 = right, 90 = down), len: () => px, g }] three of them streaming from
+    // the point along ang (group g: they turn green when fill(g) is full)
+    chevrons(list = []) {
+      for (const c of chevs) c.el.remove();
+      chevs = list.map(s => {
+        const el = document.createElement('div'); el.className = 'tchev';
+        el.innerHTML = [0, 1, 2].map(k => `<i style="animation-delay:${(-k * 0.4).toFixed(1)}s">${CHEV}</i>`).join('');
+        fx.appendChild(el); return { s, el };
+      });
+      drawFx(); show();
     },
     // the whole row is full: it pulses
-    done() { keysEl.classList.add('done'); },
+    done() { keysEl.classList.add('done'); fx.classList.add('done'); },
     // spotlight these (see shapeOf); dim: how dark the rest of the screen goes (0..1)
     spot(list = [], d = 0.5) { spots = list; dim = list.length ? d : 0; drawSpots(); show(); },
     // freeze the game for a moment, then carry on by itself
     hold(sec, done) { holdT = sec; onHold = done; },
-    clear() { this.say(''); this.keys([]); this.spot([]); },
+    clear() { this.say(''); this.keys([]); this.spot([]); this.point([]); this.chevrons([]); },
     // every frame, in real time (also while the game is frozen)
     tick(dt) {
       if (holdT > 0 && (holdT -= dt) <= 0) { holdT = 0; const f = onHold; onHold = null; f?.(); }
+      if (arrows.length || chevs.length) drawFx();
       if (!spots.length) return;
       if (size !== innerWidth + 'x' + innerHeight) {
         size = innerWidth + 'x' + innerHeight;

@@ -87,6 +87,7 @@ body.touch #throttle, #gauges { display: none !important; }
 .t-throttle.ab .grip { background: #ffa640; }
 .t-fire, .t-btn { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); background: rgba(0,0,0,0.3); display: grid; place-items: center; padding: 0; color: #fff; }
 .t-fire { right: max(24px, env(safe-area-inset-right)); bottom: 40px; width: 84px; height: 84px; }
+.t-btn[hidden] { display: none; }
 .t-btn { width: 54px; height: 54px; font: 700 11px/1 system-ui, sans-serif; letter-spacing: 0.04em; }
 .t-btn svg { width: 55%; height: 55%; stroke: #fff; fill: none; }
 .t-fire svg.wpn { width: 62%; height: auto; fill: #fff; transform: rotate(-45deg); overflow: visible; }
@@ -207,8 +208,18 @@ body.dead #hud, body.dead #touch { display: none; }
 #tut .cap span { position: relative; display: grid; place-items: center; }
 #tut .cap.full { border-color: #8dffb0; }
 #tut .keys.done .cap { animation: tutpulse 0.38s ease-out 2; }
+#tut .fx { position: absolute; inset: 0; }
+#tut .tarrow, #tut .tchev { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+#tut .tarrow svg { position: absolute; left: -46px; top: -15px; fill: #fff; filter: drop-shadow(0 0 5px rgba(255,255,255,0.55)) drop-shadow(0 1px 2px rgba(0,0,0,0.8)); animation: tutbob 0.9s ease-in-out infinite; }
+@keyframes tutbob { 0%, 100% { transform: translateX(-12px); } 50% { transform: translateX(0); } }
+#tut .tchev i { position: absolute; left: -8px; top: -12px; opacity: 0; animation: tutchev 1.2s linear infinite; }
+#tut .tchev svg { display: block; fill: none; stroke: #fff; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px rgba(255,255,255,0.5)) drop-shadow(0 1px 2px rgba(0,0,0,0.8)); }
+@keyframes tutchev { 0% { transform: translateX(0); opacity: 0; } 20%, 70% { opacity: 1; } 100% { transform: translateX(var(--len, 60px)); opacity: 0; } }
+#tut .tchev.full svg, #tut .fx.done .tchev svg { stroke: #8dffb0; }
+#tut .fx.done .tarrow svg { fill: #8dffb0; }
 @keyframes tutpulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(120,255,160,0.75); } 45% { transform: scale(1.13); box-shadow: 0 0 0 9px rgba(120,255,160,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(120,255,160,0); } }
 /* the tutorial hides the weapons and the map until it introduces them */
+body.tut-nobrake .t-brake { visibility: hidden !important; }   /* (each control shows when the tutorial teaches it) */
 body.tut-noarms #arms, body.tut-noarms #seeker, body.tut-noarms #lockc, body.tut-noarms #gunsol, body.tut-noarms .t-fire { visibility: hidden !important; }
 body.tut-nomap #minimap { visibility: hidden; }
 /* the ring round the reticle: pointers toward what is outside it */
