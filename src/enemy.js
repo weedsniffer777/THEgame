@@ -141,7 +141,6 @@ export async function loadEnemy(type) {
   }
   if (T.bombBay) buildBombBay(model, T.bombBay);
   model.userData.toughness = T.toughness;
-  model.userData.stabsFatal = true;   // (both horizontal stabilisers gone: a kill)
   model.traverse(o => { if (o.isMesh && o.material.map) o.material.map.anisotropy = 4; });
   model.scale.setScalar(T.scale);
   model.position.copy(T.cg).multiplyScalar(-T.scale);

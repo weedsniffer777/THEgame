@@ -233,11 +233,10 @@ export class Damage {
   }
 
   // critical: the fuselage destroyed, a whole wing (or the rear fuselage) gone, or the whole tail (fin and both
-  // stabilisers) shot off; enemies (userData.stabsFatal) go down as soon as both stabilisers are gone
+  // stabilisers) shot off, or both horizontal stabilisers gone (any aircraft, the player's too)
   get dead() {
     const P = this.parts, gone = (n) => !!P[n]?.broken;
-    return this.bodyHp <= 0 || FATAL.some(gone) || (P.fin && P.stabL && P.stabR && gone('fin') && gone('stabL') && gone('stabR'))
-      || (!!this.model.userData.stabsFatal && !!P.stabL && !!P.stabR && gone('stabL') && gone('stabR'));
+    return this.bodyHp <= 0 || FATAL.some(gone) || (!!P.stabL && !!P.stabR && gone('stabL') && gone('stabR'));
   }
   // going down, by a fatal hit or otherwise (set by whoever flies it): everything burns at full strength
   get burning() { return this.dead || !!this.doomed; }
