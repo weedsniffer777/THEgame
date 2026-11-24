@@ -792,7 +792,7 @@ function hud(dt = 1 / 60) {
   notes(dt);
   if (bannerT > 0 && (bannerT -= dt) <= 0) hideBanner();
   if (mission) mapHud.setArea(mission.area);
-  if (running && !dead) { flightHud(ac, camera, rig); mapHud(ac, weapons.drones, weapons.S.missiles); }
+  if (running && !dead) { flightHud(ac, camera, rig); mapHud(ac, weapons.drones, weapons.S.missiles); touchUi?.setPct(flightHud.pct, flightHud.ab); }
   const D = CAMERA.aimDistance;
   place(aimEl, _p.copy(camera.position).addScaledVector(rig.fwd, D));
   aimEl.style.opacity = manual ? 0.25 : weapons.S.selected === 1 ? 0.45 : 1;   // (guns: the gun cross is what aims, the steering circle steps back)

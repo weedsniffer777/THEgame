@@ -161,6 +161,7 @@ export function createFlightHud(root) {
     shownPct = want >= shownPct ? want : Math.max(want, shownPct - 60 * (1 / 60));
     const pct = Math.round(shownPct);
     thr.txt.textContent = `${pct}%`; thr.txt.classList.toggle('ab', ac.throttle >= 1.1);
+    update.pct = pct; update.ab = ac.throttle >= 1.1;      // (touch shows it on its own throttle instead)
     const ey = lever(ac.engine);
     thr.eng.setAttribute('x', T.tx + 1); thr.eng.setAttribute('width', 2); thr.eng.setAttribute('y', Math.min(ey, T.ty0)); thr.eng.setAttribute('height', Math.max(0, T.ty0 - ey));
     // (pitch marks removed for now)

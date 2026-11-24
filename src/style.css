@@ -78,12 +78,16 @@ body.lost #game { filter: saturate(0.25) brightness(0.85); transition: filter 0.
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 #touch > * { pointer-events: auto; touch-action: none; }
 body.touch #throttle, #gauges { display: none !important; }
-.t-throttle { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: 28px; width: 46px; height: 46vh; }
-.t-throttle .bar { position: absolute; left: 14px; top: 0; bottom: 0; width: 18px; background: rgba(0,0,0,0.7); }
-.t-throttle .tk { position: absolute; left: 34px; width: 6px; height: 2px; background: rgba(255,255,255,0.75); transform: translateY(50%); }
+.t-throttle { position: absolute; left: max(40px, calc(env(safe-area-inset-left) + 22px)); bottom: 28px; width: 40px; height: 46vh; }
+.t-throttle .bar { position: absolute; left: 13px; top: 0; bottom: 0; width: 11px; background: rgba(0,0,0,0.7); }
+.t-throttle .pct { position: absolute; left: 18px; bottom: calc(100% + 10px); transform: translateX(-50%); font: 700 12px/1 'B612 Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; color: rgba(236,246,238,0.95); text-shadow: 0 0 2px rgba(0,0,0,0.8); pointer-events: none; }
+.t-throttle .pct.ab { color: #ffa640; }
+body.hud-green .t-throttle .pct:not(.ab) { color: var(--hgs); }
+body.touch #thrScale { display: none; }
+.t-throttle .tk { position: absolute; left: 27px; width: 6px; height: 2px; background: rgba(255,255,255,0.75); transform: translateY(50%); }
 .t-throttle .tk.big { width: 10px; }
 .t-throttle .tk.mil { width: 12px; background: #ffa640; }
-.t-throttle .grip { position: absolute; left: 10px; width: 26px; height: 18px; margin-bottom: -9px; background: #9aa0a6; box-shadow: 0 1px 3px rgba(0,0,0,0.6); pointer-events: none; }
+.t-throttle .grip { position: absolute; left: 6px; width: 25px; height: 18px; margin-bottom: -9px; background: #9aa0a6; box-shadow: 0 1px 3px rgba(0,0,0,0.6); pointer-events: none; }
 .t-throttle.ab .grip { background: #ffa640; }
 .t-fire, .t-btn { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); background: rgba(0,0,0,0.3); display: grid; place-items: center; padding: 0; color: #fff; }
 .t-fire { right: max(24px, env(safe-area-inset-right)); bottom: 40px; width: 84px; height: 84px; }
@@ -94,8 +98,8 @@ body.touch #throttle, #gauges { display: none !important; }
 .t-fire svg.wpn.msl { width: 82%; }
 .t-fire.on, .t-btn.on { background: rgba(255,255,255,0.3); }
 .t-fire.locked { border-color: #ff5541; }
-.t-brake { left: max(74px, calc(env(safe-area-inset-left) + 56px)); bottom: 28px; }
-.t-gear { left: max(74px, calc(env(safe-area-inset-left) + 56px)); bottom: calc(28px + 46vh - 54px); }   /* (beside the top of the throttle: the map has the corner above it) */
+.t-brake { left: max(92px, calc(env(safe-area-inset-left) + 74px)); bottom: 28px; }
+.t-gear { left: max(92px, calc(env(safe-area-inset-left) + 74px)); bottom: 94px; }   /* (just above the airbrake, clear of the speed box) */
 .t-gear.down { border-color: #6eff96; color: #b8ffcc; }
 .t-zoom { right: max(39px, calc(env(safe-area-inset-right) + 15px)); bottom: 140px; }
 body.touch #arms { right: max(258px, calc(env(safe-area-inset-right) + 240px)); }

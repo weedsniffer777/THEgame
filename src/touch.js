@@ -1,7 +1,7 @@
 import { MISSILE } from './hudArms.js';
 // Touch controls (phones, tablets). Flight controls on the left, weapons on the right; icons, plus GEAR and BRAKE.
 //  - drag anywhere else to move the aim, like the mouse;
-//  - left: a throttle (a black bar with a sliding block; stays where you leave it; notches for the detents, the
+//  - left: a throttle (a thin black bar with a sliding block and the power % over it; stays where you leave it; notches for the detents, the
 //    afterburner past full dry power), the airbrake button beside it (hold), the landing-gear button above it (only shown when slow or low);
 //  - right: fire (by the thumb; it shows the selected weapon), target zoom just above it (hold); tapping a weapon in
 //    the weapon panel selects it.
@@ -21,12 +21,12 @@ export function createTouch(root, { onLook, onThrottle, onFire, onAirbrake, onGe
   const at = (f) => `bottom: calc(10px + (100% - 20px) * ${f.toFixed(3)})`;   // a point on the lever's travel
   const ticks = Array.from({ length: 11 }, (_, k) => `<i class="tk${k % 5 ? '' : ' big'}" style="${at(k / 10 * MIL)}"></i>`).join('') + `<i class="tk mil" style="${at(MIL)}"></i>`;
   root.innerHTML = `
-    <div class="t-throttle"><div class="bar"></div>${ticks}<div class="grip"></div></div>
+    <div class="t-throttle"><b class="pct"></b><div class="bar"></div>${ticks}<div class="grip"></div></div>
     <button class="t-btn t-brake" aria-label="Airbrake">BRAKE</button>
     <button class="t-btn t-gear" aria-label="Landing gear" hidden>GEAR</button>
     <button class="t-btn t-zoom" aria-label="Zoom">${ZOOM}</button>
     <button class="t-fire" aria-label="Fire">${BULLET}</button>`;
-  const thr = root.querySelector('.t-throttle'), grip = thr.querySelector('.grip');
+  const thr = root.querySelector('.t-throttle'), grip = thr.querySelector('.grip'), pctEl = thr.querySelector('.pct');
   const looks = new Map();   // pointerId -> last x, y
 
   // aim: any touch that isn't on a control
@@ -71,6 +71,8 @@ export function createTouch(root, { onLook, onThrottle, onFire, onAirbrake, onGe
   gear.addEventListener('pointerdown', e => { e.preventDefault(); onGear?.(); });
   root.hidden = false;
   return {
+    // the engine power readout over the lever (the HUD's own throttle scale is hidden on touch)
+    setPct(p, ab) { const t = p == null ? '' : p + '%'; if (pctEl.textContent !== t) pctEl.textContent = t; pctEl.classList.toggle('ab', !!ab); },
     setLocked(on) { fire.classList.toggle('locked', on); },
     // the fire button's icon: 1 guns, 2 missiles, 3 bombs (later)
     setWeapon(k) {
