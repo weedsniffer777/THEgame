@@ -213,7 +213,19 @@ export async function loadSu25(url, cfg) {
     }
   }
   // what splitAirframe doesn't hang by itself: the outer flaps and the airbrakes ride their wing parts
-  for (const [n, t] of extra) model.getObjectByName('part:wingInner' + n.slice(-1))?.attach(t.parent);
+  // the outer flaps straddle the outer wing's break line: cut there, the outer end rides the outer wing (on the same
+  // hinge), so a lost outer wing doesn't leave a stub of flap hanging past the break
+  for (const [n, t] of extra.slice()) {
+    const sd = n.slice(-1), sx = sd === 'L' ? 1 : -1, X = REGIONS.su25.outer.x, mesh = t.children[0], geo = mesh.geometry.toNonIndexed();
+    const outerGeo = clipGeometry(geo, new THREE.Plane(new THREE.Vector3(sx, 0, 0), -X)), innerGeo = clipGeometry(geo, new THREE.Plane(new THREE.Vector3(-sx, 0, 0), X));
+    mesh.geometry = innerGeo;
+    if (outerGeo.attributes.position.count) {
+      const pv = t.parent.clone(true), ot = pv.children[0]; ot.children[0].geometry = outerGeo;
+      model.add(pv); model.updateMatrixWorld(true);
+      model.getObjectByName('part:wingOuter' + sd)?.attach(pv); extra.push([n + 'tip', ot]);
+    }
+    model.getObjectByName('part:wingInner' + sd)?.attach(t.parent);
+  }
   for (const b of brakes) model.getObjectByName('part:wingOuter' + b.side)?.attach(b.t.parent);
   model.position.copy(CG).negate();
   const object = new THREE.Group().add(model);
