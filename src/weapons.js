@@ -960,10 +960,11 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         }
       }
       let hit = null;
-      for (const d of drones) if (d.alive && segDist(r.prev, r.p, d.pos) < (d.def.hitRadius || cfg.hitRadius) * 0.8) { hit = closestOnSeg(r.prev, r.p, d.pos); break; }
+      let hitD = null;
+      for (const d of drones) if (d.alive && segDist(r.prev, r.p, d.pos) < (d.def.hitRadius || cfg.hitRadius) * 0.8) { hit = closestOnSeg(r.prev, r.p, d.pos); hitD = d; break; }
       const ground = terrain.heightAt(r.p.x, r.p.z);
       if (!hit && r.p.y < ground) hit = r.p.clone().setY(ground);
-      if (hit || r.t > ROCKET.life) { rocketBurst(hit || r.p, r.v, !hit && r.t > ROCKET.life); r.t = 1e9; }
+      if (hit || r.t > ROCKET.life) { rocketBurst(hit || r.p, r.v, !hit && r.t > ROCKET.life, hitD); r.t = 1e9; }
     }
     for (const r of S.rocketsInFlight) if (r.t >= 1e9) scene.remove(r.obj);
     S.rocketSmoke = S.rocketSmoke.filter(q => S.simT - q.t < ROCKET.smokeLife);
@@ -999,10 +1000,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         if (armed && m.p.distanceTo(m.target.pos) < Math.max(cfg.proximity, (m.target.def.hitRadius || 0) * 0.6)) {   // (a target already going down still gets hit)
           m.t = 1e9; explode(m.p, m.target.vel, 0.8);
           S.fx.push({ pri: 1, kind: 'fire', p: m.p.clone(), v: m.target.vel.clone().multiplyScalar(0.3), t: 0, life: 0.3, s: 12 });   // warhead flash
-          // the blast tears off what was closest to it, then the jet goes down
-          const near = Object.keys(m.target.dmg.parts).sort((a, b) => m.target.dmg.parts[a].obj.getWorldPosition(_v).distanceTo(m.p) - m.target.dmg.parts[b].obj.getWorldPosition(_w).distanceTo(m.p));
-          near.slice(0, 3 + Math.floor(Math.random() * 3)).forEach(n => m.target.dmg.breakPart(n, m.target.vel));
-          m.target.lastHit = 'missile'; killDrone(m.target);
+          // the warhead's blast does the damage (what it kills, it kills by that: no automatic kill)
+          warheadBlast(m.target, m.p, cfg.missileWarhead || 220, cfg.missileBlast || 30, 'missile');
         }
       } else if (speed > 1) m.dir.copy(m.v).normalize();
       m.p.addScaledVector(m.v, dt);
@@ -1038,7 +1037,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     return best;
   }
 
-  const ROCKET = { launch: 30, accel: 520, burn: 0.75, drag: 0.03, life: 8, blast: 22, damage: 7, puffEvery: 4, smokeLife: 15 };
+  const ROCKET = { launch: 30, accel: 520, burn: 0.75, drag: 0.03, life: 8, blast: 26, warhead: 220, puffEvery: 4, smokeLife: 15 };
   const _rq = new THREE.Quaternion();
   function fireRocket(fwd) {
     for (let n = 0; n < podMeshes.length; n++) {
@@ -1058,19 +1057,37 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       return;
     }
   }
-  function rocketBurst(p, vel, air) {
+  // a warhead going off by an aircraft: damage to each part and to the airframe by how near the blast was (to that
+  // part's middle; for the airframe, to whatever of it was nearest), falling off to nothing at radius R. A warhead
+  // that bursts close kills by the damage it does; one further off may only tear something away.
+  const _wb = new THREE.Box3(), _wc = new THREE.Vector3();
+  function warheadBlast(d, p, D, R, by) {
+    if (!d.alive) return;
+    const P = d.dmg.parts, model = d.dmg.model;
+    model.updateMatrixWorld(true);
+    let nearest = Math.max(0, d.pos.distanceTo(p) - 0.6 * (d.def.hitRadius || cfg.hitRadius));   // (from the airframe, not its middle: a big bomber is mostly wing)
+    const hits = [];
+    for (const [n, part] of Object.entries(P)) {
+      if (part.broken) continue;
+      if (!part.ctr) { _wb.setFromObject(part.obj); part.ctr = model.worldToLocal(_wb.getCenter(new THREE.Vector3())); }   // (its middle, kept in model space)
+      const dist = model.localToWorld(_wc.copy(part.ctr)).distanceTo(p);
+      nearest = Math.min(nearest, dist);
+      hits.push([n, dist]);
+    }
+    const fall = (x) => Math.max(0, 1 - x / R);
+    hits.sort((a, b) => a[1] - b[1]);
+    for (const [n, dist] of hits) { const part = P[n]; if (part.broken) continue; if ((part.hp -= D * fall(dist)) <= 0) d.dmg.breakPart(n, d.vel, 6); }
+    d.dmg.bodyHp -= D * fall(nearest);
+    d.lastHit = by; S.hits++;
+    if (d.dmg.dead) killDrone(d); else S.onHit?.(d);
+  }
+  function rocketBurst(p, vel, air, target = null) {
     explode(p, vel.clone().multiplyScalar(air ? 0.3 : 0.05), air ? 1.1 : 1.5, !air);
     // a thick dark cloud where it went off, lingering
     for (let n = 0; n < (air ? 4 : 7); n++) S.rocketSmoke.push({ p: p.clone().add(_w.set(Math.random() - 0.5, Math.random() * 0.6, Math.random() - 0.5).multiplyScalar(6)), t: S.simT + n * 0.04, seed: Math.random(), s0: 2.2 + Math.random() * 1.5, burst: 1, drift: new THREE.Vector3(Math.random() - 0.5, 0.6 + Math.random() * 0.8, Math.random() - 0.5) });
     if (!air && terrain.isWater(p.x, p.z)) splash(p, vel, 0.8);
-    for (const d of drones) {
-      if (!d.alive) continue;
-      const r = d.pos.distanceTo(p); if (r > ROCKET.blast + (d.def.hitRadius || 7)) continue;
-      const k = 1 - Math.min(1, Math.max(0, r - (d.def.hitRadius || 7) * 0.5) / ROCKET.blast);
-      if (k <= 0) continue;
-      d.dmg.hit(p.clone().lerp(d.pos, 0.5), d.vel, ROCKET.damage * k); d.lastHit = 'rocket'; S.hits++;
-      if (d.dmg.dead) killDrone(d); else S.onHit?.(d);
-    }
+    // its warhead: the same kind of blast as a missile's (a hit kills by the damage it does), on anything near
+    for (const d of drones) if (d.alive && (d === target || d.pos.distanceTo(p) < ROCKET.blast + (d.def.hitRadius || 7))) warheadBlast(d, p, ROCKET.warhead, ROCKET.blast, 'rocket');
   }
   const _ip = new THREE.Vector3(), _iv = new THREE.Vector3(), _id = new THREE.Vector3();
   function rocketImpact(fwd) {

@@ -205,6 +205,8 @@ export const WEAPONS = {
   missileLife: 11,        // s: self-destructs after this (a fleeing target at 6 km is caught in about 9.7 s)
   missileMinSpeed: 300,   // m/s: after burnout, self-destructs once slower than this (it can't catch anything)
   proximity: 12,          // m
+  missileWarhead: 220,    // blast damage at the burst point (parts / airframe hit points), falling off to 0 at missileBlast
+  missileBlast: 30,       // m
   assistFull: 1.5,        // deg: nose within this of the gun solution -> rounds fly to the intercept
   assistAngle: 4,         // deg: assist fades out by here (both x1.5 on touch screens)
   hitRadius: 7,           // m around a target's centre that a round counts as a hit (x1.5 on touch screens)
