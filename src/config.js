@@ -91,6 +91,28 @@ export const F5 = {
   dihedral: 1.0,
 };
 
+// The Su-25 (second player jet, dev kit only for now): heavy, tough, subsonic, no afterburner (the burner detent does
+// nothing). Strong at low speed, slower in the roll, it runs out of speed as it nears Mach 0.8.
+export const SU25 = {
+  ...JSON.parse(JSON.stringify(F5)),
+  mass: 11000,
+  wingArea: 30,
+  thrustMil: 82000,
+  thrustAB: 82000,
+  clMax: 2.1,
+  cd0: 0.03,
+  waveDrag: 0.06,
+  machCrit: 0.72,
+  machPeak: 0.86,
+  rollRate: 165,
+  gFloorMax: 7,
+  turnBoost: 1.25,
+  boostDrag: 0.25,
+  afterburner: 'none',
+};
+// its weapons over the shared WEAPONS: the twin 30 mm (slower, heavier rounds, a little more spread), 4 missiles
+export const SU25_WEAPONS = { muzzleVelocity: 870, gunSpread: 0.0016, gunRate: 50, gunDamage: 2.8, roundLife: 3.6, missiles: 4 };
+
 // The mouse-aim "instructor": flies the jet toward wherever the camera points.
 export const INSTRUCTOR = {
   aimRate: 1.7,           // 1/s: turn rate commanded per radian of error (higher = snappier, too high = overshoot)

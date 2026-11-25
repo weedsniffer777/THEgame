@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { F5, INSTRUCTOR, CAMERA, WORLD, WEAPONS, loadTuning } from './config.js';
+import { F5, SU25, SU25_WEAPONS, INSTRUCTOR, CAMERA, WORLD, WEAPONS, loadTuning } from './config.js';
+import { loadSu25 } from './su25.js';
 import { Aircraft } from './flight/aircraft.js';
 import { instruct } from './flight/instructor.js';
 import { CameraRig } from './camera.js';
@@ -81,10 +82,11 @@ document.addEventListener('pointerlockchange', () => {
   if (was && !locked && !overlay?.open && !overlay?.endOpen) setRunning(false);   // (the end card frees the mouse without pausing)
 });
 
-// the player's aircraft (one so far: the jet-specific numbers come from the jet and its config)
-const PLANE = 'f5', PCFG = F5, WCFG = WEAPONS;
-try { localStorage.removeItem('thegame.devplane'); } catch { /* */ }
-const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadJet('models/jets/f5.gltf.json', F5)]);
+// the player's aircraft: the F-5, or (dev kit, for testing) the Su-25; the jet-specific numbers come from the jet and its config
+const PLANE = (() => { try { return localStorage.getItem('thegame.devplane') === 'su25' ? 'su25' : 'f5'; } catch { return 'f5'; } })();
+const PCFG = PLANE === 'su25' ? SU25 : F5, WCFG = PLANE === 'su25' ? { ...WEAPONS, ...SU25_WEAPONS } : WEAPONS;
+const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'),
+  PLANE === 'su25' ? loadSu25('models/jets/su25.gltf.json', SU25) : loadJet('models/jets/f5.gltf.json', F5)]);
 if (jet.contacts) setContacts(jet.contacts);
 scene.add(terrain.group, jet.object);
 const clouds = createClouds(WORLD.clouds, WORLD.cloudBase);
@@ -1247,6 +1249,7 @@ const kitBtn = document.getElementById('devkit'), kitMenu = document.getElementB
   lv.value = MODE;
   lv.addEventListener('change', () => { try { localStorage.setItem('thegame.devmode', lv.value); } catch { /* */ } location.reload(); });
   pl.value = PLANE;
+  pl.addEventListener('change', () => { try { localStorage.setItem('thegame.devplane', pl.value); } catch { /* */ } location.reload(); });
   // (two clicks: the browser's confirm dialog is blocked inside the page's frame)
   const clr = document.getElementById('kit-clear'); let armedClear = 0;
   clr.addEventListener('click', (e) => {
