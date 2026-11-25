@@ -102,7 +102,7 @@ export class Aircraft {
         + c.boostDrag * Math.max(0, clEff - cl) * (1 + (c.lowSpeedBleed || 0) * (1 - smooth(c.gFloorStartIAS, c.lowSpeedBleedIAS || 80, ias)) ** 2);
       _lift.crossVectors(_right, vdir).normalize().multiplyScalar(dyn * c.wingArea * clEff);
       _side.set(1, 0, 0).applyQuaternion(this.quat);
-      _side.addScaledVector(vdir, -_side.dot(vdir)).normalize().multiplyScalar(-dyn * c.wingArea * c.sideForce * beta);
+      _side.addScaledVector(vdir, -_side.dot(vdir)).normalize().multiplyScalar(-dyn * c.wingArea * c.sideForce * (this.sideBoost || 1) * beta);   // (sideBoost: touch screens with the gear down fly flat rudder turns, main.js)
       _a.add(_lift).add(_side).addScaledVector(vdir, -dyn * c.wingArea * cd * (this.damageFx?.dragMul ?? 1));
     }
     // engine

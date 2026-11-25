@@ -130,6 +130,7 @@ export const INSTRUCTOR = {
   slowIAS: 70,            // m/s IAS (~136 kt): at or below this (or with the gear down) the gentle low-speed behaviour is full
   fastIAS: 130,           // m/s IAS (~250 kt): from here up, none of it (dogfighting unchanged)
   slowMaxBank: 60,        // deg: bank limit when slow
+  gentleMaxBank: 25,      // deg: bank limit on touch screens with the gear down (turns flown more on the rudder)
   maxG: 9,                // game limit, between the real jet's 7.33 operating and ~11 ultimate
   maxNegG: 3,
   maxNegAoA: 12,          // deg

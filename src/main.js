@@ -710,6 +710,7 @@ function wreckStep(dt) {
     if (touching >= 3 && wreck.vel.lengthSq() < 0.15 && wreck.spin.lengthSq() < 0.01) { wreck.vel.set(0, 0, 0); wreck.spin.set(0, 0, 0); }   // at rest
   }
 }
+let lookT = 0;   // when a touch drag last moved the aim
 function axis(neg, pos) { return (held(pos) ? 1 : 0) - (held(neg) ? 1 : 0); }
 
 function physics(dt) {
@@ -723,6 +724,11 @@ function physics(dt) {
   else { if (ac.throttle > 1 && ac.throttle < 1.1) ac.throttle = 1; abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 1.2 * dt, 0, 1); }
   const kb = { pitch: axis('pitchDown', 'pitchUp'), roll: axis('rollLeft', 'rollRight'), yaw: axis('yawLeft', 'yawRight') };
   kb.active = !!(kb.pitch || kb.roll || kb.yaw);   // any flying key takes over from mouse aim (the camera eases back after)
+  // touch screens with the gear down: gentler steering (small bank, more rudder), and the wings level themselves
+  // whenever the finger isn't moving the aim
+  kb.gentle = isTouch ? THREE.MathUtils.clamp(ac.gear || 0, 0, 1) : 0;
+  kb.idle = performance.now() - lookT > 300;
+  ac.sideBoost = 1 + 4 * kb.gentle;   // (an arcade help: sideslip pushes the jet round much harder, so the rudder really turns it)
   if (kb.active) recentre = 0.45; else if (recentre > 0) recentre -= dt;
   // letting go of the keys: the camera only eases back onto the nose if it was roughly looking along it (not when it
   // has been turned to look at something else)
@@ -1287,7 +1293,7 @@ if (isTouch) {
   weapons.S.hitScale = 1.5;
   touchUi = createTouch(document.getElementById('touch'), {
     ab: PCFG.afterburner !== 'none',
-    onLook: (dx, dy) => { if (running) { const k = settings.mouseSens || 1; mouseDX += dx * k; mouseDY += dy * k; } },
+    onLook: (dx, dy) => { if (running) { const k = settings.mouseSens || 1; mouseDX += dx * k; mouseDY += dy * k; if (dx || dy) lookT = performance.now(); } },
     onThrottle: (v) => { if (tutAllow.throttle) ac.throttle = v; },
     onFire: (on) => { if (running && !dead && !overlay.open) weapons.setFiring(on, performance.now() / 1000); },
     onAirbrake: (on) => { touchBrake = on; },

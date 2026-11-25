@@ -74,7 +74,10 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     const rollAvail = f.rollRate * DEG * smooth(0, f.rollFullIAS, ias);
     let pDes = clamp(cfg.rollGain * rollErr, -rollAvail, rollAvail);
     // bank limit when slow: never rolled further than maxBank (180 = no limit when fast); beyond it, rolled back
-    const maxBank = (cfg.slowMaxBank || 60) + (180 - (cfg.slowMaxBank || 60)) * (1 - slow);
+    // (touch screens with the gear down, keys.gentle 0..1: a much smaller bank still, turns flown more on the rudder)
+    const gk = keys.gentle || 0;
+    let maxBank = (cfg.slowMaxBank || 60) + (180 - (cfg.slowMaxBank || 60)) * (1 - slow);
+    if (gk > 0) maxBank = Math.min(maxBank, (cfg.gentleMaxBank || 25) + (maxBank - (cfg.gentleMaxBank || 25)) * (1 - gk));
     if (maxBank < 179) {
       _u.set(0, 1, 0).applyQuaternion(ac.quat);
       const bankR = Math.atan2(-_r.y, _u.y) / DEG;                                  // + = banked right
@@ -97,9 +100,17 @@ export function instruct(ac, aimPoint, cfg, keys, dt) {
     pitch += cfg.rateGain * (qDes - (ac.q || 0));                                  // small trim on the actual pitch rate
 
     // rudder: fine sideways trim near the aim point, fading out in real turns
-    yaw = clamp(cfg.yawGain * yawErr - cfg.yawDamp * (ac.r || 0), -1, 1) * (1 - turnW);
+    yaw = clamp(cfg.yawGain * (1 + gk) * yawErr - cfg.yawDamp * (ac.r || 0), -1, 1) * (1 - turnW * (1 - 0.75 * gk));
     // hold the bank near the aim point (just damp any leftover roll rate), blending smoothly into real rolling
     roll = roll * smooth(0.04, 0.35, turnW) + clamp(-cfg.rollHold * (ac.p || 0), -0.3, 0.3) * (1 - smooth(0.04, 0.35, turnW));
+    // gentle, and the finger isn't moving the aim: the wings roll back to level by themselves (the rudder and the
+    // pitch carry on toward the aim point)
+    if (gk > 0 && keys.idle && rollAvail > 0.01) {
+      _u.set(0, 1, 0).applyQuaternion(ac.quat);
+      const bankR = Math.atan2(-_r.y, _u.y);                                       // + = banked right (rad)
+      const level = clamp((-cfg.rollGain * 0.6 * bankR - 0.15 * (ac.p || 0)) / rollAvail, -0.5, 0.5);
+      roll += (level - roll) * gk;
+    }
     if (keys.yaw) yaw = keys.yaw;
   }
 
