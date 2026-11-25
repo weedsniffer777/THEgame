@@ -319,7 +319,7 @@ const steerBox = () => [innerWidth * 0.28, innerHeight * 0.34, innerWidth * 0.44
 const steerChevs = () => [0, 180].map(ang => ({ ang, at: () => { const b = steerBox(); return [b[0] + b[2] / 2 + (ang ? -30 : 30), b[1] + b[3] / 2]; }, len: () => steerBox()[2] / 2 - 56 }));
 const thrRect = () => document.querySelector('.t-throttle')?.getBoundingClientRect();
 // (beside the lever, above and below the arrow pointing at it: up to speed up, down to slow down)
-const thrChevs = () => [[270, 0], [90, 1]].map(([ang, g]) => ({ ang, g, at: () => { const r = thrRect(); return r && [tutSide(r) > 0 ? r.right + 39 : r.left - 39, r.top + r.height / 2 + (ang === 90 ? 34 : -34)]; }, len: () => (thrRect()?.height || 200) / 2 - 50 }));
+const thrChevs = () => [[270, 0], [90, 0]].map(([ang, g]) => ({ ang, g, at: () => { const r = thrRect(); return r && [tutSide(r) > 0 ? r.right + 39 : r.left - 39, r.top + r.height / 2 + (ang === 90 ? 34 : -34)]; }, len: () => (thrRect()?.height || 200) / 2 - 50 }));
 const thrFrom = () => { const r = thrRect(); return r && tutSide(r) < 0 ? 180 : 0; };
 const FIRE_KEYS = () => { const c = bindings.fire.filter(Boolean).map(capOf); return c.length > 1 ? [c[0], { text: 'or' }, c[1]] : c.length ? c : [{ label: '–' }]; };
 // touch: which side an arrow comes from, by where the control sits (the layout can be changed in the settings)
@@ -362,7 +362,7 @@ function tutorialStep(dt) {
       if (first) { overlay.say('You can also use keyboard controls'); showKeys(() => overlay.keys([{ group: 'Pitch', keys: [cap('pitchDown'), cap('pitchUp')] }, { group: 'Roll', keys: [cap('rollLeft'), cap('rollRight')] }, { group: 'Yaw', keys: [cap('yawLeft'), cap('yawRight')] }])); }
       groupsStep(dt, [anyAct('pitchDown', 'pitchUp'), anyAct('rollLeft', 'rollRight'), anyAct('yawLeft', 'yawRight')], () => tutGo('throttle'));
       break;
-    case 'throttle': {   // speed up and slow down, both
+    case 'throttle': {   // speed up and slow down, both (touch: either)
       if (first) {
         tutAllow.throttle = true;
         if (T) { overlay.say('Slide to speed up and slow down'); overlay.spot([{ sel: '.t-throttle', pad: 8 }], TDIM); overlay.point([{ sel: '.t-throttle', pad: 8, from: thrFrom }]); overlay.chevrons(thrChevs()); }
@@ -372,7 +372,7 @@ function tutorialStep(dt) {
       const d = ac.throttle - tut.thr; tut.thr = ac.throttle;
       // once one of the two is done, the other completes at the first touch (no second full hold)
       const other = (k) => (tut.fs?.[1 - k] || 0) >= 1;
-      groupsStep(dt, T ? [() => Math.max(0, d) > 0.002 && other(0) ? 1 : Math.max(0, d) / 0.25, () => Math.max(0, -d) > 0.002 && other(1) ? 1 : Math.max(0, -d) / 0.25]
+      groupsStep(dt, T ? [() => Math.abs(d) / 0.25]   // (touch: sliding it either way is enough)
         : [(dt) => held('throttleUp') ? (other(0) ? 1 : dt / 0.5) : 0, (dt) => held('throttleDown') ? (other(1) ? 1 : dt / 0.5) : 0], () => tutGo('brake', 0.3));
       break;
     }
