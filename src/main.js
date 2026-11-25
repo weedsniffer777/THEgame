@@ -11,6 +11,7 @@ import { groundContact } from './flight/ground.js';
 import { createFlightHud } from './hudFlight.js';
 import { createMap } from './hudMap.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
+import { loadGltfJson } from './gltf.js';
 import { applyLayout } from './ui/touchLayout.js';
 import { held, press, release, releaseAll, actionsOf, isBound, codeOfMouse, capOf, primary, bindings, onBindings } from './controls.js';
 import { paintEnemy } from './enemy.js';
@@ -1188,12 +1189,29 @@ const unmarked = {};
 paintEnemy(enemyProto, 'unmarked').then(o => { unmarked.earlyJet = o; });
 paintEnemy(bomberProto, 'unmarked').then(o => { unmarked.bomber = o; });
 const liveJet = () => jet.object; liveJet.live = true;   // (shown live: animations, afterburner, gear, doors)
-const models = createModelViewer(renderer, canvas, scene.environment, {
+const viewerModels = {
   'player jet': liveJet,
   'enemy: early jet': Object.assign((paint) => paint === 'unmarked' ? unmarked.earlyJet || enemyProto : enemyProto, { paints: ['standard', 'unmarked'] }),
   'enemy: bomber': Object.assign((paint) => paint === 'unmarked' ? unmarked.bomber || bomberProto : bomberProto, { paints: ['standard', 'unmarked'] }),
   'missile': () => weapons.missileProto,
-}, { anim: viewerAnim, jet });
+};
+const models = createModelViewer(renderer, canvas, scene.environment, viewerModels, { anim: viewerAnim, jet });
+// every weapon of the missile set (and the MiG-21's own short-range missile), each as its own model viewer entry
+// (dev kit only: loaded in the background, the source names are fine here)
+(async () => {
+  const add = (label, src) => {
+    const o = new THREE.Group(), c = src.clone(true); o.add(c); o.updateMatrixWorld(true);
+    c.position.sub(new THREE.Box3().setFromObject(c).getCenter(new THREE.Vector3()));
+    viewerModels['weapon: ' + label] = () => o;
+  };
+  const set = await loadGltfJson('models/weapons/missiles.gltf.json');
+  const root = set.scene.getObjectByName('GLTF_SceneRootNode') || set.scene;
+  for (const w of root.children) if (!/^Text/i.test(w.name)) add(w.name.replace(/_\d+$/, '').replace(/_/g, ' '), w);
+  const mig = await loadGltfJson('models/jets/mig21.gltf.json');
+  let m = null; mig.scene.traverse(o => { if (!m && /Sidewinder/i.test(o.name)) m = o; });
+  if (m) add('MiG-21 short-range missiles (K-13 type)', m);
+  viewerModels['jet: MiG-21 (static)'] = () => mig.scene;
+})().catch(e => console.warn('model viewer extras', e));
 function openModels() {
   if (viewer.on) { setViewer(false); document.querySelectorAll('.lil-gui').forEach(g => { if (g.querySelector('.title')?.textContent === 'cinematic camera') g.style.display = 'none'; }); }
   if (document.pointerLockElement) document.exitPointerLock();
