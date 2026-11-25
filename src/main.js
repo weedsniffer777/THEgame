@@ -115,7 +115,7 @@ window.__loadStage = 'weapons';
 const weapons = await createWeapons(scene, jet, ac, WCFG, terrain, roster);
 const rig = new CameraRig(camera, CAMERA);
 const overlay = createOverlay();
-const mission = MODE === 'mission1' ? createMission1({ weapons, ac, rig }) : null;
+const mission = MODE === 'mission1' ? createMission1({ weapons, ac, rig, terrain }) : null;
 let missionEnded = false;
 const prevPos = new THREE.Vector3(), prevQuat = new THREE.Quaternion();
 const drawPos = new THREE.Vector3(), drawQuat = new THREE.Quaternion();
@@ -384,6 +384,8 @@ function tutorialStep(dt) {
       // then straight on to the first enemy (no tracking lesson: right click / the zoom button and the map are left
       // for the player to find, or for on-screen cues later)
       capsStep(dt, (dt) => ac.airbrakeCmd > 0 ? dt / 0.6 : 0, () => {
+        // the first straggler is put where this player is now: ~2.6 km ahead and a little to the right, flying their way
+        mission.place(A, 2600, 250, A.track?.weave);
         A.hidden = false; document.body.classList.remove('tut-nomap'); weapons.setFiring(false);
         tut.gt = A; tutGo('select1', 1.2);
       });
@@ -421,9 +423,8 @@ function tutorialStep(dt) {
       if (first) {
         W.allow.gun = W.allow.missile = false; weapons.setFiring(false); weapons.select(0);
         tutAllow.w1 = false;                                 // (missiles only now: no switching back to guns)
-        // put it well beyond gun range (but inside missile range) ahead of the player
-        const ahead = _wv.subVectors(B.pos, ac.pos).dot(B.track.dir);
-        if (ahead < 4300) mission.shiftOne(B, 4300 - ahead);
+        // put it well beyond gun range (but inside missile range) ahead of the player, wherever they are now
+        mission.place(B, 4300, -300);
         B.hidden = false;
         tutAllow.w2 = true;
         overlay.say('Use missiles to destroy farther enemies!');

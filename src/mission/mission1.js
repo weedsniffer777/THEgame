@@ -41,7 +41,7 @@ const STRAGGLER_TURN = { rate: 2.5 * Math.PI / 180, ang: 65 * Math.PI / 180 };  
 const STRAGGLER_WEAVE = { a: 150, w: 0.26, ph: 0, phys: true };   // (~150 m each way, up to ~45 deg of bank, a reversal every ~12 s)
 const FIGHTER_SLOTS = [[-260, 420, -150], [0, 470, -250], [260, 420, -150]];   // escorts above the main group
 
-export function createMission1({ weapons, ac, rig }) {
+export function createMission1({ weapons, ac, rig, terrain }) {
   const M = MISSION1;
   const bombers = weapons.drones.filter(d => d.def.label === 'Bomber');
   const fighters = weapons.drones.filter(d => d.def.label !== 'Bomber');
@@ -127,6 +127,31 @@ export function createMission1({ weapons, ac, rig }) {
     },
     // move the whole formation along its track by d metres (the tutorial keeps it just ahead while you learn to fly)
     shift(d) { for (const b of bombers) if (b.track) { b.track.t0 -= d / b.track.speed; if (b.track.turn) b.track.turn.t0 -= d / b.track.speed; } },
+    // tutorial: put a lesson's straggler where this player is now (whatever they did in the flying lessons): dist ahead
+    // and side to the right of where they're heading, flying that way (kept within 50 deg of up or down the valley, so
+    // it stays over the valley's line) at the formation's speed, high enough to clear the ground ahead for 15 km;
+    // the main formation (the rest of the bombers) is first pushed well clear ahead of it
+    place(d, dist, side = 0, weave) {
+      const simT = weapons.S.simT || 0, DEG = Math.PI / 180;
+      const fwd = new THREE.Vector3(ac.vel.x, 0, ac.vel.z); if (fwd.lengthSq() < 1) fwd.copy(dir); fwd.normalize();
+      const v = fwd.dot(dir) >= 0 ? dir.clone() : dir.clone().negate();
+      const th = Math.atan2(v.z * fwd.x - v.x * fwd.z, v.x * fwd.x + v.z * fwd.z);   // signed angle from the valley line to the heading
+      const h = v.clone().applyAxisAngle(_up, Math.max(-50 * DEG, Math.min(50 * DEG, th)));
+      const right = new THREE.Vector3().crossVectors(fwd, _up).normalize();
+      const pos = ac.pos.clone().addScaledVector(fwd, dist).addScaledVector(right, side);   // (where they're looking; it flies h)
+      let top = -Infinity;
+      for (let s = -1000; s <= 15000; s += 250) top = Math.max(top, terrain.heightAt(pos.x + h.x * s, pos.z + h.z * s));
+      pos.y = Math.max(ac.pos.y + 60, top + 600);
+      d.track = { origin: pos, dir: h.clone(), speed: M.speed, off: new THREE.Vector3(), t0: simT, w0: simT, weave };
+      d.pos.copy(pos); d.vel.copy(h).multiplyScalar(M.speed); d.obj.position.copy(pos);
+      this.clearAhead(8000);
+    },
+    // the main formation (not the lesson stragglers) at least `min` metres ahead of the player along its track
+    clearAhead(min) {
+      const lead = bombers[2]; if (!lead?.track || lead.track.loop) return;
+      const ahead = new THREE.Vector3().subVectors(lead.pos, ac.pos).dot(lead.track.dir);
+      if (ahead < min) for (const b of bombers.slice(2)) this.shiftOne(b, min - ahead);
+    },
     shiftOne(b, d) { if (b.track) { b.track.t0 -= d / b.track.speed; if (b.track.turn) b.track.turn.t0 -= d / b.track.speed; } },
     // the tutorial's over: whoever is left flies the rounded square too
     toLoop() { weapons.toLoop(bombers.filter(d => d.alive && !d.falling), weapons.S.simT || 0, (x, z) => edgeDistance(this.area, x, z) > 1200); },
