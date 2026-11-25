@@ -377,6 +377,7 @@ class Trails {
 }
 
 // ---------------------------------------------------------------- the weapons
+import { makePod, makeRocket, POD } from './rocketPod.js';
 export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = null) {
   const gltf = await loadGltfJson('models/weapons/missiles.gltf.json');
   let src = null;
@@ -399,11 +400,15 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
 
   // missiles on the rails (in the jet's model, which is offset by -CG inside jet.object)
   const onJet = (o) => { for (let p = o.parent; p; p = p.parent) if (p === jet.model) return true; return false; };
+  // rocket pods (a jet with pod stations: the Su-25): 5 rockets each, fired one at a time alternating pods while held
+  const PODS = jet.podStations || [];
+  const podMeshes = PODS.map(p => { const m = makePod(); m.position.copy(p).add(JCG).add(_v.set(0, -(POD.radius - 0.075), 0)); m.userData.left = POD.rockets; jet.model.add(m); attachToPart(jet.model, m); return m; });
   const railMeshes = RAILS.map(r => { const m = mproto.clone(true); m.userData.missile = true; m.position.copy(r).add(JCG); jet.model.add(m); attachToPart(jet.model, m); return m; });
 
   const S = {
     selected: 1, firing: false,
     rounds: [], missiles: [], fx: [], kills: [], shots: 0, hits: 0, allow: { gun: true, missile: true },
+    rockets: PODS.length * POD.rockets, rocketMax: PODS.length * POD.rockets, rocketsInFlight: [], rocketAcc: 1, podNext: 0, rocketPip: null,
     stock: cfg.missiles, reload: 0, gunAcc: 0, gunSide: 0, flash: [0, 0],
     lock: 0, locked: false, seeker: null, target: null, lead: null, leadTime: 0, hitScale: 1,
     loaded: Array(RAILS.length).fill(true), lost: Array(RAILS.length).fill(false),
@@ -933,6 +938,31 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     } else S.lock = 0;
     S.locked = S.lock >= cfg.lockTime;
 
+    // rockets: one every ~0.1 s while held (alternating pods), unguided: a short motor burn, then gravity; they burst on
+    // the ground or passing close to an aircraft, with blast damage around
+    podMeshes.forEach(m => { if (!onJet(m)) m.userData.left = 0; });
+    S.rockets = podMeshes.reduce((n, m) => n + m.userData.left, 0);
+    if (S.firing && S.selected === 3 && S.allow.gun && S.rockets > 0) {
+      S.rocketAcc += dt * (cfg.rocketRate || 10);
+      while (S.rocketAcc >= 1 && S.rockets > 0) { S.rocketAcc -= 1; fireRocket(fwd); }
+    } else S.rocketAcc = 1;                                          // (the first one goes the moment fire is pressed)
+    for (const r of S.rocketsInFlight) {
+      r.prev.copy(r.p); r.t += dt;
+      if (r.t < ROCKET.burn) r.v.addScaledVector(r.dir, ROCKET.accel * dt);
+      r.v.y -= G * dt; r.v.multiplyScalar(1 - ROCKET.drag * dt);
+      r.p.addScaledVector(r.v, dt); r.dir.copy(r.v).normalize();
+      if (r.t < ROCKET.burn + 0.3) { const last = r.trail.pts[r.trail.pts.length - 1]; if (!last || last.p.distanceTo(r.p) > 5) trails.add(r.trail, r.p, S.simT); }
+      let hit = null;
+      for (const d of drones) if (d.alive && segDist(r.prev, r.p, d.pos) < (d.def.hitRadius || cfg.hitRadius) * 0.8) { hit = closestOnSeg(r.prev, r.p, d.pos); break; }
+      const ground = terrain.heightAt(r.p.x, r.p.z);
+      if (!hit && r.p.y < ground) hit = r.p.clone().setY(ground);
+      if (hit || r.t > ROCKET.life) { rocketBurst(hit || r.p, r.v, !hit && r.t > ROCKET.life); r.t = 1e9; }
+    }
+    for (const r of S.rocketsInFlight) if (r.t >= 1e9) { r.trail.live = false; scene.remove(r.obj); }
+    S.rocketsInFlight = S.rocketsInFlight.filter(r => r.t < 1e9);
+    // where they'd land if fired now (for the pipper): the same flight, stepped ahead
+    S.rocketPip = S.selected === 3 && S.rockets > 0 ? rocketImpact(fwd) : null;
+
     // reload
     // a station whose wing section broke off is gone (its missile went down with the piece)
     railMeshes.forEach((m, k) => { S.lost[k] = !onJet(m); m.visible = S.loaded[k]; });
@@ -997,6 +1027,46 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       if (a < bestA) { bestA = a; best = d; }
     }
     return best;
+  }
+
+  const ROCKET = { launch: 30, accel: 520, burn: 0.75, drag: 0.03, life: 8, blast: 22, damage: 7 };
+  const _rq = new THREE.Quaternion();
+  function fireRocket(fwd) {
+    for (let n = 0; n < podMeshes.length; n++) {
+      const k = (S.podNext + n) % podMeshes.length, pod = podMeshes[k];
+      if (pod.userData.left <= 0 || !onJet(pod)) continue;
+      S.podNext = (k + 1) % podMeshes.length;
+      const i = POD.rockets - pod.userData.left; pod.userData.left--;
+      pod.userData.tips[i].visible = false;
+      const p = pod.localToWorld(pod.userData.mouths[i].clone());
+      const obj = makeRocket(); scene.add(obj);
+      S.rocketsInFlight.push({ obj, p, prev: p.clone(), v: ac.vel.clone().addScaledVector(fwd, ROCKET.launch), dir: fwd.clone(), t: 0, trail: trails.start() });
+      S.shots++;
+      return;
+    }
+  }
+  function rocketBurst(p, vel, air) {
+    explode(p, vel.clone().multiplyScalar(air ? 0.3 : 0.05), 0.55);
+    if (!air && terrain.isWater(p.x, p.z)) splash(p, vel, 0.8);
+    for (const d of drones) {
+      if (!d.alive) continue;
+      const r = d.pos.distanceTo(p); if (r > ROCKET.blast + (d.def.hitRadius || 7)) continue;
+      const k = 1 - Math.min(1, Math.max(0, r - (d.def.hitRadius || 7) * 0.5) / ROCKET.blast);
+      if (k <= 0) continue;
+      d.dmg.hit(p.clone().lerp(d.pos, 0.5), d.vel, ROCKET.damage * k); d.lastHit = 'rocket'; S.hits++;
+      if (d.dmg.dead) killDrone(d); else S.onHit?.(d);
+    }
+  }
+  const _ip = new THREE.Vector3(), _iv = new THREE.Vector3(), _id = new THREE.Vector3();
+  function rocketImpact(fwd) {
+    _ip.copy(ac.pos).addScaledVector(fwd, 4); _iv.copy(ac.vel).addScaledVector(fwd, ROCKET.launch); _id.copy(fwd);
+    const h = 0.05;
+    for (let t = 0; t < ROCKET.life; t += h) {
+      if (t < ROCKET.burn) _iv.addScaledVector(_id, ROCKET.accel * h);
+      _iv.y -= G * h; _iv.multiplyScalar(1 - ROCKET.drag * h); _ip.addScaledVector(_iv, h); _id.copy(_iv).normalize();
+      if (_ip.y < terrain.heightAt(_ip.x, _ip.z)) return _ip.clone().setY(terrain.heightAt(_ip.x, _ip.z));
+    }
+    return null;
   }
 
   function fireMissile(now) {
@@ -1179,6 +1249,16 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       glow.push(f, m, 1.0, 0.72, 0.38, 1.0, 0.07 + Math.random() * 0.04);
       glow.push(m, null, 1.0, 0.7, 0.4, 0.7, 0.2 + Math.random() * 0.1, Math.random());
     }
+    // rockets: body along its path, a short bright motor while burning
+    for (const r of S.rocketsInFlight) {
+      r.obj.position.copy(r.prev).lerp(r.p, alpha);
+      r.obj.quaternion.copy(_rq.setFromUnitVectors(_v.set(0, 0, 1), r.dir));
+      if (r.t < ROCKET.burn) {
+        const tailP = tmpA.copy(r.dir).multiplyScalar(-0.9).add(r.obj.position), end = tmpB.copy(r.dir).multiplyScalar(-2.6 - Math.random()).add(r.obj.position);
+        glow.push(tailP, end, 1.0, 0.62, 0.3, 1.1, 0.2);
+        glow.push(tailP, null, 1.0, 0.64, 0.32, 0.8, 0.4 + Math.random() * 0.2, Math.random());
+      }
+    }
     // missiles: body follows its path, motor flame while burning
     for (const m of S.missiles) {
       m.obj.position.copy(m.prev).lerp(m.p, alpha);
@@ -1281,7 +1361,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     clearLine: (a, b) => clearLine(a, b),
     placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now (or on their tracks)
     resetStats() { S.kills.length = 0; S.shots = 0; S.hits = 0; },
-    rearm() { S.loaded.fill(true); S.firing = false; },
+    rearm() { S.loaded.fill(true); S.firing = false; podMeshes.forEach(m => { m.userData.left = POD.rockets; m.userData.tips.forEach(t => { t.visible = true; }); }); },
     explode, hitFx, killDrone,   // (used by the dev tests)
     vapour, contrailsStep,
     step, render,

@@ -1,4 +1,4 @@
-import { MISSILE } from './hudArms.js';
+import { MISSILE, ROCKET } from './hudArms.js';
 // Touch controls (phones, tablets). Flight controls on the left, weapons on the right; icons, plus GEAR and BRAKE.
 //  - drag anywhere else to move the aim, like the mouse;
 //  - left: a throttle (a thin black bar with a sliding block and the power % over it; stays where you leave it; notches for the detents, the
@@ -82,7 +82,7 @@ export function createTouch(root, { ab = true, onLook, onThrottle, onFire, onAir
     // the fire button's icon: 1 guns, 2 missiles, 3 bombs (later)
     setWeapon(k) {
       if (k === fire._w) return; fire._w = k;
-      fire.innerHTML = k === 2 ? MISSILE.replace('<svg ', '<svg class="wpn msl" ') : k === 3 ? BOMB : BULLET;
+      fire.innerHTML = k === 2 ? MISSILE.replace('<svg ', '<svg class="wpn msl" ') : k === 3 ? ROCKET.replace('<svg ', '<svg class="wpn rkt" fill="#fff" ') : k === 4 ? BOMB : BULLET;
     },
     // the gear button: shown only when it makes sense (slow or low, or the gear is already down); lit while down
     setGear(show, down) { if (gear.hidden === show) gear.hidden = !show; gear.classList.toggle('down', !!down); },

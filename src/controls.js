@@ -19,6 +19,7 @@ export const ACTIONS = [
   { id: 'track', name: 'TRACK ENEMY', group: 'COMBAT', def: ['Mouse2', null] },
   { id: 'guns', name: 'CANNON', group: 'COMBAT', def: ['Digit1', null] },
   { id: 'missiles', name: 'MISSILES', group: 'COMBAT', def: ['Digit2', null] },
+  { id: 'rockets', name: 'ROCKETS', group: 'COMBAT', def: ['Digit3', null] },
   { id: 'nextTarget', name: 'NEXT TARGET', group: 'COMBAT', def: ['KeyR', null] },
   { id: 'map', name: 'MAP', group: 'OTHER', def: ['KeyM', null] },
   { id: 'pause', name: 'PAUSE', group: 'OTHER', def: ['KeyP', null] },   // (Esc always pauses too)

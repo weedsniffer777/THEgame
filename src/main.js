@@ -232,7 +232,7 @@ weapons.S.onBoom = (p, size) => {             // an explosion: shakes the view, 
 const tut = { camT: 0, camD: null, step: 'off', t: 0, wait: 0, entered: false, f: 0, doneT: 0, fwd: new THREE.Vector3(), thr: 0, stock: 0, lost: 0, gt: null };
 const isTouchDev = isTouch, tv = new THREE.Vector3();
 // what the player may use yet: each control is locked until the tutorial step that teaches it
-const tutAllow = { throttle: true, brake: true, gear: true, w1: true, w2: true };
+const tutAllow = { throttle: true, brake: true, gear: true, w1: true, w2: true, w3: true };
 function tutUnlock() { for (const k in tutAllow) tutAllow[k] = true; }
 function tutActive() { return mission && !save.tutorialDone; }
 // tutorial: at least one bomber in every 1-3 bomber kills blows up (the usual chance applies in between), but never
@@ -484,10 +484,12 @@ function tutorialStep(dt) {
   }
 }
 // selecting a weapon: not until the tutorial has taught it, and never an empty one (that says so instead)
-let outT = 0;   // how long the "out of missiles" notice still shows
+let outT = 0, outWhat = 'missiles';   // how long the "out of missiles / rockets" notice still shows
 function pickWeapon(k) {
   if (!tutAllow['w' + k]) return;
-  if (k === 2 && weapons.S.stock === 0) { outT = 2.5; return; }
+  if (k === 2 && weapons.S.stock === 0) { outT = 2.5; outWhat = 'missiles'; return; }
+  if (k === 3 && !weapons.S.rocketMax) return;
+  if (k === 3 && weapons.S.rockets === 0) { outT = 2.5; outWhat = 'rockets'; return; }
   weapons.select(k);
 }
 // landing gear up / down: not before the tutorial is done, and never up while sitting on it
@@ -517,6 +519,7 @@ function actDown(id) {
   if (id === 'pause') togglePause();
   else if (id === 'guns') pickWeapon(1);
   else if (id === 'missiles') pickWeapon(2);
+  else if (id === 'rockets') pickWeapon(3);
   else if (id === 'nextTarget') weapons.cycleTarget();
   else if (id === 'gear') toggleGear();
   else if (id === 'fire') { if (running && !dead && !overlay.open && !ending.on) weapons.setFiring(true, performance.now() / 1000); }
@@ -764,7 +767,8 @@ let areaK = 0;   // outside the mission area: the 'plane lost' look builds up ov
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], mslEls = [];
-const armsHud = createArmsHud(document.getElementById('arms'), WCFG.missiles, (k) => { if (running) pickWeapon(k); });
+const armsHud = createArmsHud(document.getElementById('arms'), WCFG.missiles, (k) => { if (running) pickWeapon(k); }, weapons.S.rocketMax);
+const rpipEl = document.getElementById('rpip');
 const gunSvg = document.getElementById('gunsol'), [gunBox, gunLine, gunCirc] = gunSvg.children;
 
 // a distance for the HUD: nm (km), then ft (m) close in: inside 1.5 nm (2 km)
@@ -793,12 +797,13 @@ function notes(dt) {
   gearWarnT = Math.max(0, gearWarnT - dt);
   // the selected weapon ran dry: back to guns, and say so
   // (the trigger is let go: still holding fire doesn't start the guns, it takes a fresh press)
-  if (weapons.S.selected === 2 && weapons.S.stock === 0 && running && !dead) { weapons.setFiring(false); weapons.select(1); outT = 2.5; }
+  if (weapons.S.selected === 2 && weapons.S.stock === 0 && running && !dead) { weapons.setFiring(false); weapons.select(1); outT = 2.5; outWhat = 'missiles'; }
+  if (weapons.S.selected === 3 && weapons.S.rockets === 0 && running && !dead) { weapons.setFiring(false); weapons.select(1); outT = 2.5; outWhat = 'rockets'; }
   outT = Math.max(0, outT - dt);
   // warnings: high in the centre, light red, one per row; status: a little below the centre, white, one per row
   const warn = [];
   if (gearWarnT > 0) warn.push('Slow down to extend landing gear!');
-  if (outT > 0) warn.push('Out of missiles!');
+  if (outT > 0) warn.push(outWhat === 'rockets' ? 'Out of rockets!' : 'Out of missiles!');
   const show = running && !dead, row = (t) => `<div>${t}</div>`;
   const w = show ? warn.map(row).join('') : '';
   if (w !== lastWarns) { warnsEl.innerHTML = w; lastWarns = w; }
@@ -984,8 +989,12 @@ function hud(dt = 1 / 60) {
       gunCirc.setAttribute('fill', onTarget ? 'rgba(255,85,65,0.35)' : 'none');
     }
   }
+  // rockets: the impact pipper where they'd land
+  const rp = running && !dead && W.selected === 3 && W.rocketPip ? screenOf(W.rocketPip) : null;
+  rpipEl.style.display = rp ? '' : 'none';
+  if (rp) rpipEl.style.transform = `translate(${rp[0]}px, ${rp[1]}px)`;
   xray();
-  armsHud(W.selected, W.stock, msl && W.locked);
+  armsHud(W.selected, W.stock, msl && W.locked, W.rockets);
   if (touchUi) {                                         // the gear button: only when slow or low (or already down)
     const agl = ac.pos.y - terrain.heightAt(ac.pos.x, ac.pos.z);
     touchUi.setGear(running && !dead && tutAllow.gear && (ac.t.ias * 1.944 < 250 || agl < 300 || ac.gearCmd > 0), ac.gearCmd > 0);

@@ -5,6 +5,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8aa4c4; tou
 #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #hud { position: fixed; inset: 0; pointer-events: none; }
 #vignette { --inner: 35%; position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent var(--inner), #000 100%); }
+/* rocket impact pipper: where the rockets would land if fired now */
+#rpip { position: absolute; left: 0; top: 0; width: 34px; height: 34px; margin: -17px 0 0 -17px; will-change: transform; pointer-events: none; }
+#rpip svg { width: 100%; height: 100%; fill: none; stroke: #fff; stroke-width: 2; stroke-opacity: 0.9; filter: drop-shadow(0 0 1px rgba(0,0,0,0.6)); }
+#rpip .dot { fill: #fff; stroke: none; }
+body.hud-green #rpip svg { stroke: var(--hg); } body.hud-green #rpip .dot { fill: var(--hg); }
 #aim, #nose { position: absolute; left: 0; top: 0; will-change: transform; }
 #aim { width: 10px; height: 10px; margin: -6.5px 0 0 -6.5px; border: 1.5px solid rgba(255,255,255,0.9); border-radius: 50%; box-shadow: 0 0 2px rgba(0,0,0,0.6); }   /* where you aim: the old circle at ~38% */
 #aim.stall { border-color: #ff4a3a; }
@@ -59,6 +64,11 @@ body.viewing #game { cursor: grab; }
 #arms .msl i svg { position: absolute; left: 50%; top: 50%; width: 62px; height: 10.5px; transform: translate(-50%, -50%) rotate(-90deg); }
 #arms .msl i svg path { fill: #fff; }
 #arms .msl i.spent svg path { fill-opacity: 0.22; }
+#arms .rkt { display: flex; flex-direction: column; gap: 4px; height: 64px; }
+#arms .rkt > span { display: flex; gap: 1px; height: 30px; }
+#arms .rkt i { position: relative; width: 5px; height: 30px; }
+#arms .rkt i svg { position: absolute; left: 50%; top: 50%; width: 29px; height: 5px; transform: translate(-50%, -50%) rotate(-90deg); }
+#arms .rkt i.spent svg path { fill-opacity: 0.22; }
 #arms.locked .col.sel .msl i:not(.spent) svg path { fill: #ff5a4a; }
 /* enemy diamonds; the selected one is bigger and brighter */
 /* gun lead pip: where to put the reticle to hit the selected enemy */
@@ -96,6 +106,7 @@ body.touch #thrScale { display: none; }
 .t-btn svg { width: 55%; height: 55%; stroke: #fff; fill: none; }
 .t-fire svg.wpn { width: 62%; height: auto; fill: #fff; transform: rotate(-45deg); overflow: visible; }
 .t-fire svg.wpn.msl { width: 82%; }
+.t-fire svg.wpn.rkt { width: 70%; }
 .t-fire.on, .t-btn.on { background: rgba(255,255,255,0.3); }
 .t-fire.locked { border-color: #ff5541; }
 .t-brake { left: max(92px, calc(env(safe-area-inset-left) + 74px)); bottom: 28px; }
@@ -354,7 +365,7 @@ body.hud-green #gunsol rect, body.hud-green #gunsol circle, body.hud-green #guns
 body.hud-green #fhud .tk, body.hud-green #fhud .box { stroke: var(--hgs); }
 body.hud-green #fhud text, body.hud-green #fhud .chev:not(.ab), body.hud-green #fhud .eng { fill: var(--hgs); }
 body.hud-green #arms { color: var(--hg); }
-body.hud-green #arms svg, body.hud-green #arms .msl i svg path { fill: var(--hg); }
+body.hud-green #arms svg, body.hud-green #arms .msl i svg path, body.hud-green #arms .rkt i svg path { fill: var(--hg); }
 body.hud-green #arms .key { border-color: var(--hg); }
 body.hud-green #arms .col.sel { border-bottom-color: var(--hg); }
 body.hud-green #ring .circ circle { stroke: rgba(77,255,124,0.3); }
