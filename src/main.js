@@ -117,7 +117,7 @@ function startEnding(win = true) {
 }
 function endingStep(dt) {
   ending.t += dt;
-  if (ending.t > (ending.win ? 0.6 : 0.15) && !ending.banner) { ending.banner = true; showBanner(ending.win ? 'Mission complete' : 'Mission failed', ending.win ? 'win' : 'fail', 4.2); }
+  if (ending.t > (ending.win ? 0.3 : 0.1) && !ending.banner) { ending.banner = true; showBanner(ending.win ? 'Mission complete' : 'Mission failed', ending.win ? 'win' : 'fail', 4.2); }
   if (ending.t > 5.5 && !ending.card) {                         // the results (or retry), over a softened picture
     ending.card = true; missionEnded = true;
     document.body.classList.add('ending-blur');
@@ -747,7 +747,8 @@ function physics(dt) {
 
 // HUD
 const aimEl = document.getElementById('aim'), noseEl = document.getElementById('nose');
-const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementChild, vig = document.getElementById('vignette');
+const thrEl = document.getElementById('throttle'), thrFill = thrEl.firstElementChild, vig = document.getElementById('vignette'), lostEl = document.getElementById('lost');
+let areaK = 0;   // outside the mission area: the 'plane lost' look builds up over the countdown (0..1)
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], mslEls = [];
@@ -994,7 +995,15 @@ function hud(dt = 1 / 60) {
   const k = gStrain;
   vig.style.opacity = (0.95 * Math.pow(k, 1.2) + (dead ? 0 : THREE.MathUtils.clamp((-g - 2.5) / 1, 0, 0.4))).toFixed(3);
   vig.style.setProperty('--inner', `${(35 - 22 * k).toFixed(1)}%`);
-  const f = k > 0.01 && !document.body.classList.contains('lost') ? `saturate(${(1 - 0.85 * k).toFixed(2)}) brightness(${(1 - 0.18 * k).toFixed(2)})` : '';
+  // outside the mission area: from nothing at the border to the full 'plane lost' look (red edges, colour drained) as
+  // the 20 s run out; back inside it clears in about a third of a second
+  const lostNow = document.body.classList.contains('lost');
+  const outK = mission?.area && !ending.on && !dead && areaT < AREA_GRACE ? 1 - areaT / AREA_GRACE : 0;
+  areaK = outK >= areaK ? outK : Math.max(outK, areaK - dt / 0.35);
+  const oa = lostNow ? 0 : areaK;
+  const lo = oa > 0.001 ? oa.toFixed(3) : '';
+  if (lostEl.style.opacity !== lo) { lostEl.style.opacity = lo; lostEl.style.transition = lo ? 'none' : ''; }
+  const f = (k > 0.01 || oa > 0.001) && !lostNow ? `saturate(${((1 - 0.85 * k) * (1 - 0.75 * oa)).toFixed(3)}) brightness(${((1 - 0.18 * k) * (1 - 0.15 * oa)).toFixed(3)})` : '';
   if (f !== canvas.style.filter) canvas.style.filter = f;
 }
 
@@ -1055,7 +1064,7 @@ function frameBody(now) {
       if (!wreck.inWater && !wreck.lake) weapons.burn(wreck.pos, wreck.vel, wreck.key);   // (on or in a lake: no fire)
       weapons.step(dt, performance.now() / 1000);
       // a couple of seconds of the wreck, then the picture softens and the death screen comes up (retry waits for the player)
-      if (dead > 0.15 && !deathBanner && !ending.on) { deathBanner = true; showBanner('Mission failed', 'fail', 4); }
+      if (dead > 0.1 && !deathBanner && !ending.on) { deathBanner = true; showBanner('Mission failed', 'fail', 4); }
       if (dead > 2.2 && !deathShown && !window.__holdWreck && !ending.on) {   // (__holdWreck: dev tests watch the wreck to rest)
         deathShown = true; document.body.classList.add('dead-blur');
         overlay.showDeath(() => { spawn(); resume(); });
@@ -1238,4 +1247,4 @@ if (isTouch) {
   applyLayout();                                         // (the player's own button positions, if moved)
 }
 
-window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut, overlay, mission, state: () => ({ running, locked, started, dead }) };
+window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut, overlay, mission, state: () => ({ running, locked, started, dead }), setAreaT: (v) => { areaT = v; } };

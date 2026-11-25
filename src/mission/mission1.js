@@ -26,10 +26,10 @@ const BOMBER_SLOTS = [
   [380, -60, 520],                                                               // right
 ];
 // breaking away from a missile: how close it is seen (aimed at this bomber / at another), turn rate, angle, sink
-const EVADE = { seeAt: 1852, nearMiss: 600, ignore: 0.25, away: 0.7, climb: 0.3, rate: [3.5, 6], ang: [40, 110], sink: [8, 15], climbRate: [4, 8] };
+const EVADE = { seeAt: 1852, nearMiss: 600, ignore: 0.25, away: 0.7, climb: 0.3, rate: [5, 8], ang: [25, 60], sink: [6, 12], climbRate: [3, 6] };   // (a short, sharp break: ~4-10 s, then back)
 const _r = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _m = new THREE.Vector3();
 // a hit bomber's peel-off: chance per hit taken, turn rate (deg/s), how far it turns (deg), how fast it sinks (m/s)
-const PEEL = { chance: 0.07, rate: [1.5, 3], ang: [35, 110], sink: [2, 7] };
+const PEEL = { chance: 0.07, rate: [2.5, 4], ang: [15, 40], sink: [1.5, 4] };   // (a brief lurch off course, ~5-15 s, then back)
 // the whole formation of ten (no stragglers), for the mission after the tutorial
 const FULL_SLOTS = [...BOMBER_SLOTS, [490, -90, 640], [270, -90, 640]];
 // two stragglers behind the main group, close together (the first one meets the player first): the second ~0.85 nm
@@ -90,13 +90,13 @@ export function createMission1({ weapons, ac, rig }) {
       state.t += dt;
       // missile warning: a bomber sees a missile coming at it inside 1 nm (or one going for another aircraft passing
       // within ~600 m) and breaks hard: a steep diving turn away from it (it won't outrun it, but the formation breaks up)
-      // the missile is gone (or long past): a bomber that broke away heads back to its place (one peeling off hurt doesn't)
+      // the missile is gone (or long past): a bomber that broke away heads back to its place, as does one that peeled off hurt
       for (const d of bombers) {
         const F = d.track?.free;
         const threat = d.track && weapons.S.missiles.some(m => m.owner === 'player' && m.p.distanceTo(d.pos) < 2500);
         if (d.track?.evading && !F && !threat) d.track.evading = false;   // (one that chose to sit tight can react next time)
-        if (!F || F.rejoin || d.track.peeled || !this.thinks(d)) continue;
-        if (!threat && F.rateT === 0) F.rejoin = true;               // (once its break is done)
+        if (!F || F.rejoin || !this.thinks(d)) continue;
+        if (!threat && F.rateT === 0) { F.rejoin = true; d.track.peeled = false; }   // (once its break is done)
       }
       for (const m of weapons.S.missiles) {
         if (m.owner !== 'player') continue;

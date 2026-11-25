@@ -649,9 +649,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       _fa.copy(_ft).addScaledVector(T.dir, 300).sub(d.pos); _fa.y = 0;
       const want = Math.atan2(_fa.x, -_fa.z), have = Math.atan2(F.dir.x, -F.dir.z);
       let err = want - have; err = Math.atan2(Math.sin(err), Math.cos(err));    // (+ = it lies to the right)
-      F.rateT = THREE.MathUtils.clamp(err * 0.6, -3 * deg, 3 * deg); F.turned = 0; F.ang = 1e9;
+      F.rateT = THREE.MathUtils.clamp(err * 0.8, -5 * deg, 5 * deg); F.turned = 0; F.ang = 1e9;
       sinkT = THREE.MathUtils.clamp((d.pos.y - _ft.y) * 0.08, -6, 6);
-      V *= 1 + THREE.MathUtils.clamp(gap / 3000, 0, 0.18);
+      V *= 1 + THREE.MathUtils.clamp(gap / 2000, 0, 0.3);
     }
     // the ground ahead (now, in ~6 s and ~12 s)
     const lo = Math.max(terrain.heightAt(d.pos.x, d.pos.z), terrain.heightAt(d.pos.x + F.dir.x * V * 6, d.pos.z + F.dir.z * V * 6), terrain.heightAt(d.pos.x + F.dir.x * V * 12, d.pos.z + F.dir.z * V * 12));
