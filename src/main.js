@@ -381,29 +381,18 @@ function tutorialStep(dt) {
         if (T) { overlay.spot([{ sel: '.t-brake', round: true, pad: 6 }], TDIM); overlay.point([{ sel: '.t-brake', round: true, pad: 6, from: fromFor('.t-brake') }]); }
         else showKeys(() => overlay.keys([cap('airbrake')]));
       }
-      capsStep(dt, (dt) => ac.airbrakeCmd > 0 ? dt / 0.6 : 0, () => tutGo('spotA', 1.2));
-      break;
-    // ---- spotting: the first enemy, tracking it (the map is mentioned, not required) ----
-    case 'spotA':    // the view swings to it once by itself, then: hold right click to track it
-      if (first) {
+      // then straight on to the first enemy (no tracking lesson: right click / the zoom button and the map are left
+      // for the player to find, or for on-screen cues later)
+      capsStep(dt, (dt) => ac.airbrakeCmd > 0 ? dt / 0.6 : 0, () => {
         A.hidden = false; document.body.classList.remove('tut-nomap'); weapons.setFiring(false);
-        tut.camD = A;
-        if (T) { overlay.say('Hold to track an enemy!'); overlay.spot([foeSpot(A), { sel: '.t-zoom', round: true, pad: 6 }], 0.45); overlay.point([{ sel: '.t-zoom', round: true, pad: 6, from: fromFor('.t-zoom') }]); }
-        else {
-          showKeys(() => {
-            overlay.say(primary('track') === 'Mouse2' ? 'Right click to track an enemy!' : 'Hold to track an enemy!');
-            overlay.keys([cap('track'), ...(primary('map') ? [{ br: true }, { text: 'You can also check the map with' }, cap('map', { small: true })] : [])]);
-          });
-          overlay.spot([foeSpot(A)], 0.2);
-        }
-      }
-      groupsStep(dt, [(dt) => rig.zooming ? dt / 0.9 : 0], () => { tut.gt = A; tutGo('select1', 0.3); });
+        tut.gt = A; tutGo('select1', 1.2);
+      });
       break;
     // ---- guns, on the first one (it jinks): select, aim (weapons still safe), then shoot ----
     case 'select1':
       if (first) { tutAllow.w1 = true; document.body.classList.remove('tut-noarms'); overlay.say('Select cannon to destroy the enemy');
         const col = { sel: '#arms .col[data-w="1"]', pad: 6 };
-        if (T) { overlay.spot([col], TDIM); overlay.point([{ ...col, from: fromFor(col.sel) }]); } else { showKeys(() => overlay.keys([cap('guns')])); overlay.spot([col], 0.35); }
+        if (T) { overlay.spot([foeSpot(A), col], TDIM); overlay.point([{ ...col, from: fromFor(col.sel) }]); } else { showKeys(() => overlay.keys([cap('guns')])); overlay.spot([foeSpot(A), col], 0.35); }
       }
       capsStep(dt, (dt) => W.selected === 1 ? dt / 0.2 : 0, () => tutGo('close', 0.1));
       break;
