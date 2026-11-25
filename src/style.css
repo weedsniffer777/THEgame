@@ -155,7 +155,7 @@ body.viewing #fhud { display: none; }
 body.paused #pause { display: block; }
 body.paused #game { filter: blur(7px) !important; }
 body.paused #hud, body.paused #touch { display: none; }
-#pause .panel { position: absolute; left: -150px; top: 0; bottom: 0; width: min(520px, 86vw); padding-left: 190px; padding-right: 36px; box-sizing: border-box;
+#pause .panel { position: absolute; left: -150px; top: 0; bottom: 0; width: min(580px, 86vw); padding-left: 190px; padding-right: 36px; box-sizing: border-box;
   display: flex; flex-direction: column; justify-content: center; transform: skewX(9deg); transform-origin: top left;
   background: linear-gradient(90deg, rgba(8,12,18,0.88) 60%, rgba(8,12,18,0.7)); border-right: 2px solid rgba(236,246,238,0.65);
   animation: pausein 0.22s ease-out; transition: width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1); }
@@ -169,6 +169,10 @@ body.paused #hud, body.paused #touch { display: none; }
 #pause button { font-family: 'B612 Mono', ui-monospace, monospace; font-weight: 700; color: rgba(236,246,238,0.85); background: none; border: none; cursor: pointer; }
 #pause .item { display: block; font-size: 22px; letter-spacing: 0.16em; padding: 12px 0 12px 14px; border-left: 3px solid transparent; text-align: left; transition: transform 0.12s, color 0.12s; }
 #pause .item:hover, #pause .item:focus-visible { color: #fff; border-left-color: #fff; transform: translateX(6px); outline: none; }
+#pause .page.main .item { display: flex; align-items: center; gap: 16px; }
+#pause .item .ico { display: grid; place-items: center; width: 28px; height: 28px; flex: none; opacity: 0.85; transition: opacity 0.12s; }
+#pause .item .ico svg { width: 28px; height: 28px; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); }
+#pause .item:hover .ico, #pause .item:focus-visible .ico { opacity: 1; }
 /* the settings page: big tabs along the top, the open tab scrolls, BACK at the bottom */
 /* (as wide as fits inside the slanted edge at its narrowest, the top, with some room to spare) */
 #pause .page.settings.on { display: flex; flex-direction: column; height: calc(100vh - 56px); max-height: 900px; min-width: 0; width: calc(90vw - 23.8vh - 120px); }

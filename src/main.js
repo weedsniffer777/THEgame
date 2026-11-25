@@ -66,7 +66,8 @@ function resume() {
   try { const lock = canvas.requestPointerLock?.(); lock?.catch?.(() => {}); } catch { /* no pointer lock here */ }
   setRunning(true);
 }
-const pauseMenu = createPauseMenu({ onResume: resume, onRestart: () => { spawn(); resume(); } });   // (spawn is hoisted: a fresh start of the level)
+const pauseMenu = createPauseMenu({ onResume: resume, onRestart: () => { spawn(); resume(); },
+  onMenu: () => { spawn(); started = false; setRunning(false); pauseMenu.close(); } });   // (back to the start screen; the mission starts over from there)   // (spawn is hoisted: a fresh start of the level)
 startEl.addEventListener('click', resume);
 function togglePause() {                                                 // the pause binding (P): pause / resume
   if (viewer.on) return;
