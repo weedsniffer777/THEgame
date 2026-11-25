@@ -359,7 +359,10 @@ function tutorialStep(dt) {
         tut.thr = ac.throttle;
       }
       const d = ac.throttle - tut.thr; tut.thr = ac.throttle;
-      groupsStep(dt, T ? [() => Math.max(0, d) / 0.25, () => Math.max(0, -d) / 0.25] : [anyAct('throttleUp'), anyAct('throttleDown')], () => tutGo('brake', 0.3));
+      // once one of the two is done, the other completes at the first touch (no second full hold)
+      const other = (k) => (tut.fs?.[1 - k] || 0) >= 1;
+      groupsStep(dt, T ? [() => Math.max(0, d) > 0.002 && other(0) ? 1 : Math.max(0, d) / 0.25, () => Math.max(0, -d) > 0.002 && other(1) ? 1 : Math.max(0, -d) / 0.25]
+        : [(dt) => held('throttleUp') ? (other(0) ? 1 : dt / 0.5) : 0, (dt) => held('throttleDown') ? (other(1) ? 1 : dt / 0.5) : 0], () => tutGo('brake', 0.3));
       break;
     }
     case 'brake':
@@ -1139,7 +1142,8 @@ function frameBody(now) {
   playerShadow(gameT);
   renderer.render(scene, camera);
   // heat shimmer behind our own nozzles (dry power a little, afterburner a lot)
-  haze.render(camera, dead ? 0 : THREE.MathUtils.clamp(ac.engine, 0, 1) * 0.4 + THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1) * 0.6, gameT);
+  // (a jet without an afterburner shimmers hard at full dry power: there's no burner to save the strong haze for)
+  haze.render(camera, dead ? 0 : PCFG.afterburner === 'none' ? THREE.MathUtils.clamp(ac.engine, 0, 1) * 0.85 : THREE.MathUtils.clamp(ac.engine, 0, 1) * 0.4 + THREE.MathUtils.clamp((ac.engine - 1) / 0.1, 0, 1) * 0.6, gameT);
   perf(dt);
   window.__dev?.(dt);
   requestAnimationFrame(frame);

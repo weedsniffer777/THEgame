@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { loadGltfJson } from './gltf.js';
-import { splitAirframe, REGIONS } from './damage.js';
+import { splitAirframe, REGIONS, classify } from './damage.js';
 import { tagTextures } from './paint.js';
 import { viewerAnim, clipGeometry } from './jet.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -14,8 +14,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 // Model space: +Z nose, +Y up, +X left wing (wheels on y = 0).
 const CG = new THREE.Vector3(0, 1.9, -0.7);
 const body = (x, y, z) => new THREE.Vector3(x, y, z).sub(CG);
-REGIONS.su25 = { jag: 0.03, noseZ: 4.0, tail: { z: -4.7 }, stab: { x: 0.45, y: 1.7, z: -5.2, yMax: 3.0 }, fin: { y: 3.0, z: -4.6 },
-  outer: { x: 3.6, y: 2.6, z0: -3.6, z1: 0.8 }, inner: { x: 1.65, y: 2.6, z0: -3.6, z1: 1.2 } };
+REGIONS.su25 = { jag: 0.18, jagWings: true, noseZ: 4.0, tail: { z: -4.7 }, stab: { x: 0.45, y: 1.7, z: -5.2, yMax: 3.0 }, fin: { y: 3.0, z: -4.6 },
+  outer: { x: 3.6, y: 2.6, z0: -4.2, z1: 1.4 }, inner: { x: 1.65, y: 2.6, z0: -4.2, z1: 1.4 } };   // (wing regions reach the pods' tails and the pylons' fronts)
 
 // the triangles of an indexed geometry grouped into connected pieces (welded by position): { tris, box, center }
 function pieces(g) {
@@ -80,24 +80,62 @@ export async function loadSu25(url, cfg) {
     const pair = pick((c, ax) => c.tris.length > 90 && c.tris.length < 115 && ax > 6.7 && c.center.z < -2.7 && c.center.z > -3.5 && side(c) === sd).sort((a, b) => b.center.y - a.center.y);
     pair.forEach((c, k) => { const t = take('airbrake', c); brakes.push({ t, up: k === 0 ? 1 : -1, side: sd }); });
   }
-  hull.geometry = subset(g, comps.filter(c => !taken.has(c)).flatMap(c => c.tris));
-  // the skin cut exactly along the damage regions' lines first: its wing skin is long thin triangles running nearly
-  // root to tip, which (taken whole) would leave long slivers sticking out of a broken wing
+  // what's left: the skin (by far the biggest piece) is cut up for the damage parts; everything else (pylons, fairings,
+  // the fixed stabilisers, pod and gear bits) stays whole and rides whichever part it sits on
+  const rest = comps.filter(c => !taken.has(c)).sort((a, b) => b.tris.length - a.tris.length);
+  const skin = rest[0], bits = rest.slice(1);
+  // the pylons (thin vertical blades under the wing): the two outermost a side carry missiles, the next two rocket pods
+  const pylons = bits.filter(c => c.tris.length >= 50 && c.tris.length <= 70 && c.box.max.x - c.box.min.x < 0.12 && Math.abs(c.center.x) > 1.9 && c.box.max.y - c.box.min.y < 0.45)
+    .sort((a, b) => Math.abs(b.center.x) - Math.abs(a.center.x));
+  const station = (c) => new THREE.Vector3(c.center.x, c.box.min.y - 0.075, c.center.z);     // hung just under the pylon
+  const bySide = (sx) => pylons.filter(c => Math.sign(c.center.x) === sx);
+  const railPts = [0, 1].flatMap(k => [bySide(1)[k], bySide(-1)[k]]).filter(Boolean).map(station);
+  const podPts = [2, 3].flatMap(k => [bySide(1)[k], bySide(-1)[k]]).filter(Boolean).map(station);
+  hull.geometry = subset(g, skin.tris).toNonIndexed();
+  // ragged breaks: along each damage line, a narrow band of the skin is cut into small cells which the split assigns to
+  // one side or the other with a blocky jitter (REGIONS.su25.jag / jagWings), so a break tears instead of slicing
+  // (the skin's long thin wing triangles would otherwise leave slivers, or a ruler-straight edge)
   {
-    const R = REGIONS.su25, P = (n, c) => new THREE.Plane(new THREE.Vector3(...n), c);
-    let geo = hull.geometry.toNonIndexed();
-    for (const pl of [P([1, 0, 0], -R.outer.x), P([-1, 0, 0], -R.outer.x), P([1, 0, 0], -R.inner.x), P([-1, 0, 0], -R.inner.x),
-      P([0, 0, 1], -R.noseZ), P([0, 0, -1], R.tail.z), P([0, 1, 0], -R.fin.y)]) {
-      const a = clipGeometry(geo, pl), b = clipGeometry(geo, pl.clone().negate());
-      geo = mergeGeometries([a, b].filter(x => x.attributes.position.count));
-    }
+    const R = REGIONS.su25;
+    const P = (axis, v, sign = 1) => { const n = new THREE.Vector3(); n[axis] = sign; return new THREE.Plane(n, -sign * v); };   // keeps sign * (p - v) >= 0
+    const merge = (list) => { const l = list.filter(x => x.attributes.position.count); return l.length > 1 ? mergeGeometries(l) : l[0] || list[0]; };
+    const ragged = (geo, axis, at, cells) => {
+      const lo = P(axis, at - 0.35), hi = P(axis, at + 0.35, -1);
+      const inLo = clipGeometry(geo, lo), outside = [clipGeometry(geo, lo.clone().negate()), clipGeometry(inLo, hi.clone().negate())];
+      let band = clipGeometry(inLo, hi);
+      for (const [ax, from, to, step] of [[axis, at - 0.24, at + 0.24, 0.12], ...cells]) for (let v = from; v <= to + 1e-6; v += step) {
+        const pl = P(ax, v); band = merge([clipGeometry(band, pl), clipGeometry(band, pl.clone().negate())]);
+      }
+      return merge([...outside, band]);
+    };
+    let geo = hull.geometry;
+    for (const sx of [1, -1]) for (const X of [R.outer.x, R.inner.x]) geo = ragged(geo, 'x', sx * X, [['z', -4.2, 1.4, 0.28]]);
+    for (const Z of [R.noseZ, R.tail.z]) geo = ragged(geo, 'z', Z, [['x', -1.0, 1.0, 0.25], ['y', 0.8, 3.4, 0.25]]);
+    geo = ragged(geo, 'y', R.fin.y, [['z', -7.6, -4.0, 0.28]]);
     hull.geometry = geo;
   }
   model.userData.toughness = 2.2;                   // (armoured: parts and fuselage take ~2.2x the hits; collisions and hard
                                                     // landings it can survive scale with it too: weapons.js, ground.js)
   splitAirframe(model, s, REGIONS.su25);
-  // what splitAirframe doesn't hang by itself: the outer flaps and the airbrakes ride their wing parts
   model.updateMatrixWorld(true);
+  // the stabilisers are fixed (separate pieces) and the elevators hinge on them: a stabiliser part holds both
+  for (const sd of ['L', 'R']) {
+    const e = s['stab' + sd]; if (!e || !e.userData.part) continue;
+    delete e.userData.part; e.name = 'elevator' + sd;
+    const P = new THREE.Group(); P.name = 'part:stab' + sd; P.userData.part = 'stab' + sd;
+    P.position.copy(e.parent.getWorldPosition(new THREE.Vector3())); model.add(P); model.updateMatrixWorld(true); P.attach(e.parent);
+  }
+  // the whole pieces onto the parts they sit on (one mesh per part)
+  {
+    const R = REGIONS.su25, byPart = new Map();
+    for (const c of bits) { const n = classify(c.center, R); const k = model.getObjectByName('part:' + n) ? n : ''; if (!byPart.has(k)) byPart.set(k, []); byPart.get(k).push(subset(g, c.tris).toNonIndexed()); }
+    for (const [k, geos] of byPart) {
+      const m = new THREE.Mesh(geos.length > 1 ? mergeGeometries(geos) : geos[0], hull.material); m.userData.noSplit = true; m.name = 'bits' + (k ? ':' + k : '');
+      model.add(m); model.updateMatrixWorld(true);
+      if (k) model.getObjectByName('part:' + k).attach(m);
+    }
+  }
+  // what splitAirframe doesn't hang by itself: the outer flaps and the airbrakes ride their wing parts
   for (const [n, t] of extra) model.getObjectByName('part:wingInner' + n.slice(-1))?.attach(t.parent);
   for (const b of brakes) model.getObjectByName('part:wingOuter' + b.side)?.attach(b.t.parent);
   model.position.copy(CG).negate();
@@ -110,7 +148,8 @@ export async function loadSu25(url, cfg) {
   return {
     object, model, setPaint: async () => {},
     cg: CG.clone(), nozzles,
-    rails: [body(5.1, 1.45, -0.6), body(-5.1, 1.45, -0.6), body(4.37, 1.45, -0.6), body(-4.37, 1.45, -0.6)],   // the two outermost pylons a side
+    rails: railPts.map(p => p.clone().sub(CG)),                                  // the two outermost pylons a side (measured from the pylons)
+    podStations: podPts.map(p => p.clone().sub(CG)),                             // the next two in: rocket pods
     muzzles: [body(0.35, 1.45, 4.3), body(0.25, 1.45, 4.3)],                     // the twin 30 mm, low on the left of the nose
     contacts: {
       wheels: [body(1.26, 0.05, -1.14), body(-1.26, 0.05, -1.14), body(0, 0.05, 2.3)],

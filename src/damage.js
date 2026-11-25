@@ -8,7 +8,7 @@ import * as THREE from 'three';
 // stab: tailplane cut from the hull (T-tails etc.); jets with separate moving stabilators leave it out. Each cut takes
 // the whole surface (measured from the models: root to tip, leading to trailing edge), so what breaks off is the piece.
 export const REGIONS = {
-  lightFighter: { jag: 0.22, noseZ: 6.0, tail: { z: -3.6 }, fin: { y: 2.5, z: -2.4 }, outer: { x: 2.45, y: 1.8, z0: -3.4, z1: 1.4 }, inner: { x: 1.05, y: 1.62, z0: -3.0, z1: 1.8 } },
+  lightFighter: { bulkheads: true, jag: 0.22, noseZ: 6.0, tail: { z: -3.6 }, fin: { y: 2.5, z: -2.4 }, outer: { x: 2.45, y: 1.8, z0: -3.4, z1: 1.4 }, inner: { x: 1.05, y: 1.62, z0: -3.0, z1: 1.8 } },
   // heavy four-engine bomber (model turned so its nose is +Z)
   bomber: { jag: 0.9, noseZ: 15, tail: { z: -12 }, stab: { x: 0.9, y: -2, z: -15.5, yMax: 0.3 }, fin: { y: 0.3, z: -11 }, outer: { x: 11.2, y: 0.5, z0: -10, z1: 12 }, inner: { x: 1.6, y: 0.5, z0: -10, z1: 14 } },
   earlyJet: { jag: 0.3, noseZ: 3.3, stab: { x: 0.28, y: 4.0, z: -7.9, yMax: 4.65 }, fin: { y: 3.3, z: -6.8 }, outer: { x: 4.2, y: 3.2, z0: -6.5, z1: 1.0 }, inner: { x: 1.0, y: 3.1, z0: -6.5, z1: 1.3 } },
@@ -27,8 +27,9 @@ export function classify(p, R = REGIONS.lightFighter, pj = p) {   // pj: a jitte
   if (pj.z > R.noseZ) return 'nose';
   if (p.y > R.fin.y && p.z < R.fin.z) return 'fin';
   const o = R.outer, n = R.inner;
-  if (ax > o.x && p.y < o.y && p.z > o.z0 && p.z < o.z1) return 'wingOuter' + side;
-  if (ax > n.x && p.y < n.y && p.z > n.z0 && p.z < n.z1) return 'wingInner' + side;
+  const wx = R.jagWings ? Math.abs(pj.x) : ax;           // (jagWings: the wing breaks are ragged too)
+  if (wx > o.x && p.y < o.y && p.z > o.z0 && p.z < o.z1) return 'wingOuter' + side;
+  if (wx > n.x && p.y < n.y && p.z > n.z0 && p.z < n.z1) return 'wingInner' + side;
   if (R.tail && pj.z < R.tail.z) return 'tail';            // rear fuselage that can snap off (big aircraft)
   return 'body';
 }
@@ -114,7 +115,7 @@ export function splitAirframe(model, surfaces = {}, R = REGIONS.lightFighter, dr
     if (!surfaces[k]) continue;
     if (parts[name]) { ride(surfaces[k], name); } else { surfaces[k].userData.part = name; surfaces[k].name = 'part:' + name; }
   }
-  addBulkheads(model, parts, R);
+  if (R.bulkheads) addBulkheads(model, parts, R);       // (the F-5's plates only: fitted to its cross-sections, never reused on other airframes)
   return parts;
 }
 
