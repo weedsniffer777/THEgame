@@ -31,6 +31,7 @@ import { createXray } from './hudXray.js';
 import { isTouch, createTouch } from './touch.js';
 import { PART_HP, BODY_HP } from './damage.js';
 
+window.__loadStage = 'starting';
 loadTuning();
 const STEP = 1 / 120;
 const params = new URLSearchParams(location.search);
@@ -65,7 +66,9 @@ function setRunning(on, menu = true) {
   startEl.classList.toggle('show', !running && !started);
 }
 function resume() {
-  try { const lock = canvas.requestPointerLock?.(); lock?.catch?.(() => {}); } catch { /* no pointer lock here */ }
+  // (touch screens never ask for the pointer lock: a phone that grants it and drops it at once would read as a pause,
+  // straight back to the start screen)
+  if (!isTouch) try { const lock = canvas.requestPointerLock?.(); lock?.catch?.(() => {}); } catch { /* no pointer lock here */ }
   setRunning(true);
 }
 const pauseMenu = createPauseMenu({ onResume: resume, onRestart: () => { spawn(); resume(); },
@@ -79,14 +82,20 @@ function togglePause() {                                                 // the 
 document.addEventListener('pointerlockchange', () => {
   const was = locked;
   locked = !!document.pointerLockElement;
-  if (was && !locked && !overlay?.open && !overlay?.endOpen) setRunning(false);   // (the end card frees the mouse without pausing)
+  if (was && !locked && !isTouch && !overlay?.open && !overlay?.endOpen) setRunning(false);   // (the end card frees the mouse without pausing)
 });
 
 // the player's aircraft: the F-5, or (dev kit, for testing) the Su-25; the jet-specific numbers come from the jet and its config
 const PLANE = (() => { try { return localStorage.getItem('thegame.devplane') === 'su25' ? 'su25' : 'f5'; } catch { return 'f5'; } })();
 const PCFG = PLANE === 'su25' ? SU25 : F5, WCFG = PLANE === 'su25' ? { ...WEAPONS, ...SU25_WEAPONS } : WEAPONS;
-const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'),
-  PLANE === 'su25' ? loadSu25('models/jets/su25.gltf.json', SU25) : loadJet('models/jets/f5.gltf.json', F5)]);
+window.__loadStage = 'terrain and jet';
+// (a test jet that fails to load falls back to the F-5, and the dev kit choice is cleared, so it can't keep failing)
+const loadF5 = () => loadJet('models/jets/f5.gltf.json', F5);
+const loadPlayer = () => PLANE === 'su25' ? loadSu25('models/jets/su25.gltf.json', SU25).catch(e => {
+  console.error(e); window.__bootErr?.('Su-25 failed to load, flying the F-5: ' + (e?.message || e)); try { localStorage.removeItem('thegame.devplane'); } catch { /* */ }
+  location.reload(); return new Promise(() => {});
+}) : loadF5();
+const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadPlayer()]);
 if (jet.contacts) setContacts(jet.contacts);
 scene.add(terrain.group, jet.object);
 const clouds = createClouds(WORLD.clouds, WORLD.cloudBase);
@@ -94,6 +103,7 @@ scene.add(clouds.mesh);
 const cloudEl = document.getElementById('cloudfog');
 
 const ac = new Aircraft(PCFG);
+window.__loadStage = 'enemies';
 const [enemyProto, bomberProto] = await Promise.all([loadEnemy('earlyJet'), loadEnemy('bomber')]);
 const haze = createHeatHaze(renderer, jet.model, jet.nozzles || NOZZLES);
 // what we fly: Mission 1 (default) or free flight (?mode=free, dev kit)
@@ -101,6 +111,7 @@ let devMode = null; try { devMode = localStorage.getItem('thegame.devmode'); } c
 const MODE = (params.get('mode') || devMode) === 'free' ? 'free' : 'mission1';   // (dev kit level selector; kept in this browser)
 const roster = MODE === 'mission1' ? [{ proto: bomberProto, count: 10 }] :   // (Mission 1: the bomber formation alone, no escorts)
   [{ proto: enemyProto, count: WEAPONS.drones - 1 }, { proto: bomberProto, count: 1 }];
+window.__loadStage = 'weapons';
 const weapons = await createWeapons(scene, jet, ac, WCFG, terrain, roster);
 const rig = new CameraRig(camera, CAMERA);
 const overlay = createOverlay();
@@ -565,10 +576,11 @@ addEventListener('contextmenu', e => e.preventDefault());
 {
   const hidden = [];
   scene.traverse(o => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+  window.__loadStage = 'shaders';
   try { renderer.compile(scene, camera); } catch { /* not fatal: they compile on first use instead */ }
   for (const o of hidden) o.visible = false;
 }
-ready = true;
+ready = true; window.__loadStage = 'ready';
 startEl.classList.remove('loading');
 setRunning(wantStart);
 
@@ -1159,7 +1171,7 @@ function frameBody(now) {
 }
 // Errors: shown in a small box (dev aid; copy it to report) and logged with the stack. The frame loop survives any
 // single error, so one bad frame can no longer freeze the whole game.
-const errBox = document.createElement('div'); errBox.id = 'errbox'; document.body.appendChild(errBox);
+const errBox = document.getElementById('errbox') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'errbox' }));
 let errCount = 0, lastErr = '';
 function reportError(e, where) {
   const msg = `${where}: ${e?.message || e}`;
