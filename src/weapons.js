@@ -184,7 +184,7 @@ class Tracers {
     g.setAttribute('aHead', this.head); g.setAttribute('aTail', this.tail); g.setAttribute('aAmp', this.amp);
     this.max = max; this.n = 0;
     // core and halo colours (a plane's guns can have their own: cfg.tracer = { core, halo })
-    this.uniforms = { uRes: { value: new THREE.Vector2(1, 1) }, uCore: { value: new THREE.Color(...(colors?.core || [1.0, 0.86, 0.62])) }, uHalo: { value: new THREE.Color(...(colors?.halo || [1.0, 0.22, 0.08])) } };
+    this.uniforms = { uRes: { value: new THREE.Vector2(1, 1) }, uCore: { value: new THREE.Color(...(colors?.core || [1.0, 0.86, 0.62])) }, uHalo: { value: new THREE.Color(...(colors?.halo || [0.72, 0.15, 0.055])) } };
     this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
       uniforms: this.uniforms,
       vertexShader: /* glsl */`
@@ -767,8 +767,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       const nearest = (dmg, to, n) => Object.keys(dmg.parts).filter(k => !dmg.parts[k].broken)
         .sort((a, b) => dmg.parts[a].obj.getWorldPosition(_v).distanceTo(to) - dmg.parts[b].obj.getWorldPosition(_w).distanceTo(to)).slice(0, n);
       nearest(d.dmg, ac.pos, 2).forEach(k => d.dmg.breakPart(k, d.vel));
-      nearest(jet.damage, d.pos, closing > 60 ? 3 : 1).forEach(k => jet.damage.breakPart(k, ac.vel));
-      if (closing > 60) jet.damage.bodyHp = 0;
+      const tough = jet.model.userData.toughness || 1, fatal = 60 * Math.pow(tough, 1.1);   // (a tough airframe survives harder knocks)
+      nearest(jet.damage, d.pos, closing > fatal ? 3 : 1).forEach(k => jet.damage.breakPart(k, ac.vel));
+      if (closing > fatal) jet.damage.bodyHp = 0;
       _cp.lerpVectors(ac.pos, d.pos, 0.5);
       for (let i = 0; i < 4; i++) hitFx(_cp, d.vel);
       killDrone(d);
@@ -1046,7 +1047,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // (spawned once per rendered frame at the drawn jet; the render step then moves every puff on by v*dt, so each is
   // placed that much back to land exactly on the airframe)
   let _bp = ac.pos, _bq = ac.quat, _bdt = 0;
-  const toWorld = (x, y, z) => _vp.set(x, y - 1.9, z + 0.6).applyQuaternion(_bq).add(_bp);
+  const toWorld = (x, y, z) => _vp.set(x, y, z).sub(jet.cg || CG).applyQuaternion(_bq).add(_bp);   // (model space -> world, about the jet's CG)
   const sm = (a, b, x) => THREE.MathUtils.smoothstep(x, a, b);
   function vapour(dt, pos, quat) {
     _bp = pos; _bq = quat; _bdt = dt;
@@ -1058,21 +1059,22 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     const fast = sm(90, 150, ac.t.ias || 0);
     const P = jet.damage.parts, gone = (n) => !!P[n]?.broken;
     // wing vapour: from ~5 G, thick by 8 G
+    const FX = jet.fx?.wing || { x0: 1.3, x1: 3.9, y: 1.6, le: (x) => -0.22 - 0.46 * (x - 1.6), chord: 1.1, outerX: 2.45 };
     const kw = Math.pow(sm(3.2, 8, ac.t.g || 0), 1.4) * fast * humid;   // creeps in from ~3.5 G, thick by 8 G
     if (kw > 0.02) {
       const rate = (90 + 80 * kw) * kw * dt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);   // up to ~170 small puffs/s at full
       for (let i = 0; i < n; i++) {
         const sx = Math.random() < 0.5 ? 1 : -1, side = sx > 0 ? 'L' : 'R';
-        const x = 1.3 + Math.random() * 2.6;
-        if (gone('wingInner' + side) || (x > 2.45 && gone('wingOuter' + side))) continue;
-        const le = -0.22 - 0.46 * (x - 1.6), z = le - Math.pow(Math.random(), 1.6) * 1.1;   // most of it near the leading edge
+        const x = FX.x0 + Math.random() * (FX.x1 - FX.x0);
+        if (gone('wingInner' + side) || (x > FX.outerX && gone('wingOuter' + side))) continue;
+        const le = FX.le(x), z = le - Math.pow(Math.random(), 1.6) * FX.chord;   // most of it near the leading edge
         if (Math.random() < 0.18) {                                     // some of it peels off behind the wing
-          toWorld(sx * x, 1.6 + Math.random() * 0.16, le - 1.0 - Math.random() * 0.3);
+          toWorld(sx * x, FX.y + Math.random() * 0.16, le - FX.chord * 0.9 - Math.random() * 0.3);
           back({ kind: 'vapor', p: _vp.clone(), v: ac.vel.clone().multiplyScalar(0.93), t: 0, life: 0.3 + Math.random() * 0.25,
             s: 0.5 + Math.random() * 0.35, seed: Math.random(), op: 0.3 * kw, grow: 1.6 });
           continue;
         }
-        ride(sx * x, 1.6 + Math.random() * 0.16, z, { life: 0.28 + Math.random() * 0.14, drift: 2.5,     // just over the skin: it wraps the wing
+        ride(sx * x, FX.y + Math.random() * 0.16, z, { life: 0.28 + Math.random() * 0.14, drift: 2.5,     // just over the skin: it wraps the wing
           s: 0.42 + Math.random() * 0.2, seed: Math.random(), op: Math.min(0.42, 0.36 * kw + 0.06), grow: 1.1 });
       }
     }
@@ -1080,7 +1082,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     const kv = sm(5.5, 8.5, ac.t.g || 0) * fast * humid;
     [1, -1].forEach((sx, l) => {
       if (kv < 0.05 || gone('wingOuter' + (sx > 0 ? 'L' : 'R'))) { vortices.cut(l); return; }
-      toWorld(sx * 4.15, 1.3, -1.75);
+      const tp = jet.fx?.tips?.[l] || [sx * 4.15, 1.3, -1.75];
+      toWorld(tp[0], tp[1], tp[2]);
       vortices.add(l, _vp, S.simT || 0, 0.5 * kv);
     });
     // vapour collar ("Mach cone"): transonic, strongest just under Mach 1. A few faint flickering puffs as it starts,
@@ -1099,7 +1102,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       for (let i = 0; i < n; i++) {
         const a = Math.random() * Math.PI * 2, aft = Math.sqrt(Math.random());
         const coneR = 0.7 + aft * (1.4 + 2.6 * shell), r = coneR * (1 + (Math.random() - 0.5) * (0.9 - 0.82 * shell));
-        ride(Math.cos(a) * r, 1.75 + Math.sin(a) * r * 0.95, 1.4 - aft * (2.4 + 2.2 * shell), { life: 0.3 + Math.random() * 0.2, drift: 1.2,
+        const CL = jet.fx?.collar || { y: 1.75, z0: 1.4 };
+        ride(Math.cos(a) * r, CL.y + Math.sin(a) * r * 0.95, CL.z0 - aft * (2.4 + 2.2 * shell), { life: 0.3 + Math.random() * 0.2, drift: 1.2,
           s: 0.5 + Math.random() * 0.3, seed: Math.random(), op: 0.22 * km * (1 - shell), grow: 1.1 });
       }
     }
@@ -1131,7 +1135,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   function contrailsStep(pos, quat, playerAlive) {
     const sm2 = (y) => THREE.MathUtils.smoothstep(y, CONTRAIL_ALT, CONTRAIL_FULL);
     // ours: from between the two nozzles
-    _ct.set(0, 1.628 - 1.9, -6.9 + 0.6).applyQuaternion(quat).add(pos);
+    const CT = jet.fx?.contrail || [0, 1.628, -6.9], CGc = jet.cg || CG;
+    _ct.set(CT[0], CT[1], CT[2]).sub(CGc).applyQuaternion(quat).add(pos);
     contrailPoint(0, _ct, playerAlive ? sm2(pos.y) : 0);
     for (const d of drones) {
       const l0 = lineOf.get(d), owner = trailOwners.find(o => o.key === d);

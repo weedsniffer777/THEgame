@@ -67,11 +67,12 @@ export function groundContact(ac, terrain, damage, dt, brake) {
       wet++;
     }
     // what the hit does
-    if (vn < -22 || (part === 'canopy' && _vc.length() > 15)) crash = true;
+    const tough = Math.sqrt(damage.model?.userData?.toughness || 1);       // (an armoured airframe takes harder knocks)
+    if (vn < -22 * tough || (part === 'canopy' && _vc.length() > 15 * tough)) crash = true;
     if (kind === 'frame') {
       const p = part && part !== 'canopy' ? damage.parts[part] : null;
-      if (vn < -7 && p && !p.broken) damage.breakPart(part, ac.vel);
-      else damage.bodyHp -= Math.max(0, -vn - 3) * 0.6;
+      if (vn < -7 * tough && p && !p.broken) damage.breakPart(part, ac.vel);
+      else damage.bodyHp -= Math.max(0, -vn - 3 * tough) * 0.6;
     }
     // normal impulse (no bounce to speak of)
     const k = 1 + _n.dot(_t1.crossVectors(invI(_t2.crossVectors(_r, _n), _t2), _r));
