@@ -170,13 +170,45 @@ body.paused #hud, body.paused #touch { display: none; }
 #pause .item { display: block; font-size: 22px; letter-spacing: 0.16em; padding: 12px 0 12px 14px; border-left: 3px solid transparent; text-align: left; transition: transform 0.12s, color 0.12s; }
 #pause .item:hover, #pause .item:focus-visible { color: #fff; border-left-color: #fff; transform: translateX(6px); outline: none; }
 /* the settings page: big tabs along the top, the open tab scrolls, BACK at the bottom */
-#pause .page.settings.on { display: flex; flex-direction: column; height: calc(100vh - 56px); max-height: 900px; min-width: 0; }
+/* (as wide as fits inside the slanted edge at its narrowest, the top, with some room to spare) */
+#pause .page.settings.on { display: flex; flex-direction: column; height: calc(100vh - 56px); max-height: 900px; min-width: 0; width: calc(90vw - 23.8vh - 120px); }
 #pause .tabs { display: flex; gap: clamp(18px, 3.2vw, 44px); margin-bottom: 22px; flex-wrap: wrap; flex: none; }
 #pause .tabs button { font-size: clamp(15px, 1.9vw, 19px); letter-spacing: 0.14em; padding: 10px 2px 9px; border-bottom: 3px solid transparent; opacity: 0.6; transition: opacity 0.12s; }
 #pause .tabs button:hover { opacity: 0.9; }
 #pause .tabs button.on { opacity: 1; border-bottom-color: #fff; color: #fff; }
 #pause .tab { display: none; }
-#pause .tab.on { display: block; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding-right: 14px; scrollbar-width: thin; scrollbar-color: rgba(236,246,238,0.4) transparent; }
+#pause .tab.on { display: block; }
+/* the scrolling area: our own bar down the left, fades with arrows where there's more */
+#pause .tabwrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
+#pause .tabbody { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: 0 6px 0 26px; scrollbar-width: none; }
+#pause .tabbody::-webkit-scrollbar { display: none; }
+#pause .sbar { position: absolute; left: 0; top: 4px; bottom: 4px; width: 6px; background: rgba(236,246,238,0.12); cursor: pointer; z-index: 3; }
+#pause .sbar[hidden] { display: none; }
+#pause .sbar i { display: block; width: 100%; background: rgba(236,246,238,0.65); transition: background 0.12s; cursor: grab; touch-action: none; }
+#pause .sbar i:hover, #pause .sbar i.drag { background: #fff; }
+body.touch #pause .sbar { width: 9px; }
+/* (the content itself fades out toward an edge with more beyond it: no box drawn over the panel) */
+#pause .tabbody { --mt: 0px; --mb: 0px; -webkit-mask-image: linear-gradient(transparent, #000 var(--mt), #000 calc(100% - var(--mb)), transparent); mask-image: linear-gradient(transparent, #000 var(--mt), #000 calc(100% - var(--mb)), transparent); }
+#pause .tabwrap.can-up .tabbody { --mt: 84px; }
+#pause .tabwrap.can-down .tabbody { --mb: 84px; }
+#pause .more { position: absolute; left: calc(50% - 30px); width: 60px; height: 30px; display: none; place-items: center; color: #fff; z-index: 3; filter: drop-shadow(0 0 4px rgba(255,255,255,0.45)); }
+#pause .more.down { bottom: 2px; animation: morebob 1.4s ease-in-out infinite; }
+#pause .more.up { top: 2px; transform: rotate(180deg); animation: morebob2 1.4s ease-in-out infinite; }
+#pause .tabwrap.can-down .more.down, #pause .tabwrap.can-up .more.up { display: grid; }
+@keyframes morebob { 50% { transform: translateY(4px); } }
+@keyframes morebob2 { 0%, 100% { transform: rotate(180deg); } 50% { transform: rotate(180deg) translateY(4px); } }
+/* sliders: a thin line, filled up to a tall square handle */
+#pause .row.slide { max-width: 900px; }
+#pause .row.slide > span:first-child { white-space: nowrap; }
+#pause .rng { display: flex; align-items: center; gap: 16px; flex: 0 1 340px; min-width: 0; }
+#pause .rng input { -webkit-appearance: none; appearance: none; flex: 1; min-width: 80px; width: auto; height: 26px; margin: 0; background: transparent; cursor: pointer; --f: 50%; }
+#pause .rng input::-webkit-slider-runnable-track { height: 4px; background: linear-gradient(90deg, rgba(236,246,238,0.95) var(--f), rgba(236,246,238,0.22) var(--f)); }
+#pause .rng input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 24px; margin-top: -10px; background: #fff; border: 0; border-radius: 0; box-shadow: 0 0 0 2px rgba(8,12,18,0.85); }
+#pause .rng input::-moz-range-track { height: 4px; background: rgba(236,246,238,0.22); }
+#pause .rng input::-moz-range-progress { height: 4px; background: rgba(236,246,238,0.95); }
+#pause .rng input::-moz-range-thumb { width: 12px; height: 24px; background: #fff; border: 0; border-radius: 0; box-shadow: 0 0 0 2px rgba(8,12,18,0.85); }
+#pause .rng input:focus-visible { outline: 1px dashed rgba(255,255,255,0.6); outline-offset: 4px; }
+#pause .rng .val { min-width: 48px; text-align: right; font-size: 15px; color: #fff; }
 #pause .row { display: flex; align-items: center; justify-content: space-between; gap: 20px; max-width: 620px; min-height: 52px; font: 700 15px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.12em; color: rgba(236,246,238,0.9); border-bottom: 1px solid rgba(236,246,238,0.12); }
 #pause .seg { display: inline-flex; border: 1.5px solid rgba(236,246,238,0.7); }
 #pause .seg button { font-size: 13px; letter-spacing: 0.1em; padding: 10px 14px; }
@@ -337,13 +369,13 @@ body.ending-blur #game, body.dead-blur #game { filter: blur(6px) saturate(0.85) 
 /* the banner across the screen (mission complete / failed, leaving the mission area): a band of faint glowing colour,
    white text in the middle */
 #banner { position: fixed; left: -40px; right: -40px; top: 38%; height: 64px; display: none; align-items: center; justify-content: center; z-index: 44; pointer-events: none;
-  font: 700 30px/1 'B612 Mono', ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #fff;
+  font: 700 34px/1 'Rajdhani', system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #fff;
   text-shadow: 0 0 8px rgba(255,255,255,0.9), 0 0 22px rgba(255,255,255,0.55); }
 #banner.on { display: flex; animation: bannerin 0.26s steps(1, end); }
 /* a solid band right across, pale and glowing: red for failure and warnings, green for success */
 #banner.warn, #banner.fail { background: rgba(255,72,58,0.62); box-shadow: 0 0 24px 6px rgba(255,120,105,0.48), 0 0 56px 10px rgba(255,90,75,0.22), inset 0 0 18px rgba(255,220,215,0.38); }
 #banner.win { background: rgba(70,225,110,0.58); box-shadow: 0 0 24px 6px rgba(130,250,165,0.48), 0 0 56px 10px rgba(90,240,130,0.22), inset 0 0 18px rgba(225,255,232,0.38); }
-#banner.warn { top: 30%; height: 48px; font-size: 20px; }
+#banner.warn { top: 30%; height: 48px; font-size: 24px; }
 #banner b { margin-right: 22px; font-size: 1.2em; }
 /* comes on with a single flicker, then stays */
 @keyframes bannerin { 0% { opacity: 0; } 18% { opacity: 1; } 34% { opacity: 0.15; } 52% { opacity: 1; } 100% { opacity: 1; } }

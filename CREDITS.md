@@ -20,6 +20,7 @@ All licensed under [Creative Commons Attribution 4.0](http://creativecommons.org
 
 ## Fonts
 - B612 Mono (HUD numbers): Copyright 2012 The B612 Project Authors, SIL Open Font License 1.1 (via @fontsource/b612-mono).
+- Rajdhani (banners): Copyright 2014 Indian Type Foundry, SIL Open Font License 1.1 (via @fontsource/rajdhani).
 
 ## Weapons models
 

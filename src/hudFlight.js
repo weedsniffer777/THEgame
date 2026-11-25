@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import '@fontsource/b612-mono/700.css';
+import '@fontsource/rajdhani/700.css';   // (the banners across the screen)
 import { settings, units } from './settings.js';
 
 // Flight HUD, drawn as one SVG over the screen: thin single-colour strokes and a cockpit-display typeface.

@@ -535,7 +535,7 @@ addEventListener('blur', () => { releaseAll(); weapons.setFiring(false); rig.zoo
 let cursorX = null, cursorY = null;
 addEventListener('mousemove', e => {
   cursorX = e.clientX; cursorY = e.clientY;
-  if (running && locked) { mouseDX += e.movementX; mouseDY += e.movementY; }
+  if (running && locked) { const k = settings.mouseSens || 1; mouseDX += e.movementX * k; mouseDY += e.movementY * k; }
 });
 addEventListener('keydown', e => { if (e.code === 'Escape' && !locked) setRunning(false); });
 function cursorSteer(dt) {
@@ -1236,7 +1236,7 @@ if (isTouch) {
   document.body.classList.add('touch');
   weapons.S.hitScale = 1.5;
   touchUi = createTouch(document.getElementById('touch'), {
-    onLook: (dx, dy) => { if (running) { mouseDX += dx; mouseDY += dy; } },
+    onLook: (dx, dy) => { if (running) { const k = settings.mouseSens || 1; mouseDX += dx * k; mouseDY += dy * k; } },
     onThrottle: (v) => { if (tutAllow.throttle) ac.throttle = v; },
     onFire: (on) => { if (running && !dead && !overlay.open) weapons.setFiring(on, performance.now() / 1000); },
     onAirbrake: (on) => { touchBrake = on; },
