@@ -14,7 +14,7 @@ const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent?.appendChild(e); return e; };
 const DEG = Math.PI / 180;
 
-export function createFlightHud(root) {
+export function createFlightHud(root, { ab = true } = {}) {   // ab: false for a jet without an afterburner (the scale ends at full power)
   const svg = el('svg', { id: 'fhud' }, root);
   const defs = el('defs', {}, svg);
   const hatch = el('pattern', { id: 'abHatch', width: 4, height: 4, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, defs);
@@ -86,12 +86,13 @@ export function createFlightHud(root) {
     hdg.caret.setAttribute('d', `M${cx - 22} ${L.hy + 26}H${cx + 22}V${L.hy + 44}H${cx - 22}ZM${cx} ${L.hy + 14}L${cx - 5} ${L.hy + 21}H${cx + 5}Z`);
     hdg.txt.setAttribute('x', cx); hdg.txt.setAttribute('y', L.hy + 40);
     // throttle scale: outside the speed tape
-    const tx = spd.boxFar - 22, ty0 = cy + th / 2, ty1 = cy - th / 2, mil = ty0 - (ty0 - ty1) * 0.78;
+    const tx = spd.boxFar - 22, ty0 = cy + th / 2, ty1 = cy - th / 2, mil = ty0 - (ty0 - ty1) * (ab ? 0.78 : 1);
     L.thr = { tx, ty0, ty1, mil };
     thr.ab.setAttribute('x', tx - 4); thr.ab.setAttribute('y', ty1); thr.ab.setAttribute('width', 8); thr.ab.setAttribute('height', mil - ty1);
     let d = `M${tx} ${ty0}V${ty1}`;
     for (let k = 0; k <= 10; k++) { const y = ty0 - (mil - ty0) * -k / 10; d += `M${tx} ${y}h${k % 5 ? -4 : -7}`; }
-    d += `M${tx - 9} ${mil}h18`;                                   // the detent: full dry power
+    if (ab) d += `M${tx - 9} ${mil}h18`;                           // the detent: full dry power
+    thr.ab.style.display = ab ? '' : 'none';
     thr.ticks.setAttribute('d', d);
     thr.txt.setAttribute('x', tx); thr.txt.setAttribute('y', ty1 - 9);
   }
@@ -158,7 +159,7 @@ export function createFlightHud(root) {
     thr.chev.classList.toggle('ab', ac.throttle >= 1.1);
     // full dry reads 99% (so 100+ means burner); holding for the burner spools it up toward 110, letting go early
     // runs it back down
-    const want = ac.throttle > 1 ? 99 + 11 * Math.min((ac.throttle - 1) / 0.1, 1) : 20 + 79 * Math.max(0, ac.throttle);
+    const want = !ab ? 20 + 80 * Math.max(0, Math.min(ac.throttle, 1)) : ac.throttle > 1 ? 99 + 11 * Math.min((ac.throttle - 1) / 0.1, 1) : 20 + 79 * Math.max(0, ac.throttle);
     shownPct = want >= shownPct ? want : Math.max(want, shownPct - 60 * (1 / 60));
     const pct = Math.round(shownPct);
     thr.txt.textContent = `${pct}%`; thr.txt.classList.toggle('ab', ac.throttle >= 1.1);

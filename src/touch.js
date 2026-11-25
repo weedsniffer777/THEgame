@@ -7,7 +7,7 @@ import { MISSILE } from './hudArms.js';
 //    the weapon panel selects it.
 export const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
-const MIL = 0.84;   // where the full-dry-power gate sits on the lever's travel (above it: afterburner)
+let MIL = 0.84;   // where the full-dry-power gate sits on the lever's travel (above it: afterburner)
 // icons
 const ZOOM = `<svg viewBox="0 0 24 24"><path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.2" fill="#fff" stroke="none"/></svg>`;
 // the fire button shows the selected weapon as a white silhouette: guns a bullet with its trail, missiles the missile
@@ -17,11 +17,12 @@ const BOMB = `<svg class="wpn" viewBox="0 0 48 16"><path d="M10 4h22c8 0 14 2 15
 
 const PAUSE = `<svg viewBox="0 0 24 24"><path d="M8.5 5v14M15.5 5v14" stroke-width="3.2" stroke-linecap="round"/></svg>`;
 
-export function createTouch(root, { onLook, onThrottle, onFire, onAirbrake, onGear, onZoom, onPause, sensitivity = 1.6 }) {
+export function createTouch(root, { ab = true, onLook, onThrottle, onFire, onAirbrake, onGear, onZoom, onPause, sensitivity = 1.6 }) {
   // the throttle: a plain black bar, a square grey block that slides in it, and notches down one side for the detents
   // (idle, every 10 %, a long one at full dry power where the afterburner begins)
+  if (!ab) MIL = 1;                                         // (no afterburner: the whole travel is dry power)
   const at = (f) => `bottom: calc(10px + (100% - 20px) * ${f.toFixed(3)})`;   // a point on the lever's travel
-  const ticks = Array.from({ length: 11 }, (_, k) => `<i class="tk${k % 5 ? '' : ' big'}" style="${at(k / 10 * MIL)}"></i>`).join('') + `<i class="tk mil" style="${at(MIL)}"></i>`;
+  const ticks = Array.from({ length: 11 }, (_, k) => `<i class="tk${k % 5 ? '' : ' big'}" style="${at(k / 10 * MIL)}"></i>`).join('') + (ab ? `<i class="tk mil" style="${at(MIL)}"></i>` : '');
   root.innerHTML = `
     <div class="t-throttle"><b class="pct"></b><div class="bar"></div>${ticks}<div class="grip"></div></div>
     <button class="t-btn t-brake" aria-label="Airbrake">BRAKE</button>

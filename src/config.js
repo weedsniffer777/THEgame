@@ -111,7 +111,8 @@ export const SU25 = {
   afterburner: 'none',
 };
 // its weapons over the shared WEAPONS: the twin 30 mm (slower, heavier rounds, a little more spread), 4 missiles
-export const SU25_WEAPONS = { muzzleVelocity: 870, gunSpread: 0.0016, gunRate: 50, gunDamage: 2.8, roundLife: 3.6, missiles: 4 };
+export const SU25_WEAPONS = { muzzleVelocity: 870, gunSpread: 0.0016, gunRate: 50, gunDamage: 2.8, roundLife: 3.6, missiles: 4,
+  tracer: { core: [1.0, 0.52, 0.42], halo: [1.0, 0.06, 0.03] } };   // (redder tracers)
 
 // The mouse-aim "instructor": flies the jet toward wherever the camera points.
 export const INSTRUCTOR = {

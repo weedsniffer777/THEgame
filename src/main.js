@@ -712,7 +712,7 @@ function physics(dt) {
   const th = (thUp ? 1 : 0) - (thDown ? 1 : 0);
   // holding throttle-up at full dry power pushes the lever into the burner over ~0.25 s (the burner lights and
   // grows as it goes); let go before the end and it drops back to full dry
-  if (th > 0 && ac.throttle >= 1) { if (ac.throttle < 1.1) { abHold += dt; ac.throttle = Math.min(1.1, 1 + 0.1 * abHold / 0.25); } }
+  if (th > 0 && ac.throttle >= 1 && PCFG.afterburner !== 'none') { if (ac.throttle < 1.1) { abHold += dt; ac.throttle = Math.min(1.1, 1 + 0.1 * abHold / 0.25); } }
   else { if (ac.throttle > 1 && ac.throttle < 1.1) ac.throttle = 1; abHold = 0; if (th) ac.throttle = THREE.MathUtils.clamp(Math.min(ac.throttle, 1) + th * 1.2 * dt, 0, 1); }
   const kb = { pitch: axis('pitchDown', 'pitchUp'), roll: axis('rollLeft', 'rollRight'), yaw: axis('yawLeft', 'yawRight') };
   kb.active = !!(kb.pitch || kb.roll || kb.yaw);   // any flying key takes over from mouse aim (the camera eases back after)
@@ -828,7 +828,7 @@ function playerShadow(time) {
   U.uShadowPos.value.copy(drawPos);
   U.uShadowSoft.value = 0.002 + Math.min(h, 900) * 0.000025;
 }
-const flightHud = createFlightHud(document.getElementById('hud'));
+const flightHud = createFlightHud(document.getElementById('hud'), { ab: PCFG.afterburner !== 'none' });
 const mapHud = createMap(document.getElementById('hud'), terrain);
 const ringHud = createRing(document.getElementById('hud'));
 function hud(dt = 1 / 60) {
@@ -1272,6 +1272,7 @@ if (isTouch) {
   document.body.classList.add('touch');
   weapons.S.hitScale = 1.5;
   touchUi = createTouch(document.getElementById('touch'), {
+    ab: PCFG.afterburner !== 'none',
     onLook: (dx, dy) => { if (running) { const k = settings.mouseSens || 1; mouseDX += dx * k; mouseDY += dy * k; } },
     onThrottle: (v) => { if (tutAllow.throttle) ac.throttle = v; },
     onFire: (on) => { if (running && !dead && !overlay.open) weapons.setFiring(on, performance.now() / 1000); },

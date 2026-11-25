@@ -174,7 +174,7 @@ class Sprites {
 // That keeps every tracer the same crisp shape from any angle; seen end-on it is simply a short round dot.
 // Hot core, soft red halo, a slightly brighter head; thinner and dimmer with distance.
 class Tracers {
-  constructor(max = 600) {
+  constructor(max = 600, colors = null) {
     const g = new THREE.InstancedBufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
     g.setIndex([0, 1, 2, 0, 2, 3]);
@@ -183,7 +183,8 @@ class Tracers {
     this.amp = new THREE.InstancedBufferAttribute(new Float32Array(max * 2), 2).setUsage(THREE.DynamicDrawUsage);   // brightness, width px
     g.setAttribute('aHead', this.head); g.setAttribute('aTail', this.tail); g.setAttribute('aAmp', this.amp);
     this.max = max; this.n = 0;
-    this.uniforms = { uRes: { value: new THREE.Vector2(1, 1) } };
+    // core and halo colours (a plane's guns can have their own: cfg.tracer = { core, halo })
+    this.uniforms = { uRes: { value: new THREE.Vector2(1, 1) }, uCore: { value: new THREE.Color(...(colors?.core || [1.0, 0.86, 0.62])) }, uHalo: { value: new THREE.Color(...(colors?.halo || [1.0, 0.22, 0.08])) } };
     this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
       uniforms: this.uniforms,
       vertexShader: /* glsl */`
@@ -206,6 +207,7 @@ class Tracers {
           if (h.w < 0.5) gl_Position = vec4(0.0, 0.0, -2.0, 1.0);       // head behind the camera: skip
         }`,
       fragmentShader: /* glsl */`
+        uniform vec3 uCore; uniform vec3 uHalo;
         varying vec2 vPix; varying vec2 vA; varying vec2 vB; varying float vW; varying float vI;
         void main() {
           vec2 ab = vB - vA; float l2 = max(dot(ab, ab), 1e-4);
@@ -214,7 +216,7 @@ class Tracers {
           if (d > 1.0) discard;
           float core = smoothstep(0.38, 0.0, d), halo = (1.0 - d) * (1.0 - d);
           float along = 0.35 + 0.65 * s;                                  // brighter toward the head
-          vec3 col = vec3(1.0, 0.86, 0.62) * core * 1.3 + vec3(1.0, 0.22, 0.08) * halo * 0.55;
+          vec3 col = uCore * core * 1.3 + uHalo * halo * 0.55;
           gl_FragColor = vec4(col * vI * along, 1.0);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -390,7 +392,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // the jet's own stations, gun ports and missile, where it has them (the MiG-21); else the F-5's
   const RAILS = jet.rails || RAILS_F5, MUZZLES = jet.muzzles || MUZZLES_F5, JCG = jet.cg || CG, mproto = jet.missileProto || proto;
 
-  const glow = new Sprites(2500, true), smoke = new Sprites(4000, false), trails = new Trails(), tracers = new Tracers(), vortices = new Vortices();
+  const glow = new Sprites(2500, true), smoke = new Sprites(4000, false), trails = new Trails(), tracers = new Tracers(600, cfg.tracer), vortices = new Vortices();
   scene.add(glow.mesh, smoke.mesh, trails.mesh, tracers.mesh, vortices.mesh);
   vortices.onAge = (a) => S.fx.push({ kind: 'vapor', p: a.p.clone(), v: new THREE.Vector3(0, 0.3, 0), t: 0, life: 1.0 + Math.random() * 0.6,
     s: 0.25 + Math.random() * 0.12, seed: Math.random(), op: 0.4 * a.k, grow: 3, soft: 1 });
