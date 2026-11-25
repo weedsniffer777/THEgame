@@ -13,7 +13,7 @@ All licensed under [Creative Commons Attribution 4.0](http://creativecommons.org
 | Source model | Author | Link | Planned role |
 | --- | --- | --- | --- |
 | "Mig-15" | Vermishel | https://skfb.ly/6YWVt | first enemy, in game (gear removed, split into parts; repaint pending) |
-| "MIG-21 Fishbed - cold war era fighter - free" | NETRUNNER_pl | https://skfb.ly/6SoVo | common enemy |
+| "MIG-21 Fishbed - cold war era fighter - free" | NETRUNNER_pl | https://skfb.ly/6SoVo | second player jet (dev kit only so far; the grey skin with its national markings and numbers painted out by `tools/mig21/unmark.py`, its own short-range missiles; also a possible enemy) |
 | "MiG 29" | Usman Zia | https://skfb.ly/6XBBu | main enemy fighter |
 | "VPAF Sukhoi Su-57" | Dave Love SketchFab | https://skfb.ly/pLKWt | ace / boss enemy, possible unlock |
 | "Northrop F-5" | dimal965 | https://skfb.ly/o6FzX | starter player jet (in game: roundels, wing dots and tail/nose numbers painted out of the texture; split into parts) |
