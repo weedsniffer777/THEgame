@@ -71,21 +71,36 @@ export async function loadSu25(url, cfg) {
     const h = hingeOf(g, c.tris, along);
     return pivotOn(model, h.at, h.axis, mesh);
   };
-  const side = (c) => c.center.x > 0 ? 'L' : 'R';
+  const side = (c) => c.center.x > 0 ? 'L' : 'R', elevComps = {}, brakeComps = [];
   for (const c of pick((c, ax, w) => c.tris.length > 90 && ax > 4.3 && ax < 6.6 && c.center.z < -2.3 && c.center.z > -3.1 && w > 1.5)) s['aileron' + side(c)] = take('aileron', c);
   for (const c of pick((c, ax, w) => c.tris.length > 40 && ax > 2.8 && ax < 4.4 && c.center.z < -2.3 && c.center.z > -3.1 && w > 1.3)) extra.push(['flapOuter' + side(c), take('flapOuter', c)]);
   for (const c of pick((c, ax, w) => c.tris.length > 20 && ax > 1.3 && ax < 2.8 && c.center.z < -2.3 && c.center.z > -3.1 && w > 1.2)) s['flap' + side(c)] = take('flap', c);
-  for (const c of pick((c, ax, w) => c.tris.length > 150 && ax > 0.25 && ax < 2.4 && c.center.z < -6.5 && w > 1.8)) s['stab' + side(c)] = take('elevator', c);
+  for (const c of pick((c, ax, w) => c.tris.length > 150 && ax > 0.25 && ax < 2.4 && c.center.z < -6.5 && w > 1.8)) { elevComps[side(c)] = c; s['stab' + side(c)] = take('elevator', c); }
   for (const c of pick((c, ax) => c.tris.length > 140 && c.tris.length < 175 && ax < 0.06 && c.center.z < -6 && c.center.y > 2.5 && c.center.y < 3.3)) s.rudder = take('rudder', c, 'y');
   const brakes = [];
   for (const sd of ['L', 'R']) {
     const pair = pick((c, ax) => c.tris.length > 90 && c.tris.length < 115 && ax > 6.7 && c.center.z < -2.7 && c.center.z > -3.5 && side(c) === sd).sort((a, b) => b.center.y - a.center.y);
-    pair.forEach((c, k) => { const t = take('airbrake', c); brakes.push({ t, up: k === 0 ? 1 : -1, side: sd }); });
+    pair.forEach((c, k) => { const t = take('airbrake', c); brakes.push({ t, up: k === 0 ? 1 : -1, side: sd }); brakeComps.push([c, t]); });
   }
   // what's left: the skin (by far the biggest piece) is cut up for the damage parts; everything else (pylons, fairings,
   // the fixed stabilisers, pod and gear bits) stays whole and rides whichever part it sits on
   const rest = comps.filter(c => !taken.has(c)).sort((a, b) => b.tris.length - a.tris.length);
   const skin = rest[0], bits = rest.slice(1);
+  // small pieces that belong to a moving surface ride its hinge: each elevator's trim tab and tip fairing (on its
+  // trailing edge / outer end), and the rods at the back of each airbrake petal (with the petal at the same height)
+  {
+    const ride = (c, turn) => { const m = new THREE.Mesh(subset(g, c.tris), hull.material); m.userData.noSplit = m.userData.noBulk = true; model.add(m); model.updateMatrixWorld(true); turn.attach(m); bits.splice(bits.indexOf(c), 1); };
+    for (const sd of ['L', 'R']) {
+      const e = elevComps[sd]; if (!e) continue;
+      const near = e.box.clone().expandByScalar(0.06);
+      for (const c of bits.slice()) if (c.tris.length < 60 && side(c) === sd && near.intersectsBox(c.box) && c.center.z < e.box.max.z - 0.1) ride(c, s['stab' + sd]);
+    }
+    for (const c of bits.slice()) {
+      if (c.tris.length >= 30 || Math.abs(c.center.x) < 6.7 || c.box.max.z > -3.35 || c.box.min.z < -3.9) continue;
+      const mine = brakeComps.filter(([b]) => side(b) === side(c)).sort((a, b) => Math.abs(a[0].center.y - c.center.y) - Math.abs(b[0].center.y - c.center.y))[0];
+      if (mine) ride(c, mine[1]);
+    }
+  }
   // the pylons (thin vertical blades under the wing): the two outermost a side carry missiles, the next two rocket pods
   const pylons = bits.filter(c => c.tris.length >= 50 && c.tris.length <= 70 && c.box.max.x - c.box.min.x < 0.12 && Math.abs(c.center.x) > 1.9 && c.box.max.y - c.box.min.y < 0.45)
     .sort((a, b) => Math.abs(b.center.x) - Math.abs(a.center.x));
@@ -114,25 +129,43 @@ export async function loadSu25(url, cfg) {
   const gearComps = bits.filter(c => inGear(c) && !pylons.includes(c));
   const isDoor = (c) => { const sz = c.box.getSize(new THREE.Vector3()); return c.tris.length < 130 && Math.min(sz.x, sz.y, sz.z) < 0.06 && Math.max(sz.x, sz.y, sz.z) > 0.45; };
   const vertsOf = (c) => { const pos = g.attributes.position, idx = g.index.array, out = []; for (const t of c.tris) for (let k = 0; k < 3; k++) out.push(new THREE.Vector3().fromBufferAttribute(pos, idx[3 * t + k])); return out; };
-  const gearRig = { legs: [], doors: [], jacks: [], noseDoor: null };
+  const gearRig = { legs: [], doors: [], noseDoor: null };
   // the main bays' doors (hanging open as modelled, curved so no simple thinness test finds them): per bay a long
   // outboard one and two inboard ones (front and rear), picked by size
   const isPlate = (c) => [92, 88, 72].includes(c.tris.length) && c.box.max.z - c.box.min.z > 0.7;
   const groups = [['L', (c) => c.center.x > 0.25 && c.center.z < 0.35, 0.78, isPlate], ['R', (c) => c.center.x < -0.25 && c.center.z < 0.35, -0.78, isPlate], ['N', (c) => Math.abs(c.center.x) < 0.3 && c.center.z > 1.8, 0, isDoor]];
   for (const [nm, test, cx, doorTest] of groups) {
     const mine = gearComps.filter(test); if (!mine.length) continue;
-    const jacks = mine.filter(c => c.box.max.y >= 1.5), legs = mine.filter(c => !doorTest(c) && !jacks.includes(c)), doors = mine.filter(doorTest);
-    // the nose leg's upper strut, reaching up into the nose: a jack that shortens up into it as the leg folds
-    for (const c of jacks) {
-      const jm = new THREE.Mesh(subset(g, c.tris), hull.material); jm.userData.noSplit = jm.userData.noBulk = true;
-      const at = new THREE.Vector3(c.center.x, c.box.max.y, c.center.z), pv = new THREE.Object3D(); pv.position.copy(at); model.add(pv); model.add(jm); model.updateMatrixWorld(true); pv.attach(jm);
-      gearRig.jacks.push(pv);
-    }
-    // the leg's hinge: the top of its tallest member
+    const legs = mine.filter(c => !doorTest(c)), doors = mine.filter(doorTest);
+    // folding: the leg swings forward 90 degrees about a hinge chosen (searched) so the wheel comes to rest at a
+    // measured spot inside: the main wheels lying flat in their bays (the leg also turns 90 degrees about its own
+    // axis), the nose wheel under the cockpit floor
     const strut = legs.slice().sort((a, b) => (b.box.max.y - b.box.min.y) - (a.box.max.y - a.box.min.y))[0];
-    const top = vertsOf(strut).filter((v, _, a) => v.y > strut.box.max.y - 0.04); const hinge = top.reduce((s, v) => s.add(v), new THREE.Vector3()).divideScalar(top.length);
+    const topVs = vertsOf(strut).filter(v => v.y > strut.box.max.y - 0.04), top = topVs.reduce((s, v) => s.add(v), new THREE.Vector3()).divideScalar(topVs.length);
     const legMesh = new THREE.Mesh(subset(g, legs.flatMap(c => c.tris)), hull.material); legMesh.userData.noSplit = legMesh.userData.noBulk = true;
-    gearRig.legs.push({ turn: pivotOn(model, hinge, new THREE.Vector3(1, 0, 0), legMesh), max: nm === 'N' ? 100 : 92 });
+    const wheel = legs.slice().sort((a, b) => b.tris.length - a.tris.length)[0].center;
+    const main = nm !== 'N', sx = Math.sign(cx) || 1, R90 = Math.PI / 2;
+    const target = main ? new THREE.Vector3(sx * 0.6, 1.45, -0.5) : new THREE.Vector3(0, 1.62, 3.05);
+    const foot = wheel.clone().setX(top.x);
+    let best = null;
+    for (let hy = 0.9; hy <= 1.9; hy += 0.05) for (let hz = wheel.z - 1.2; hz <= wheel.z + 0.6; hz += 0.05) for (let yaw = main ? -30 : 0; yaw <= (main ? 30 : 0); yaw += 5) for (const sg of main ? [1, -1] : [0]) {
+      const H = new THREE.Vector3(top.x, hy, hz), legAxis = foot.clone().sub(H).normalize(), fold = new THREE.Vector3(Math.cos(yaw * Math.PI / 180), 0, Math.sin(yaw * Math.PI / 180));
+      const F = wheel.clone().sub(H).applyAxisAngle(legAxis, sg * R90).applyAxisAngle(fold, -R90).add(H), d = F.distanceTo(target);
+      if (!best || d < best.d) best = { d, H, legAxis, fold, sg };
+    }
+    const { H: hinge, legAxis, fold, sg } = best, X = new THREE.Vector3(1, 0, 0);
+    if (!main) gearRig.legs.push({ turn: pivotOn(model, hinge, fold, legMesh), max: 90 });
+    else {
+      // (only the lower leg, the wheel and its fork, turns; the upper strut and the braces just fold)
+      const low = legs.filter(c => c.center.y < 0.7), up = legs.filter(c => c.center.y >= 0.7);
+      legMesh.geometry = subset(g, low.flatMap(c => c.tris));
+      const tw = new THREE.Object3D(); tw.position.copy(hinge); tw.quaternion.setFromUnitVectors(X, legAxis);
+      const twist = new THREE.Object3D(); tw.add(twist); model.add(tw); model.add(legMesh); model.updateMatrixWorld(true); twist.attach(legMesh);
+      const turn = pivotOn(model, hinge, fold, tw);
+      let um = null;
+      if (up.length) { um = new THREE.Mesh(subset(g, up.flatMap(c => c.tris)), hull.material); um.userData.noSplit = um.userData.noBulk = true; model.add(um); model.updateMatrixWorld(true); turn.attach(um); }
+      gearRig.legs.push({ turn, max: 90, twist, twistMax: sg * 90, upper: um });
+    }
     // each door: hinged along its top edge, closing to lie flat toward the middle of its bay
     for (const c of doors) {
       const vs = vertsOf(c), topY = c.box.max.y, edge = vs.filter(v => v.y > topY - 0.03);
@@ -282,8 +315,11 @@ export async function loadSu25(url, cfg) {
       // the gear is moving
       const gk = V.active ? (V.gear ?? 1) : (acReal.gear || 0);
       const doorK = THREE.MathUtils.smoothstep(gk, 0, 0.15), legK = THREE.MathUtils.smoothstep(gk, 0.15, 1);
-      for (const l of gearRig.legs) { l.turn.rotation.x = -(1 - legK) * l.max * DEG; l.turn.visible = gk > 0.02; }
-      for (const j of gearRig.jacks) { j.scale.y = Math.max(0.02, legK); j.visible = gk > 0.02; }
+      for (const l of gearRig.legs) {
+        l.turn.rotation.x = -(1 - legK) * l.max * DEG; l.turn.visible = gk > 0.02;
+        if (l.upper) l.upper.visible = legK > 0.35;   // (folded that far, the upper strut is buried in the nacelle but for its tip)
+        if (l.twist) l.twist.rotation.x = (1 - THREE.MathUtils.smoothstep(legK, 0.25, 0.9)) * l.twistMax * DEG;   // (turned flat early in the fold)
+      }
       for (const d of gearRig.doors) d.turn.rotation.x = d.close * (1 - doorK);
       if (gearRig.noseDoor) gearRig.noseDoor.rotation.x = -85 * DEG * THREE.MathUtils.smoothstep(gk, 0.02, 0.15) * (1 - THREE.MathUtils.smoothstep(gk, 0.85, 0.98));
       canopy.rotation.x = (V.active ? V.canopy || 0 : acReal.canopy || 0) * 70 * DEG;

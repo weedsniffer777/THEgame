@@ -1038,7 +1038,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     return best;
   }
 
-  const ROCKET = { launch: 30, accel: 520, burn: 0.75, drag: 0.03, life: 8, blast: 22, damage: 7, puffEvery: 4, smokeLife: 7 };
+  const ROCKET = { launch: 30, accel: 520, burn: 0.75, drag: 0.03, life: 8, blast: 22, damage: 7, puffEvery: 4, smokeLife: 15 };
   const _rq = new THREE.Quaternion();
   function fireRocket(fwd) {
     for (let n = 0; n < podMeshes.length; n++) {
@@ -1059,7 +1059,9 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     }
   }
   function rocketBurst(p, vel, air) {
-    explode(p, vel.clone().multiplyScalar(air ? 0.3 : 0.05), 0.55);
+    explode(p, vel.clone().multiplyScalar(air ? 0.3 : 0.05), air ? 1.1 : 1.5, !air);
+    // a thick dark cloud where it went off, lingering
+    for (let n = 0; n < (air ? 4 : 7); n++) S.rocketSmoke.push({ p: p.clone().add(_w.set(Math.random() - 0.5, Math.random() * 0.6, Math.random() - 0.5).multiplyScalar(6)), t: S.simT + n * 0.04, seed: Math.random(), s0: 2.2 + Math.random() * 1.5, burst: 1, drift: new THREE.Vector3(Math.random() - 0.5, 0.6 + Math.random() * 0.8, Math.random() - 0.5) });
     if (!air && terrain.isWater(p.x, p.z)) splash(p, vel, 0.8);
     for (const d of drones) {
       if (!d.alive) continue;
@@ -1291,8 +1293,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
         const age = now - q.t; if (age < 0) continue;
         const at = tmpA.copy(q.p).addScaledVector(trails.wind, age * 0.7).addScaledVector(q.drift, Math.min(age, 3));
         at.y += age * 0.35;
-        const op = THREE.MathUtils.smoothstep(age, 0, 0.05) * Math.pow(Math.max(0, 1 - age / ROCKET.smokeLife), 1.4) * 0.9;
-        const size = q.s0 + 4.2 * (1 - Math.exp(-age / 1.1)) + age * 0.35;
+        const op = THREE.MathUtils.smoothstep(age, 0, 0.05) * Math.pow(Math.max(0, 1 - age / ROCKET.smokeLife), 1.6) * 0.9;
+        const size = q.s0 + (q.burst ? 9 : 4.6) * (1 - Math.exp(-age / (q.burst ? 2 : 1.3))) + age * (q.burst ? 0.6 : 0.4);
         const tone = 0.15 + 0.2 * THREE.MathUtils.smoothstep(age, 0.6, 6) + q.seed * 0.05;
         smoke.push(at, null, tone * 0.98, tone, tone * 1.02, op, size, q.seed);
       }
@@ -1399,6 +1401,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     clearLine: (a, b) => clearLine(a, b),
     placeDrones() { drones.forEach((d, k) => placeDrone(d, k)); },   // around wherever the player is now (or on their tracks)
     resetStats() { S.kills.length = 0; S.shots = 0; S.hits = 0; },
+    rocketBurst: (p, v, air = false) => rocketBurst(p, v, air),   // (dev: test a rocket burst)
     rearm() { S.loaded.fill(true); S.firing = false; podMeshes.forEach(m => { m.userData.left = POD.rockets; m.userData.tips.forEach(t => { t.visible = true; }); }); },
     explode, hitFx, killDrone,   // (used by the dev tests)
     vapour, contrailsStep,
