@@ -197,6 +197,7 @@ export async function loadMig21(url, cfg) {
 
   // ---- the rest: the glow sheets and trails of the source are replaced by our own afterburner; clear canopy glass
   for (const m of all(/^glow002\//)) m.removeFromParent();
+  for (const m of all(/^pilot002\//)) m.visible = false;          // (no pilots in our jets for now: kept in the file, not shown)
   model.traverse(o => {
     if (!o.isMesh) return;
     if (o.material.map) o.material.map.anisotropy = 4;
