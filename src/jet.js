@@ -278,26 +278,41 @@ const legClip = new THREE.Plane();
 // sections, so each half stays with its section when that breaks off.
 // clip a (non-indexed) triangle list to the side of plane where distance >= 0
 export function clipGeometry(geo, plane) {
-  const names = Object.keys(geo.attributes), src = names.map(n => geo.attributes[n]);
-  const out = names.map(() => []), v = new THREE.Vector3();
-  const count = geo.index ? geo.index.count : geo.attributes.position.count;
-  const vid = (k) => geo.index ? geo.index.array[k] : k;
-  const vert = (i) => src.map(a => Array.from({ length: a.itemSize }, (_, c) => a.array[i * a.itemSize + c]));
-  const lerp = (A, B, t) => A.map((arr, j) => arr.map((x, c) => x + (B[j][c] - x) * t));
-  const dist = (i) => plane.distanceToPoint(v.fromBufferAttribute(geo.attributes.position, i));
-  const emit = (V) => V.forEach((arr, j) => out[j].push(...arr));
+  // (triangles wholly on the kept side are copied straight across; only those the plane crosses are cut)
+  const names = Object.keys(geo.attributes), src = names.map(n => geo.attributes[n]), sizes = src.map(a => a.itemSize), arrs = src.map(a => a.array);
+  const pos = geo.attributes.position, nV = pos.count, idx = geo.index ? geo.index.array : null;
+  const count = idx ? idx.length : nV;
+  const nx = plane.normal.x, ny = plane.normal.y, nz = plane.normal.z, c0 = plane.constant, pa = pos.array, ps = pos.itemSize;
+  const d = new Float32Array(nV);
+  for (let i = 0; i < nV; i++) d[i] = nx * pa[i * ps] + ny * pa[i * ps + 1] + nz * pa[i * ps + 2] + c0;
+  // size the output: every kept triangle gives at most 2 triangles (6 vertices)
+  let est = 0;
   for (let k = 0; k < count; k += 3) {
-    const ids = [vid(k), vid(k + 1), vid(k + 2)], d = ids.map(dist), P = ids.map(vert);
+    const a = idx ? idx[k] : k, b = idx ? idx[k + 1] : k + 1, c = idx ? idx[k + 2] : k + 2;
+    const n = (d[a] >= 0) + (d[b] >= 0) + (d[c] >= 0);
+    est += n === 0 ? 0 : n === 3 ? 3 : n === 2 ? 6 : 3;
+  }
+  const out = sizes.map(sz => new Float32Array(est * sz));
+  let w = 0;
+  const copyV = (i) => { for (let j = 0; j < arrs.length; j++) { const sz = sizes[j], A = arrs[j], O = out[j], o = w * sz, s0 = i * sz; for (let q = 0; q < sz; q++) O[o + q] = A[s0 + q]; } w++; };
+  const lerpV = (i, k, t) => { for (let j = 0; j < arrs.length; j++) { const sz = sizes[j], A = arrs[j], O = out[j], o = w * sz; for (let q = 0; q < sz; q++) { const x = A[i * sz + q]; O[o + q] = x + (A[k * sz + q] - x) * t; } } w++; };
+  // a polygon vertex: an original vertex [i] or an edge point [i, k, t]
+  const putP = (P) => P.length === 1 ? copyV(P[0]) : lerpV(P[0], P[1], P[2]);
+  for (let k = 0; k < count; k += 3) {
+    const ids = [idx ? idx[k] : k, idx ? idx[k + 1] : k + 1, idx ? idx[k + 2] : k + 2];
+    const da = d[ids[0]], db = d[ids[1]], dc = d[ids[2]];
+    if (da >= 0 && db >= 0 && dc >= 0) { copyV(ids[0]); copyV(ids[1]); copyV(ids[2]); continue; }
+    if (da < 0 && db < 0 && dc < 0) continue;
     const poly = [];
     for (let e = 0; e < 3; e++) {
-      const a = e, b = (e + 1) % 3;
-      if (d[a] >= 0) poly.push(P[a]);
-      if ((d[a] >= 0) !== (d[b] >= 0)) poly.push(lerp(P[a], P[b], d[a] / (d[a] - d[b])));
+      const a = ids[e], b = ids[(e + 1) % 3];
+      if (d[a] >= 0) poly.push([a]);
+      if ((d[a] >= 0) !== (d[b] >= 0)) poly.push([a, b, d[a] / (d[a] - d[b])]);
     }
-    for (let t = 1; t + 1 < poly.length; t++) { emit(poly[0]); emit(poly[t]); emit(poly[t + 1]); }
+    for (let t = 1; t + 1 < poly.length; t++) { putP(poly[0]); putP(poly[t]); putP(poly[t + 1]); }
   }
   const g = new THREE.BufferGeometry();
-  names.forEach((n, j) => g.setAttribute(n, new THREE.Float32BufferAttribute(out[j], src[j].itemSize)));
+  names.forEach((n, j) => g.setAttribute(n, new THREE.BufferAttribute(w * sizes[j] === out[j].length ? out[j] : out[j].slice(0, w * sizes[j]), sizes[j])));
   return g;
 }
 

@@ -176,16 +176,24 @@ export async function loadSu25(url, cfg) {
     const R = REGIONS.su25;
     const P = (axis, v, sign = 1) => { const n = new THREE.Vector3(); n[axis] = sign; return new THREE.Plane(n, -sign * v); };   // keeps sign * (p - v) >= 0
     const merge = (list) => { const l = list.filter(x => x.attributes.position.count); return l.length > 1 ? mergeGeometries(l) : l[0] || list[0]; };
+    // (only the triangles that reach into the band are cut: the rest go straight across)
+    const AX = { x: 0, y: 1, z: 2 };
+    const pick = (geo, keep) => { const sub = new THREE.BufferGeometry(); for (const [n, at] of Object.entries(geo.attributes)) sub.setAttribute(n, at); sub.setIndex(keep); return sub.toNonIndexed(); };
     const ragged = (geo, axis, at, cells) => {
-      const lo = P(axis, at - 0.35), hi = P(axis, at + 0.35, -1);
-      const inLo = clipGeometry(geo, lo), outside = [clipGeometry(geo, lo.clone().negate()), clipGeometry(inLo, hi.clone().negate())];
+      const lo = P(axis, at - 0.35), hi = P(axis, at + 0.35, -1), pa = geo.attributes.position.array, o = AX[axis], far = [], near = [];
+      for (let k = 0; k < pa.length / 9; k++) {
+        const a = pa[k * 9 + o], b = pa[k * 9 + 3 + o], c = pa[k * 9 + 6 + o], mn = Math.min(a, b, c), mx = Math.max(a, b, c);
+        (mx < at - 0.35 || mn > at + 0.35 ? far : near).push(3 * k, 3 * k + 1, 3 * k + 2);
+      }
+      const touching = pick(geo, near), inLo = clipGeometry(touching, lo);
+      const outside = [pick(geo, far), clipGeometry(touching, lo.clone().negate()), clipGeometry(inLo, hi.clone().negate())];
       let band = clipGeometry(inLo, hi);
       for (const [ax, from, to, step] of [[axis, at - 0.24, at + 0.24, 0.12], ...cells]) for (let v = from; v <= to + 1e-6; v += step) {
         const pl = P(ax, v); band = merge([clipGeometry(band, pl), clipGeometry(band, pl.clone().negate())]);
       }
       return merge([...outside, band]);
     };
-    let geo = hull.geometry;
+    let geo = hull.geometry.index ? hull.geometry.toNonIndexed() : hull.geometry;
     for (const sx of [1, -1]) for (const X of [R.outer.x, R.inner.x]) geo = ragged(geo, 'x', sx * X, [['z', -4.2, 1.4, 0.28]]);
     for (const Z of [R.noseZ, R.tail.z]) geo = ragged(geo, 'z', Z, [['x', -1.0, 1.0, 0.25], ['y', 0.8, 3.4, 0.25]]);
     geo = ragged(geo, 'y', R.fin.y, [['z', -7.6, -4.0, 0.28]]);

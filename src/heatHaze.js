@@ -13,7 +13,7 @@ void main() {
   vec3 ax = normalize(mat3(modelViewMatrix) * vec3(0.0, 0.0, -1.0));
   float l = length(ax.xy);
   vec2 dx = l > 1e-3 ? ax.xy / l : vec2(1.0, 0.0), dy = vec2(-dx.y, dx.x);
-  float w = 0.75, hl = mix(w, uLen * 0.5, l);
+  float w = 0.9, hl = mix(w, uLen * 0.5, l);
   c.xy += dx * position.y * 2.0 * hl + dy * position.x * w;
   vUv = vec2(position.x, position.y * 2.0); vL = l;
   gl_Position = projectionMatrix * c;
@@ -27,10 +27,10 @@ float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * 
 void main() {
   float t = vUv.y * 0.5 + 0.5;                                     // 0 at the nozzle, 1 downstream
   float across = 1.0 - vUv.x * vUv.x;
-  float mask = mix(smoothstep(1.0, 0.2, length(vUv)), across * smoothstep(0.0, 0.08, t) * pow(1.0 - t, 1.4), vL);
+  float mask = mix(1.0 - smoothstep(0.2, 1.0, length(vUv)), across * smoothstep(0.0, 0.08, t) * pow(1.0 - t, 1.4), vL);
   if (mask < 0.003) discard;
   vec2 q = vUv * vec2(4.0, 7.0) - vec2(0.0, uTime * 9.0);         // ripples flowing away from the nozzle
-  vec2 off = vec2(noise(q) - 0.5, noise(q + 17.3) - 0.5) * 2.0 * 0.007 * uK * mask;
+  vec2 off = vec2(noise(q) - 0.5, noise(q + 17.3) - 0.5) * 2.0 * 0.010 * uK * mask;
   vec2 uv = gl_FragCoord.xy / uRes + off;
   gl_FragColor = vec4(texture2D(uScene, uv).rgb, clamp(mask * 4.0, 0.0, 1.0));   // (already a finished image: no re-encoding)
 }`;
@@ -39,7 +39,7 @@ export function createHeatHaze(renderer, model, nozzles) {
   const scene = new THREE.Scene();
   const size = new THREE.Vector2();
   const uniforms = { uScene: { value: null }, uRes: { value: new THREE.Vector2() }, uTime: { value: 0 }, uK: { value: 0 }, uLen: { value: 7 } };
-  const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false });
+  const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false, side: THREE.DoubleSide });   // (the quad is laid out in the shader with a mirrored basis: either winding)
   const geo = new THREE.PlaneGeometry(2, 1, 1, 1);
   const meshes = nozzles.map(p => {
     const m = new THREE.Mesh(geo, mat);

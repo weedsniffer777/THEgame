@@ -393,7 +393,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   // the jet's own stations, gun ports and missile, where it has them (the MiG-21); else the F-5's
   const RAILS = jet.rails || RAILS_F5, MUZZLES = jet.muzzles || MUZZLES_F5, JCG = jet.cg || CG, mproto = jet.missileProto || proto;
 
-  const glow = new Sprites(2500, true), smoke = new Sprites(4000, false), trails = new Trails(), tracers = new Tracers(600, cfg.tracer), vortices = new Vortices();
+  const glow = new Sprites(2500, true), smoke = new Sprites(5000, false), trails = new Trails(), tracers = new Tracers(600, cfg.tracer), vortices = new Vortices();
   scene.add(glow.mesh, smoke.mesh, trails.mesh, tracers.mesh, vortices.mesh);
   vortices.onAge = (a) => S.fx.push({ kind: 'vapor', p: a.p.clone(), v: new THREE.Vector3(0, 0.3, 0), t: 0, life: 1.0 + Math.random() * 0.6,
     s: 0.25 + Math.random() * 0.12, seed: Math.random(), op: 0.4 * a.k, grow: 3, soft: 1 });
@@ -408,7 +408,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   const S = {
     selected: 1, firing: false,
     rounds: [], missiles: [], fx: [], kills: [], shots: 0, hits: 0, allow: { gun: true, missile: true },
-    rockets: PODS.length * POD.rockets, rocketMax: PODS.length * POD.rockets, rocketsInFlight: [], rocketAcc: 1, podNext: 0, rocketPip: null,
+    rockets: PODS.length * POD.rockets, rocketMax: PODS.length * POD.rockets, rocketsInFlight: [], rocketSmoke: [], podBlasts: [], rocketAcc: 1, podNext: 0, rocketPip: null,
     stock: cfg.missiles, reload: 0, gunAcc: 0, gunSide: 0, flash: [0, 0],
     lock: 0, locked: false, seeker: null, target: null, lead: null, leadTime: 0, hitScale: 1,
     loaded: Array(RAILS.length).fill(true), lost: Array(RAILS.length).fill(false),
@@ -951,14 +951,23 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       if (r.t < ROCKET.burn) r.v.addScaledVector(r.dir, ROCKET.accel * dt);
       r.v.y -= G * dt; r.v.multiplyScalar(1 - ROCKET.drag * dt);
       r.p.addScaledVector(r.v, dt); r.dir.copy(r.v).normalize();
-      if (r.t < ROCKET.burn + 0.3) { const last = r.trail.pts[r.trail.pts.length - 1]; if (!last || last.p.distanceTo(r.p) > 5) trails.add(r.trail, r.p, S.simT); }
+      // thick dark smoke, puffed out along the path while the motor burns (it starts a few metres behind the rocket)
+      if (r.t < ROCKET.burn + 0.05) {
+        const seg = r.prev.distanceTo(r.p);
+        for (r.sd += seg; r.sd >= ROCKET.puffEvery; r.sd -= ROCKET.puffEvery) {
+          const k = seg > 0 ? Math.max(0, 1 - r.sd / seg) : 1;
+          S.rocketSmoke.push({ p: r.prev.clone().lerp(r.p, k), t: S.simT, seed: Math.random(), s0: 1.0 + Math.random() * 0.4, drift: new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.5, Math.random() - 0.5) });
+        }
+      }
       let hit = null;
       for (const d of drones) if (d.alive && segDist(r.prev, r.p, d.pos) < (d.def.hitRadius || cfg.hitRadius) * 0.8) { hit = closestOnSeg(r.prev, r.p, d.pos); break; }
       const ground = terrain.heightAt(r.p.x, r.p.z);
       if (!hit && r.p.y < ground) hit = r.p.clone().setY(ground);
       if (hit || r.t > ROCKET.life) { rocketBurst(hit || r.p, r.v, !hit && r.t > ROCKET.life); r.t = 1e9; }
     }
-    for (const r of S.rocketsInFlight) if (r.t >= 1e9) { r.trail.live = false; scene.remove(r.obj); }
+    for (const r of S.rocketsInFlight) if (r.t >= 1e9) scene.remove(r.obj);
+    S.rocketSmoke = S.rocketSmoke.filter(q => S.simT - q.t < ROCKET.smokeLife);
+    S.podBlasts = S.podBlasts.filter(b => S.simT - b.t < 0.22);
     S.rocketsInFlight = S.rocketsInFlight.filter(r => r.t < 1e9);
     // where they'd land if fired now (for the pipper): the same flight, stepped ahead
     S.rocketPip = S.selected === 3 && S.rockets > 0 ? rocketImpact(fwd) : null;
@@ -1029,7 +1038,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     return best;
   }
 
-  const ROCKET = { launch: 30, accel: 520, burn: 0.75, drag: 0.03, life: 8, blast: 22, damage: 7 };
+  const ROCKET = { launch: 30, accel: 520, burn: 0.75, drag: 0.03, life: 8, blast: 22, damage: 7, puffEvery: 4, smokeLife: 7 };
   const _rq = new THREE.Quaternion();
   function fireRocket(fwd) {
     for (let n = 0; n < podMeshes.length; n++) {
@@ -1040,7 +1049,11 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       pod.userData.tips[i].visible = false;
       const p = pod.localToWorld(pod.userData.mouths[i].clone());
       const obj = makeRocket(); scene.add(obj);
-      S.rocketsInFlight.push({ obj, p, prev: p.clone(), v: ac.vel.clone().addScaledVector(fwd, ROCKET.launch), dir: fwd.clone(), t: 0, trail: trails.start() });
+      S.rocketsInFlight.push({ obj, p, prev: p.clone(), v: ac.vel.clone().addScaledVector(fwd, ROCKET.launch), dir: fwd.clone(), t: 0, sd: -3 });
+      // the motor lights in the tube: flame out of the back of the pod and a puff of smoke there, a flash at the front
+      S.podBlasts.push({ pod, i, t: S.simT });
+      const rear = pod.localToWorld(pod.userData.rears[i].clone()), back = _w.set(0, 0, -1).transformDirection(pod.matrixWorld);
+      for (let n = 0; n < 3; n++) S.rocketSmoke.push({ p: rear.clone().addScaledVector(back, 0.6 + n * 1.1), t: S.simT - n * 0.03, seed: Math.random(), s0: 0.45 + n * 0.15, drift: new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.5, Math.random() - 0.5).addScaledVector(back, 2) });
       S.shots++;
       return;
     }
@@ -1254,9 +1267,34 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
       r.obj.position.copy(r.prev).lerp(r.p, alpha);
       r.obj.quaternion.copy(_rq.setFromUnitVectors(_v.set(0, 0, 1), r.dir));
       if (r.t < ROCKET.burn) {
-        const tailP = tmpA.copy(r.dir).multiplyScalar(-0.9).add(r.obj.position), end = tmpB.copy(r.dir).multiplyScalar(-2.6 - Math.random()).add(r.obj.position);
-        glow.push(tailP, end, 1.0, 0.62, 0.3, 1.1, 0.2);
-        glow.push(tailP, null, 1.0, 0.64, 0.32, 0.8, 0.4 + Math.random() * 0.2, Math.random());
+        // a pure white core in a big, rich yellow glow, and a very short hot streak behind it
+        const tailP = tmpA.copy(r.dir).multiplyScalar(-0.9).add(r.obj.position), end = tmpB.copy(r.dir).multiplyScalar(-3.2 - Math.random() * 1.2).add(r.obj.position);
+        glow.push(tailP, end, 1.0, 0.8, 0.4, 1.2, 0.32);
+        glow.push(tailP, null, 1.0, 0.62, 0.14, 0.75, 2.8 + Math.random() * 0.6, Math.random());
+        glow.push(tailP, null, 1.0, 0.82, 0.35, 0.8, 1.3 + Math.random() * 0.2, Math.random());
+        glow.push(tailP, null, 1.0, 1.0, 0.96, 1.5, 0.5 + Math.random() * 0.1, Math.random());
+      }
+    }
+    // the pods' backblast as each motor lights: a flame out of its tube's back end, a flash at the front
+    for (const b of S.podBlasts) {
+      const k = (S.simT - b.t) / 0.22, f = 1 - k;
+      if (!onJet(b.pod)) continue;
+      const rear = b.pod.localToWorld(tmpA.copy(b.pod.userData.rears[b.i])), back = _w.set(0, 0, -1).transformDirection(b.pod.matrixWorld);
+      glow.push(rear, tmpB.copy(rear).addScaledVector(back, 0.8 + 2.2 * f * (0.8 + Math.random() * 0.4)), 1.0, 0.78, 0.38, 1.3 * f, 0.2 + 0.2 * f);
+      glow.push(rear, null, 1.0, 0.7, 0.28, 0.9 * f, 0.7 + 0.6 * f, Math.random());
+      if (k < 0.4) glow.push(b.pod.localToWorld(tmpB.copy(b.pod.userData.mouths[b.i])), null, 1.0, 0.9, 0.6, 1.2 * (1 - k / 0.4), 0.7, Math.random());
+    }
+    // rocket smoke: dark, thick puffs that come in almost at once, swell and drift, lightening a little as they spread
+    {
+      const now = S.simT || 0;
+      for (const q of S.rocketSmoke) {
+        const age = now - q.t; if (age < 0) continue;
+        const at = tmpA.copy(q.p).addScaledVector(trails.wind, age * 0.7).addScaledVector(q.drift, Math.min(age, 3));
+        at.y += age * 0.35;
+        const op = THREE.MathUtils.smoothstep(age, 0, 0.05) * Math.pow(Math.max(0, 1 - age / ROCKET.smokeLife), 1.4) * 0.9;
+        const size = q.s0 + 4.2 * (1 - Math.exp(-age / 1.1)) + age * 0.35;
+        const tone = 0.15 + 0.2 * THREE.MathUtils.smoothstep(age, 0.6, 6) + q.seed * 0.05;
+        smoke.push(at, null, tone * 0.98, tone, tone * 1.02, op, size, q.seed);
       }
     }
     // missiles: body follows its path, motor flame while burning

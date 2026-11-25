@@ -1297,4 +1297,4 @@ if (isTouch) {
   applyLayout();                                         // (the player's own button positions, if moved)
 }
 
-window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut, overlay, mission, viewerAnim, state: () => ({ running, locked, started, dead }), setAreaT: (v) => { areaT = v; } };
+window.__game = { haze, ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut, overlay, mission, viewerAnim, state: () => ({ running, locked, started, dead }), setAreaT: (v) => { areaT = v; } };
