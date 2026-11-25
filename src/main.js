@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { F5, INSTRUCTOR, CAMERA, WORLD, WEAPONS, loadTuning } from './config.js';
+import { F5, MIG21, MIG21_WEAPONS, INSTRUCTOR, CAMERA, WORLD, WEAPONS, loadTuning } from './config.js';
+import { loadMig21 } from './mig21.js';
 import { Aircraft } from './flight/aircraft.js';
 import { instruct } from './flight/instructor.js';
 import { CameraRig } from './camera.js';
@@ -7,7 +8,7 @@ import { createSky, setSun } from './world/sky.js';
 import { loadTerrain } from './world/terrain.js';
 import { loadJet, viewerAnim , NOZZLES } from './jet.js';
 import { createHeatHaze } from './heatHaze.js';
-import { groundContact } from './flight/ground.js';
+import { groundContact, setContacts } from './flight/ground.js';
 import { createFlightHud } from './hudFlight.js';
 import { createMap } from './hudMap.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
@@ -81,21 +82,27 @@ document.addEventListener('pointerlockchange', () => {
   if (was && !locked && !overlay?.open && !overlay?.endOpen) setRunning(false);   // (the end card frees the mouse without pausing)
 });
 
-const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadJet('models/jets/f5.gltf.json', F5)]);
+// the player's aircraft: the F-5, or (dev kit, for testing) the MiG-21
+const PLANE = (() => { try { return localStorage.getItem('thegame.devplane') || 'f5'; } catch { return 'f5'; } })();
+const PCFG = PLANE === 'mig21' ? MIG21 : F5;
+const WCFG = PLANE === 'mig21' ? { ...WEAPONS, ...MIG21_WEAPONS } : WEAPONS;   // (its own gun and missile count over the shared weapons)
+const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'),
+  PLANE === 'mig21' ? loadMig21('models/jets/mig21.gltf.json', MIG21) : loadJet('models/jets/f5.gltf.json', F5)]);
+if (jet.contacts) setContacts(jet.contacts);
 scene.add(terrain.group, jet.object);
 const clouds = createClouds(WORLD.clouds, WORLD.cloudBase);
 scene.add(clouds.mesh);
 const cloudEl = document.getElementById('cloudfog');
 
-const ac = new Aircraft(F5);
+const ac = new Aircraft(PCFG);
 const [enemyProto, bomberProto] = await Promise.all([loadEnemy('earlyJet'), loadEnemy('bomber')]);
-const haze = createHeatHaze(renderer, jet.model, NOZZLES);
+const haze = createHeatHaze(renderer, jet.model, jet.nozzles || NOZZLES);
 // what we fly: Mission 1 (default) or free flight (?mode=free, dev kit)
 let devMode = null; try { devMode = localStorage.getItem('thegame.devmode'); } catch { /* */ }
 const MODE = (params.get('mode') || devMode) === 'free' ? 'free' : 'mission1';   // (dev kit level selector; kept in this browser)
 const roster = MODE === 'mission1' ? [{ proto: bomberProto, count: 10 }] :   // (Mission 1: the bomber formation alone, no escorts)
   [{ proto: enemyProto, count: WEAPONS.drones - 1 }, { proto: bomberProto, count: 1 }];
-const weapons = await createWeapons(scene, jet, ac, WEAPONS, terrain, roster);
+const weapons = await createWeapons(scene, jet, ac, WCFG, terrain, roster);
 const rig = new CameraRig(camera, CAMERA);
 const overlay = createOverlay();
 const mission = MODE === 'mission1' ? createMission1({ weapons, ac, rig }) : null;
@@ -608,12 +615,13 @@ const _wn = new THREE.Vector3(), _wv = new THREE.Vector3(), _wq = new THREE.Quat
 // +z nose; points on parts that have broken off no longer count). Each touching point gets a normal impulse with
 // almost no bounce and a friction impulse, applied at that point, so it tumbles only as much as the contacts make it,
 // slides, settles on whatever it lands on and comes to rest.
-const WRECK_PTS = [
+let WRECK_PTS = [
   [[0, -0.2, 7.2], 'nose'], [[0, -0.5, 4.6]], [[0, 0.3, -7], 'tail'], [[0, -0.9, -6], 'tail'], [[0, -1.0, 0.5]], [[0, -0.9, -3.4]], [[0, 0.7, -3.3]],
   [[0, 1.2, 2.6]], [[0, 3.1, -6.4], 'fin'],
   [[4.0, -0.1, -1.6], 'wingOuterL'], [[-4.0, -0.1, -1.6], 'wingOuterR'], [[2.0, -0.3, -0.6], 'wingInnerL'], [[-2.0, -0.3, -0.6], 'wingInnerR'],
   [[2.6, 0.2, -5.6], 'stabL'], [[-2.6, 0.2, -5.6], 'stabR'],
 ].map(([p, part]) => ({ p: new THREE.Vector3(...p), part }));
+if (jet.contacts?.wreck) WRECK_PTS = jet.contacts.wreck.map(([p, part]) => ({ p, part }));
 const WRECK_I = new THREE.Vector3(1 / 16, 1 / 18, 1 / 4);   // inverse inertia per unit mass about body x (pitch), y (yaw), z (roll), 1/m²
 const _r = new THREE.Vector3(), _vc = new THREE.Vector3(), _t1 = new THREE.Vector3(), _t2 = new THREE.Vector3(), _qInv = new THREE.Quaternion();
 function invI(v, out) {   // world-space inverse inertia applied to a world vector
@@ -754,7 +762,7 @@ let areaK = 0;   // outside the mission area: the 'plane lost' look builds up ov
 const _p = new THREE.Vector3();
 const _n = new THREE.Vector3(), fpvEl = document.getElementById('fpv');
 const seekerEl = document.getElementById('seeker'), lockEl = document.getElementById('lockc'), tgtEl = document.getElementById('tgt'), tgtEls = [], mslEls = [];
-const armsHud = createArmsHud(document.getElementById('arms'), WEAPONS.missiles, (k) => { if (running) pickWeapon(k); });
+const armsHud = createArmsHud(document.getElementById('arms'), WCFG.missiles, (k) => { if (running) pickWeapon(k); });
 const gunSvg = document.getElementById('gunsol'), [gunBox, gunLine, gunCirc] = gunSvg.children;
 
 // a distance for the HUD: nm (km), then ft (m) close in: inside 1.5 nm (2 km)
@@ -1232,7 +1240,8 @@ const kitBtn = document.getElementById('devkit'), kitMenu = document.getElementB
   const lv = document.getElementById('kit-level'), pl = document.getElementById('kit-plane');
   lv.value = MODE;
   lv.addEventListener('change', () => { try { localStorage.setItem('thegame.devmode', lv.value); } catch { /* */ } location.reload(); });
-  pl.addEventListener('change', () => {});            // (only one aircraft so far)
+  pl.value = PLANE;
+  pl.addEventListener('change', () => { try { localStorage.setItem('thegame.devplane', pl.value); } catch { /* */ } location.reload(); });
   // (two clicks: the browser's confirm dialog is blocked inside the page's frame)
   const clr = document.getElementById('kit-clear'); let armedClear = 0;
   clr.addEventListener('click', (e) => {
@@ -1266,4 +1275,4 @@ if (isTouch) {
   applyLayout();                                         // (the player's own button positions, if moved)
 }
 
-window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut, overlay, mission, state: () => ({ running, locked, started, dead }), setAreaT: (v) => { areaT = v; } };
+window.__game = { ac, rig, terrain, camera, jet, renderer, scene, weapons, crash, wreck, tut, overlay, mission, viewerAnim, state: () => ({ running, locked, started, dead }), setAreaT: (v) => { areaT = v; } };

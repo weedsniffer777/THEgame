@@ -10,13 +10,18 @@ import * as THREE from 'three';
 //  - nosewheel steering: the rudder input steers the nose wheel below ~100 kt
 //  - airframe: tears off the part that hit if the hit is hard; scraping wears the airframe down
 //  - more than ~22 m/s into the ground at any point, or the canopy hitting fast: a crash
-const WHEELS = [[1.6, -1.9, -0.6], [-1.6, -1.9, -0.6], [0, -1.9, 5.05]].map(p => new THREE.Vector3(...p));
-const AIRFRAME = [
+let WHEELS = [[1.6, -1.9, -0.6], [-1.6, -1.9, -0.6], [0, -1.9, 5.05]].map(p => new THREE.Vector3(...p));
+let AIRFRAME = [
   [[0, -0.2, 7.2], 'nose'], [[0, -1.0, 0.5]], [[0, -0.9, -3.4]], [[0, 0.3, -7], 'tail'], [[0, 1.2, 2.6], 'canopy'],
   [[0, 3.1, -6.4], 'fin'], [[4.0, -0.1, -1.6], 'wingOuterL'], [[-4.0, -0.1, -1.6], 'wingOuterR'],
   [[2.6, 0.2, -5.6], 'stabL'], [[-2.6, 0.2, -5.6], 'stabR'],
 ].map(([p, part]) => ({ p: new THREE.Vector3(...p), part }));
-const INV_I = new THREE.Vector3(1 / 16, 1 / 18, 1 / 4);   // inverse inertia per unit mass (body x pitch, y yaw, z roll)
+const INV_I = new THREE.Vector3(1 / 16, 1 / 18, 1 / 4);
+// another jet's own points (the F-5's above are the default): { wheels: [Vector3], airframe: [[Vector3, part?]] }
+export function setContacts(c) {
+  if (c?.wheels) WHEELS = c.wheels;
+  if (c?.airframe) AIRFRAME = c.airframe.map(([p, part]) => ({ p, part }));
+}   // inverse inertia per unit mass (body x pitch, y yaw, z roll)
 
 const _r = new THREE.Vector3(), _n = new THREE.Vector3(), _vc = new THREE.Vector3(), _t1 = new THREE.Vector3(), _t2 = new THREE.Vector3();
 const _w = new THREE.Vector3(), _qi = new THREE.Quaternion(), _fwd = new THREE.Vector3(), _side = new THREE.Vector3();

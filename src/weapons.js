@@ -22,9 +22,9 @@ vec3 encode(vec3 c) {
 
 const CG = new THREE.Vector3(0, 1.9, -0.6);                     // model origin offset used by jet.js
 const toBody = (x, y, z) => new THREE.Vector3(x, y, z).sub(CG);
-const MUZZLES = [toBody(0.229, 1.936, 5.871), toBody(-0.229, 1.936, 5.871)];   // measured gun ports on the upper nose
+const MUZZLES_F5 = [toBody(0.229, 1.936, 5.871), toBody(-0.229, 1.936, 5.871)];   // measured gun ports on the upper nose
 // six stations, measured from the mesh; fired from the end of the list (wingtips first, then outer, then inner pylons)
-const RAILS = [
+const RAILS_F5 = [
   toBody(2.265, 1.07, -0.8), toBody(-2.425, 1.07, -0.8),     // inner pylons (bottom at y 1.144, z -1.57..-0.03)
   toBody(3.255, 1.07, -1.15), toBody(-3.415, 1.07, -1.15),   // outer pylons (z -1.92..-0.37)
   toBody(4.12, 1.31, -1.1), toBody(-4.12, 1.31, -1.1),       // wingtip rails
@@ -387,6 +387,8 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
   holder.rotation.y = Math.PI / 2;                           // source nose points -X; ours points +Z
   proto.add(holder);
   proto.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
+  // the jet's own stations, gun ports and missile, where it has them (the MiG-21); else the F-5's
+  const RAILS = jet.rails || RAILS_F5, MUZZLES = jet.muzzles || MUZZLES_F5, JCG = jet.cg || CG, mproto = jet.missileProto || proto;
 
   const glow = new Sprites(2500, true), smoke = new Sprites(4000, false), trails = new Trails(), tracers = new Tracers(), vortices = new Vortices();
   scene.add(glow.mesh, smoke.mesh, trails.mesh, tracers.mesh, vortices.mesh);
@@ -395,7 +397,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
 
   // missiles on the rails (in the jet's model, which is offset by -CG inside jet.object)
   const onJet = (o) => { for (let p = o.parent; p; p = p.parent) if (p === jet.model) return true; return false; };
-  const railMeshes = RAILS.map(r => { const m = proto.clone(true); m.userData.missile = true; m.position.copy(r).add(CG); jet.model.add(m); attachToPart(jet.model, m); return m; });
+  const railMeshes = RAILS.map(r => { const m = mproto.clone(true); m.userData.missile = true; m.position.copy(r).add(JCG); jet.model.add(m); attachToPart(jet.model, m); return m; });
 
   const S = {
     selected: 1, firing: false,
@@ -1001,7 +1003,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     if (k < 0) return;
     S.loaded[k] = false;
     const p = RAILS[k].clone().applyQuaternion(ac.quat).add(ac.pos);
-    const obj = proto.clone(true); scene.add(obj);
+    const obj = mproto.clone(true); scene.add(obj);
     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(ac.quat);
     S.missiles.push({ obj, p, prev: p.clone(), v: ac.vel.clone().add(_v.set(0, -4, 0).applyQuaternion(ac.quat)), dir, t: 0, target: S.locked ? S.seeker : null, trail: trails.start(), owner: 'player' });
     S.lock = 0;
@@ -1276,7 +1278,7 @@ export async function createWeapons(scene, jet, ac, cfg, terrain, enemyProto = n
     explode, hitFx, killDrone,   // (used by the dev tests)
     vapour, contrailsStep,
     step, render,
-    missileProto: proto,
+    missileProto: mproto,
     trails, smoke, cfg,   // (dev tests)
     // the player's jet hit the ground: blast and a fire where it hit (the airframe itself is simulated by main.js)
     crash(p, v, water = false, ditched = false) {

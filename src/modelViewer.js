@@ -107,6 +107,7 @@ export function createModelViewer(renderer, canvas, environment, models, { anim,
           animFolder.add(anim, 'gear', 0, 1, 0.01).name('gear (0 up, 1 down)');
           animFolder.add(anim, 'canopy', 0, 1, 0.01).name('canopy open');
           animFolder.add(anim, 'aoa', 0, 20, 0.1).name('AoA (flaps)');
+          animFolder.add(anim, 'mach', 0, 2.2, 0.01).name('Mach (intake cone)');
           for (const c of animFolder.controllers) c.listen();
           const d = doorFolder = gui.addFolder('door angles (closed)').close();
           for (const k of Object.keys(TUNABLE.DOORS)) d.add(TUNABLE.DOORS, k, -180, 180, 0.5).onChange(saveTuning);

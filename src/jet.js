@@ -86,7 +86,7 @@ void main() {
   gl_FragColor = vec4(c, 1.0);
 }`;
 
-function afterburner(kind) {
+export function afterburner(kind) {
   const g = new THREE.Group();
   const core = new THREE.Mesh(new THREE.CircleGeometry(0.198, 32).rotateY(Math.PI), new THREE.ShaderMaterial({
     uniforms: { uMil: { value: 0 }, uAB: { value: 0 }, uTime: { value: 0 } },
@@ -277,7 +277,7 @@ const legClip = new THREE.Plane();
 // edge (a swept hinge line read from the mesh itself) and is cut where the wing splits into inner and outer
 // sections, so each half stays with its section when that breaks off.
 // clip a (non-indexed) triangle list to the side of plane where distance >= 0
-function clipGeometry(geo, plane) {
+export function clipGeometry(geo, plane) {
   const names = Object.keys(geo.attributes), src = names.map(n => geo.attributes[n]);
   const out = names.map(() => []), v = new THREE.Vector3();
   const count = geo.index ? geo.index.count : geo.attributes.position.count;
@@ -338,7 +338,7 @@ function seatLEF(model, name, side, R) {
 }
 
 // the model viewer drives every animation from here instead of the flight model
-export const viewerAnim = { active: false, pitch: 0, roll: 0, yaw: 0, airbrake: 0, engine: 1, aoa: 0, gear: 0, canopy: 0, cycle: false };
+export const viewerAnim = { active: false, pitch: 0, roll: 0, yaw: 0, airbrake: 0, engine: 1, aoa: 0, gear: 0, canopy: 0, mach: 0, cycle: false };   // (mach: the MiG-21's intake cone)
 
 export async function loadJet(url, cfg) {
   const gltf = await loadGltfJson(url);
@@ -439,6 +439,7 @@ export async function loadJet(url, cfg) {
   const stabFullDown = Math.sin(SF.stabFullNegAoA * DEG) * cfg.pitchStability / cfg.pitchControl;
   return {
     object, model, setPaint,
+    cg: CG.clone(), nozzles: NOZZLES,
     animate(acReal, time = performance.now() / 1000) {   // time: the game clock (stands still while paused)
       const frozen = time === this._t; this._t = time;
       const V = viewerAnim;
