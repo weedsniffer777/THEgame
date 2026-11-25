@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { F5, MIG21, MIG21_WEAPONS, INSTRUCTOR, CAMERA, WORLD, WEAPONS, loadTuning } from './config.js';
-import { loadMig21 } from './mig21.js';
+import { F5, INSTRUCTOR, CAMERA, WORLD, WEAPONS, loadTuning } from './config.js';
 import { Aircraft } from './flight/aircraft.js';
 import { instruct } from './flight/instructor.js';
 import { CameraRig } from './camera.js';
@@ -82,12 +81,10 @@ document.addEventListener('pointerlockchange', () => {
   if (was && !locked && !overlay?.open && !overlay?.endOpen) setRunning(false);   // (the end card frees the mouse without pausing)
 });
 
-// the player's aircraft: the F-5, or (dev kit, for testing) the MiG-21
-const PLANE = (() => { try { return localStorage.getItem('thegame.devplane') || 'f5'; } catch { return 'f5'; } })();
-const PCFG = PLANE === 'mig21' ? MIG21 : F5;
-const WCFG = PLANE === 'mig21' ? { ...WEAPONS, ...MIG21_WEAPONS } : WEAPONS;   // (its own gun and missile count over the shared weapons)
-const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'),
-  PLANE === 'mig21' ? loadMig21('models/jets/mig21.gltf.json', MIG21) : loadJet('models/jets/f5.gltf.json', F5)]);
+// the player's aircraft (one so far: the jet-specific numbers come from the jet and its config)
+const PLANE = 'f5', PCFG = F5, WCFG = WEAPONS;
+try { localStorage.removeItem('thegame.devplane'); } catch { /* */ }
+const [terrain, jet] = await Promise.all([loadTerrain('terrain/engadin/'), loadJet('models/jets/f5.gltf.json', F5)]);
 if (jet.contacts) setContacts(jet.contacts);
 scene.add(terrain.group, jet.object);
 const clouds = createClouds(WORLD.clouds, WORLD.cloudBase);
@@ -1204,7 +1201,7 @@ const viewerModels = {
   'missile': () => weapons.missileProto,
 };
 const models = createModelViewer(renderer, canvas, scene.environment, viewerModels, { anim: viewerAnim, jet });
-// every weapon of the missile set (and the MiG-21's own short-range missile), each as its own model viewer entry
+// every weapon of the missile set, each as its own model viewer entry
 // (dev kit only: loaded in the background, the source names are fine here)
 (async () => {
   const add = (label, src) => {
@@ -1215,10 +1212,6 @@ const models = createModelViewer(renderer, canvas, scene.environment, viewerMode
   const set = await loadGltfJson('models/weapons/missiles.gltf.json');
   const root = set.scene.getObjectByName('GLTF_SceneRootNode') || set.scene;
   for (const w of root.children) if (!/^Text/i.test(w.name)) add(w.name.replace(/_\d+$/, '').replace(/_/g, ' '), w);
-  const mig = await loadGltfJson('models/jets/mig21.gltf.json');
-  let m = null; mig.scene.traverse(o => { if (!m && /Sidewinder/i.test(o.name)) m = o; });
-  if (m) add('MiG-21 short-range missiles (K-13 type)', m);
-  viewerModels['jet: MiG-21 (static)'] = () => mig.scene;
 })().catch(e => console.warn('model viewer extras', e));
 function openModels() {
   if (viewer.on) { setViewer(false); document.querySelectorAll('.lil-gui').forEach(g => { if (g.querySelector('.title')?.textContent === 'cinematic camera') g.style.display = 'none'; }); }
@@ -1241,7 +1234,6 @@ const kitBtn = document.getElementById('devkit'), kitMenu = document.getElementB
   lv.value = MODE;
   lv.addEventListener('change', () => { try { localStorage.setItem('thegame.devmode', lv.value); } catch { /* */ } location.reload(); });
   pl.value = PLANE;
-  pl.addEventListener('change', () => { try { localStorage.setItem('thegame.devplane', pl.value); } catch { /* */ } location.reload(); });
   // (two clicks: the browser's confirm dialog is blocked inside the page's frame)
   const clr = document.getElementById('kit-clear'); let armedClear = 0;
   clr.addEventListener('click', (e) => {

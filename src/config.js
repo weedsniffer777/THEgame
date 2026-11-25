@@ -91,41 +91,6 @@ export const F5 = {
   dihedral: 1.0,
 };
 
-// The MiG-21 (second player jet, dev kit only for now): the F-5's numbers with its own character. Faster (more thrust,
-// less drag, a later transonic rise), a little slower to turn (less lift and G available, slower roll) and it bleeds
-// speed faster in a turn (the delta's induced drag).
-export const MIG21 = {
-  ...JSON.parse(JSON.stringify(F5)),
-  mass: 7800,
-  wingArea: 23,
-  thrustMil: 40000,
-  thrustAB: 66000,
-  clAlpha: 4.2,           // a delta: less lift per degree...
-  clMax: 1.8,
-  stallAoA: 26,           // ...but it keeps flying to a higher angle
-  cd0: 0.018,
-  inducedDrag: 0.16,
-  waveDrag: 0.018,
-  machCrit: 0.9,
-  machPeak: 1.1,
-  rollRate: 200,
-  gFloorMax: 8.3,
-  turnBoost: 1.22,
-  boostDrag: 0.29,
-  afterburner: 'diamonds',
-  surfaces: {
-    aileron: 20, rudder: 25,
-    stabUp: 16, stabDown: 7,
-    stabFullAoA: 20, stabFullNegAoA: 12,
-    leFlap: 0, teFlap: 24, flapRate: 20,       // no manoeuvring flaps: they only come down with the gear
-    flapAoA: [90, 90], flapKt: [0, 1],
-    landFlapKt: [200, 260],
-  },
-};
-// its weapons, over the shared WEAPONS: the twin-barrel 23 mm cannon (slower rounds, a little more spread, they hit a
-// bit harder), two missiles a wing
-export const MIG21_WEAPONS = { muzzleVelocity: 750, gunSpread: 0.0017, gunRate: 50, gunDamage: 1.9, roundLife: 3.6, missiles: 4 };
-
 // The mouse-aim "instructor": flies the jet toward wherever the camera points.
 export const INSTRUCTOR = {
   aimRate: 1.7,           // 1/s: turn rate commanded per radian of error (higher = snappier, too high = overshoot)
@@ -226,7 +191,7 @@ export const WEAPONS = {
 };
 
 const KEY = 'thegame.tune2';
-export const TUNABLE = { F5, MIG21, INSTRUCTOR, CAMERA, WORLD, DOORS, WEAPONS };
+export const TUNABLE = { F5, INSTRUCTOR, CAMERA, WORLD, DOORS, WEAPONS };
 // the shipped defaults, so stale saved values can be told apart and reset
 export const DEFAULTS = JSON.parse(JSON.stringify(TUNABLE));
 
