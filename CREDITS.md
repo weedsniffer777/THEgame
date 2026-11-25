@@ -16,6 +16,7 @@ All licensed under [Creative Commons Attribution 4.0](http://creativecommons.org
 | "MIG-21 Fishbed - cold war era fighter - free" | NETRUNNER_pl | https://skfb.ly/6SoVo | not in the game (tried as a player jet, shelved; `tools/mig21/`) |
 | "MiG 29" | Usman Zia | https://skfb.ly/6XBBu | main enemy fighter |
 | "VPAF Sukhoi Su-57" | Dave Love SketchFab | https://skfb.ly/pLKWt | ace / boss enemy, possible unlock |
+| "[PBR] Sukhoi Su-25" | Immersive3D | https://skfb.ly/oQMHt | second player jet (being rigged; no markings or pilot in the source) |
 | "Northrop F-5" | dimal965 | https://skfb.ly/o6FzX | starter player jet (in game: roundels, wing dots and tail/nose numbers painted out of the texture; split into parts) |
 
 ## Fonts

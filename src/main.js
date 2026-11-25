@@ -1201,6 +1201,19 @@ const viewerModels = {
   'missile': () => weapons.missileProto,
 };
 const models = createModelViewer(renderer, canvas, scene.environment, viewerModels, { anim: viewerAnim, jet });
+// the Su-25 (the next player jet, being rigged): ~12 MB, so only fetched when picked in the viewer; shown once it's in
+{
+  const name = 'jet: Su-25 (as modelled)';
+  let su = null, loading = null;
+  viewerModels[name] = () => {
+    if (!su && !loading) loading = loadGltfJson('models/jets/su25.gltf.json').then(g => {
+      su = g.scene; su.rotation.y = Math.PI; su.scale.setScalar(0.484);              // (nose +Z, real size)
+      const sel = [...document.querySelectorAll('.lil-gui select')].find(s => s.value === name);
+      if (sel) sel.dispatchEvent(new Event('change'));                              // (it's being viewed: show it now)
+    });
+    return su || new THREE.Group();
+  };
+}
 // every weapon of the missile set, each as its own model viewer entry
 // (dev kit only: loaded in the background, the source names are fine here)
 (async () => {
