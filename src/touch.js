@@ -79,10 +79,11 @@ export function createTouch(root, { ab = true, onLook, onThrottle, onFire, onAir
     // the engine power readout over the lever (the HUD's own throttle scale is hidden on touch)
     setPct(p, ab) { const t = p == null ? '' : p + '%'; if (pctEl.textContent !== t) pctEl.textContent = t; pctEl.classList.toggle('ab', !!ab); },
     setLocked(on) { fire.classList.toggle('locked', on); },
-    // the fire button's icon: 1 guns, 2 missiles, 3 bombs (later)
+    // the fire button's icon: 0 nothing selected (empty), 1 guns, 2 missiles, 3 rockets
     setWeapon(k) {
       if (k === fire._w) return; fire._w = k;
-      fire.innerHTML = k === 2 ? MISSILE.replace('<svg ', '<svg class="wpn msl" ') : k === 3 ? ROCKET.replace('<svg ', '<svg class="wpn rkt" fill="#fff" ') : k === 4 ? BOMB : BULLET;
+      fire.classList.toggle('none', !k);                         // (nothing selected: an empty button, not the cannon's bullet)
+      fire.innerHTML = !k ? '' : k === 2 ? MISSILE.replace('<svg ', '<svg class="wpn msl" ') : k === 3 ? ROCKET.replace('<svg ', '<svg class="wpn rkt" fill="#fff" ') : k === 4 ? BOMB : BULLET;
     },
     // the gear button: shown only when it makes sense (slow or low, or the gear is already down); lit while down
     setGear(show, down) { if (gear.hidden === show) gear.hidden = !show; gear.classList.toggle('down', !!down); },

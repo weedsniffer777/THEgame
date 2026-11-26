@@ -244,6 +244,14 @@ const tut = { camT: 0, camD: null, step: 'off', t: 0, wait: 0, entered: false, f
 const isTouchDev = isTouch, tv = new THREE.Vector3();
 // what the player may use yet: each control is locked until the tutorial step that teaches it
 const tutAllow = { throttle: true, brake: true, gear: true, w1: true, w2: true, w3: true };
+// guns and missile lessons: the view follows (and zooms on) the lesson's enemy until it is down; the player's own
+// tracking is off meanwhile (and on touch its button is hidden for the whole tutorial)
+const TUT_GUNS = ['select1', 'close', 'aim', 'kill'], TUT_MSL = ['spotB', 'lock', 'spotB2', 'fire', 'chase'];
+function tutForced() {
+  if (!mission || tut.step === 'off' || !tutActive()) return null;
+  const d = TUT_GUNS.includes(tut.step) ? tut.gt : TUT_MSL.includes(tut.step) ? mission.stragglers[1] : null;
+  return d && d.alive && !d.falling && !d.hidden ? d : null;
+}
 function tutUnlock() { for (const k in tutAllow) tutAllow[k] = true; }
 function tutActive() { return mission && !save.tutorialDone; }
 // tutorial: at least one bomber in every 1-3 bomber kills blows up (the usual chance applies in between), but never
@@ -264,7 +272,7 @@ function tutGo(step, wait = 0.4) { tut.redo = null; tut.fs = []; tut.showT = 0; 
 function tutReset() {
   overlay.hold(0, null); overlay.clear();
   const on = !!tutActive(), W = weapons.S;
-  document.body.classList.toggle('tut-noarms', on); document.body.classList.toggle('tut-nomap', on); document.body.classList.toggle('tut-nobrake', on);
+  document.body.classList.toggle('tut-noarms', on); document.body.classList.toggle('tut-nomap', on); document.body.classList.toggle('tut-nobrake', on); document.body.classList.toggle('tut-nozoom', on);
   if (!on) { tut.step = 'off'; W.allow.gun = W.allow.missile = true; tutUnlock(); if (!W.selected) weapons.select(1); return; }
   mission.noBreak = true;
   for (const k in tutAllow) tutAllow[k] = false;   // (each is unlocked by the step that teaches it; gear: after the tutorial)
@@ -394,14 +402,15 @@ function tutorialStep(dt) {
     case 'select1':
       if (first) { tutAllow.w1 = true; document.body.classList.remove('tut-noarms'); overlay.say('Select cannon to destroy the enemy');
         const col = { sel: '#arms .col[data-w="1"]', pad: 6 };
-        if (T) { overlay.spot([foeSpot(A), col], TDIM); overlay.point([{ ...col, from: fromFor(col.sel) }]); } else { showKeys(() => overlay.keys([cap('guns')])); overlay.spot([foeSpot(A), col], 0.35); }
+        const foe = foeSpot(tut.gt || A);
+        if (T) { overlay.spot([foe, col], TDIM); overlay.point([{ ...col, from: fromFor(col.sel) }]); } else { showKeys(() => overlay.keys([cap('guns')])); overlay.spot([foe, col], 0.35); }
       }
       capsStep(dt, (dt) => W.selected === 1 ? dt / 0.2 : 0, () => tutGo('close', 0.1));
       break;
     case 'close':
       if (first) { overlay.say('Close in'); overlay.spot([{ sel: gunBox, pad: 5 }], 0.2); }
       if (down(tut.gt)) { gunsDone(); break; }
-      if (tut.gt.pos.distanceTo(ac.pos) <= WEAPONS.gunRange) tutGo(W.allow.gun ? 'kill' : 'aim', 0);
+      if (tut.gt.pos.distanceTo(ac.pos) <= WEAPONS.gunRange) tutGo('aim', 0);
       break;
     case 'aim':      // aim and shoot, one step: two lines over the keys
       if (first) {
@@ -411,8 +420,9 @@ function tutorialStep(dt) {
         else { overlay.say('Aim by pointing the nose in the circle!\nShoot by pressing'); showKeys(() => overlay.keys(FIRE_KEYS())); overlay.spot(aimSpots, 0.15); }
       }
       if (down(tut.gt)) { gunsDone(); break; }
-      capsStep(dt, (dt) => W.firing && W.selected === 1 ? dt / 0.8 : 0, () => { overlay.clear(); tut.step = 'kill'; tut.t = 0; });
-      if (tut.doneT <= 0 && tut.gt.pos.distanceTo(ac.pos) > WEAPONS.gunRange * 1.2) tutGo('close', 0);
+      // the keys fill while firing, but the step (its line and spotlight) stays until the rounds have brought it down
+      tut.f = Math.min(1, tut.f + (W.firing && W.selected === 1 ? dt / 0.8 : 0)); for (let k = 0; k < 6; k++) overlay.fill(k, tut.f);
+      if (tut.gt.pos.distanceTo(ac.pos) > WEAPONS.gunRange * 1.2) tutGo('close', 0);
       break;
     case 'kill':     // shown how: now the fight is theirs (but "close in" comes back if they drift well out of range)
       if (down(tut.gt)) gunsDone();
@@ -437,7 +447,7 @@ function tutorialStep(dt) {
     case 'lock':
       if (first) { overlay.say('Wait for the missile to lock on the target'); overlay.spot([{ sel: '#seeker', round: true, pad: 4 }], 0.25); }
       if (down(B)) { tutUnlock(); tutGo('final', 0.4); break; }
-      if (W.selected !== 2) { if (W.stock > 0) tutGo('spotB2', 0); else { tutAllow.w1 = W.allow.gun = true; tut.gt = B; tutGo('close', 0.3); } break; }
+      if (W.selected !== 2) { if (W.stock > 0) tutGo('spotB2', 0); else { tutAllow.w1 = W.allow.gun = true; tut.gt = B; tutGo('select1', 0.3); } break; }
       if (W.locked && W.seeker === B) { W.allow.missile = true; tutGo('fire', 0); }
       break;
     case 'spotB2':   // (switched away from missiles: back to them)
@@ -455,6 +465,8 @@ function tutorialStep(dt) {
         else { overlay.say('When the missile is locked, launch with'); showKeys(() => overlay.keys(FIRE_KEYS())); overlay.spot([foeSpot(B), ...missileSpots()], 0.2); }
       }
       if (down(B)) { tutUnlock(); tutGo('final', 0.4); break; }
+      // launched: at once every weapon is put away (and none can be picked) until this one is down or the missile missed
+      if (W.stock < tut.stock && W.selected) { weapons.setFiring(false); weapons.select(0); W.allow.missile = W.allow.gun = false; tutAllow.w1 = tutAllow.w2 = tutAllow.w3 = false; }
       capsStep(dt, () => W.stock < tut.stock ? 1 : 0, () => { tut.step = 'chase'; tut.t = 0; overlay.say(''); overlay.keys([]); });
       if (tut.doneT <= 0 && (tut.lost = W.locked ? 0 : tut.lost + dt) > 1) tutGo('lock', 0);   // lost the lock: find it again
       break;
@@ -462,8 +474,8 @@ function tutorialStep(dt) {
       const flying = W.missiles.some(m => m.owner === 'player');
       if (down(B)) { tutUnlock(); tutGo('final', 0.4); }
       else if (!flying && tut.t > 0.5) {
-        if (W.stock > 0) tutGo('lock', 0.3);                 // missed: again
-        else { tutAllow.w1 = W.allow.gun = true; tut.gt = B; tutGo('close', 0.3); }   // out of missiles (it switched to guns): finish it with those
+        if (W.stock > 0) { tutAllow.w2 = true; tutGo('spotB2', 0.3); }   // missed: pick missiles again
+        else { tutAllow.w1 = W.allow.gun = true; tut.gt = B; tutGo('select1', 0.3); }   // out of missiles: finish it with the cannon
       }
       break;
     }
@@ -471,7 +483,7 @@ function tutorialStep(dt) {
       if (first) {
         for (const d of weapons.drones) { d.hidden = false; d.noLock = false; }
         W.allow.gun = W.allow.missile = true; tutUnlock();
-        document.body.classList.remove('tut-noarms', 'tut-nomap', 'tut-nobrake'); if (!W.selected) weapons.select(1);
+        document.body.classList.remove('tut-noarms', 'tut-nomap', 'tut-nobrake', 'tut-nozoom'); if (!W.selected) weapons.select(1);
         mission.toLoop();
         weapons.setFiring(false);
         overlay.say('Destroy the remaining enemies!');
@@ -1113,7 +1125,9 @@ function frameBody(now) {
   weapons.render(camera, vdt, gameT, a, drawPos, drawQuat, renderer);
   jet.damage.update(vdt);
   ac.damageFx = jet.damage.effects();
-  rig.zoom += ((rig.zooming ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);
+  const forced = tutForced();
+  if (forced) { rig.zooming = false; trackLock = null; }                   // (the tutorial has the view: no manual tracking)
+  rig.zoom += ((rig.zooming || forced ? 1 : 0) - rig.zoom) * Math.min(1, dt * 10);
   // tracking: held right click (or the tutorial, a moment after a new enemy appears) turns the view to an enemy: the
   // gun target if there is one, otherwise the nearest
   {
@@ -1123,7 +1137,7 @@ function frameBody(now) {
     if (!rig.zooming) trackLock = null;
     else if (!trackLock) trackLock = trackTarget();
     if (trackLock && (!trackLock.alive || trackLock.falling)) { rig.zooming = false; trackLock = null; }
-    const want = running && !dead && (rig.zooming || tut.camT > 0) ? (tut.camT > 0 ? tut.camD : trackLock) : null;
+    const want = running && !dead ? (forced || (rig.zooming || tut.camT > 0 ? (tut.camT > 0 ? tut.camD : trackLock) : null)) : null;
     if (want) rig.trackPt = want.obj.position;
     rig.trackK += ((want ? 1 : 0) - rig.trackK) * Math.min(1, dt * 4);
   }

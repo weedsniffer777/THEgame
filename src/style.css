@@ -269,7 +269,7 @@ body.touch #pause .sbar { width: 9px; }
 #layed .bar button[data-act="done"] { background: rgba(236,246,238,0.92); color: #0a0e14; }
 body.layout-edit #touch, body.layout-edit #hud { display: block !important; z-index: 52; }
 body.layout-edit #hud > :not(#arms) { visibility: hidden !important; }
-html body.layout-edit #arms, html body.layout-edit .t-fire, html body.layout-edit .t-brake { visibility: visible !important; }   /* (whatever the tutorial has hidden so far) */
+html body.layout-edit #arms, html body.layout-edit .t-fire, html body.layout-edit .t-brake, html body.layout-edit .t-zoom { visibility: visible !important; }   /* (whatever the tutorial has hidden so far) */
 html body.layout-edit .t-gear[hidden] { display: grid !important; }
 body.layout-edit :is(.t-throttle, .t-btn, .t-fire, #arms) { pointer-events: auto; cursor: grab; outline: 2px dashed rgba(255,255,255,0.75); outline-offset: 6px; }
 body.layout-edit .dragging { outline-color: #8dffb0 !important; cursor: grabbing; }
@@ -321,7 +321,9 @@ body.dead #hud, body.dead #touch { display: none; }
 #tut .fx.done .tarrow svg { fill: #8dffb0; }
 @keyframes tutpulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(120,255,160,0.75); } 45% { transform: scale(1.13); box-shadow: 0 0 0 9px rgba(120,255,160,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(120,255,160,0); } }
 /* the tutorial hides the weapons and the map until it introduces them */
-body.tut-nobrake .t-brake { visibility: hidden !important; }   /* (each control shows when the tutorial teaches it) */
+body.tut-nobrake .t-brake { visibility: hidden !important; }
+body.tut-nozoom .t-zoom { visibility: hidden !important; }   /* (the tutorial follows the enemy itself) */
+.t-fire.none { opacity: 0.45; }   /* (each control shows when the tutorial teaches it) */
 body.tut-noarms #arms, body.tut-noarms #seeker, body.tut-noarms #lockc, body.tut-noarms #gunsol, body.tut-noarms .t-fire { visibility: hidden !important; }
 body.tut-nomap #minimap { visibility: hidden; }
 /* the ring round the reticle: pointers toward what is outside it */
